@@ -26,7 +26,7 @@ subroutine dfupdd_nm_pos1 ( field, ks, ke, gdp )
 !                                                                               
 !-------------------------------------------------------------------------------
 !  $Id: dfupdd_nm_pos1.F90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/flow2d3d/packages/data/src/parallel_mpi/dfupdd_nm_pos1.F90 $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/engines_gpl/flow2d3d/packages/data/src/parallel_mpi/dfupdd_nm_pos1.F90 $
 !!--description-----------------------------------------------------------------
 !
 !   Updates field array of type double precision through exchanging halo values

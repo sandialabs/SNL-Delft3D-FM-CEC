@@ -24,7 +24,7 @@
 !  Stichting Deltares. All rights reserved.                                     
 
 !  $Id: ec_support.f90 8071 2018-01-30 12:53:12Z spee $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_lgpl/ec_module/packages/ec_module/src/ec_support.f90 $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_lgpl/ec_module/packages/ec_module/src/ec_support.f90 $
 
 !> This module contains support methods for the EC-module.
 !! @author adri.mourits@deltares.nl

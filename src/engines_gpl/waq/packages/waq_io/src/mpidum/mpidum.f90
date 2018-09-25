@@ -30,7 +30,7 @@
 !
 !-- VERSION HISTORY ----------------------------------------------------------
 !
-!   $URL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/waq/packages/waq_io/src/mpidum/mpidum.f90 $
+!   $URL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/engines_gpl/waq/packages/waq_io/src/mpidum/mpidum.f90 $
 !   $Revision: 31 $, $Date: 2007-11-01 11:16:19 +0100 (Thu, 01 Nov 2007) $
 !
 !   Programmer: Edwin Vollebregt (VORtech)

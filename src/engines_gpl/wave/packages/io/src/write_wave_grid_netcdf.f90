@@ -26,7 +26,7 @@ subroutine write_wave_grid_netcdf (i_grid, sg, gridname, filename)
 !                                                                               
 !-------------------------------------------------------------------------------
 !  $Id: write_wave_grid_netcdf.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/wave/packages/io/src/write_wave_grid_netcdf.f90 $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/engines_gpl/wave/packages/io/src/write_wave_grid_netcdf.f90 $
 !!--description-----------------------------------------------------------------
 !
 !  Write SWAN grid to a temporary NetCDF file, to be used by ESMF_RegridWeightsGen

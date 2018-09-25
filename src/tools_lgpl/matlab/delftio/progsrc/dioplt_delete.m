@@ -35,7 +35,7 @@ function dioplt_delete(PLT)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/delftio/progsrc/dioplt_delete.m $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_lgpl/matlab/delftio/progsrc/dioplt_delete.m $
 %   $Id: dioplt_delete.m 7992 2018-01-09 10:27:35Z mourits $
 
 dio_delete(PLT.dsh);

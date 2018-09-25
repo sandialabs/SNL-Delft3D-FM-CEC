@@ -26,7 +26,7 @@ module string_module
 !                                                                               
 !-------------------------------------------------------------------------------
 !  $Id: string_module.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_lgpl/deltares_common/packages/deltares_common/src/string_module.f90 $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_lgpl/deltares_common/packages/deltares_common/src/string_module.f90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: - Various string processing routines
@@ -77,7 +77,7 @@ module string_module
           !! executable statements ---------------------------------------------------
           !
           call addmessage(messages,'$Id: string_module.f90 7992 2018-01-09 10:27:35Z mourits $')
-          call addmessage(messages,'$URL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_lgpl/deltares_common/packages/deltares_common/src/string_module.f90 $')
+          call addmessage(messages,'$URL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_lgpl/deltares_common/packages/deltares_common/src/string_module.f90 $')
       end subroutine string_module_info
 
 

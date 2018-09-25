@@ -29,7 +29,7 @@ function l=qp_vector(Parent,vectorstyle,x,y,z,xc,yc,zc,varargin)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/private/qp_vector.m $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_lgpl/matlab/quickplot/progsrc/private/qp_vector.m $
 %   $Id: qp_vector.m 7992 2018-01-09 10:27:35Z mourits $
 
 args = varargin;

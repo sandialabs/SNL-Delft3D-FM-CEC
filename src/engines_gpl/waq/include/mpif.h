@@ -31,7 +31,7 @@
 !
 ! =============================================================================
 !
-!     $URL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/waq/include/mpif.h $
+!     $URL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/engines_gpl/waq/include/mpif.h $
 !     $Revision: 822 $, $Date: 2007-03-14 19:07:11 +0100 (Wed, 14 Mar 2007) $
 !
 !     Version 1.1    Date 12-07-2006  beheer: add MPI_ARGV_NULL and

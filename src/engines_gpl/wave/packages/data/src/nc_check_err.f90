@@ -26,7 +26,7 @@ subroutine nc_check_err(ierror, description, filename)
 !                                                                               
 !-------------------------------------------------------------------------------
 !  $Id: nc_check_err.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/wave/packages/data/src/nc_check_err.f90 $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/engines_gpl/wave/packages/data/src/nc_check_err.f90 $
 !!--description-----------------------------------------------------------------
 ! NONE
 !!--pseudo code and references--------------------------------------------------

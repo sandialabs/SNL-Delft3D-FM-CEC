@@ -46,7 +46,7 @@ function DATA = qpcross(varargin)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/qpcross.m $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_lgpl/matlab/quickplot/progsrc/qpcross.m $
 %   $Id: qpcross.m 7992 2018-01-09 10:27:35Z mourits $
 
 if nargin<4 % DOMAINNR and SUBFIELD are only required for some FIELDs

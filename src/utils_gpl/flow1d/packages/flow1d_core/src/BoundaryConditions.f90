@@ -27,7 +27,7 @@ module m_boundaryConditions
 !                                                                               
 !-------------------------------------------------------------------------------
 !  $Id: BoundaryConditions.f90 8044 2018-01-24 15:35:11Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_gpl/flow1d/packages/flow1d_core/src/BoundaryConditions.f90 $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_gpl/flow1d/packages/flow1d_core/src/BoundaryConditions.f90 $
 !-------------------------------------------------------------------------------
 
    use MessageHandling

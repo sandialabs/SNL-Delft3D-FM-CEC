@@ -28,7 +28,7 @@ function File = qp_refresh(File)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/private/qp_refresh.m $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_lgpl/matlab/quickplot/progsrc/private/qp_refresh.m $
 %   $Id: qp_refresh.m 7992 2018-01-09 10:27:35Z mourits $
 
 if strcmp(File.FileType,'diff')

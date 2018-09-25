@@ -25,7 +25,7 @@
 !                                                                               
 !-------------------------------------------------------------------------------
 !  $Id: wridoc.f 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_gpl/waqpb/packages/waqpb_lib/src/wridoc.f $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_gpl/waqpb/packages/waqpb_lib/src/wridoc.f $
 
       subroutine wridoc ( procid, procnm, procco, procfo, lun )
       character*50 procnm

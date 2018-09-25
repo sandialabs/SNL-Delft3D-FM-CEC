@@ -30,7 +30,7 @@ function Prop=qp_datafield_name2prop(FI,Domain,Name)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/private/qp_datafield_name2prop.m $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_lgpl/matlab/quickplot/progsrc/private/qp_datafield_name2prop.m $
 %   $Id: qp_datafield_name2prop.m 7992 2018-01-09 10:27:35Z mourits $
 
 Fcn = qp_file2function(FI);

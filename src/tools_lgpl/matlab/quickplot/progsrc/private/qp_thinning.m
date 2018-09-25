@@ -36,7 +36,7 @@ function [data,s] = qp_thinning(data,Ops)
 %
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/private/qp_thinning.m $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_lgpl/matlab/quickplot/progsrc/private/qp_thinning.m $
 %   $Id: qp_thinning.m 7992 2018-01-09 10:27:35Z mourits $
 
 multi_time = isfield(data,'Time') && length(data(1).Time)>1;

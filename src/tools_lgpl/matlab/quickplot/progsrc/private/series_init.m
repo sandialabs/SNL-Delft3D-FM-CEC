@@ -68,7 +68,7 @@ function SERINFO=series_init(varargin),
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/private/series_init.m $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_lgpl/matlab/quickplot/progsrc/private/series_init.m $
 %   $Id: series_init.m 7992 2018-01-09 10:27:35Z mourits $
 
 N=0;

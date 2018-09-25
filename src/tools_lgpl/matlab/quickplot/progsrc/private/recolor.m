@@ -37,7 +37,7 @@ function recolor(colit,FClr,TClr)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/private/recolor.m $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_lgpl/matlab/quickplot/progsrc/private/recolor.m $
 %   $Id: recolor.m 7992 2018-01-09 10:27:35Z mourits $
 
 if ~ishandle(colit),

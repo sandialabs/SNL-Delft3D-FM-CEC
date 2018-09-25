@@ -24,7 +24,7 @@
 !  Stichting Deltares. All rights reserved.                                     
 
 !  $Id: ec_filereader.F90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_lgpl/ec_module/packages/ec_module/src/ec_filereader.F90 $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_lgpl/ec_module/packages/ec_module/src/ec_filereader.F90 $
 
 !> This module contains all the methods for the datatype tEcFileReader.
 !! @author adri.mourits@deltares.nl

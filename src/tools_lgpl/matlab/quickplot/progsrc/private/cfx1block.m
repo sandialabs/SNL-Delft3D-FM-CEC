@@ -32,7 +32,7 @@ function Data=cfx1block(dmp,minfo,var,varargin)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/private/cfx1block.m $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_lgpl/matlab/quickplot/progsrc/private/cfx1block.m $
 %   $Id: cfx1block.m 7992 2018-01-09 10:27:35Z mourits $
 
 if nargin==1

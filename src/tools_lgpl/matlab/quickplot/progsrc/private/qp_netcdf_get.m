@@ -34,7 +34,7 @@ function [Data, errmsg] = qp_netcdf_get(FI,var,RequestDims,RequestedSubset)
 %
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/private/qp_netcdf_get.m $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_lgpl/matlab/quickplot/progsrc/private/qp_netcdf_get.m $
 %   $Id: qp_netcdf_get.m 7992 2018-01-09 10:27:35Z mourits $ 
 
 errmsg='';

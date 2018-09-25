@@ -28,7 +28,7 @@ function I = reducepoints_r13_6p5(thresh,X,Y,Z);
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/private/reducepoints_r13_6p5.m $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_lgpl/matlab/quickplot/progsrc/private/reducepoints_r13_6p5.m $
 %   $Id: reducepoints_r13_6p5.m 7992 2018-01-09 10:27:35Z mourits $
 
 %#mex

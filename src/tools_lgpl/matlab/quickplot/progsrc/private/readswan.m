@@ -28,7 +28,7 @@ function S=readswan(FileName)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/private/readswan.m $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_lgpl/matlab/quickplot/progsrc/private/readswan.m $
 %   $Id: readswan.m 7992 2018-01-09 10:27:35Z mourits $
 
 S.FileName=FileName;

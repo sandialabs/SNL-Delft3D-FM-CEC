@@ -30,7 +30,7 @@ subroutine inigeo_dd(lundia    ,mmax      ,nmax      ,nmaxus    ,guu       , &
 !                                                                               
 !-------------------------------------------------------------------------------
 !  $Id: inigeo_dd.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/flow2d3d/packages/kernel/src/dd/inigeo_dd.f90 $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/engines_gpl/flow2d3d/packages/kernel/src/dd/inigeo_dd.f90 $
 !!--description-----------------------------------------------------------------
 !
 ! Sets the geometry parameters of the model running in

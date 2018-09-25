@@ -28,7 +28,7 @@ subroutine ua_vt(facas,      facsk,        sws,      h,   &
 !                                                                               
 !-------------------------------------------------------------------------------
 !  $Id: ua_vt.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_gpl/morphology/packages/morphology_kernel/src/ua_vt.f90 $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_gpl/morphology/packages/morphology_kernel/src/ua_vt.f90 $
 !!--description-----------------------------------------------------------------
 ! computes velocity asymmetry due to waves according to
 ! PhD van Thiel 2009

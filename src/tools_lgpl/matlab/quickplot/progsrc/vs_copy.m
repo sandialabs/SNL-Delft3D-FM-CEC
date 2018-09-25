@@ -57,7 +57,7 @@ function [VSNEW,ErrMsg]=vs_copy(varargin)
 %
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/vs_copy.m $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_lgpl/matlab/quickplot/progsrc/vs_copy.m $
 %   $Id: vs_copy.m 7992 2018-01-09 10:27:35Z mourits $
 
 vs_debug=1;

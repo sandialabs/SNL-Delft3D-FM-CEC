@@ -24,7 +24,7 @@
 !  Stichting Deltares. All rights reserved.                                     
 
 !  $Id: ec_item.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_lgpl/ec_module/packages/ec_module/src/ec_item.f90 $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_lgpl/ec_module/packages/ec_module/src/ec_item.f90 $
 
 !> This module contains all the methods for the datatype tEcItem.
 !! @author arjen.markus@deltares.nl

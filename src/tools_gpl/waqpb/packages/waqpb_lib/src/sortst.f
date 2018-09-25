@@ -25,7 +25,7 @@
 !                                                                               
 !-------------------------------------------------------------------------------
 !  $Id: sortst.f 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_gpl/waqpb/packages/waqpb_lib/src/sortst.f $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_gpl/waqpb/packages/waqpb_lib/src/sortst.f $
 
       subroutine sortst ( c10a , c10b , val , nr )
 c     Subroutine to sort (part of) tables R6-R7-R8

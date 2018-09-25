@@ -25,7 +25,7 @@
 //
 //------------------------------------------------------------------------------
 // $Id: main.cpp 7992 2018-01-09 10:27:35Z mourits $
-// $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_gpl/datsel/packages/datsel/src/main.cpp $
+// $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_gpl/datsel/packages/datsel/src/main.cpp $
  /*
  *  Wrapper for FORTRAN main program: DATSEL
  *

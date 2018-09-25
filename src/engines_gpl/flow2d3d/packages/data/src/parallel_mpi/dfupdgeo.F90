@@ -29,7 +29,7 @@ subroutine dfupdgeo ( alfas     ,fcorio    ,xcor      ,ycor      ,xz        , &
 !                                                                               
 !-------------------------------------------------------------------------------
 !  $Id: dfupdgeo.F90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/flow2d3d/packages/data/src/parallel_mpi/dfupdgeo.F90 $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/engines_gpl/flow2d3d/packages/data/src/parallel_mpi/dfupdgeo.F90 $
 !!--description-----------------------------------------------------------------
 !
 !   exchange geometrical information, e.g. guu, gvu, etc. with neighbours

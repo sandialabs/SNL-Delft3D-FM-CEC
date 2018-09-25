@@ -26,7 +26,7 @@ subroutine tripoi(runid, filmrs, versio, filmd,gdp       )
 !                                                                               
 !-------------------------------------------------------------------------------
 !  $Id: tripoi.F90 8013 2018-01-17 08:46:32Z platzek $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/flow2d3d/packages/manager/src/tripoi.F90 $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/engines_gpl/flow2d3d/packages/manager/src/tripoi.F90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: - initialize system paramaters for a FLOW

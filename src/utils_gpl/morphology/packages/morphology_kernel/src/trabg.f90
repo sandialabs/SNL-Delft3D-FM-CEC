@@ -27,7 +27,7 @@ subroutine trabg(utot      ,di        ,taub      ,par       ,sbot      , &
 !                                                                               
 !-------------------------------------------------------------------------------
 !  $Id: trabg.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_gpl/morphology/packages/morphology_kernel/src/trabg.f90 $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_gpl/morphology/packages/morphology_kernel/src/trabg.f90 $
 !!--description-----------------------------------------------------------------
 !
 !  Computes sediment transport according to the Gaeuman et al modified form of the 

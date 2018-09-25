@@ -28,7 +28,7 @@ function [lon,lat] = qp_proj_rotatepole(lon,lat,lonsp,latsp,deg)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/private/qp_proj_rotatepole.m $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_lgpl/matlab/quickplot/progsrc/private/qp_proj_rotatepole.m $
 %   $Id: qp_proj_rotatepole.m 7992 2018-01-09 10:27:35Z mourits $ 
 
 if deg

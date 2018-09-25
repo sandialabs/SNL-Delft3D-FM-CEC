@@ -28,7 +28,7 @@ subroutine stress(u0        ,v0        ,usus      ,vsus      ,windu     , &
 !                                                                               
 !-------------------------------------------------------------------------------
 !  $Id: stress.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/flow2d3d/packages/kernel/src/compute/stress.f90 $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/engines_gpl/flow2d3d/packages/kernel/src/compute/stress.f90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: The interface stress between the suspension layer

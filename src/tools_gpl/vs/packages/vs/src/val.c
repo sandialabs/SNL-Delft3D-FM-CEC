@@ -25,7 +25,7 @@
 //
 //------------------------------------------------------------------------------
 // $Id: val.c 7992 2018-01-09 10:27:35Z mourits $
-// $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_gpl/vs/packages/vs/src/val.c $
+// $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_gpl/vs/packages/vs/src/val.c $
 
 #include <stdio.h>
 #include <stdlib.h>

@@ -26,7 +26,7 @@ module m_ini_noderel
 !                                                                               
 !-------------------------------------------------------------------------------
 !  $Id: ini_noderel.f90 7998 2018-01-09 16:45:07Z jagers $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_gpl/morphology/packages/morphology_io/src/ini_noderel.f90 $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_gpl/morphology/packages/morphology_io/src/ini_noderel.f90 $
 !!--description-----------------------------------------------------------------
 private
 public ini_noderel

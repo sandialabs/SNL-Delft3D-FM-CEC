@@ -27,7 +27,7 @@ subroutine dimsit(lunmd     ,lundia    ,error     ,nrrec     ,nosite    , &
 !                                                                               
 !-------------------------------------------------------------------------------
 !  $Id: dimsit.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/flow2d3d/packages/io/src/input/dimsit.f90 $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/engines_gpl/flow2d3d/packages/io/src/input/dimsit.f90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: Reads the dimension for site definitions from

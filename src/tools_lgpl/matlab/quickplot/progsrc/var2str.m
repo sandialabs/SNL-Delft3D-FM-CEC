@@ -30,7 +30,7 @@ function Str=var2str(X)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/var2str.m $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_lgpl/matlab/quickplot/progsrc/var2str.m $
 %   $Id: var2str.m 7992 2018-01-09 10:27:35Z mourits $
 
 switch class(X)

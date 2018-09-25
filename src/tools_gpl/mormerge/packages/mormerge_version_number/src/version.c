@@ -25,7 +25,7 @@
 //
 //------------------------------------------------------------------------------
 // $Id: version.c 7992 2018-01-09 10:27:35Z mourits $
-// $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_gpl/mormerge/packages/mormerge_version_number/src/version.c $
+// $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_gpl/mormerge/packages/mormerge_version_number/src/version.c $
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>

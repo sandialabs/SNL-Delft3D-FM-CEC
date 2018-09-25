@@ -24,7 +24,7 @@
 !  Stichting Deltares. All rights reserved.                                     
 
 !  $Id: ec_parameters.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_lgpl/ec_module/packages/ec_module/src/ec_parameters.f90 $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_lgpl/ec_module/packages/ec_module/src/ec_parameters.f90 $
 
 !> This module contains the Ec-module's enumerations and constants.
 !! @author arjen.markus@deltares.nl

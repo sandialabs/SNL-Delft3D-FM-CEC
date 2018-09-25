@@ -28,7 +28,7 @@ function h = plot_vectors(Parent,Data,varargin)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/@qp_data/private/plot_vectors.m $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_lgpl/matlab/quickplot/progsrc/@qp_data/private/plot_vectors.m $
 %   $Id: plot_vectors.m 7992 2018-01-09 10:27:35Z mourits $
 
 PO = initPlotOption;

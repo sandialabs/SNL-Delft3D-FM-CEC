@@ -30,7 +30,7 @@ function d = geodist(dlon1, dlat1, dlon2, dlat2, radius)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/private/geodist.m $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_lgpl/matlab/quickplot/progsrc/private/geodist.m $
 %   $Id: geodist.m 7992 2018-01-09 10:27:35Z mourits $
 
 if nargin<5

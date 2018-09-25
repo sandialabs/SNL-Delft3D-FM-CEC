@@ -59,7 +59,7 @@ function average_trim(source,target,varargin)
 %
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/average_trim.m $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_lgpl/matlab/quickplot/progsrc/average_trim.m $
 %   $Id: average_trim.m 587 2011-06-10 15:39:29Z jagers -- modified version to make MATLAB 6.5 compatible$
 
 if isstandalone && nargin>2

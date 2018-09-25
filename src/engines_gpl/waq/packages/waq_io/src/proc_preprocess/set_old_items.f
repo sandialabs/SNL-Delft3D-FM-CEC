@@ -25,7 +25,7 @@
 !                                                                               
 !-------------------------------------------------------------------------------
 !  $Id: set_old_items.f 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/waq/packages/waq_io/src/proc_preprocess/set_old_items.f $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/engines_gpl/waq/packages/waq_io/src/proc_preprocess/set_old_items.f $
 
       subroutine set_old_items( lurep , old_items, notot , nopa  , nofun    ,
      +                          nosfun, nodisp   , novelo, syname, paname   ,

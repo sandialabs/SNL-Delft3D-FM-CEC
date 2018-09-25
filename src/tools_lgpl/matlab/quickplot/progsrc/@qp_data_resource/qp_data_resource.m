@@ -40,7 +40,7 @@ function X=qp_data_resource(varargin)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/@qp_data_resource/qp_data_resource.m $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_lgpl/matlab/quickplot/progsrc/@qp_data_resource/qp_data_resource.m $
 %   $Id: qp_data_resource.m 7992 2018-01-09 10:27:35Z mourits $
 
 %% Open resource

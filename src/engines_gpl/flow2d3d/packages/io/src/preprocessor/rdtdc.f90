@@ -28,7 +28,7 @@ subroutine rdtdc(lundia    ,lunout    ,lunrd     ,error     ,filbcc    , &
 !                                                                               
 !-------------------------------------------------------------------------------
 !  $Id: rdtdc.f90 8013 2018-01-17 08:46:32Z platzek $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/flow2d3d/packages/io/src/preprocessor/rdtdc.f90 $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/engines_gpl/flow2d3d/packages/io/src/preprocessor/rdtdc.f90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: Reads time dependent constituent data from old

@@ -25,7 +25,7 @@
 //                                                                              
 //------------------------------------------------------------------------------
 // $Id: vl.i 7992 2018-01-09 10:27:35Z mourits $
-// $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_gpl/vs/packages/vs/include/vl.i $
+// $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_gpl/vs/packages/vs/include/vl.i $
 /* macro for function to calculate r = a oprtr constant */
 #define FUNC( type_a ) \
     static BInt2 gen ## type_a  ( \

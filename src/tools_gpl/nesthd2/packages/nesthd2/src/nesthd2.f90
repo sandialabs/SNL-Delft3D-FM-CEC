@@ -28,7 +28,7 @@ program nesthd2
 !                                                                               
 !-------------------------------------------------------------------------------
 !  $Id: nesthd2.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_gpl/nesthd2/packages/nesthd2/src/nesthd2.f90 $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_gpl/nesthd2/packages/nesthd2/src/nesthd2.f90 $
 !***********************************************************************
 ! Deltares                         marine and coastal management
 !

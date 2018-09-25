@@ -27,7 +27,7 @@ subroutine tranb2(utot      ,d50       ,d90       ,chezy     ,h         , &
 !                                                                               
 !-------------------------------------------------------------------------------
 !  $Id: tranb2.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_gpl/morphology/packages/morphology_kernel/src/tranb2.f90 $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_gpl/morphology/packages/morphology_kernel/src/tranb2.f90 $
 !!--description-----------------------------------------------------------------
 ! computes sediment transport according to
 ! meyer-peter-muller (comor/rivcom)

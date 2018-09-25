@@ -25,7 +25,7 @@
 //
 //------------------------------------------------------------------------------
 // $Id: precision.h 7992 2018-01-09 10:27:35Z mourits $
-// $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_lgpl/deltares_common/packages/deltares_common_c/include/precision.h $
+// $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_lgpl/deltares_common/packages/deltares_common_c/include/precision.h $
 //
 // Delft3D-FLOW Precision definition
 //
