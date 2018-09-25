@@ -101,6 +101,8 @@ implicit none
     character(len=255) :: md_shipdeffile   = ' ' !< File containing shipdefinition    (e.g., *.shd)
 
     character(len=255) :: md_restartfile   = ' ' !< File containing map-files to restart a computation          (e.g., *_map.nc), input only, NOT used for storing the names of output restart files.
+    
+    character(len=255) :: md_trbfile       = ' ' !< Turbine File
 
     character(len=255) :: md_extfile       = ' ' !< External forcing specification file (e.g., *.ext)
     character(len=255) :: md_extfile_new   = ' ' !< External forcing specification file new style (bct format), (e.g., *.ext)
@@ -243,6 +245,7 @@ use unstruc_netcdf, only: UNC_CONV_UGRID
     md_manholefile = ' '
     md_shipdeffile = ' '
     md_restartfile = ' '
+    md_trbfile = ' '
     md_extfile = ' '
     md_extfile_new  = ' '
     md_structurefile = ' '
@@ -580,6 +583,7 @@ subroutine readMDUFile(filename, istat)
     use MessageHandling
 
     use m_sediment
+    use m_rdturbine
     use m_waves, only: hwavuni, twavuni, phiwavuni
 
 
@@ -1186,6 +1190,8 @@ subroutine readMDUFile(filename, istat)
 
     !
     ! TIDAL TURBINES: Insert calls to rdturbine and echoturbine here (use the structure_turbines variable defined in m_structures)
+    call prop_get_string(md_ptr, 'Turbines', 'TurbineFile', md_trbfile, success)
+    
     !
 ! Restart information
     call prop_get_string(md_ptr, 'restart', 'RestartFile', md_restartfile, success)
