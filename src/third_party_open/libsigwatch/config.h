@@ -1,4 +1,4 @@
-/* config.h.  Hand-crafted for use on MS Windows with MS Visual C++.  */
+/* config.h.  Generated from config.h.in by configure.  */
 /* config.h.in.  Generated from configure.ac by autoheader.  */
 
 /* Define to dummy `main' function (if any) required to link to the Fortran
@@ -7,10 +7,10 @@
 
 /* Define to a macro mangling the given C identifier (in lower and upper
    case), which must not contain underscores, for linking with Fortran. */
-#define F77_FUNC(name,NAME) NAME
+#define F77_FUNC(name,NAME) name ## _
 
 /* As F77_FUNC, but for C identifiers containing underscores. */
-#define F77_FUNC_(name,NAME) NAME ## _
+#define F77_FUNC_(name,NAME) name ## __
 
 /* Define if F77 and FC dummy `main' functions are identical. */
 /* #undef FC_DUMMY_MAIN_EQ_F77 */
@@ -51,8 +51,7 @@
 /* Define to 1 if you have the <unistd.h> header file. */
 #define HAVE_UNISTD_H 1
 
-/* Define to the sub-directory in which libtool stores uninstalled libraries.
-   */
+/* Define to the sub-directory where libtool stores uninstalled libraries. */
 #define LT_OBJDIR ".libs/"
 
 /* Name of package */
@@ -69,6 +68,9 @@
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "libsigwatch"
+
+/* Define to the home page for this package. */
+#define PACKAGE_URL ""
 
 /* Define to the version of this package. */
 #define PACKAGE_VERSION "1.0"

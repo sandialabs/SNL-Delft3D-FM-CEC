@@ -21,6 +21,16 @@
 #   
 #-------------------------------------------------------------------------------
 
+module purge
+module load sierra-devel/intel-14.0-openmpi-1.6.4
+
+## to find uuid.h and luuid
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/lib64
+
+
+
+#./clean.sh
+
 # This script must be executed in the directory where it resides
 orgdir=`pwd`
 scriptdirname=`readlink \-f \$0`
@@ -138,6 +148,13 @@ while [ $# -gt 0 ]; do
     shift
 done
 
+
+#===============================================================================
+# Sandia Defaults
+#===============================================================================
+platform='intel64'
+compiler='intel14'
+
 if [ "$compiler" == '' ]; then
     echo "You must specify a compiler"
     usage
@@ -166,7 +183,8 @@ case $compiler in
         ;;
 
     intel14)
-        ifortInit=". /opt/intel/composer_xe_2013_sp1.3.174/bin/compilervars.sh $platform"
+        #ifortInit=". /opt/intel/composer_xe_2013_sp1.3.174/bin/compilervars.sh $platform"
+        ifortInit=". /projects/sierra/linux_rh6/SDK/compilers/intel/composer_xe_2013_sp1.4.211/bin/compilervars.sh $platform"
         iccInit=""
         echo "Using Intel 14.0.3 Fortran ($platform) compiler"
         ;;
@@ -255,18 +273,20 @@ addpath PATH \
 #---------------------
 # mpich2
 if [ "$compiler" = 'gnu' ]; then
-    addpath PATH /opt/mpich2-1.4.1-gcc-4.6.2/bin
-    export MPI_INCLUDE=/opt/mpich2-1.4.1-gcc-4.6.2/include
-    export MPILIBS_ADDITIONAL="-L/opt/mpich2-1.4.1-gcc-4.6.2/lib -lfmpich -lmpich -lmpl"
+    addpath PATH /projects/sierra/linux_rh6/SDK/mpi/openmpi/1.6.4-intel-14.0-2013_sp1.4.211-RHEL6/bin
+    #export MPI_INCLUDE=/opt/mpich2-1.4.1-gcc-4.6.2/include
+    export MPI_INCLUDE=/projects/sierra/linux_rh6/SDK/mpi/openmpi/1.6.4-intel-14.0-2013_sp1.4.211-RHEL6/include
+    export MPILIBS_ADDITIONAL="-L/projects/sierra/linux_rh6/SDK/mpi/openmpi/1.6.4-intel-14.0-2013_sp1.4.211-RHEL6/lib -lfmpich -lmpich -lmpl"
     # export MPILIBS_ADDITIONAL=" "
-    export MPIFC=/opt/mpich2-1.4.1-gcc-4.6.2/bin/mpif90  
+    export MPIFC=/projects/sierra/linux_rh6/SDK/mpi/openmpi/1.6.4-intel-14.0-2013_sp1.4.211-RHEL6/bin/mpif90
 else
     # Intel compilers
-    addpath PATH /opt/mpich2-1.0.8-intel64/bin
-    export MPI_INCLUDE=/opt/mpich2-1.0.8-intel64-PIC/include
-    export MPILIBS_ADDITIONAL="-L/opt/mpich2-1.0.8-intel64-PIC/lib -lfmpich -lmpich"
+    addpath PATH /projects/sierra/linux_rh6/SDK/mpi/openmpi/1.6.4-intel-14.0-2013_sp1.4.211-RHEL6/bin
+    export MPI_INCLUDE=/projects/sierra/linux_rh6/SDK/mpi/openmpi/1.6.4-intel-14.0-2013_sp1.4.211-RHEL6/include
+    #export MPILIBS_ADDITIONAL="-L/projects/sierra/linux_rh6/SDK/mpi/openmpi/1.6.4-intel-14.0-2013_sp1.4.211-RHEL6/lib -lfmpich -lmpich"
+    export MPILIBS_ADDITIONAL="-L/projects/sierra/linux_rh6/SDK/mpi/openmpi/1.6.4-intel-14.0-2013_sp1.4.211-RHEL6/lib"
     if [ "$platform" = 'intel64' ]; then
-        export MPIFC=/opt/mpich2-1.0.8-intel64-PIC/bin/mpif90  
+        export MPIFC=/projects/sierra/linux_rh6/SDK/mpi/openmpi/1.6.4-intel-14.0-2013_sp1.4.211-RHEL6/bin/mpif90
     fi
 fi
 
@@ -292,7 +312,9 @@ fi
 
 #---------------------
 # netcdf
- export NETCDFROOT=/p/delft3d/opt/netcdf-4.1.3mt/intel11.1
+ #export NETCDFROOT=/p/delft3d/opt/netcdf-4.1.3mt/intel11.1
+ export NETCDFROOT=/usr/netpub/netcdf-fortran/
+
  export PKG_CONFIG_PATH=$NETCDFROOT/lib/pkgconfig:$PKG_CONFIG_PATH
  export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$NETCDFROOT/lib
 
