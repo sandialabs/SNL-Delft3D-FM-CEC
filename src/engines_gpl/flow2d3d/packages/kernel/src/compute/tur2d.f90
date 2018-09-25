@@ -36,7 +36,7 @@ subroutine tur2d(dischy    ,j         ,nmmaxj    ,nmmax     ,nmax      , &
 !                                                                               
 !-------------------------------------------------------------------------------
 !  $Id: tur2d.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/flow2d3d/packages/kernel/src/compute/tur2d.f90 $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/engines_gpl/flow2d3d/packages/kernel/src/compute/tur2d.f90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: Computes transport in the u and v -direction of

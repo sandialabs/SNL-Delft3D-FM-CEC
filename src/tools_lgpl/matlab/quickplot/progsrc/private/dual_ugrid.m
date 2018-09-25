@@ -28,8 +28,8 @@ function data = dual_ugrid(data)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/private/dual_ugrid.m $
-%   $Id: dual_ugrid.m 62258 2018-10-04 21:01:37Z jagers $ 
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_lgpl/matlab/quickplot/progsrc/private/dual_ugrid.m $
+%   $Id: dual_ugrid.m 7992 2018-01-09 10:27:35Z mourits $ 
 
 X = data.X;
 Y = data.Y;

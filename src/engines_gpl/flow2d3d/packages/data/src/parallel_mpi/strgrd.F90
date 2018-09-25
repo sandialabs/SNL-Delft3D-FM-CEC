@@ -27,7 +27,7 @@ subroutine strgrd ( icom, runid, mmax, nmax, mmaxgl, nmaxgl, &
 !                                                                               
 !-------------------------------------------------------------------------------
 !  $Id: strgrd.F90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/flow2d3d/packages/data/src/parallel_mpi/strgrd.F90 $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/engines_gpl/flow2d3d/packages/data/src/parallel_mpi/strgrd.F90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: Stores array ICOM for own subdomain in scratch file to be later used

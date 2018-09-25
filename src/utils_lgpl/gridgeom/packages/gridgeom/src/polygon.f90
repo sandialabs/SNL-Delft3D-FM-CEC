@@ -27,8 +27,8 @@
 !                                                                               
 !-------------------------------------------------------------------------------
 
-! $Id: polygon.f90 62219 2018-10-01 13:45:18Z carniato $
-! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_lgpl/gridgeom/packages/gridgeom/src/polygon.f90 $
+! $Id: polygon.f90 8044 2018-01-24 15:35:11Z mourits $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_lgpl/gridgeom/packages/gridgeom/src/polygon.f90 $
    module m_tpoly !< tpoly-type polygon/polyline
    implicit none
 

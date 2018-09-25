@@ -26,7 +26,7 @@ subroutine chkcom(lundia    ,error     ,neffil    ,ftype     ,gdp       )
 !                                                                               
 !-------------------------------------------------------------------------------
 !  $Id: chkcom.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/flow2d3d/packages/kernel/src/inichk/chkcom.f90 $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/engines_gpl/flow2d3d/packages/kernel/src/inichk/chkcom.f90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: Check the comm-file version by reading the element

@@ -24,8 +24,8 @@
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: hydmod.f90 8473 2018-03-29 15:15:45Z jeuke_ml $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_lgpl/io_hyd/packages/io_hyd/src/hydmod.f90 $
+!  $Id: hydmod.f90 7992 2018-01-09 10:27:35Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_lgpl/hyd_to_waq_part_lib/packages/hyd_to_waq_part_lib/src/hydmod.f90 $
 
       module hydmod
 

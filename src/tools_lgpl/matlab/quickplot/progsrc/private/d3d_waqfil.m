@@ -43,8 +43,8 @@ function varargout=d3d_waqfil(FI,domain,field,cmd,varargin)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/private/d3d_waqfil.m $
-%   $Id: d3d_waqfil.m 8109 2018-02-05 12:44:41Z jagers $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_lgpl/matlab/quickplot/progsrc/private/d3d_waqfil.m $
+%   $Id: d3d_waqfil.m 7992 2018-01-09 10:27:35Z mourits $
 
 %========================= GENERAL CODE =======================================
 T_=1; ST_=2; M_=3; N_=4; K_=5;

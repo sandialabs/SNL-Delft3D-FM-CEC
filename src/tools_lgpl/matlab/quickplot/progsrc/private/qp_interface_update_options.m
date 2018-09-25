@@ -28,8 +28,8 @@ function [DomainNr,Props,subf,selected,stats,Ops]=qp_interface_update_options(mf
 %
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/private/qp_interface_update_options.m $
-%   $Id: qp_interface_update_options.m 8084 2018-01-31 13:26:04Z jagers $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_lgpl/matlab/quickplot/progsrc/private/qp_interface_update_options.m $
+%   $Id: qp_interface_update_options.m 7992 2018-01-09 10:27:35Z mourits $
 
 [DomainNr,Props,subf,selected,stats,vslice,hslice] = get_basics(mfig,UD.MainWin);
 [Ops,PlotType,EnablePlot,EnableLoad] = get_options(Props,selected,vslice,hslice,UD);

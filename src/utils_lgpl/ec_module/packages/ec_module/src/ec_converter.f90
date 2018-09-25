@@ -23,8 +23,8 @@
 !  are registered trademarks of Stichting Deltares, and remain the property of  
 !  Stichting Deltares. All rights reserved.                                     
 
-!  $Id: ec_converter.f90 62289 2018-10-09 13:58:53Z pijl $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_lgpl/ec_module/packages/ec_module/src/ec_converter.f90 $
+!  $Id: ec_converter.f90 8034 2018-01-22 13:25:16Z spee $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_lgpl/ec_module/packages/ec_module/src/ec_converter.f90 $
 
 !> This module contains all the methods for the datatype tEcConverter.
 !! @author adri.mourits@deltares.nl

@@ -25,8 +25,8 @@ module m_1d_networkreader
 !  Stichting Deltares. All rights reserved.
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: 1d_networkreader.f90 59779 2018-08-08 14:09:51Z noort $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_gpl/flow1d/packages/flow1d_io/src/1d_networkreader.f90 $
+!  $Id: 1d_networkreader.f90 8044 2018-01-24 15:35:11Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_gpl/flow1d/packages/flow1d_io/src/1d_networkreader.f90 $
 !-------------------------------------------------------------------------------
    
    use MessageHandling

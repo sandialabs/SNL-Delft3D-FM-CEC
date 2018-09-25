@@ -40,7 +40,7 @@ function valo=qp_settings(param,val)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/private/qp_settings.m $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_lgpl/matlab/quickplot/progsrc/private/qp_settings.m $
 %   $Id: qp_settings.m 7992 2018-01-09 10:27:35Z mourits $
 
 persistent Settings qppref

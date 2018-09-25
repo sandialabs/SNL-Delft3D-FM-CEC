@@ -28,7 +28,7 @@ function hNew=gentext(hOld,Ops,Parent,Str)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/private/gentext.m $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_lgpl/matlab/quickplot/progsrc/private/gentext.m $
 %   $Id: gentext.m 7992 2018-01-09 10:27:35Z mourits $
 
 if ~isempty(hOld) & ishandle(hOld)

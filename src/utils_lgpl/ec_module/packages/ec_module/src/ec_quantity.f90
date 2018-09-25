@@ -23,8 +23,8 @@
 !  are registered trademarks of Stichting Deltares, and remain the property of  
 !  Stichting Deltares. All rights reserved.                                     
 
-!  $Id: ec_quantity.f90 59696 2018-07-31 16:16:07Z leander $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_lgpl/ec_module/packages/ec_module/src/ec_quantity.f90 $
+!  $Id: ec_quantity.f90 7992 2018-01-09 10:27:35Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_lgpl/ec_module/packages/ec_module/src/ec_quantity.f90 $
 
 !> This module contains all the methods for the datatype tEcQuantity.
 !! @author arjen.markus@deltares.nl

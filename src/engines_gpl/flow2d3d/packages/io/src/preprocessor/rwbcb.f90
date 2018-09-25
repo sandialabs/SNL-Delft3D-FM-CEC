@@ -26,8 +26,8 @@ subroutine rwbcb(lundia    ,lunrd     ,filinp    ,error     ,itstrt    , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: rwbcb.f90 8579 2018-04-16 08:46:46Z dam_ar $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/flow2d3d/packages/io/src/preprocessor/rwbcb.f90 $
+!  $Id: rwbcb.f90 7992 2018-01-09 10:27:35Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/engines_gpl/flow2d3d/packages/io/src/preprocessor/rwbcb.f90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: - Reads from BCB-file into temporary file

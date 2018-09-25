@@ -25,8 +25,8 @@ module m_flow1d_reader
 !  Stichting Deltares. All rights reserved.
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: flow1d_reader.F90 61839 2018-09-13 13:11:31Z noort $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_gpl/flow1d/packages/flow1d_io/src/flow1d_reader.F90 $
+!  $Id: flow1d_reader.F90 8044 2018-01-24 15:35:11Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_gpl/flow1d/packages/flow1d_io/src/flow1d_reader.F90 $
 !-------------------------------------------------------------------------------
   
    use ModelParameters

@@ -26,8 +26,8 @@ module m_branch
 !  Stichting Deltares. All rights reserved.
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: branches.f90 9176 2018-07-04 12:41:01Z zeekant $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_gpl/flow1d/packages/flow1d_core/src/branches.f90 $
+!  $Id: branches.f90 8044 2018-01-24 15:35:11Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_gpl/flow1d/packages/flow1d_core/src/branches.f90 $
 !-------------------------------------------------------------------------------
 
    use MessageHandling

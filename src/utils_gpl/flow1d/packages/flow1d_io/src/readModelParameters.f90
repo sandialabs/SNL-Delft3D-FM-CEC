@@ -25,8 +25,8 @@ module m_readModelParameters
 !  Stichting Deltares. All rights reserved.
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: readModelParameters.f90 62168 2018-09-26 09:02:37Z zeekant $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_gpl/flow1d/packages/flow1d_io/src/readModelParameters.f90 $
+!  $Id: readModelParameters.f90 8044 2018-01-24 15:35:11Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_gpl/flow1d/packages/flow1d_io/src/readModelParameters.f90 $
 !-------------------------------------------------------------------------------
 
    use MessageHandling

@@ -26,7 +26,7 @@ module his2csv_version_module
 !                                                                               
 !-------------------------------------------------------------------------------
 !  $Id: his2csv_version.F90.svn 6921 2017-01-12 15:07:25Z jeuke_ml $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_lgpl/delftio/packages/his2csv/src/his2csv_version.F90.svn $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_lgpl/delftio/packages/his2csv/src/his2csv_version.F90.svn $
 
 implicit none
 

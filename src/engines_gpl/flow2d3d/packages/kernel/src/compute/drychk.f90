@@ -28,8 +28,8 @@ subroutine drychk(idry      ,s1        ,qxk       ,qyk       ,icx       , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: drychk.f90 9105 2018-06-22 11:59:37Z platzek $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/flow2d3d/packages/kernel/src/compute/drychk.f90 $
+!  $Id: drychk.f90 7992 2018-01-09 10:27:35Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/engines_gpl/flow2d3d/packages/kernel/src/compute/drychk.f90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: This subroutine checks for drying in water level

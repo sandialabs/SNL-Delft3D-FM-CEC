@@ -26,8 +26,8 @@ module ModelTypes
 !  Stichting Deltares. All rights reserved.
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: ModelTypes.f90 61901 2018-09-25 13:47:09Z zeekant $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_gpl/flow1d/packages/flow1d_core/src/ModelTypes.f90 $
+!  $Id: ModelTypes.f90 8044 2018-01-24 15:35:11Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_gpl/flow1d/packages/flow1d_core/src/ModelTypes.f90 $
 !-------------------------------------------------------------------------------
 
     ! model run-time parameters, model state variables

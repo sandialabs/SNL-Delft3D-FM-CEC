@@ -25,7 +25,7 @@
 //
 //------------------------------------------------------------------------------
 // $Id: wl-xdr.c 7992 2018-01-09 10:27:35Z mourits $
-// $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_lgpl/nefis/packages/nefis/src/wl-xdr.c $
+// $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_lgpl/nefis/packages/nefis/src/wl-xdr.c $
 /*
  *   <nef-xdr.c> - Conversion from machine code and IEEE by swapping bytes
  *

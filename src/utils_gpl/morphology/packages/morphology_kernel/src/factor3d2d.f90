@@ -28,7 +28,7 @@ subroutine factor3d2d(kmax      ,aks       ,kmaxsd    ,sig       ,thick     , &
 !                                                                               
 !-------------------------------------------------------------------------------
 !  $Id: factor3d2d.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_gpl/morphology/packages/morphology_kernel/src/factor3d2d.f90 $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_gpl/morphology/packages/morphology_kernel/src/factor3d2d.f90 $
 !!--description-----------------------------------------------------------------
 !
 !   Determine conversion factor between reference concentration caks at aks and

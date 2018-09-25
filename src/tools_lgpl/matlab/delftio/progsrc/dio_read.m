@@ -60,7 +60,7 @@ function varargout = dio_read(dsh,varargin)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/delftio/progsrc/dio_read.m $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_lgpl/matlab/delftio/progsrc/dio_read.m $
 %   $Id: dio_read.m 7992 2018-01-09 10:27:35Z mourits $
 
 % determine number of data items requested

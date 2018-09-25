@@ -29,7 +29,7 @@ subroutine trab19(u         ,v         ,hrms      ,rlabda    ,teta      ,h      
 !                                                                               
 !-------------------------------------------------------------------------------
 !  $Id: trab19.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_gpl/morphology/packages/morphology_kernel/src/trab19.f90 $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_gpl/morphology/packages/morphology_kernel/src/trab19.f90 $
 !!--description-----------------------------------------------------------------
 ! computes sediment transport according to
 ! the transport formula of Van Thiel / Van Rijn (2008)

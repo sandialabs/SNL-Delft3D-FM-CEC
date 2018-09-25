@@ -29,7 +29,7 @@
 !                                                                               
 !-------------------------------------------------------------------------------
 !  $Id: dethyd.f 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_gpl/nesthd2/packages/nesthd2/src/dethyd.f $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_gpl/nesthd2/packages/nesthd2/src/dethyd.f $
 !***********************************************************************
 ! Deltares                         marine and coastal management
 !

@@ -24,8 +24,8 @@
 // Stichting Deltares. All rights reserved.
 //
 //------------------------------------------------------------------------------
-// $Id: cutil.c 8671 2018-05-02 07:45:05Z mourits $
-// $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_lgpl/deltares_common/packages/deltares_common_c/src/cutil.c $
+// $Id: cutil.c 7992 2018-01-09 10:27:35Z mourits $
+// $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_lgpl/deltares_common/packages/deltares_common_c/src/cutil.c $
 //------------------------------------------------------------------------------*/
 //  Delft3D - C Utilities
 //  Internal (legacy) utility functions

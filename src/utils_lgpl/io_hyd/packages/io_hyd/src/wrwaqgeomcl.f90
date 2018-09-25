@@ -24,8 +24,8 @@
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: wrwaqgeomcl.f90 59916 2018-08-28 11:09:21Z dam_ar $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_lgpl/io_hyd/packages/io_hyd/src/wrwaqgeomcl.f90 $
+!  $Id: wrwaqgeomcl.f90 7992 2018-01-09 10:27:35Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_lgpl/hyd_to_waq_part_lib/packages/hyd_to_waq_part_lib/src/wrwaqgeomcl.f90 $
 !!--description-----------------------------------------------------------------
 ! This module prepares the structured grid into an unstructured data structure
 !   and writes it to a UGRID compliant NetCDF file    

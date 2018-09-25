@@ -27,8 +27,8 @@ subroutine windtostress(mmax      ,nmax      ,nmaxus    ,grdang    ,kcs       , 
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: windtostress.f90 8881 2018-05-31 09:49:07Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/flow2d3d/packages/kernel/src/timedep/windtostress.f90 $
+!  $Id: windtostress.f90 7992 2018-01-09 10:27:35Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/engines_gpl/flow2d3d/packages/kernel/src/timedep/windtostress.f90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: Conversion from wind velocity to stresses

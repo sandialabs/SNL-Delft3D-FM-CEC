@@ -25,8 +25,8 @@ subroutine rdcul(nsrc, namsrc ,mnksrc, voldis, gdp)
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: rdcul.f90 8671 2018-05-02 07:45:05Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/flow2d3d/packages/io/src/input/rdcul.f90 $
+!  $Id: rdcul.f90 7992 2018-01-09 10:27:35Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/engines_gpl/flow2d3d/packages/io/src/input/rdcul.f90 $
 !!--description-----------------------------------------------------------------
 ! Reads dimensions, allocates space for data and reads data from INI file for
 ! culverts.

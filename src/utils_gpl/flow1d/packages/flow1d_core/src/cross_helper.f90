@@ -25,8 +25,8 @@ module m_cross_helper
 !  Stichting Deltares. All rights reserved.
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: cross_helper.f90 61510 2018-09-03 13:21:53Z nabi $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_gpl/flow1d/packages/flow1d_core/src/cross_helper.f90 $
+!  $Id: cross_helper.f90 8044 2018-01-24 15:35:11Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_gpl/flow1d/packages/flow1d_core/src/cross_helper.f90 $
 !-------------------------------------------------------------------------------
 
    use m_network

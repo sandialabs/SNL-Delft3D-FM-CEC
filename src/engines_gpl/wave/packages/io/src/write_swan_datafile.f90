@@ -25,8 +25,8 @@ module write_swan_datafile
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: write_swan_datafile.f90 59747 2018-08-03 16:52:40Z j.reyns $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/wave/packages/io/src/write_swan_datafile.f90 $
+!  $Id: write_swan_datafile.f90 7992 2018-01-09 10:27:35Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/engines_gpl/wave/packages/io/src/write_swan_datafile.f90 $
 !!--module description----------------------------------------------------------
 !
 !!--module declarations---------------------------------------------------------

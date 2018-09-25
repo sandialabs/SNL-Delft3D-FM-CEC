@@ -27,7 +27,7 @@ subroutine ck_dpopt(lundia    ,lsedtot   ,zmodel    ,bedupd    ,dpsopt    , &
 !                                                                               
 !-------------------------------------------------------------------------------
 !  $Id: ck_dpopt.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/flow2d3d/packages/io/src/input/ck_dpopt.f90 $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/engines_gpl/flow2d3d/packages/io/src/input/ck_dpopt.f90 $
 !!--description-----------------------------------------------------------------
 !
 ! - Determines the value of DPSOPT and DPUOPT and

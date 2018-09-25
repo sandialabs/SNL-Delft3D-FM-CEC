@@ -25,8 +25,8 @@ module m_rdstm
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: rdstm.f90 8147 2018-02-14 07:46:55Z ottevan $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_gpl/morphology/packages/morphology_io/src/rdstm.f90 $
+!  $Id: rdstm.f90 7992 2018-01-09 10:27:35Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_gpl/morphology/packages/morphology_io/src/rdstm.f90 $
 !-------------------------------------------------------------------------------
 
 use morphology_data_module

@@ -25,7 +25,7 @@
 !                                                                               
 !-------------------------------------------------------------------------------
 !  $Id: tst-f77-get.F 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_lgpl/delftio/tests/tstAllF77LIB/src/tst-f77-get.F $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_lgpl/delftio/tests/tstAllF77LIB/src/tst-f77-get.F $
       program test_dll_f77_get
 
       implicit none

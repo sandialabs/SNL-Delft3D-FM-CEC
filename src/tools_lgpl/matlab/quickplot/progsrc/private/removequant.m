@@ -33,7 +33,7 @@ function Out = removequant(Out,List)
 %
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/private/removequant.m $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_lgpl/matlab/quickplot/progsrc/private/removequant.m $
 %   $Id: removequant.m 7992 2018-01-09 10:27:35Z mourits $
 
 Names = {Out.Name};

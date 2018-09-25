@@ -25,8 +25,8 @@
 !                                                                               
 !-------------------------------------------------------------------------------
 
-! $Id: gridgeom.F90 61856 2018-09-17 10:50:37Z carniato $
-! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_lgpl/gridgeom/packages/gridgeom/src/gridgeom.F90 $
+! $Id: gridgeom.F90 8020 2018-01-18 13:58:43Z carniato $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_lgpl/gridgeom/packages/gridgeom/src/gridgeom.F90 $
 
 !> Module for grid operations.
 

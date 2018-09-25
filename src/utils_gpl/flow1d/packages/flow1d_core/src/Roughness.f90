@@ -25,8 +25,8 @@ module M_friction                                 !< friction parameters, (more 
 !  Stichting Deltares. All rights reserved.
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: Roughness.f90 8775 2018-05-15 12:53:23Z noort $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_gpl/flow1d/packages/flow1d_core/src/Roughness.f90 $
+!  $Id: Roughness.f90 8044 2018-01-24 15:35:11Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_gpl/flow1d/packages/flow1d_core/src/Roughness.f90 $
 !-------------------------------------------------------------------------------
 
  integer                         :: mxengpar      !< dimension of engpar

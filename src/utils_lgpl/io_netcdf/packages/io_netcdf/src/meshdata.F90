@@ -25,8 +25,8 @@
 !                                                                               
 !-------------------------------------------------------------------------------
 
-! $Id: meshdata.F90 59855 2018-08-16 14:05:22Z carniato $
-! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_lgpl/io_netcdf/packages/io_netcdf/src/meshdata.F90 $
+! $Id: meshdata.F90 7992 2018-01-09 10:27:35Z mourits $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_lgpl/io_netcdf/packages/io_netcdf/src/meshdata.F90 $
 
 !> Module for grid operations.
 

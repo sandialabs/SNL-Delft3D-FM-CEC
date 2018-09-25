@@ -27,7 +27,7 @@ subroutine depfil_double(lundia    ,error     ,fildep    ,fmttmp    ,array     ,
 !                                                                               
 !-------------------------------------------------------------------------------
 !  $Id: depfil_double.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_lgpl/deltares_common/packages/deltares_common_mpi/src/depfil_double.f90 $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_lgpl/deltares_common/packages/deltares_common_mpi/src/depfil_double.f90 $
 !!--description----------------------------------------------------------------- 
 ! 
 !    Function: Reads the depth values from the attribute file 

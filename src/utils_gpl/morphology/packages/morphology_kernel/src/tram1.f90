@@ -34,8 +34,8 @@ subroutine tram1 (numrealpar,realpar   ,wave                 ,par       , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: tram1.f90 59596 2018-07-18 06:24:16Z platzek $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_gpl/morphology/packages/morphology_kernel/src/tram1.f90 $
+!  $Id: tram1.f90 7992 2018-01-09 10:27:35Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_gpl/morphology/packages/morphology_kernel/src/tram1.f90 $
 !!--description-----------------------------------------------------------------
 !
 ! computes sediment transport according to

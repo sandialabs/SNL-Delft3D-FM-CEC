@@ -25,8 +25,8 @@ module m_readSpatialData
 !  Stichting Deltares. All rights reserved.
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: readspatialdata.f90 59715 2018-08-01 11:34:47Z dam_ar $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_gpl/flow1d/packages/flow1d_io/src/readspatialdata.f90 $
+!  $Id: readspatialdata.f90 8044 2018-01-24 15:35:11Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_gpl/flow1d/packages/flow1d_io/src/readspatialdata.f90 $
 !-------------------------------------------------------------------------------
    
    use m_GlobalParameters

@@ -26,8 +26,8 @@ module m_spatial_data
 !  Stichting Deltares. All rights reserved.
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: spatial_data.f90 59679 2018-07-31 12:47:53Z dam_ar $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_gpl/flow1d/packages/flow1d_core/src/spatial_data.f90 $
+!  $Id: spatial_data.f90 8044 2018-01-24 15:35:11Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_gpl/flow1d/packages/flow1d_core/src/spatial_data.f90 $
 !-------------------------------------------------------------------------------
 
    use m_alloc

@@ -25,8 +25,8 @@ module m_rdsed
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: rdsed.f90 62223 2018-10-02 06:50:15Z j.reyns $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_gpl/morphology/packages/morphology_io/src/rdsed.f90 $
+!  $Id: rdsed.f90 7992 2018-01-09 10:27:35Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_gpl/morphology/packages/morphology_io/src/rdsed.f90 $
 !-------------------------------------------------------------------------------
 use m_depfil_stm
 

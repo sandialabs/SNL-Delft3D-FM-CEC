@@ -24,8 +24,8 @@
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: write_rfl.f90 8192 2018-02-19 16:32:21Z jeuke_ml $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_lgpl/io_hyd/packages/io_hyd/src/write_rfl.f90 $
+!  $Id: write_rfl.f90 7992 2018-01-09 10:27:35Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_lgpl/hyd_to_waq_part_lib/packages/hyd_to_waq_part_lib/src/write_rfl.f90 $
 
       subroutine write_rfl(hyd)
 

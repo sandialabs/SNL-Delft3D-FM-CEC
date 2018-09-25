@@ -65,8 +65,8 @@ function varargout=qp_unitconversion(varargin)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/qp_unitconversion.m $
-%   $Id: qp_unitconversion.m 8961 2018-06-11 14:56:29Z jagers $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_lgpl/matlab/quickplot/progsrc/qp_unitconversion.m $
+%   $Id: qp_unitconversion.m 7992 2018-01-09 10:27:35Z mourits $
 
 persistent unittableread
 if isempty(unittableread)

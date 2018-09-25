@@ -37,7 +37,7 @@ function cmap=md_colormap(varargin)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/md_colormap.m $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_lgpl/matlab/quickplot/progsrc/md_colormap.m $
 %   $Id: md_colormap.m 7992 2018-01-09 10:27:35Z mourits $
 
 if nargin==0 || ~ischar(varargin{1})
@@ -1759,6 +1759,6 @@ end
 
 
 function rev = md_colormap_revision
-url = '$HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/md_colormap.m $';
+url = '$HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_lgpl/matlab/quickplot/progsrc/md_colormap.m $';
 rev = '$Id: md_colormap.m 7992 2018-01-09 10:27:35Z mourits $';
 rev = [url(11:end-2) ' ' sscanf(rev,'%*[^ ] %*[^ ] %[^ ]%[ ]%[^ ]%[ ]%[^ ] ')];

@@ -25,8 +25,8 @@ module time_module
    !  Stichting Deltares. All rights reserved.                                     
    !                                                                               
    !-------------------------------------------------------------------------------
-   !  $Id: time_module.f90 62180 2018-09-27 09:37:50Z spee $
-   !  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_lgpl/deltares_common/packages/deltares_common/src/time_module.f90 $
+   !  $Id: time_module.f90 7992 2018-01-09 10:27:35Z mourits $
+   !  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_lgpl/deltares_common/packages/deltares_common/src/time_module.f90 $
    !!--description-----------------------------------------------------------------
    !
    !    Function: - Various time processing routines
@@ -102,8 +102,8 @@ module time_module
           !
           !! executable statements ---------------------------------------------------
           !
-          call addmessage(messages,'$Id: time_module.f90 62180 2018-09-27 09:37:50Z spee $')
-          call addmessage(messages,'$URL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_lgpl/deltares_common/packages/deltares_common/src/time_module.f90 $')
+          call addmessage(messages,'$Id: time_module.f90 7992 2018-01-09 10:27:35Z mourits $')
+          call addmessage(messages,'$URL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_lgpl/deltares_common/packages/deltares_common/src/time_module.f90 $')
       end subroutine time_module_info
 
       ! ------------------------------------------------------------------------------

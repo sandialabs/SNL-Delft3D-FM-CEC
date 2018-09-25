@@ -28,7 +28,7 @@ subroutine cnvbub(kmax    ,nsrcd     ,nsrc      ,nbub      ,nxbub    , &
 !                                                                               
 !-------------------------------------------------------------------------------
 !  $Id: cnvbub.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/flow2d3d/packages/kernel/src/compute/cnvbub.f90 $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/engines_gpl/flow2d3d/packages/kernel/src/compute/cnvbub.f90 $
 !!--description-----------------------------------------------------------------
 ! This routine converts the discharges of the sources (including bubble screens)
 ! to the new positions in the DISCH array.

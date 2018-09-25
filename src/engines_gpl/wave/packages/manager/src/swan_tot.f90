@@ -25,8 +25,8 @@ subroutine swan_tot (n_swan_grids, n_flow_grids, wavedata, selectedtime)
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: swan_tot.f90 59747 2018-08-03 16:52:40Z j.reyns $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/wave/packages/manager/src/swan_tot.f90 $
+!  $Id: swan_tot.f90 7992 2018-01-09 10:27:35Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/engines_gpl/wave/packages/manager/src/swan_tot.f90 $
 !!--description-----------------------------------------------------------------
 ! NONE
 !!--pseudo code and references--------------------------------------------------

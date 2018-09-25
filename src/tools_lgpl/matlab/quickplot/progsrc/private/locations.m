@@ -28,7 +28,7 @@ function Locations = locations(FI)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/private/locations.m $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_lgpl/matlab/quickplot/progsrc/private/locations.m $
 %   $Id: locations.m 7992 2018-01-09 10:27:35Z mourits $
 
 %% Get the names of the domains

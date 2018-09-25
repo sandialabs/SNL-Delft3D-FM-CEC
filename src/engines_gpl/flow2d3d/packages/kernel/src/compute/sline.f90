@@ -27,7 +27,7 @@ subroutine sline(dtn       ,md        ,ndim      ,te        ,xd        , &
 !                                                                               
 !-------------------------------------------------------------------------------
 !  $Id: sline.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/flow2d3d/packages/kernel/src/compute/sline.f90 $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/engines_gpl/flow2d3d/packages/kernel/src/compute/sline.f90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: - calculates streamline in this grid cell

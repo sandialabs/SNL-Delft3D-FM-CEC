@@ -25,8 +25,8 @@ module m_GlobalParameters
 !  Stichting Deltares. All rights reserved.
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: GlobalParameters.f90 62280 2018-10-09 06:00:52Z ottevan $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_gpl/flow1d/packages/flow1d_core/src/GlobalParameters.f90 $
+!  $Id: GlobalParameters.f90 8044 2018-01-24 15:35:11Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_gpl/flow1d/packages/flow1d_core/src/GlobalParameters.f90 $
 !-------------------------------------------------------------------------------
    
    use MessageHandling

@@ -23,8 +23,8 @@
 !  are registered trademarks of Stichting Deltares, and remain the property of  
 !  Stichting Deltares. All rights reserved.                                     
 
-!  $Id: ec_filereader_read.F90 62276 2018-10-08 11:15:49Z pijl $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_lgpl/ec_module/packages/ec_module/src/ec_filereader_read.F90 $
+!  $Id: ec_filereader_read.F90 7992 2018-01-09 10:27:35Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_lgpl/ec_module/packages/ec_module/src/ec_filereader_read.F90 $
 
 !> This module contains the read methods for the meteo files.
 !! @author stef.hummel@deltares.nl

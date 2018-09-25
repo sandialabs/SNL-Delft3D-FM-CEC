@@ -28,8 +28,8 @@ subroutine rdirt(lunmd     ,lundia    ,error     ,nrrec     ,mdfrec    , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: rdirt.f90 8579 2018-04-16 08:46:46Z dam_ar $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/flow2d3d/packages/io/src/input/rdirt.f90 $
+!  $Id: rdirt.f90 7992 2018-01-09 10:27:35Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/engines_gpl/flow2d3d/packages/io/src/input/rdirt.f90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: - Initialises global time parameters

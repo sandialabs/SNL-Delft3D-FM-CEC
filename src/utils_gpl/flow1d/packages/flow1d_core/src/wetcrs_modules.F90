@@ -26,8 +26,8 @@ module M_newcross                                                ! new type conv
 !  Stichting Deltares. All rights reserved.
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: wetcrs_modules.F90 61514 2018-09-04 14:24:14Z noort $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_gpl/flow1d/packages/flow1d_core/src/wetcrs_modules.F90 $
+!  $Id: wetcrs_modules.F90 8044 2018-01-24 15:35:11Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_gpl/flow1d/packages/flow1d_core/src/wetcrs_modules.F90 $
 !-------------------------------------------------------------------------------
 
 implicit none

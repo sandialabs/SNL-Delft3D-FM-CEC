@@ -41,8 +41,8 @@ subroutine difuvl(icreep    ,timest    ,lundia    ,nst       ,icx       , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: difuvl.f90 8714 2018-05-04 14:55:55Z platzek $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/flow2d3d/packages/kernel/src/compute/difuvl.f90 $
+!  $Id: difuvl.f90 7992 2018-01-09 10:27:35Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/engines_gpl/flow2d3d/packages/kernel/src/compute/difuvl.f90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: Computes transport in the u, v and w-direction.

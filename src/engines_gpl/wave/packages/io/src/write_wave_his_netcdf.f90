@@ -25,8 +25,8 @@ subroutine write_wave_his_netcdf (sg, sof, n_swan_grids, i_swan, wavedata)
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: write_wave_his_netcdf.f90 8744 2018-05-09 08:23:21Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/wave/packages/io/src/write_wave_his_netcdf.f90 $
+!  $Id: write_wave_his_netcdf.f90 7992 2018-01-09 10:27:35Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/engines_gpl/wave/packages/io/src/write_wave_his_netcdf.f90 $
 !!--description-----------------------------------------------------------------
 ! NONE
 !!--pseudo code and references--------------------------------------------------

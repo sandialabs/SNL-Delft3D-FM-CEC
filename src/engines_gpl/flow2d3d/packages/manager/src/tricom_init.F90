@@ -25,8 +25,8 @@ subroutine tricom_init(olv_handle, gdp)
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: tricom_init.F90 8579 2018-04-16 08:46:46Z dam_ar $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/flow2d3d/packages/manager/src/tricom_init.F90 $
+!  $Id: tricom_init.F90 8013 2018-01-17 08:46:32Z platzek $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/engines_gpl/flow2d3d/packages/manager/src/tricom_init.F90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: - Read md-file

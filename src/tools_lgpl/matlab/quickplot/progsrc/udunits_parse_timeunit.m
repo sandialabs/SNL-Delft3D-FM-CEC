@@ -41,7 +41,7 @@ function [dt,refdate,TZshift] = udunits_parse_timeunit(unit_str)
 %
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/udunits_parse_timeunit.m $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_lgpl/matlab/quickplot/progsrc/udunits_parse_timeunit.m $
 %   $Id: udunits_parse_timeunit.m 7992 2018-01-09 10:27:35Z mourits $
 
 [unit1,unit2] = strtok(lower(unit_str));

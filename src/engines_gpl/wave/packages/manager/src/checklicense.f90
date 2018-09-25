@@ -25,8 +25,8 @@ subroutine checklicense(success)
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: checklicense.f90 8455 2018-03-28 15:46:59Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/wave/packages/manager/src/checklicense.f90 $
+!  $Id: checklicense.f90 7992 2018-01-09 10:27:35Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/engines_gpl/wave/packages/manager/src/checklicense.f90 $
 !!--description-----------------------------------------------------------------
 !
 !!--pseudo code and references--------------------------------------------------

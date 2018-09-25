@@ -25,8 +25,8 @@ module m_readLaterals
 !  Stichting Deltares. All rights reserved.
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: readLaterals.f90 59811 2018-08-14 09:07:59Z zeekant $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_gpl/flow1d/packages/flow1d_io/src/readLaterals.f90 $
+!  $Id: readLaterals.f90 8044 2018-01-24 15:35:11Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_gpl/flow1d/packages/flow1d_io/src/readLaterals.f90 $
 !-------------------------------------------------------------------------------
 
    use MessageHandling

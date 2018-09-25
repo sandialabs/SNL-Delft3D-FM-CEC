@@ -25,7 +25,7 @@
 !                                                                               
 !-------------------------------------------------------------------------------
 !  $Id: tst-his-get.F90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_lgpl/delftio/tests/tstHis/src/tst-his-get.F90 $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_lgpl/delftio/tests/tstHis/src/tst-his-get.F90 $
 #define DO_ALL 1
 
 subroutine his_get(resFileName, datasetName)

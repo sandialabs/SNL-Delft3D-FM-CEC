@@ -26,8 +26,8 @@ module m_depfil_stm
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: depfil_stm.F90 62210 2018-09-28 09:56:23Z ottevan $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_gpl/morphology/packages/morphology_io/src/depfil_stm.F90 $
+!  $Id: depfil_stm.F90 7992 2018-01-09 10:27:35Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_gpl/morphology/packages/morphology_io/src/depfil_stm.F90 $
 !-------------------------------------------------------------------------------
 !!--description----------------------------------------------------------------- 
 ! 

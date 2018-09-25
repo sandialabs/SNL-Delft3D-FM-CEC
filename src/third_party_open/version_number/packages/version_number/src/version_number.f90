@@ -25,7 +25,7 @@
 !                                                                               
 !-------------------------------------------------------------------------------
 !  $Id: version_number.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/third_party_open/version_number/packages/version_number/src/version_number.f90 $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/third_party_open/version_number/packages/version_number/src/version_number.f90 $
 program version_number
 implicit none
 !

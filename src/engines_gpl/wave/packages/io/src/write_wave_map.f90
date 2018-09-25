@@ -25,8 +25,8 @@ subroutine write_wave_map (sg, sof, n_swan_grids, wavedata, casl, prevtime, gamm
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: write_wave_map.f90 9152 2018-06-28 13:48:51Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/wave/packages/io/src/write_wave_map.f90 $
+!  $Id: write_wave_map.f90 7992 2018-01-09 10:27:35Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/engines_gpl/wave/packages/io/src/write_wave_map.f90 $
 !!--description-----------------------------------------------------------------
 ! NONE
 !!--pseudo code and references--------------------------------------------------

@@ -33,8 +33,8 @@ function [OutTxt,OutFig]=simsteps(C,i)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/private/simsteps.m $
-%   $Id: simsteps.m 8628 2018-04-19 14:55:49Z jagers $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_lgpl/matlab/quickplot/progsrc/private/simsteps.m $
+%   $Id: simsteps.m 7992 2018-01-09 10:27:35Z mourits $
 
 Txt={'NOTE: This function provides only indicative values.'
     'For theory see chapter 10 (in particular sections 10.4 and 10.6) of the'

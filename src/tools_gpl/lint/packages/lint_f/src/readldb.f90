@@ -26,7 +26,7 @@ subroutine readldb(x,y,nopol,nop,fin)
 !                                                                               
 !-------------------------------------------------------------------------------
 !  $Id: readldb.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_gpl/lint/packages/lint_f/src/readldb.f90 $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_gpl/lint/packages/lint_f/src/readldb.f90 $
 !!--description-----------------------------------------------------------------
 ! Read TEKAL file with landboundary data, just first two columns are read
 ! Seperator could be a new TEKA block or

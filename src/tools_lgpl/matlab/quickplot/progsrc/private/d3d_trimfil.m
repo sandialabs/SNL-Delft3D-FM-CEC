@@ -43,8 +43,8 @@ function varargout=d3d_trimfil(FI,domain,field,cmd,varargin)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/private/d3d_trimfil.m $
-%   $Id: d3d_trimfil.m 62254 2018-10-04 20:41:38Z jagers $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_lgpl/matlab/quickplot/progsrc/private/d3d_trimfil.m $
+%   $Id: d3d_trimfil.m 7992 2018-01-09 10:27:35Z mourits $
 
 %========================= GENERAL CODE ===================================
 T_=1; ST_=2; M_=3; N_=4; K_=5;

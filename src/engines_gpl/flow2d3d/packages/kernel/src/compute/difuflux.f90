@@ -30,8 +30,8 @@ subroutine difuflux(stage     ,lundia    ,kmax      ,nmmax     ,nmmaxj    , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: difuflux.f90 8714 2018-05-04 14:55:55Z platzek $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/flow2d3d/packages/kernel/src/compute/difuflux.f90 $
+!  $Id: difuflux.f90 7992 2018-01-09 10:27:35Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/engines_gpl/flow2d3d/packages/kernel/src/compute/difuflux.f90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: Compute flux corresponding to DIFU

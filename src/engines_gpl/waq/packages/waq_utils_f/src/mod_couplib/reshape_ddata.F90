@@ -23,7 +23,7 @@
 
 !-- VERSION HISTORY ----------------------------------------------------------
 !
-!   $URL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/waq/packages/waq_utils_f/src/mod_couplib/reshape_ddata.F90 $
+!   $URL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/engines_gpl/waq/packages/waq_utils_f/src/mod_couplib/reshape_ddata.F90 $
 !   $Revision: 42 $, $Date: 2007-11-26 15:20:20 +0100 (Mon, 26 Nov 2007) $
 !
 !   Programmer: Edwin Vollebregt (VORtech)

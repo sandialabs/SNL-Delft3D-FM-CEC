@@ -113,8 +113,8 @@ function varargout=waquaio(sds,exper,field,varargin)
 %
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/waquaio.m $
-%   $Id: waquaio.m 62253 2018-10-04 20:24:53Z jagers $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_lgpl/matlab/quickplot/progsrc/waquaio.m $
+%   $Id: waquaio.m 7992 2018-01-09 10:27:35Z mourits $
 
 if nargin<3
     error('Not enough input arguments.')

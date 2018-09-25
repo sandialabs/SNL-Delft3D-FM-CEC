@@ -25,7 +25,7 @@
 !                                                                               
 !-------------------------------------------------------------------------------
 !  $Id: tst_map_long.F90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_lgpl/delftio/tests/tstMap/src/tst_map_long.F90 $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_lgpl/delftio/tests/tstMap/src/tst_map_long.F90 $
 subroutine write_map_long
 
     use Dio_Plt_Rw

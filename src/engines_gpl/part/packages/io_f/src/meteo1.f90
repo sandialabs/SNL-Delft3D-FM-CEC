@@ -3272,7 +3272,7 @@ subroutine meteo_tidepotential(jul0, TIME , xz , yz , TIDEP, ndx, dstart, dstop 
 !
 !     Programmer     E.J.O. Schrama
 !
-!     $URL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/part/packages/io_f/src/meteo1.f90 $
+!     $URL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/engines_gpl/part/packages/io_f/src/meteo1.f90 $
 !     $Revision: 1850 $, $Date: 2008-04-18 09:19:37 +0200 (Fri, 18 Apr 2008) $
 !
 !     Version 1.1    Date 22-05-2008   c81402: extended for evaluation of

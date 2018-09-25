@@ -28,7 +28,7 @@ function data = qp_dimsqueeze(data,axestype,multiple,DimFlag,Props)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/private/qp_dimsqueeze.m $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_lgpl/matlab/quickplot/progsrc/private/qp_dimsqueeze.m $
 %   $Id: qp_dimsqueeze.m 7992 2018-01-09 10:27:35Z mourits $
 
 T_=1; ST_=2; M_=3; N_=4; K_=5;

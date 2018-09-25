@@ -31,7 +31,7 @@ function Iout=qp_iconedit(cmd)
 %
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/qp_iconedit.m $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_lgpl/matlab/quickplot/qp_iconedit.m $
 %   $Id: qp_iconedit.m 7992 2018-01-09 10:27:35Z mourits $
 
 if nargin>0 & ischar(cmd)

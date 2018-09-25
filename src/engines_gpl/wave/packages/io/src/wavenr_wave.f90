@@ -26,7 +26,7 @@ subroutine wavenr_htk(h         ,t         ,k          )
 !                                                                               
 !-------------------------------------------------------------------------------
 !  $Id: wavenr_wave.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/wave/packages/io/src/wavenr_wave.f90 $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/engines_gpl/wave/packages/io/src/wavenr_wave.f90 $
 !!--description-----------------------------------------------------------------
 ! Approximation of the dispersion, original sub-
 ! routine Disp10 (L, T, h, g)

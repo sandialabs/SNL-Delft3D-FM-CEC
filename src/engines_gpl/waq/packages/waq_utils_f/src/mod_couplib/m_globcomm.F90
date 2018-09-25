@@ -33,7 +33,7 @@
 !
 !-- VERSION HISTORY ----------------------------------------------------------
 !
-!   $URL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/waq/packages/waq_utils_f/src/mod_couplib/m_globcomm.F90 $
+!   $URL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/engines_gpl/waq/packages/waq_utils_f/src/mod_couplib/m_globcomm.F90 $
 !   $Revision: 35 $, $Date: 2007-11-05 16:39:45 +0100 (Mon, 05 Nov 2007) $
 !
 !   Programmer: Edwin Vollebregt (VORtech)

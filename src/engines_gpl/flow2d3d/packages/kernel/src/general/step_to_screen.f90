@@ -26,7 +26,7 @@ subroutine step_to_screen(nst2go, itstrt, itfinish, nst, gdp)
 !                                                                               
 !-------------------------------------------------------------------------------
 !  $Id: step_to_screen.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/flow2d3d/packages/kernel/src/general/step_to_screen.f90 $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/engines_gpl/flow2d3d/packages/kernel/src/general/step_to_screen.f90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: Determines the remaining percentage of the simulation and

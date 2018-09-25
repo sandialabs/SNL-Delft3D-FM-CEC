@@ -25,8 +25,8 @@ module m_General_Structure
 !  Stichting Deltares. All rights reserved.
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: general_structure.f90 59590 2018-07-16 14:11:25Z zeekant $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_gpl/flow1d/packages/flow1d_core/src/general_structure.f90 $
+!  $Id: general_structure.f90 8044 2018-01-24 15:35:11Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_gpl/flow1d/packages/flow1d_core/src/general_structure.f90 $
 !-------------------------------------------------------------------------------
    
    use m_tables

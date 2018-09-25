@@ -25,8 +25,8 @@
 !
 !-------------------------------------------------------------------------------
 
-! $Id: netcdf_utils.F90 61870 2018-09-19 12:08:50Z spee $
-! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_lgpl/io_netcdf/packages/io_netcdf/src/netcdf_utils.F90 $
+! $Id: netcdf_utils.F90 7992 2018-01-09 10:27:35Z mourits $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_lgpl/io_netcdf/packages/io_netcdf/src/netcdf_utils.F90 $
 
 !> Utility module for additional manipulation/inquiry of NetCDF files, on top of the basic nf90* primitives.
 module netcdf_utils

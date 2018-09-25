@@ -31,8 +31,8 @@ subroutine z_trisol_nhfull(dischy    ,solver    ,icreep   , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: z_trisol_nhfull.f90 8813 2018-05-17 14:33:34Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/flow2d3d/packages/kernel/src/main/z_trisol_nhfull.f90 $
+!  $Id: z_trisol_nhfull.f90 7992 2018-01-09 10:27:35Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/engines_gpl/flow2d3d/packages/kernel/src/main/z_trisol_nhfull.f90 $
 !!--description-----------------------------------------------------------------
 !
 ! Z-model

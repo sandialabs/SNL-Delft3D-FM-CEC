@@ -26,8 +26,8 @@
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: detang.f 8114 2018-02-06 15:21:51Z kaaij $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_gpl/nesthd1/packages/nesthd1/src/detang.f $
+!  $Id: detang.f 7992 2018-01-09 10:27:35Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_gpl/nesthd1/packages/nesthd1/src/detang.f $
 !***********************************************************************
 ! Deltares                         marine and coastal management
 !

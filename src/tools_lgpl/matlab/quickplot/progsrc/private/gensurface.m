@@ -28,7 +28,7 @@ function hNew=gensurface(hOld,Ops,Parent,Val,X,Y,Z)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/private/gensurface.m $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_lgpl/matlab/quickplot/progsrc/private/gensurface.m $
 %   $Id: gensurface.m 7992 2018-01-09 10:27:35Z mourits $
 
 zcoord=nargin>6;

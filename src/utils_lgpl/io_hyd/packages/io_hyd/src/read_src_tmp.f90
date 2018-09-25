@@ -24,8 +24,8 @@
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: read_src_tmp.f90 8374 2018-03-15 10:37:37Z jeuke_ml $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_lgpl/io_hyd/packages/io_hyd/src/read_src_tmp.f90 $
+!  $Id: read_src_tmp.f90 7992 2018-01-09 10:27:35Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_lgpl/hyd_to_waq_part_lib/packages/hyd_to_waq_part_lib/src/read_src_tmp.f90 $
 
       subroutine read_src_tmp(file_src_tmp, nolay, wasteload_coll, wasteload_data)
 

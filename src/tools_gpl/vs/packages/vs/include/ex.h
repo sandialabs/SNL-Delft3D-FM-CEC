@@ -25,7 +25,7 @@
 //
 //------------------------------------------------------------------------------
 // $Id: ex.h 7992 2018-01-09 10:27:35Z mourits $
-// $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_gpl/vs/packages/vs/include/ex.h $
+// $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_gpl/vs/packages/vs/include/ex.h $
 #ifndef _EX_INCLUDED
 #   define COMMAND_STRING_LENGHT 512
 #   define _EX_INCLUDED

@@ -41,8 +41,8 @@ subroutine z_cucnp(j         ,nmmaxj    ,nmmax     ,kmax      ,icx       , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: z_cucnp.f90 8747 2018-05-09 10:03:21Z platzek $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/flow2d3d/packages/kernel/src/compute/z_cucnp.f90 $
+!  $Id: z_cucnp.f90 7992 2018-01-09 10:27:35Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/engines_gpl/flow2d3d/packages/kernel/src/compute/z_cucnp.f90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: The coefficient for the momentum equations are

@@ -26,7 +26,7 @@ subroutine ntstop
 !                                                                               
 !-------------------------------------------------------------------------------
 !  $Id: ntstop.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_gpl/datsel/packages/datsel_f/src/ntstop.f90 $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_gpl/datsel/packages/datsel_f/src/ntstop.f90 $
 !!--description-----------------------------------------------------------------
 ! Stops program but ask user to close window
 ! - PC/SALFORD/WIN32

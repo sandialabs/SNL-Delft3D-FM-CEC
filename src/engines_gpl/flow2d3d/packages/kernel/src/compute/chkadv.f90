@@ -29,7 +29,7 @@ subroutine chkadv(lundia    ,nmmax     ,kmax      ,icx       , &
 !                                                                               
 !-------------------------------------------------------------------------------
 !  $Id: chkadv.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/flow2d3d/packages/kernel/src/compute/chkadv.f90 $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/engines_gpl/flow2d3d/packages/kernel/src/compute/chkadv.f90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: Checks stability (Courant number) for horizontal velocity and

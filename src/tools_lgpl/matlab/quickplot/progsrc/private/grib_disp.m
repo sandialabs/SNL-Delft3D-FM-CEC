@@ -43,7 +43,7 @@ function varargout = grib_disp(FI,varargin)
 %
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/private/grib_disp.m $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_lgpl/matlab/quickplot/progsrc/private/grib_disp.m $
 %   $Id: grib_disp.m 7992 2018-01-09 10:27:35Z mourits $
 
 % TO DO: optionally write disp or list to file rather than to screen

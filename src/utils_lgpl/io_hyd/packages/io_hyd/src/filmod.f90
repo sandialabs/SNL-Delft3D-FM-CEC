@@ -24,8 +24,8 @@
 !  Stichting Deltares. All rights reserved.
 !
 !-------------------------------------------------------------------------------
-!  $Id: filmod.f90 61640 2018-09-05 14:13:42Z jeuke_ml $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_lgpl/io_hyd/packages/io_hyd/src/filmod.f90 $
+!  $Id: filmod.f90 7992 2018-01-09 10:27:35Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_lgpl/hyd_to_waq_part_lib/packages/hyd_to_waq_part_lib/src/filmod.f90 $
 
       module filmod
 

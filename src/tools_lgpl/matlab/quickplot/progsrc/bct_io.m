@@ -48,7 +48,7 @@ function Info=bct_io(cmd,varargin)
 %
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/bct_io.m $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_lgpl/matlab/quickplot/progsrc/bct_io.m $
 %   $Id: bct_io.m 7992 2018-01-09 10:27:35Z mourits $
 
 switch lower(cmd)

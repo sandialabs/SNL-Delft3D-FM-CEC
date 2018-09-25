@@ -28,8 +28,8 @@ function qp_validate(val_dir)
 %
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/qp_validate.m $
-%   $Id: qp_validate.m 8315 2018-03-08 11:37:55Z jagers $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_lgpl/matlab/quickplot/progsrc/qp_validate.m $
+%   $Id: qp_validate.m 7992 2018-01-09 10:27:35Z mourits $
 
 baseini='validation.ini';
 if nargin<1

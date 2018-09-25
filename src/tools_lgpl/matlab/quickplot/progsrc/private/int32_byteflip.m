@@ -29,7 +29,7 @@ function Y=int32_byteflip(X)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/private/int32_byteflip.m $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_lgpl/matlab/quickplot/progsrc/private/int32_byteflip.m $
 %   $Id: int32_byteflip.m 7992 2018-01-09 10:27:35Z mourits $
 
 Y=floor(X/16777216);

@@ -28,7 +28,7 @@ subroutine discha_nf(kmax      ,lstsci    ,nmmax     ,kfs       ,sour      ,sink
 !                                                                               
 !-------------------------------------------------------------------------------
 !  $Id: discha_nf.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/flow2d3d/packages/kernel/src/compute_nearfar/discha_nf.f90 $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/engines_gpl/flow2d3d/packages/kernel/src/compute_nearfar/discha_nf.f90 $
 !!--description-----------------------------------------------------------------
 !
 !   Function: The discharges resulting from near field simulation (jet3d/nrfield etc) are

@@ -29,8 +29,8 @@ subroutine chkvic(lundia    ,j         ,nmmaxj    ,nmmax     ,kmax      , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: chkvic.f90 8592 2018-04-17 14:50:40Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/flow2d3d/packages/kernel/src/inichk/chkvic.f90 $
+!  $Id: chkvic.f90 7992 2018-01-09 10:27:35Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/engines_gpl/flow2d3d/packages/kernel/src/inichk/chkvic.f90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: Checkes stability criterion for horizontal viscosity and

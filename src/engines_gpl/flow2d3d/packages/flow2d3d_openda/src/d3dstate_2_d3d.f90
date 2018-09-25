@@ -25,7 +25,7 @@
 !                                                                               
 !-------------------------------------------------------------------------------
 !  $Id: d3dstate_2_d3d.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/flow2d3d/packages/flow2d3d_openda/src/d3dstate_2_d3d.f90 $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/engines_gpl/flow2d3d/packages/flow2d3d_openda/src/d3dstate_2_d3d.f90 $
 !
 !--------------------    
   subroutine array_copy(arfrom,arto,d1_l,d1_u,d2_l,d2_u,d3_l,d3_u,d4)

@@ -25,8 +25,8 @@
 !                                                                               
 !-------------------------------------------------------------------------------
 
-! $Id: io_ugrid.F90 61884 2018-09-20 14:14:48Z carniato $
-! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_lgpl/io_netcdf/packages/io_netcdf/src/io_ugrid.F90 $
+! $Id: io_ugrid.F90 7992 2018-01-09 10:27:35Z mourits $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_lgpl/io_netcdf/packages/io_netcdf/src/io_ugrid.F90 $
 
 !> I/O module for reading and writing NetCDF files with UGRID-compliant data on unstructured grids.
 !! UGRID Conventions website: https://github.com/ugrid-conventions/ugrid-conventions

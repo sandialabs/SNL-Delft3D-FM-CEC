@@ -92,8 +92,8 @@ function varargout = tekal(cmd,varargin)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/tekal.m $
-%   $Id: tekal.m 8084 2018-01-31 13:26:04Z jagers $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_lgpl/matlab/quickplot/progsrc/tekal.m $
+%   $Id: tekal.m 8002 2018-01-11 16:56:52Z jagers $
 
 if nargin==0
     if nargout>0

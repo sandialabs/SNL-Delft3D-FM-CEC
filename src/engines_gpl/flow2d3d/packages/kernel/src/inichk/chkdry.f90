@@ -33,7 +33,7 @@ subroutine chkdry(j         ,nmmaxj    ,nmmax     ,kmax      ,lsec      , &
 !                                                                               
 !-------------------------------------------------------------------------------
 !  $Id: chkdry.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/flow2d3d/packages/kernel/src/inichk/chkdry.f90 $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/engines_gpl/flow2d3d/packages/kernel/src/inichk/chkdry.f90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: - Initiates the depth values at velocity points

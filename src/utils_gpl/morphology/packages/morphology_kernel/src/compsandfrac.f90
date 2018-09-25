@@ -28,7 +28,7 @@ subroutine compsandfrac(frac      ,seddm     ,nmmax     ,lsedtot   , &
 !                                                                               
 !-------------------------------------------------------------------------------
 !  $Id: compsandfrac.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_gpl/morphology/packages/morphology_kernel/src/compsandfrac.f90 $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_gpl/morphology/packages/morphology_kernel/src/compsandfrac.f90 $
 !!--description-----------------------------------------------------------------
 !
 !  compsandfrac returns the total proportion of sand sized material on the bed

@@ -32,8 +32,8 @@ subroutine mom_fls &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: mom_fls.f90 8715 2018-05-04 14:59:50Z platzek $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/flow2d3d/packages/kernel/src/compute/mom_fls.f90 $
+!  $Id: mom_fls.f90 7992 2018-01-09 10:27:35Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/engines_gpl/flow2d3d/packages/kernel/src/compute/mom_fls.f90 $
 !!--description-----------------------------------------------------------------
 !
 ! This subroutine is part of (called by) CUCNP and UZD. It computes the

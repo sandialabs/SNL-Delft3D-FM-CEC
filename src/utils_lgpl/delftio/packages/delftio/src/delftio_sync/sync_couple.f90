@@ -26,7 +26,7 @@ module sync_flowcouple
 !                                                                               
 !-------------------------------------------------------------------------------
 !  $Id: sync_couple.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_lgpl/delftio/packages/delftio/src/delftio_sync/sync_couple.f90 $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_lgpl/delftio/packages/delftio/src/delftio_sync/sync_couple.f90 $
 !!--description-----------------------------------------------------------------
 ! Organizes the communication between the FLOW
 ! executable and the COUPLE executable.

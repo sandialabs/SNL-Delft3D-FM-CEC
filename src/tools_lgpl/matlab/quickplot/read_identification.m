@@ -29,7 +29,7 @@ function version=read_identification(sourcedir,file)
 %
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/read_identification.m $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_lgpl/matlab/quickplot/read_identification.m $
 %   $Id: read_identification.m 7992 2018-01-09 10:27:35Z mourits $
 
 %

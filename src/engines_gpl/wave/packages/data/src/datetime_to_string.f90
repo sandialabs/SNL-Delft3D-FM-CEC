@@ -25,8 +25,8 @@ function datetime_to_string(date, time) result (dtstring)
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: datetime_to_string.f90 8579 2018-04-16 08:46:46Z dam_ar $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/wave/packages/data/src/datetime_to_string.f90 $
+!  $Id: datetime_to_string.f90 7992 2018-01-09 10:27:35Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/engines_gpl/wave/packages/data/src/datetime_to_string.f90 $
 !!--description-----------------------------------------------------------------
 !
 !

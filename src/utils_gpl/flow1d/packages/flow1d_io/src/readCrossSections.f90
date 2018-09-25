@@ -25,8 +25,8 @@ module m_readCrossSections
 !  Stichting Deltares. All rights reserved.
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: readCrossSections.f90 61643 2018-09-06 13:04:12Z zeekant $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_gpl/flow1d/packages/flow1d_io/src/readCrossSections.f90 $
+!  $Id: readCrossSections.f90 8044 2018-01-24 15:35:11Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_gpl/flow1d/packages/flow1d_io/src/readCrossSections.f90 $
 !-------------------------------------------------------------------------------
 
    use M_newcross

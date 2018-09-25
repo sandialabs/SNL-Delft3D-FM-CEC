@@ -25,7 +25,7 @@
 !                                                                               
 !-------------------------------------------------------------------------------
 !  $Id: set_fractions.f 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/waq/packages/waq_io/src/proc_preprocess/set_fractions.f $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/engines_gpl/waq/packages/waq_io/src/proc_preprocess/set_fractions.f $
 
       subroutine set_fraction( lurep    , notot   , syname, nomult, imultp,
      +                         procesdef, allitems, no_act, actlst, nbpr  )

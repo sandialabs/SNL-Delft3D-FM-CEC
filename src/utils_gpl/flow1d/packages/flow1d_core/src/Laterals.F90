@@ -26,8 +26,8 @@ module m_Laterals
 !  Stichting Deltares. All rights reserved.
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: Laterals.F90 8811 2018-05-17 13:10:43Z zeekant $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_gpl/flow1d/packages/flow1d_core/src/Laterals.F90 $
+!  $Id: Laterals.F90 8044 2018-01-24 15:35:11Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_gpl/flow1d/packages/flow1d_core/src/Laterals.F90 $
 !-------------------------------------------------------------------------------
 
    use m_node

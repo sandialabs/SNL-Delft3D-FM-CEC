@@ -25,8 +25,8 @@ module m_network
 !  Stichting Deltares. All rights reserved.
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: Network.f90 62209 2018-09-28 09:52:16Z ottevan $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_gpl/flow1d/packages/flow1d_core/src/Network.f90 $
+!  $Id: Network.f90 8044 2018-01-24 15:35:11Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_gpl/flow1d/packages/flow1d_core/src/Network.f90 $
 !-------------------------------------------------------------------------------
 
    use m_GlobalParameters

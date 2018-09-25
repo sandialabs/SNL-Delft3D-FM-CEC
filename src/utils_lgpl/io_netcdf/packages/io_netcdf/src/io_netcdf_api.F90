@@ -25,8 +25,8 @@
 !                                                                               
 !-------------------------------------------------------------------------------
 
-! $Id: io_netcdf_api.F90 59821 2018-08-15 15:52:26Z carniato $
-! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_lgpl/io_netcdf/packages/io_netcdf/src/io_netcdf_api.F90 $
+! $Id: io_netcdf_api.F90 7992 2018-01-09 10:27:35Z mourits $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_lgpl/io_netcdf/packages/io_netcdf/src/io_netcdf_api.F90 $
 
 !> \file
 !! Basic API for io_netcdf library routines.

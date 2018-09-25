@@ -25,8 +25,8 @@ module m_rdtrafrm
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: rdtrafrm.f90 9118 2018-06-27 10:41:59Z dam_ar $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_gpl/morphology/packages/morphology_io/src/rdtrafrm.f90 $
+!  $Id: rdtrafrm.f90 7992 2018-01-09 10:27:35Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_gpl/morphology/packages/morphology_io/src/rdtrafrm.f90 $
 !-------------------------------------------------------------------------------
 use m_depfil_stm
 

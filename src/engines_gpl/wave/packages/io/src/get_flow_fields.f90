@@ -25,8 +25,8 @@ subroutine get_flow_fields (i_flow, sif, fg, sg, f2s, wavedata, sr, flowVelocity
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: get_flow_fields.f90 59747 2018-08-03 16:52:40Z j.reyns $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/wave/packages/io/src/get_flow_fields.f90 $
+!  $Id: get_flow_fields.f90 7992 2018-01-09 10:27:35Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/engines_gpl/wave/packages/io/src/get_flow_fields.f90 $
 !!--description-----------------------------------------------------------------
 ! NONE
 !!--pseudo code and references--------------------------------------------------

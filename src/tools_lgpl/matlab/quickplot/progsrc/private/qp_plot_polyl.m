@@ -28,8 +28,8 @@ function [hNew,Thresholds,Param]=qp_plot_polyl(hNew,Parent,Param,data,Ops,Props)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/private/qp_plot_polyl.m $
-%   $Id: qp_plot_polyl.m 8315 2018-03-08 11:37:55Z jagers $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_lgpl/matlab/quickplot/progsrc/private/qp_plot_polyl.m $
+%   $Id: qp_plot_polyl.m 7992 2018-01-09 10:27:35Z mourits $
 
 T_=1; ST_=2; M_=3; N_=4; K_=5;
 

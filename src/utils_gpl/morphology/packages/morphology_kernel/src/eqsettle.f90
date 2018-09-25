@@ -28,7 +28,7 @@ subroutine eqsettle(dll_function, dll_handle, max_integers, max_reals, max_strin
 !                                                                               
 !-------------------------------------------------------------------------------
 !  $Id: eqsettle.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_gpl/morphology/packages/morphology_kernel/src/eqsettle.f90 $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_gpl/morphology/packages/morphology_kernel/src/eqsettle.f90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: 

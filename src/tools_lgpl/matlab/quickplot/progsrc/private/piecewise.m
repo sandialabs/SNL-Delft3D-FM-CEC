@@ -43,8 +43,8 @@ function [mn0,mn]=piecewise(mn,mnmax)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/private/piecewise.m $
-%   $Id: piecewise.m 8084 2018-01-31 13:26:04Z jagers $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_lgpl/matlab/quickplot/progsrc/private/piecewise.m $
+%   $Id: piecewise.m 7992 2018-01-09 10:27:35Z mourits $
 
 if isempty(mn)
     mn0 = mn;

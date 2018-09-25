@@ -25,8 +25,8 @@ subroutine grmap_esmf(i1, f1, n1, f2, mmax, nmax, f2s, f2g, adaptCovered)
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: grmap_esmf.f90 61657 2018-09-10 22:40:14Z j.reyns $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/wave/packages/io/src/grmap_esmf.f90 $
+!  $Id: grmap_esmf.f90 7992 2018-01-09 10:27:35Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/engines_gpl/wave/packages/io/src/grmap_esmf.f90 $
 !!--description-----------------------------------------------------------------
 !
 ! http://www.earthsystemmodeling.org/esmf_releases/last_built/ESMF_refdoc/node3.html

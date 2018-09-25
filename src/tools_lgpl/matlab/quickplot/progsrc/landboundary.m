@@ -67,8 +67,8 @@ function varargout=landboundary(cmd,varargin)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/landboundary.m $
-%   $Id: landboundary.m 8167 2018-02-15 12:27:14Z jagers $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_lgpl/matlab/quickplot/progsrc/landboundary.m $
+%   $Id: landboundary.m 7992 2018-01-09 10:27:35Z mourits $
 
 if nargout>0
     varargout=cell(1,nargout);

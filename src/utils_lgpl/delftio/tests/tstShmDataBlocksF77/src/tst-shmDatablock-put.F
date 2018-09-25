@@ -25,7 +25,7 @@
 !                                                                               
 !-------------------------------------------------------------------------------
 !  $Id: tst-shmDatablock-put.F 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_lgpl/delftio/tests/tstShmDataBlocksF77/src/tst-shmDatablock-put.F $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_lgpl/delftio/tests/tstShmDataBlocksF77/src/tst-shmDatablock-put.F $
       program test_put_shmds_f77
 
       integer t, nTimes

@@ -25,8 +25,8 @@
 !                                                                               
 !-------------------------------------------------------------------------------
 
-! $Id: gridgeom_api.F90 62268 2018-10-05 13:02:59Z carniato $
-! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_lgpl/gridgeom/packages/gridgeom/src/gridgeom_api.F90 $
+! $Id: gridgeom_api.F90 8020 2018-01-18 13:58:43Z carniato $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_lgpl/gridgeom/packages/gridgeom/src/gridgeom_api.F90 $
 
 !> \file
 !! Basic API for gridgeom routines.

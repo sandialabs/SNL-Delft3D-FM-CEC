@@ -23,8 +23,8 @@
 !  are registered trademarks of Stichting Deltares, and remain the property of  
 !  Stichting Deltares. All rights reserved.                                     
 
-!  $Id: ec_provider.F90 62276 2018-10-08 11:15:49Z pijl $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_lgpl/ec_module/packages/ec_module/src/ec_provider.F90 $
+!  $Id: ec_provider.F90 8072 2018-01-30 16:18:02Z spee $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_lgpl/ec_module/packages/ec_module/src/ec_provider.F90 $
 
 !> This module instantiates FileReaders and their source Items, just as a GUI/framework instantiates kernels and their target Items.
 !! @author adri.mourits@deltares.nl
