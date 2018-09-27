@@ -38773,16 +38773,26 @@ subroutine update_verticalprofiles()
    endif  ! if (hu(L) > 0) then
 
       
-   !!! SNL
-   !!! Terrible hack for turbulent inflow, all complaints to ccchart@sandia.gov
-   !if (LL > lnxi) then
-   !    !tke              = max(3./2.*(0.8*0.15)**2,1e-6)  ! 15 percent turbulent intensity of 0.8 m/s inflow
-   !    tke              = 0.041334
-   !    turkin1(Lb-1:Lt) = tke
-   !    !eps    = max(cmukep*tke*tke / vicwmax, 1e-9)
-   !    eps    = 0.00108045
-   !    tureps1(Lb-1:Lt) = eps
-   !endif
+   !! SNL
+   !! Terrible hack for turbulent inflow, all complaints to ccchart@sandia.gov
+   !! if (LL > lnxi) then
+   !!     !!tke              = max(3./2.*(0.8*0.15)**2,1e-6)  ! 15 percent turbulent intensity of 0.8 m/s inflow
+   !!     !tke              = 0.041334
+   !!     !turkin1(Lb-1:Lt) = tke
+   !!     !!eps    = max(cmukep*tke*tke / vicwmax, 1e-9)
+   !!     !eps    = 0.00108045
+   !!     !tureps1(Lb-1:Lt) = eps
+   !!     
+   !!     do L    = Lb-1,Lt-1      ! TKE and epsilon at layer interfaces:
+   !!        tke  = max(3./2.*(U1(L+1)*0.10)**2,1e-6)  ! 10% TI
+   !!        eps  = max(cmukep*tke*tke / vicwmax, 1e-9)
+   !!        
+   !!        turkin1(L) = tke
+   !!        tureps1(L) = eps
+   !!     enddo
+   !!     turkin1(Lt) = tke
+   !!     tureps1(Lt) = eps
+   !! endif
 
   enddo   ! links loop
 

@@ -2181,6 +2181,8 @@ integer :: jaoldstr !< tmp backwards comp: we cannot mix structures from EXT and
      integer                           :: vertpos        ! vertical positioning type of turbine: 0 = fixed z level, 1 = turbine axis at fixed depth relative to water surface
      integer                           :: turbtype       ! BJ 20150326: turbine type: 0 = circular, 1 = rectangular
      real(fp)                          :: angle          ! orientation of turbine indicated by angle between turbine axis and positive x/lon direction
+     real(fp)                          :: csturb         ! cosine of orientation angle
+     real(fp)                          :: snturb         ! sine of orientation angle
      real(fp)                          :: diam           ! diameter of turbine (turbtype=0)
      real(fp)                          :: width          ! BJ 20150326: width of turbine (turbtype=1)
      real(fp)                          :: height         ! BJ 20150326: height of turbine (turbtype=1)
@@ -2294,6 +2296,8 @@ subroutine allocate_turbines(turbines,nturbines,lundia,error)
        turbines%nr(i)%vertpos            = 0
        turbines%nr(i)%turbtype           = 0       ! BJ 20150326
        turbines%nr(i)%angle              = 0.0_fp
+       turbines%nr(i)%csturb             = 0.0_fp
+       turbines%nr(i)%snturb             = 0.0_fp
        turbines%nr(i)%width              = 0.0_fp  ! BJ 20150326
        turbines%nr(i)%height             = 0.0_fp  ! BJ 20150326
        turbines%nr(i)%diam               = 0.0_fp
