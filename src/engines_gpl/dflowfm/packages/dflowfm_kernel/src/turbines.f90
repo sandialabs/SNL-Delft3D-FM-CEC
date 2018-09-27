@@ -46,6 +46,7 @@ subroutine rdturbine(filtrb, lundia, turbines, error)
     use message_module, only: write_error, write_warning, FILE_NOT_FOUND, FILE_READ_ERROR, PREMATURE_EOF
     use table_handles, only: readtable, gettable, GETTABLE_NAME
     use mathconsts, only: pi
+    use m_sferic, only: dg2rd
     !
     implicit none
 !
@@ -84,6 +85,9 @@ subroutine rdturbine(filtrb, lundia, turbines, error)
        error = .true.
        return
     endif     
+    !! TODO FIX HACK
+    !! CCC DEBUG
+    open(unit=5979,file='Turbine_Power.dat',form='formatted')
     !
     ! Read turbine-file
     !
@@ -163,6 +167,9 @@ subroutine rdturbine(filtrb, lundia, turbines, error)
           call prop_get(aturbine, '*', 'XYLoc', xyloc, 2)
           turbines%nr(itrb)%xyz(1:2) = xyloc
           call prop_get(aturbine, '*', 'Orientation', turbines%nr(itrb)%angle)
+          turbines%nr(itrb)%csturb = cos(turbines%nr(itrb)%angle*dg2rd)
+          turbines%nr(itrb)%snturb = sin(turbines%nr(itrb)%angle*dg2rd) 
+
           call prop_get(aturbine, '*', 'NDiaDist4Vel', turbines%nr(itrb)%ndiamu)
           call prop_get(aturbine, '*', 'TurbineModel', turbines%nr(itrb)%turbinemodel)
           call prop_get(aturbine, '*', 'TurbulenceModel', turbines%nr(itrb)%turbulencemodel)
@@ -507,19 +514,18 @@ subroutine mapturbine(turbines,error)
             turbine%cellnr = kturb(1)
 
             ! store center upstream reference node
-            xturb(1) = turbine%xyz(1) + turbine%ndiamu*turbine%diam*cos(turbine%angle*dg2rd)            
-            yturb(1) = turbine%xyz(2) + turbine%ndiamu*turbine%diam*sin(turbine%angle*dg2rd)
+            xturb(1) = turbine%xyz(1) + turbine%ndiamu*turbine%diam*turbine%csturb
+            yturb(1) = turbine%xyz(2) + turbine%ndiamu*turbine%diam*turbine%snturb
             jakdtree = 1
             call find_flownode(1, xturb, yturb, namturb, kturb, jakdtree, 0)
             turbine%cellu(1) = kturb(1)
 
             ! store center downstream reference node
-            xturb(1) = turbine%xyz(1) - turbine%ndiamu*turbine%diam*cos(turbine%angle*dg2rd)            
-            yturb(1) = turbine%xyz(2) - turbine%ndiamu*turbine%diam*sin(turbine%angle*dg2rd)
+            xturb(1) = turbine%xyz(1) - turbine%ndiamu*turbine%diam*turbine%csturb
+            yturb(1) = turbine%xyz(2) - turbine%ndiamu*turbine%diam*turbine%snturb
             jakdtree = 1
             call find_flownode(1, xturb, yturb, namturb, kturb, jakdtree, 0)
             turbine%cellu(2) = kturb(1)
-            
         enddo
     endif
 end subroutine mapturbine
@@ -538,8 +544,9 @@ subroutine updturbine(turbines)
     use m_structures, only: structure_turbines, structure_turbine, turbinecurve, intersect_turbine !, turbines
     !use m_kdtree2
     use kdtree2Factory
+    use m_flowtimes, only: dts,time0
     use m_flowgeom, only: dxi
-    use m_flow, only: adve, advi, u0, u1, Ltop, Lbot, hu, kmx, s1
+    use m_flow, only: adve, advi, u0, u1, Ltop, Lbot, hu, kmx, s1, zws, ucx, ucy
     use m_flowgeom, only: bob
     use unstruc_messages
     use m_sferic, only: dg2rd
@@ -569,10 +576,9 @@ subroutine updturbine(turbines)
     !integer                                            :: k
     !integer                                            :: n
     !integer                                            :: nm
-    !real(fp)                                           :: rhow
+    real(fp)                                           :: rhow
     !real(fp)                                           :: unm1
     !real(fp)                                           :: unm2
-    !real(fp)                                           :: uref
     !real(fp)                                           :: z0
     !character(256)                                     :: errorstring
     type(structure_turbine)                  , pointer :: turbine
@@ -582,7 +588,7 @@ subroutine updturbine(turbines)
     !logical, pointer                                   :: zmodel
     logical                                            :: error
     integer                                            :: numcrossedlinks
-    double precision                                   :: Ct, Cd
+    double precision                                   :: Ct, Cd, aaa
     
 !    double precision, dimension(2,4)                   :: pt   ! corner coordinates in rotor plane
     
@@ -590,13 +596,13 @@ subroutine updturbine(turbines)
     
     double precision                                   :: xi1, xi2
     double precision                                   :: xh, yh, zh, zb
-    integer                                            :: k1, k2, LL, Lb, Lt, k
+    integer                                            :: k1, k2, LL, Lb, Lt, k, kk, kb, kt
     
     double precision, dimension(2)                     :: reldist
     double precision, dimension(2)                     :: zlevel
     double precision                                   :: blockfrac
     double precision                                   :: area
-    double precision                                   :: uref
+    double precision                                   :: uref, udx, udy
     character(256)                                     :: errorstring
 
     double precision, external                         :: dprodin
@@ -605,6 +611,7 @@ subroutine updturbine(turbines)
 !
     double precision :: arat
 
+    rhow = 1027.0;
     if (associated(turbines%nr)) then
         !kmax   => gdp%d%kmax
         !lundia => gdp%gdinout%lundia
@@ -635,33 +642,36 @@ subroutine updturbine(turbines)
             ! F = 0.5*A*rho*Cd*Ud^2
             
             
-           !! TODO calculate upstream direction and grab either cellu(1) or cellu(2)
-            uref = 0.0
-            !LL = turbine%cellu(1)
-            LL = turbine%cellnr
-!           get bedlevel
-            zb = 0.5d0*(bob(1,LL)+bob(2,LL))            
-            call getlbotltop(LL,Lb,Lt)
-            do L=Lb,Lt
-!              get vertical coordinates
-               zlevel(1) = zb + hu(L-1)
-               zlevel(2) = zb + hu(L)
-               if ( zlevel(1) < zh .and. zlevel(2) > zh ) then
-                   uref = u1(L)
-                   exit ! get out of loop
-               endif
-            enddo
+            ! disk velocity
+            kk = turbine%cellnr                 ! turbine location
+            call getkbotktop(kk,kb,kt)          ! get 3D cell bed- and surface layer cell numbers
+            do k=kb,kt                          ! loop over the layers
+                if ( zws(k-1)<= zh .and. zh < zws(k) ) then                     ! use zws, the cell/layer-interface vertical coordinate, layer k is between zws(k-1) and zws(k)
+                    udx = ucx(k)
+                    udy = ucy(k)
+                    exit
+                end if
+            end do
             
+            if ( udx*turbine%csturb + udy*turbine%snturb < 0.0 ) then   ! dot disk velocity with turbine orientation to get upwind side
+                kk = turbine%cellu(1)
+            else
+                kk = turbine%cellu(2)
+            endif
+            call getkbotktop(kk,kb,kt)          ! get 3D cell bed- and surface layer cell numbers
+            do k=kb,kt                          ! loop over the layers
+                if ( zws(k-1)<= zh .and. zh < zws(k) ) then                     ! use zws, the cell/layer-interface vertical coordinate, layer k is between zws(k-1) and zws(k)
+                    uref = abs(ucx(k)*turbine%csturb + ucy(k)*turbine%snturb)   ! use projected reconstructed velocity vector (ucx,ucy) in turbine normal direction
+                    exit
+                end if
+            end do
+
             turbine%thrustcoef = turbinecurve(turbines%curves, turbine%thrustcrvnr, uref, errorstring)
             
             if (turbine%powercrvnr(1)>0 .and. errorstring == '  ') then
                 turbine%powercoef      = turbinecurve(turbines%curves, turbine%powercrvnr, uref, errorstring)
-                !turbine%current_power  = 0.5_fp * turbine%powercoef * rhow * turbine%turbarea * abs(uref**3)
-                !turbine%cumul_power    = turbine%cumul_power + hdt*turbine%current_power
             else
-                turbine%powercoef      = -999.0_fp
-                turbine%current_power  = -999.0_fp
-                turbine%cumul_power    = -999.0_fp
+                turbine%powercoef      = 0.0_fp
             endif
             
             !TODO put in stop conditions for ill defined coefficients, Ct > 1.0, Ct < 0.0
@@ -670,11 +680,11 @@ subroutine updturbine(turbines)
             !    call d3stop(1, gdp)
             !endif
 
-            !Ct = 0.8    ! hard coded hack
             Ct = turbine%thrustcoef
-            
+            aaa = (1.0 - sqrt(1.0-Ct))/2.0
             Cd = 4.0*(1.0 - sqrt(1.0-Ct))/(1.0 + sqrt(1.0-Ct))
-
+                        
+            turbine%current_power = 0.0
             do il = 1,numcrossedlinks
                 LL = turbine%edgelist(il)
                 
@@ -696,126 +706,30 @@ subroutine updturbine(turbines)
                      zlevel(2) = zb + hu(L)
                     
                      call intersect_turbine(reldist,zlevel,zh,turbine%diam,turbine%width,turbine%height,turbine%turbtype,area,blockfrac)
+                     turbine%blockfrac(il,k) = blockfrac
                      !write(1234,"(4F15.5)") 0.5d0*(reldist(1)+reldist(2)), 0.5d0*(zlevel(1,1)+zlevel(1,2)), blockfrac, area
                     
-                     !advi(L) = advi(L) + 0.5d0*Cd*dxi(LL)*abs(u1(L))*blockfrac(1,1)
-                     advi(L) = advi(L) + 0.5d0*Cd*dxi(LL)*abs(u0(L))*blockfrac
-                     turbine%blockfrac(il,k) = blockfrac
+                     if (turbine%turbinemodel == 1) then
+                        !advi(L) = advi(L) + 0.5d0*Cd*dxi(LL)*abs(u1(L))*blockfrac(1,1)
+                        advi(L) = advi(L) + 0.5d0*Cd*dxi(LL)*abs(u0(L))*blockfrac
+                     else
+                        !! CCC DEBUG
+                        !! verify that u1 is multiplied back in later
+                        advi(L) = advi(L) + 0.5d0*Ct*dxi(LL)*uref**2/abs(u1(L))*blockfrac
+                        !advi(L) = advi(L) + 0.5d0*Ct*dxi(LL)*abs(uref)*blockfrac
+                     endif
+                     !uref = u1(L)/(1-aaa)  !induction factor method of reconstructing "reference" velocity
+                     turbine%current_power  = turbine%current_power + 0.5_fp * turbine%powercoef * rhow * area * abs(uref**3)*blockfrac
                   end do
                 end if
-                
-                !! ! disk velocity to use (implicit or explicit)
-                !! !ud = u0(L)
-
-                !! !write(*,*) 'ccc debug',L
-                !! !write(*,*) 'ccc debug',Lbot(L),Ltop(L)
-
-                !! !adve(L) = adve(L) + 0.5d0*Cd*dxi(L)*u0(L)**2
-                !! !advi(L) = advi(L) - 0.5d0*Cd*dxi(L)*abs(ud)
-
-!                !find dot product of flow link and turbine normal (area ratio)
-!                xx(1) = turbine%xyz(1)
-!                yy(1) = turbine%xyz(2)
-!                xx(2) = turbine%xyz(1) + cos(turbine%angle*degrad)
-!                yy(2) = turbine%xyz(2) + sin(turbine%angle*degrad)
-
-!                arat = (xx(1)-xx(2))*(xpts(1,L) - xpts(2,L)) +   &   ! dot product of flow link and turbine normal
-!                       (yy(1)-yy(2))*(ypts(1,L) - ypts(2,L)) 
-
-                !! !                                        dx = V/A,  dxi = 1/dx = A/V, when integrated over volume, gives A
-                !! !                                                   0.5 * Cd / dx * U     ( rho*U multiplied to the implicit part later )
-!                 advi( Lbot(L):Ltop(L) ) = advi( Lbot(L):Ltop(L) ) + 0.5d0*Cd*dxi(L)*abs(u1(Lbot(L):Ltop(L)))  ! * arat
-                !! !                                                   0.5 * Cd * dx * U**2  ( rho multiplied to the explicit part later )
-                !! !adve( Lbot(L):Ltop(L) ) = adve( Lbot(L):Ltop(L) ) + 0.5d0*Cd*dxi(L)*u0(Lbot(L):Ltop(L))**2
-
-                !write(*,*) 'N advi',size(advi( Lbot(L):Ltop(L) ))
-                !write(*,*) "Hu's", hu(Lbot(L):Ltop(L) )
-                !write(*,*) "bob's", bob(1:2,L)
-                !Lb = Lbot(L)
-                !Lt = Ltop(L)
-                !do LL = Lb, Lt
-                !   if LL == Lb then
-                !     pt(1,3) = bob(1,L) ! + 0.0
-                !     pt(2,3) = bob(2,L) ! + 0.0
-                !   else
-                !     pt(1,3) = bob(1,L) + hu(LL-1)
-                !     pt(2,3) = bob(2,L) + hu(LL-1)
-                !   endif
-                !   pt(3,3) = bob(1,L) + hu(LL)
-                !   pt(4,3) = bob(2,L) + hu(LL)
-                !   A1 = 0.5*( pt(1,1)*pt(2,2) + pt(1,2)*pt(2,3) + pt(1,3)*pt(2,4) + pt(1,4)*pt(2,1)     &
-                !            - pt(1,2)*pt(2,1) - pt(1,3)*pt(2,2) - pt(1,4)*pt(2,3) + pt(1,1)*pt(2,4) )
-                !   write(*,*) 'areas', A1
-                !   !project points onto turbine plane
-    
-                !   advi( LL ) = advi( LL ) + 0.5d0*Cd*dxi(L)*abs(u1( LL ))
-                !enddo
-                !pause
-
             enddo
-            !
-            ! determine blockage
-            !
-
-        !    select case(turbine%edgetype)
-        !    case ('U')
-        !        call compute_zlevel(turbine,dzu, dpu, hu, thick, gdp)
-        !    case ('V')
-        !        call compute_zlevel(turbine, dzv, dpv, hv, thick, gdp)
-        !    end select
-        !    !
-        !    if (turbine%vertpos==1) then
-        !        ! floating at fixed depth
-        !        z0 = zw(turbine%cellnr) - turbine%xyz(3)
-        !    else !if (turbine%vertpos==0) then
-        !        ! fixed z level
-        !        z0 = turbine%xyz(3)
-        !    endif
-        !    call intersect_turbine(turbine%reldist,turbine%zlevel,z0,turbine%diam,turbine%width,turbine%height,turbine%turbtype,turbine%area,turbine%blockfrac)
-        !    !
-        !    ! determine characteristic velocity
-        !    !
-        !    call compute_unorm(dzu, dzv, dpu, dpv, hu, hv, alfas, thick, u, v, turbine%cellu(1), z0, turbine%angle, unm1, gdp)
-        !    call compute_unorm(dzu, dzv, dpu, dpv, hu, hv, alfas, thick, u, v, turbine%cellu(2), z0, turbine%angle, unm2, gdp)
-        !    if (unm1>0.0_fp .and. unm2>0.0_fp) then ! flow from primary side
-        !       uref = unm1
-        !    elseif (unm1<0.0_fp .and. unm2<0.0_fp) then ! flow from reverse side
-        !       uref = unm2
-        !    else ! transitional flow
-        !       uref = 0.5_fp * (unm1 + unm2)
-        !    endif
-        !    !
-        !    ! determine thrust and power coefficients
-        !    !
-        !    rhow = 1000.0_fp
-        !    turbine%current_zlevel = z0
-        !    turbine%current_uref   = uref
-        !    !
-        !    turbine%thrustcoef = turbinecurve(turbines%curves, turbine%thrustcrvnr, uref, errorstring)
-        !    !
-        !    ! analytical thrust
-        !    !
-        !    turbine%current_thrust = 0.5_fp * turbine%thrustcoef * rhow * turbine%turbarea * uref**2
-        !    turbine%cumul_thrust   = turbine%cumul_thrust + hdt*turbine%current_thrust
-        !    !
-        !    ! analytical power
-        !    !
-        !    if (turbine%powercrvnr(1)>0 .and. errorstring == '  ') then
-        !        turbine%powercoef      = turbinecurve(turbines%curves, turbine%powercrvnr, uref, errorstring)
-        !        turbine%current_power  = 0.5_fp * turbine%powercoef * rhow * turbine%turbarea * abs(uref**3)
-        !        turbine%cumul_power    = turbine%cumul_power + hdt*turbine%current_power
-        !    else
-        !        turbine%powercoef      = -999.0_fp
-        !        turbine%current_power  = -999.0_fp
-        !        turbine%cumul_power    = -999.0_fp
-        !    endif
-        !    if (errorstring /= ' ') then
-        !        write(lundia,'(A)') trim(errorstring)
-        !        call d3stop(1, gdp)
-        !    endif
-        !    !
-        !    ! friction coefficient set by add_loss_due_to_turbines calls below
+            turbine%cumul_power = turbine%cumul_power + dts*turbine%current_power
+            !! CCC DEBUG
+            !! TODO fix this ugly hack
+            write(5979,'(a,f,a,i,a,e,a,e)') 'Time: ',time0,'  turbine # ',j,'  Power ',turbine%current_power, &
+                                        '  Total Power  ',turbine%cumul_power
         enddo
+
         !call add_loss_due_to_turbines(turbines, v, u, 1, nmaxddb, 4, gdp)
         !call add_loss_due_to_turbines(turbines, u, v, nmaxddb, 1, 4, gdp)
     endif
