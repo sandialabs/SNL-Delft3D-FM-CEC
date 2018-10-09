@@ -27,8 +27,8 @@
 !                                                                               
 !-------------------------------------------------------------------------------
 
-! $Id: unstruc_opengis.f90 54131 2018-01-18 14:02:31Z carniato $
-! $HeadURL: https://repos.deltares.nl/repos/ds/trunk/additional/unstruc/src/unstruc_opengis.f90 $
+! $Id: unstruc_opengis.f90 62178 2018-09-27 09:19:40Z mourits $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/dflowfm/packages/dflowfm_kernel/src/unstruc_opengis.f90 $
 
 !> @file unstruc_opengis.f90
 !! Output Unstruc data in KML format.

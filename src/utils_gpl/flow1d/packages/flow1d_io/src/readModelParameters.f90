@@ -25,14 +25,14 @@ module m_readModelParameters
 !  Stichting Deltares. All rights reserved.
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: readModelParameters.f90 8044 2018-01-24 15:35:11Z mourits $
+!  $Id: readModelParameters.f90 62168 2018-09-26 09:02:37Z zeekant $
 !  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_gpl/flow1d/packages/flow1d_io/src/readModelParameters.f90 $
 !-------------------------------------------------------------------------------
 
    use MessageHandling
    use m_globalParameters
    use ModelParameters
-   use flow1d_io_properties
+   use properties
    use string_module
    use m_boundaryConditions
 
@@ -210,8 +210,10 @@ module m_readModelParameters
          if (.not. success) then
             call setmessage(LEVEL_ERROR, 'StorageOutputFile not found in md1d file')
          endif
-         tb_inc = 0.1
+         tb_inc = 0.1d0
          call prop_get_double(md_ptr, 'StorageTable', 'StorageTableIncrement', tb_inc, success)
+         tb_extra_height = 0d0
+         call prop_get_double(md_ptr, 'StorageTable', 'ExtraHeight', tb_extra_height, success)
       endif
       
       call prop_get_integer(md_ptr, 'Morphology', 'CalculateMorphology', iValue, success)
@@ -277,16 +279,7 @@ module m_readModelParameters
             call str_lower(keyValue)
             
             call AddOrReplaceParameter(category, keyWord, keyValue, .true.)
-            
-            if (category == 'numericalparameters' .and. keyWord == 'thresholdvalueflooding') then
-               ! FloodingDividedByDrying and ThresholdValueDrying are not implemented yet into the File Writers
-               ! So here calculate and store ThresholdValueDrying
-               read (keyValue, *) thresholdDry 
-               thresholdDry  = thresholdDry  / 10.0d0
-               write(keyValue, '(f8.6)') thresholdDry 
-               call AddOrReplaceParameter('numericalparameters', 'thresholdvaluedrying', keyValue, .true.)
-            endif
-            
+                        
             ! Set CacheMode Switches
             if (category == 'advancedoptions' .and. keyWord == 'cachemode') then
             
@@ -320,7 +313,8 @@ module m_readModelParameters
       character(Len=40)                         :: startTime
       character(Len=40)                         :: stopTime
       double precision                          :: timeStep
-      double precision                          :: outputGrid
+      double precision                          :: mapOutput
+      double precision                          :: hisOutput
       logical                                   :: success
       
       integer                                   :: iYear
@@ -373,37 +367,69 @@ module m_readModelParameters
       modelTimeStepData%endDate = iYear * 10000 + iMonth * 100 + iDay
       modelTimeStepData%endTime = iHour * 10000 + iMinute * 100 + iSecond
       
-      if (modelTimeStepData%julianEnd <= modelTimeStepData%julianStart) then
+      if (modelTimeStepData%julianEnd < modelTimeStepData%julianStart) then
          call SetMessage(LEVEL_FATAL, 'Error Reading Date Time Data: Stop Time must be after Start Time')
       endif
       
-      ! Output Time Step
-      call prop_get_double(md_ptr, 'time', 'outtimestepgridpoints', outputGrid, success)
+      ! Map Output Time Step
+      call prop_get_double(md_ptr, 'time', 'mapoutputtimestep', mapOutput, success)
       if (success) then 
-         if (mod(outputGrid, timeStep) > 0.0d0 .or. outputGrid < timeStep) then
-            call SetMessage(LEVEL_FATAL, 'Error Reading Date Time Data: Output Time Step must be multiple of Time Step')
+         if (mod(mapOutput, timeStep) > 0.0d0 .or. mapOutput < timeStep) then
+            call SetMessage(LEVEL_ERROR, 'Error Reading Date Time Data: Map Output Time Step must be multiple of Time Step')
          endif
       else
-         outputGrid = timeStep
+         ! Check for 'outtimestepgridpoints' can be removed in future
+         call prop_get_double(md_ptr, 'time', 'outtimestepgridpoints', mapOutput, success)
+         if (success) then 
+            call SetMessage(LEVEL_WARN, 'Keyword OutTimeStepGridPoints has been depreciated, better use MapOutputTimeStep')
+            if (mod(mapOutput, timeStep) > 0.0d0 .or. mapOutput < timeStep) then
+               call SetMessage(LEVEL_ERROR, 'Error Reading Date Time Data: Map Output Time Step must be multiple of Time Step')
+            endif
+         else
+            call SetMessage(LEVEL_WARN, 'No Map Output Time Step specified, Calculation Time Step will be used')
+            mapOutput = timeStep
+         endif
       endif
       
-      modelTimeStepData%timeStep       = timeStep
-      modelTimeStepData%outputTimeStep = outputGrid
+      ! His Output Time Step
+      call prop_get_double(md_ptr, 'time', 'hisoutputtimestep', hisOutput, success)
+      if (success) then 
+         if (mod(hisOutput, timeStep) > 0.0d0 .or. hisOutput < timeStep) then
+            call SetMessage(LEVEL_ERROR, 'Error Reading Date Time Data: His Output Time Step must be multiple of Time Step')
+         endif
+      else
+         ! Check for 'outtimestepstructures' can be removed in future
+         call prop_get_double(md_ptr, 'time', 'outtimestepstructures', hisOutput, success)
+         if (success) then
+            call SetMessage(LEVEL_WARN, 'Keyword OutTimeStepStructures has been depreciated, better use HisOutputTimeStep')
+            if (mod(hisOutput, timeStep) > 0.0d0 .or. hisOutput < timeStep) then
+               call SetMessage(LEVEL_ERROR, 'Error Reading Date Time Data: His Output Time Step must be multiple of Time Step')
+            endif
+         else
+            call SetMessage(LEVEL_WARN, 'No His Output Time Step specified, Calculation Time Step will be used')
+            hisOutput = timeStep
+         endif
+      endif
+      
+      modelTimeStepData%timeStep          = timeStep
+      modelTimeStepData%mapOutputTimeStep = mapOutput
+      modelTimeStepData%hisOutputTimeStep = hisOutput
          
       ! restart data
-      call prop_get_string(md_ptr, 'restart', 'starttime', startTime, success)   
-      if (success) call prop_get_string(md_ptr, 'restart', 'stoptime', stopTime, success)   
+      call prop_get_string(md_ptr, 'restart', 'restartstarttime', startTime, success)   
+      if (success) call prop_get_string(md_ptr, 'restart', 'restartstoptime', stopTime, success)   
       if (success) call prop_get_double(md_ptr, 'restart', 'restarttimestep', timeStep, success)   
-   
-      if (success) then
+      if (success) call prop_get_logical(md_ptr, 'restart', 'writeRestart', modelTimeStepData%writerestart, success)   
       
+      if (success .and. modelTimeStepData%writerestart) then
+         
          if (timeStep <= 0.0d0) then
             call SetMessage(LEVEL_FATAL, 'Error Reading Date Time Data: Time Step must be > 0.0')
          endif
 
          read (startTime, '(I4,1X,I2,1X,I2,1X,I2,1X,I2,1X,I2)') iYear, iMonth, iDay, iHour, iMinute, iSecond
          julDate = julian(iYear, iMonth, iDay, iHour, iMinute, iSecond)
-         RestartTime = nint((juldate - modelTimeStepData%julianStart)*86400)
+         RestartTime = nint(max((juldate - modelTimeStepData%julianStart)*86400,0d0))
          modelTimeStepData%nextRestarttimestep =restartTime/modelTimeStepData%timeStep
          
          read (stopTime, '(I4,1X,I2,1X,I2,1X,I2,1X,I2,1X,I2)') iYear, iMonth, iDay, iHour, iMinute, iSecond
@@ -415,9 +441,26 @@ module m_readModelParameters
             call SetMessage(LEVEL_FATAL, 'Error Reading Date Time Data: Output Time Step must be multiple of Time Step')
          endif
          modelTimeStepData%restartInterval = nint(timeStep/modelTimeStepData%timeStep)
-      else 
+      elseif (.not. success) then
+         
+         ! TODO remove this part in due time, for now it stays compatibility reasons:
          modelTimeStepData%nextRestarttimestep = nint((modelTimeStepData%julianEnd - modelTimeStepData%julianStart) * 86400)
+
+         call prop_get_logical(md_ptr, 'SimulationOptions', 'WriteRestart', modelTimeStepData%writeRestart, success) 
+
       endif
+      
+      success = .true.
+      modelTimeStepData%restartFile =  '  '
+      modelTimeStepData%useRestart = .false.
+      call prop_get_logical(md_ptr, 'restart', 'UseRestart',   modelTimeStepData%useRestart,   success) 
+      if (success) call prop_get_string (md_ptr, 'restart', 'restartfile', modelTimeStepData%restartFile, success)   
+      
+      if (.not. success) then
+         ! TODO remove this part in due time, for now it stays compatibility reasons:
+         call prop_get_logical(md_ptr, 'SimulationOptions', 'UseRestart',   modelTimeStepData%useRestart,   success) 
+      endif
+      
       
    end subroutine readDateTimeStepData
    
@@ -429,89 +472,124 @@ module m_readModelParameters
       call AddOrReplaceParameter(category, "InitialEmptyWells", '0', .true.)
 
       category = 'ResultsNodes'
-      call AddOrReplaceParameter(category, 'Density', 'none', .true.)
-      call AddOrReplaceParameter(category, 'Lateral1d2d', 'none', .true.)
-      call AddOrReplaceParameter(category, 'LateralOnNodes', 'none', .true.)
-      call AddOrReplaceParameter(category, 'LevelFromStreetLevel', 'none', .true.)
-      call AddOrReplaceParameter(category, 'RunOff', 'none', .true.)
-      call AddOrReplaceParameter(category, 'Salinity', 'none', .true.)
-      call AddOrReplaceParameter(category, 'TimeWaterOnStreet', 'none', .true.)
-      call AddOrReplaceParameter(category, 'TotalArea', 'none', .true.)
-      call AddOrReplaceParameter(category, 'TotalWidth', 'none', .true.)
-      call AddOrReplaceParameter(category, 'Volume', 'none', .true.)
-      call AddOrReplaceParameter(category, 'VolumeError', 'none', .true.)
-      call AddOrReplaceParameter(category, 'VolumesOnStreet', 'none', .true.)
-      call AddOrReplaceParameter(category, 'WaterDepth', 'none', .true.)
-      call AddOrReplaceParameter(category, 'WaterLevel', 'current', .true.)
-      call AddOrReplaceParameter(category, 'WaterOnStreet', 'none', .true.)
+      call AddOrReplaceParameter(category, 'Lateral1d2d',          '0', .true.)
+      call AddOrReplaceParameter(category, 'LateralOnNodes',       '0', .true.)
+      call AddOrReplaceParameter(category, 'LevelFromStreetLevel', '0', .true.)
+      call AddOrReplaceParameter(category, 'RunOff',               '0', .true.)
+      call AddOrReplaceParameter(category, 'TimeWaterOnStreet',    '0', .true.)
+      call AddOrReplaceParameter(category, 'TotalArea',            '0', .true.)
+      call AddOrReplaceParameter(category, 'TotalWidth',           '0', .true.)
+      call AddOrReplaceParameter(category, 'Volume',               '0', .true.)
+      call AddOrReplaceParameter(category, 'VolumeError',          '0', .true.)
+      call AddOrReplaceParameter(category, 'VolumesOnStreet',      '0', .true.)
+      call AddOrReplaceParameter(category, 'WaterDepth',           '0', .true.)
+      call AddOrReplaceParameter(category, 'WaterLevel',           '1', .true.)
+      call AddOrReplaceParameter(category, 'WaterOnStreet',        '0', .true.)
+
+      ! Parameters for Salt
+      call AddOrReplaceParameter(category, 'Density',  '0', .true.)
+      call AddOrReplaceParameter(category, 'Salinity', '0', .true.)
       
       ! Parameters for Temperature Model
-      call AddOrReplaceParameter(category, 'TotalHeatFlux', 'none', .true.)
-      call AddOrReplaceParameter(category, 'RadFluxClearSky', 'none', .true.)
-      call AddOrReplaceParameter(category, 'HeatLossConv', 'none', .true.)
-      call AddOrReplaceParameter(category, 'NetSolarRad', 'none', .true.)
-      call AddOrReplaceParameter(category, 'EffectiveBackRad', 'none', .true.)
-      call AddOrReplaceParameter(category, 'HeatLossEvap', 'none', .true.)
-      call AddOrReplaceParameter(category, 'HeatLossForcedEvap', 'none', .true.)
-      call AddOrReplaceParameter(category, 'HeatLossFreeEvap', 'none', .true.)
-      call AddOrReplaceParameter(category, 'HeatLossForcedConv', 'none', .true.)
-      call AddOrReplaceParameter(category, 'HeatLossFreeConv', 'none', .true.)
+      call AddOrReplaceParameter(category, 'EffectiveBackRad',   '0', .true.)
+      call AddOrReplaceParameter(category, 'HeatLossConv',       '0', .true.)
+      call AddOrReplaceParameter(category, 'HeatLossEvap',       '0', .true.)
+      call AddOrReplaceParameter(category, 'HeatLossForcedConv', '0', .true.)
+      call AddOrReplaceParameter(category, 'HeatLossForcedEvap', '0', .true.)
+      call AddOrReplaceParameter(category, 'HeatLossFreeConv',   '0', .true.)
+      call AddOrReplaceParameter(category, 'HeatLossFreeEvap',   '0', .true.)
+      call AddOrReplaceParameter(category, 'NetSolarRad',        '0', .true.)
+      call AddOrReplaceParameter(category, 'RadFluxClearSky',    '0', .true.)
+      call AddOrReplaceParameter(category, 'TotalHeatFlux',      '0', .true.)
 
       ! Parameters for Morphology
-      call AddOrReplaceParameter(category, 'BedLevel', 'none', .true.)
-      call AddOrReplaceParameter(category, 'IncreaseCrossSec', 'none', .true.)
-      call AddOrReplaceParameter(category, 'MeanBedLevelMain', 'none', .true.)
-      call AddOrReplaceParameter(category, 'AdaptedCrossSec', 'none', .true.)
-      call AddOrReplaceParameter(category, 'CumIncreaseCrossSec', 'none', .true.)
-      call AddOrReplaceParameter(category, 'IntegrSedTransp', 'none', .true.)
-      call AddOrReplaceParameter(category, 'GrainSizeD50', 'none', .true.)
-      call AddOrReplaceParameter(category, 'GrainSizeD90', 'none', .true.)
-      call AddOrReplaceParameter(category, 'SedimentTransport', 'none', .true.)
-      call AddOrReplaceParameter(category, 'SedimentTransportLeft', 'none', .true.)
-      call AddOrReplaceParameter(category, 'SedimentTransportRight', 'none', .true.)
-      call AddOrReplaceParameter(category, 'ShieldsParameter', 'none', .true.)
-      call AddOrReplaceParameter(category, 'MorWaterLevel', 'none', .true.)
-      call AddOrReplaceParameter(category, 'MorVelocity', 'none', .true.)
-      call AddOrReplaceParameter(category, 'MorWidth', 'none', .true.)
-      call AddOrReplaceParameter(category, 'MorDepth', 'none', .true.)
-
+      call AddOrReplaceParameter(category, 'AdaptedCrossSec',        '0', .true.)
+      call AddOrReplaceParameter(category, 'BedLevel',               '0', .true.)
+      call AddOrReplaceParameter(category, 'CumIncreaseCrossSec',    '0', .true.)
+      call AddOrReplaceParameter(category, 'GrainSizeD50',           '0', .true.)
+      call AddOrReplaceParameter(category, 'GrainSizeD90',           '0', .true.)
+      call AddOrReplaceParameter(category, 'IncreaseCrossSec',       '0', .true.)
+      call AddOrReplaceParameter(category, 'IntegrSedTransp',        '0', .true.)
+      call AddOrReplaceParameter(category, 'MeanBedLevelMain',       '0', .true.)
+      call AddOrReplaceParameter(category, 'MorDepth',               '0', .true.)
+      call AddOrReplaceParameter(category, 'MorVelocity',            '0', .true.)
+      call AddOrReplaceParameter(category, 'MorWaterLevel',          '0', .true.)
+      call AddOrReplaceParameter(category, 'MorWidth',               '0', .true.)
+      call AddOrReplaceParameter(category, 'SedimentTransport',      '0', .true.)
+      call AddOrReplaceParameter(category, 'SedimentTransportLeft',  '0', .true.)
+      call AddOrReplaceParameter(category, 'SedimentTransportRight', '0', .true.)
+      call AddOrReplaceParameter(category, 'ShieldsParameter',       '0', .true.)
+      
       category = 'ResultsBranches'
-      call AddOrReplaceParameter(category, 'Chezy', 'none', .true.)
-      call AddOrReplaceParameter(category, 'Discharge', 'current', .true.)
-      call AddOrReplaceParameter(category, 'Dispersion', 'none', .true.)
-      call AddOrReplaceParameter(category, 'EnergyHeadMethod', '11', .true.)
-      call AddOrReplaceParameter(category, 'Froude', 'none', .true.)
-      call AddOrReplaceParameter(category, 'Fwind', 'none', .true.)
-      call AddOrReplaceParameter(category, 'InfiltrationPipes', 'none', .true.)
-      call AddOrReplaceParameter(category, 'Levelsoutputonpipes', '0', .true.)
-      call AddOrReplaceParameter(category, 'RiverSubsectionParameters', 'current', .true.)
-      call AddOrReplaceParameter(category, 'SedimentFrijlink', 'none', .true.)
-      call AddOrReplaceParameter(category, 'SedimentVanRijn', 'none', .true.)
-      call AddOrReplaceParameter(category, 'Twind', 'none', .true.)
-      call AddOrReplaceParameter(category, 'Velocity', 'none', .true.)
-      call AddOrReplaceParameter(category, 'Wind', 'none', .true.)
-      call AddOrReplaceParameter(category, 'WaterLevelSlope', 'none', .true.)
+      call AddOrReplaceParameter(category, 'AreaFP1',              '0', .true.)
+      call AddOrReplaceParameter(category, 'AreaFP2',              '0', .true.)
+      call AddOrReplaceParameter(category, 'AreaMain',             '0', .true.)
+      call AddOrReplaceParameter(category, 'ChezyFP1',             '0', .true.)
+      call AddOrReplaceParameter(category, 'ChezyFP2',             '0', .true.)
+      call AddOrReplaceParameter(category, 'ChezyMain',            '0', .true.)
+      call AddOrReplaceParameter(category, 'Discharge',            '1', .true.)
+      call AddOrReplaceParameter(category, 'DischargeFP1',         '0', .true.)
+      call AddOrReplaceParameter(category, 'DischargeFP2',         '0', .true.)
+      call AddOrReplaceParameter(category, 'DischargeMain',        '0', .true.)
+      call AddOrReplaceParameter(category, 'EnergyLevels',         '0', .true.)
+      call AddOrReplaceParameter(category, 'FlowArea',             '0', .true.)
+      call AddOrReplaceParameter(category, 'FlowChezy',            '0', .true.)
+      call AddOrReplaceParameter(category, 'FlowConv',             '0', .true.)
+      call AddOrReplaceParameter(category, 'FlowHydrad',           '0', .true.)
+      call AddOrReplaceParameter(category, 'Froude',               '0', .true.)
+      call AddOrReplaceParameter(category, 'HydradFP1',            '0', .true.)
+      call AddOrReplaceParameter(category, 'HydradFP2',            '0', .true.)
+      call AddOrReplaceParameter(category, 'HydradMain',           '0', .true.)
+      call AddOrReplaceParameter(category, 'MomAcceleration',      '0', .true.)
+      call AddOrReplaceParameter(category, 'MomAdvection',         '0', .true.)
+      call AddOrReplaceParameter(category, 'MomBedStress',         '0', .true.)
+      call AddOrReplaceParameter(category, 'MomLateralCorrection', '0', .true.)
+      call AddOrReplaceParameter(category, 'MomLosses',            '0', .true.)
+      call AddOrReplaceParameter(category, 'MomPressure',          '0', .true.)
+      call AddOrReplaceParameter(category, 'MomWindStress',        '0', .true.)
+      call AddOrReplaceParameter(category, 'TimeStepEstimation',   '0', .true.)
+      call AddOrReplaceParameter(category, 'Velocity',             '0', .true.)
+      call AddOrReplaceParameter(category, 'WaterLevelGradient',   '0', .true.)
+      call AddOrReplaceParameter(category, 'WidthFp1',             '0', .true.)
+      call AddOrReplaceParameter(category, 'WidthFp2',             '0', .true.)
+      call AddOrReplaceParameter(category, 'WidthMain',            '0', .true.)
 
       category = 'ResultsStructures'
-      call AddOrReplaceParameter(category, 'CrestLevel', 'none', .true.)
-      call AddOrReplaceParameter(category, 'CrestWidth', 'none', .true.)
-      call AddOrReplaceParameter(category, 'Discharge', 'current', .true.)
-      call AddOrReplaceParameter(category, 'GateLowerEdgeLevel', 'none', .true.)
-      call AddOrReplaceParameter(category, 'Head', 'none', .true.)
-      call AddOrReplaceParameter(category, 'OpeningsArea', 'none', .true.)
-      call AddOrReplaceParameter(category, 'PressureDifference', 'none', .true.)
-      call AddOrReplaceParameter(category, 'Velocity', 'none', .true.)
-      call AddOrReplaceParameter(category, 'WaterLevel', 'none', .true.)
-      call AddOrReplaceParameter(category, 'Waterleveloncrest', 'none', .true.)
+      call AddOrReplaceParameter(category, 'CrestLevel',         '0', .true.)
+      call AddOrReplaceParameter(category, 'CrestWidth',         '0', .true.)
+      call AddOrReplaceParameter(category, 'Discharge',          '1', .true.)
+      call AddOrReplaceParameter(category, 'GateLowerEdgeLevel', '0', .true.)
+      call AddOrReplaceParameter(category, 'GateOpeningHeight',  '0', .true.)
+      call AddOrReplaceParameter(category, 'Head',               '0', .true.)
+      call AddOrReplaceParameter(category, 'OpeningsArea',       '0', .true.)
+      call AddOrReplaceParameter(category, 'PressureDifference', '0', .true.)
+      call AddOrReplaceParameter(category, 'State',              '0', .true.)
+      call AddOrReplaceParameter(category, 'Velocity',           '0', .true.)
+      call AddOrReplaceParameter(category, 'WaterLevel',         '0', .true.)
+      call AddOrReplaceParameter(category, 'WaterlevelAtCrest',  '0', .true.)
+      call AddOrReplaceParameter(category, 'WaterlevelDown',     '0', .true.)
+      call AddOrReplaceParameter(category, 'WaterlevelUp',       '0', .true.)
 
       category = 'ResultsPumps'
-      call AddOrReplaceParameter(category, 'PumpResults', 'none', .true.)
+      call AddOrReplaceParameter(category, 'SuctionSideLevel',  '0', .true.)
+      call AddOrReplaceParameter(category, 'DeliverySideLevel', '0', .true.)
+      call AddOrReplaceParameter(category, 'PumpHead',          '0', .true.)
+      call AddOrReplaceParameter(category, 'ActualPumpStage',   '0', .true.)
+      call AddOrReplaceParameter(category, 'PumpCapacity',      '0', .true.)
+      call AddOrReplaceParameter(category, 'ReductionFactor',   '0', .true.)
+      call AddOrReplaceParameter(category, 'PumpDischarge',     '0', .true.)
+
+      category = 'ResultsLaterals'
+      call AddOrReplaceParameter(category, 'ActualDischarge',   '0', .true.)
+      call AddOrReplaceParameter(category, 'DefinedDischarge' , '0', .true.)
+      call AddOrReplaceParameter(category, 'LateralDifference', '0', .true.)
+      call AddOrReplaceParameter(category, 'WaterLevel',        '0', .true.)
 
       category = 'ResultsWaterBalance'
       call AddOrReplaceParameter(category, '1d2dflows', 'none', .true.)
 
       category = 'ResultsGeneral'
-      call AddOrReplaceParameter(category, 'ActualValue', 'current', .true.)
+      call AddOrReplaceParameter(category, 'ActualValue', '1', .true.)
       call AddOrReplaceParameter(category, 'DelwaqNoStaggeredGrid', '0', .true.)
       call AddOrReplaceParameter(category, 'FlowAnalysisTimeSeries', '0', .true.)
       call AddOrReplaceParameter(category, 'MeanValue', '0', .true.)
@@ -549,7 +627,6 @@ module m_readModelParameters
       call AddOrReplaceParameter(category, 'Rho', '1000', .true.)
       call AddOrReplaceParameter(category, 'StructureInertiaDampingFactor', '1.0', .true.)
       call AddOrReplaceParameter(category, 'Theta', '1.0', .true.)
-      call AddOrReplaceParameter(category, 'ThresholdValueDrying', '0.001', .true.)
       call AddOrReplaceParameter(category, 'ThresholdValueFlooding', '0.01', .true.)
       call AddOrReplaceParameter(category, 'UseOmp', '0', .true.)
       call AddOrReplaceParameter(category, 'UseTimeStepReducerStructures', '0', .true.)
@@ -591,7 +668,6 @@ module m_readModelParameters
       call AddOrReplaceParameter(category, 'TimersOutputFrequency', '0', .true.)
       call AddOrReplaceParameter(category, 'use1d2dcoupling', '0', .true.)
       call AddOrReplaceParameter(category, 'UseEnergyHeadStructures', '0', .true.)
-      call AddOrReplaceParameter(category, 'UseRestart', '0', .true.)
       call AddOrReplaceParameter(category, 'UseTimers', '0', .true.)
       call AddOrReplaceParameter(category, 'Usevariableteta', '0', .true.)
       call AddOrReplaceParameter(category, 'UseWlevStateFile', '0', .true.)
@@ -599,7 +675,6 @@ module m_readModelParameters
       call AddOrReplaceParameter(category, 'VolumeCorrection', '0', .true.)
       call AddOrReplaceParameter(category, 'WaterQualityInUse', '0', .true.)
       call AddOrReplaceParameter(category, 'WriteNetCDF', '0', .true.)
-      call AddOrReplaceParameter(category, 'WriteRestart', '0', .true.)
 
       category = 'AdvancedOptions'
       call AddOrReplaceParameter(category, 'CacheMode', 'none', .true.)

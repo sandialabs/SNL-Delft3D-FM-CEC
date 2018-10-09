@@ -38,6 +38,7 @@
 %   shapewrite                  - Write ESRI shape files.
 %   shipma                      - Read Shipma project (and embedded) files.
 %   shyfemmesh                  - Read a SHYFEM mesh topology file.
+%   smsmesh                     - Read a Surface-water Modeling System mesh topology file.
 %   sobek                       - Read and plot SOBEK topology.
 %   swan                        - Read/write SWAN files.
 %   tecplot                     - Read/write for Tecplot files.
@@ -287,4 +288,4 @@
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
 %   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/private/Contents.m $
-%   $Id: Contents.m 7992 2018-01-09 10:27:35Z mourits $
+%   $Id: Contents.m 8791 2018-05-16 10:50:08Z jagers $

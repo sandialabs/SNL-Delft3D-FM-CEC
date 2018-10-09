@@ -32,7 +32,7 @@ function outdata=d3d_qp(cmd,varargin)
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
 %   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/d3d_qp.m $
-%   $Id: d3d_qp.m 7992 2018-01-09 10:27:35Z mourits $
+%   $Id: d3d_qp.m 62249 2018-10-04 15:55:33Z jagers $
 
 try
     if nargin==0
@@ -48,7 +48,7 @@ catch Ex
 end
 
 function outdata=d3d_qp_core(cmd,varargin)
-%VERSION = 2.30
+%VERSION = 2.33
 qpversionbase = 'v<VERSION>';
 qpcreationdate = '<CREATIONDATE>';
 %
@@ -1508,10 +1508,14 @@ switch cmd
         d3d_qp('editm*',MN')
         
     case 'convertmn2xy'
-        MW=UD.MainWin;
         XY = qp_gridview('convertmn2xy',UD.GridView.Fig);
         d3d_qp('editxy*',XY)
         
+    case 'reversemn'
+        MW=UD.MainWin;
+        MN = get(MW.EditMN,'userdata');
+        d3d_qp('editmn*',flipud(MN))
+
     case {'editmn*','editmn','editxy*','editxy','loadxy'}
         MW=UD.MainWin;
         isMN = isequal(cmd(5:6),'mn');
@@ -2603,6 +2607,7 @@ switch cmd
             zlim;
             qpsf;
             qpsa;
+            qpfile
         end
         
     case 'showmessagewin'

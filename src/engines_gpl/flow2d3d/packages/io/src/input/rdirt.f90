@@ -28,7 +28,7 @@ subroutine rdirt(lunmd     ,lundia    ,error     ,nrrec     ,mdfrec    , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: rdirt.f90 7992 2018-01-09 10:27:35Z mourits $
+!  $Id: rdirt.f90 8579 2018-04-16 08:46:46Z dam_ar $
 !  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/flow2d3d/packages/io/src/input/rdirt.f90 $
 !!--description-----------------------------------------------------------------
 !
@@ -42,6 +42,7 @@ subroutine rdirt(lunmd     ,lundia    ,error     ,nrrec     ,mdfrec    , &
 !!--declarations----------------------------------------------------------------
     use precision
     use properties
+    use time_module
     !
     use globaldata
     !
@@ -264,7 +265,7 @@ subroutine rdirt(lunmd     ,lundia    ,error     ,nrrec     ,mdfrec    , &
           !
           ! test if iitdat is a legal date: JULDAY = 0 not allowed
           !
-          call juldat(iitdat    ,julday    )
+          julday = ymd2jul(iitdat)
           if (julday == 0) then
              error = .true.
              call prterr(lundia    ,'V007'    ,keyw      )

@@ -44,7 +44,7 @@ function [mn0,mn]=piecewise(mn,mnmax)
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
 %   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/private/piecewise.m $
-%   $Id: piecewise.m 7992 2018-01-09 10:27:35Z mourits $
+%   $Id: piecewise.m 8084 2018-01-31 13:26:04Z jagers $
 
 if isempty(mn)
     mn0 = mn;
@@ -88,12 +88,12 @@ end
 if nargin>1
     mn0(:,1) = max(1,min(mn0(:,1),mnmax(1)));
     mn0(:,2) = max(1,min(mn0(:,2),mnmax(2)));
-    mndiff = diff(mn0);
+    mndiff = diff(mn0,1,1);
     mn0(all(mndiff==0,2),:)=[];
 end
 if nargout>1
-    mndiff = diff(mn0);
-    mn = mn0([1;find(any(diff(mndiff),2))+1;size(mn0,1)],:);
+    mndiff = diff(mn0,1,1);
+    mn = mn0([1;find(any(diff(mndiff,1,1),2))+1;size(mn0,1)],:);
     if size(mn,1)==2 && isequal(mn(1,:),mn(end,:))
         mn = mn(1,:);
     end

@@ -34,7 +34,7 @@ subroutine tram1 (numrealpar,realpar   ,wave                 ,par       , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: tram1.f90 7992 2018-01-09 10:27:35Z mourits $
+!  $Id: tram1.f90 59596 2018-07-18 06:24:16Z platzek $
 !  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_gpl/morphology/packages/morphology_kernel/src/tram1.f90 $
 !!--description-----------------------------------------------------------------
 !
@@ -171,6 +171,7 @@ subroutine tram1 (numrealpar,realpar   ,wave                 ,par       , &
     rlabda    = real(realpar(RP_RLAMB),fp)
     uorb      = real(realpar(RP_UORB) ,fp)
     di50      = real(realpar(RP_D50)  ,fp)
+    dss       = real(realpar(RP_DSS)  ,fp)
     !realpar(RP_DSS) = real(dss,hp)
     dstar     = real(realpar(RP_DSTAR),fp)
     d10       = real(realpar(RP_D10MX),fp)

@@ -27,8 +27,8 @@
 !                                                                               
 !-------------------------------------------------------------------------------
 
-! $Id: rest.F90 54131 2018-01-18 14:02:31Z carniato $
-! $HeadURL: https://repos.deltares.nl/repos/ds/trunk/additional/unstruc/src/rest.F90 $
+! $Id: rest.F90 62198 2018-09-27 10:18:19Z dam_ar $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/dflowfm/packages/dflowfm_kernel/src/rest.F90 $
 
       SUBROUTINE dCROSS(X1,Y1,X2,Y2,X3,Y3,X4,Y4,JACROS,SL,SM,XCR,YCR,CRP) ! liggen 3 en 4 aan weerszijden van lijn 12
       use m_sferic
@@ -252,36 +252,15 @@
       END
 
 
-    SUBROUTINE INCREASELAN(N)
-        USE M_MISSING
-        use unstruc_messages
-        use m_alloc
-        use m_landboundary
-        integer :: n
-
-        integer :: ierr
-
-        IF (N < MAXLAN) RETURN
-        MAXLAN = MAX(50000,INT(1.2d0*N))
-
-        call realloc(xlan, MAXLAN, stat=ierr, fill=dxymis)
-        CALL AERR('xlan(maxlan)', IERR, maxlan)
-        call realloc(ylan, MAXLAN, stat=ierr, fill=dxymis)
-        CALL AERR('ylan(maxlan)', IERR, maxlan)
-        call realloc(zlan, MAXLAN, stat=ierr, fill=dxymis)
-        CALL AERR('zlan(maxlan)', IERR, maxlan)
-        call realloc(nclan, MAXLAN, stat=ierr, fill=0)
-        CALL AERR('nclan(maxlan)', IERR, maxlan/2)
-    END subroutine increaselan
-
-
-      SUBROUTINE REALAN( MLAN)
+    SUBROUTINE REALAN( MLAN, ANTOT)
       use m_polygon
       use M_landboundary
       USE M_MISSING
       implicit none
+      integer, intent(inout)                ::  mlan
+      integer, intent(inout), optional      ::  antot
+
       integer :: i
-      integer :: mlan
       integer :: ncl
       integer :: newlin
       integer :: nkol
@@ -292,9 +271,15 @@
       CHARACTER CHARMC*5, MATR*4, REC*132
       DOUBLE PRECISION :: XL, YL, ZL
 
-
-      NTOT   = 0
-      call increaselan(10000)
+      if (present(antot)) then
+         NTOT   = antot
+      else
+         NTOT   = 0
+      endif
+      
+      if (ntot == 0) then
+         call increaselan(10000)
+      endif
 
       CALL READYY('READING land boundary',0d0)
    10 CONTINUE
@@ -361,6 +346,10 @@
       CALL READYY(' ',-1d0)
       call doclose (MLAN)
      
+      if (present(antot)) then
+         antot = NTOT
+      endif
+
       return
       
       n = 1                                    ! remove double points in lineseg oriented files  
@@ -516,6 +505,7 @@ end subroutine read_land_boundary_netcdf
       use m_alloc
       use unstruc_messages
       use unstruc_files
+      use m_flowparameters, only: ifixedweirscheme
  
       implicit none
       integer :: mpol
@@ -640,8 +630,11 @@ end subroutine read_land_boundary_netcdf
                    DZL(NPL) = DZ1
                    DZR(NPL) = DZ2  
                 else if (jakol45 == 2) then
-                   IF (.NOT. ALLOCATED(DZL) ) THEN 
+                   IF (.NOT. ALLOCATED(IWEIRT) ) THEN 
+                      if( allocated( DZL ) ) deallocate( DZL )
+                      if( allocated( DZR ) ) deallocate( DZR )
                       ALLOCATE ( DZL(MAXPOL), DZR(MAXPOL), DCREST(MAXPOL), DTL(MAXPOL), DTR(MAXPOL), DVEG(MAXPOL), IWEIRT(MAXPOL) )
+                      IWEIRT = dmiss
                    ENDIF     
                    DZL(NPL) = sillup  
                    DZR(NPL) = silldown  
@@ -649,14 +642,19 @@ end subroutine read_land_boundary_netcdf
                    DTL(NPL) = taludl
                    DTR(NPL) = taludr  
                    DVEG(NPL) = veg 
+                   IWEIRT(NPL) = -999  ! if no weirtype has been specified
                    if (nkol .eq. 10) then
                       if (weirtype .eq. 't' .or. weirtype .eq. 'T') then
                           IWEIRT(NPL) = 1  
                       elseif (weirtype .eq. 'v' .or. weirtype .eq. 'V')  then
                           IWEIRT(NPL) = 2  
                       endif    
-                   else
-                      IWEIRT(NPL) = -999  ! if nkol=9 and no weirtype has been specified
+                   else if (nkol == 9) then
+                      if (ifixedweirscheme == 8) then
+                         IWEIRT(NPL) = 1
+                      elseif (ifixedweirscheme == 9) then
+                         IWEIRT(NPL) = 2
+                      endif
                    endif    
                 endif
             
@@ -1194,6 +1192,9 @@ end subroutine read_land_boundary_netcdf
       subroutine checkdislin()
       use m_polygon
       use m_sferic
+      use geometry_module, only: dlinedis
+      use m_missing, only: dmiss
+
       implicit none
       integer :: ja
       integer :: jashow
@@ -1206,21 +1207,21 @@ end subroutine read_land_boundary_netcdf
       double precision :: dis, xn, yn
 
       if (npl >= 2) then
-         call DLINEDIS(xlc, ylc ,Xpl(1),ypl(1), xpl(2), ypl(2) ,JA,DIS,XN,YN)
+         call DLINEDIS(xlc, ylc ,Xpl(1),ypl(1), xpl(2), ypl(2) ,JA,DIS,XN,YN,jsferic, jasfer3D, dmiss)
       endif
 
-      call DLINEDIS(1d0,0d0,0d0,0d0,1d0,1d0, JA, DIS,XN,YN)
+      call DLINEDIS(1d0,0d0,0d0,0d0,1d0,1d0, JA, DIS,XN,YN,jsferic, jasfer3D, dmiss)
 
       dis = 0.5d0*sqrt(2d0)
 
-      call DLINEDIS(1d0,0.5d0,0d0,0d0,1d0,1d0, JA, DIS,XN,YN)
+      call DLINEDIS(1d0,0.5d0,0d0,0d0,1d0,1d0, JA, DIS,XN,YN,jsferic, jasfer3D, dmiss)
 
       dis = 0.25d0*sqrt(2d0)
 
       jsferic = 1
-      call DLINEDIS(4d0,60d0,3d0,60d0,4d0,61d0, JA, DIS,XN,YN)
+      call DLINEDIS(4d0,60d0,3d0,60d0,4d0,61d0, JA, DIS,XN,YN,jsferic, jasfer3D, dmiss)
 
-      call DLINEDIS(4d0,60.8d0,3d0,60d0,4d0,61d0, JA, DIS,XN,YN)
+      call DLINEDIS(4d0,60.8d0,3d0,60d0,4d0,61d0, JA, DIS,XN,YN,jsferic, jasfer3D, dmiss)
       
       call rcirc( xn, yn )
       end subroutine checkdislin
@@ -3017,192 +3018,6 @@ end subroutine read_samples_from_arcinfo
       END
 
 
-      SUBROUTINE INCREASESAM(N)
-      USE M_SAMPLES
-      USE M_MISSING
-      use m_alloc
-      implicit none
-      integer, intent(in) :: n !< New size for sample set #3.
-
-      integer :: ierr
-      IF (N < NSMAX) RETURN
-      NSMAX = MAX(10000,INT(1.2d0*N))
-      
-      call realloc(xs, NSMAX, keepExisting=.true., fill = dmiss, stat=ierr)
-      CALL AERR ('XS(NSMAX)',IERR,NSMAX)
-      call realloc(ys, NSMAX, keepExisting=.true., fill = dmiss, stat=ierr)
-      CALL AERR ('YS(NSMAX)',IERR,NSMAX)
-      call realloc(zs, NSMAX, keepExisting=.true., fill = dmiss, stat=ierr)
-      CALL AERR ('ZS(NSMAX)',IERR,NSMAX)
-      call realloc(ipsam, NSMAX, keepExisting=.false., fill=0, stat=ierr)
-      CALL AERR ('IPSAM',IERR,NSMAX)
-
-!     user is editing samples: mark samples as unstructured
-      MXSAM = 0
-      MYSAM = 0
-      IPSTAT = IPSTAT_NOTOK
-      
-      END
-
-      SUBROUTINE INCREASESAM3(N)
-      USE M_SAMPLES3
-      USE M_MISSING
-      use m_alloc
-      implicit none
-      integer, intent(in) :: n !< New size for sample set #3.
-
-      integer :: ierr
-      integer :: nsmax
-
-      NSMAX = SIZE(XS3)
-
-      IF (N < NSMAX) RETURN
-      NSMAX = MAX(10000,INT(1.2d0*N))
-      
-      call realloc(xs3, NSMAX, keepExisting=.true., fill = dmiss, stat=ierr)
-      call realloc(ys3, NSMAX, keepExisting=.true., fill = dmiss, stat=ierr)
-      call realloc(zs3, NSMAX, keepExisting=.true., fill = dmiss, stat=ierr)
-      CALL AERR ('XS3(NSMAX),YS3(NSMAX),ZS3(NSMAX)',IERR,NSMAX)
-
-
-      END
-
-      SUBROUTINE SAVESAM()
-      USE M_SAMPLES2
-      USE M_SAMPLES
-      USE M_MISSING
-      use m_alloc
-      implicit none
-      integer :: ierr
-      NS2 = NS
-      MXSAM2 = MXSAM
-      MYSAM2 = MYSAM
-      IF (NS .EQ. 0) RETURN
-      
-      call realloc(xs2, ns, keepExisting=.false., fill=dmiss, stat=ierr)
-      call realloc(ys2, ns, keepExisting=.false., fill=dmiss, stat=ierr)
-      call realloc(zs2, ns, keepExisting=.false., fill=dmiss, stat=ierr)
-
-      CALL PUTAR(XS,XS2,NS)
-      CALL PUTAR(YS,YS2,NS)
-      CALL PUTAR(ZS,ZS2,NS)
-!      NS2 = NS
-      RETURN
-      END
-
-      SUBROUTINE RESTORESAM()
-      USE M_SAMPLES2
-      USE M_SAMPLES
-      implicit none
-      MXSAM = 0   ! unstructured samples by default
-      MYSAM = 0
-      IPSTAT = IPSTAT_NOTOK
-      NS    = NS2
-      MXSAM = MXSAM2
-      MYSAM = MYSAM2
-      IF (NS2 == 0) RETURN
-      CALL PUTAR(XS2,XS,NS2)
-      CALL PUTAR(YS2,YS,NS2)
-      CALL PUTAR(ZS2,ZS,NS2)
-      RETURN
-      END
-
-      !> Increase size of global polyline array.
-      !! Specify new size and whether existing points need to be maintained.
-      SUBROUTINE INCREASEPOL(N, jaKeepExisting)
-      use m_polygon
-      use m_missing
-      use m_alloc
-      implicit none
-      integer :: n              !< Desired new minimum size
-      integer :: jaKeepExisting !< Whether or not (1/0) to keep existing points.
-      logical :: jakeep
-      integer :: maxpolcur
-
-      integer :: ierr
-      
-      maxpolcur = size(xpl)
-      IF (N < maxpolcur ) THEN 
-         RETURN
-      ENDIF
-      MAXPOL = MAX(100000,INT(5d0*N))
-      
-      jakeep = jaKeepExisting==1
-
-      call realloc(xpl, maxpol, keepExisting=jakeep, fill=dxymis, stat=ierr)
-      call realloc(ypl, maxpol, keepExisting=jakeep, fill=dxymis, stat=ierr)
-      call realloc(zpl, maxpol, keepExisting=jakeep, fill=dxymis, stat=ierr)
-
-      if (jakol45 == 1) then 
-         call realloc(dzl, maxpol, keepExisting=jakeep, fill=dxymis, stat=ierr)
-         call realloc(dzr, maxpol, keepExisting=jakeep, fill=dxymis, stat=ierr)
-      else if (jakol45 == 2) then
-         call realloc(dcrest, maxpol, keepExisting=jakeep, fill=dxymis, stat=ierr)
-         call realloc(dzl, maxpol, keepExisting=jakeep, fill=dxymis, stat=ierr)
-         call realloc(dzr, maxpol, keepExisting=jakeep, fill=dxymis, stat=ierr)
-         call realloc(dtl, maxpol, keepExisting=jakeep, fill=dxymis, stat=ierr)
-         call realloc(dtr, maxpol, keepExisting=jakeep, fill=dxymis, stat=ierr)
-         call realloc(dveg, maxpol, keepExisting=jakeep, fill=dxymis, stat=ierr)
-         call realloc(iweirt, maxpol, keepExisting=jakeep, stat=ierr)
-     endif
-
-!     make sure nampli is allocated
-      if ( .not.allocated(nampli) ) then
-         allocate(nampli(0))
-      end if
-
-      end subroutine increasepol
-
-
-      !> Copies the global polygon into the backup polygon arrays.
-      SUBROUTINE SAVEPOL()
-      USE M_POLYGON
-      use m_alloc
-      use m_missing
-      implicit none
-
-      call realloc(xph, maxpol, keepExisting=.false.)
-      call realloc(yph, maxpol, keepExisting=.false.)
-      call realloc(zph, maxpol, keepExisting=.false.)
-
-      IF (NPL > 0) THEN
-         XPH(1:NPL) = XPL(1:NPL)
-         YPH(1:NPL) = YPL(1:NPL)
-         ZPH(1:NPL) = ZPL(1:NPL)
-      ENDIF
-
-      MPS = MP
-      NPH = NPL
-
-      RETURN
-      END subroutine savepol
-
-
-      !> Puts back a previously saved backup polygon into the global polygon arrays.
-      SUBROUTINE RESTOREPOL()
-      USE M_POLYGON
-      use m_alloc
-      use m_missing
-      implicit none
-
-      maxpol = max(maxpol, nph)
-      call realloc(xpl, maxpol, keepExisting=.false.)
-      call realloc(ypl, maxpol, keepExisting=.false.)
-      call realloc(zpl, maxpol, keepExisting=.false.)
-
-      IF (NPH > 0) THEN
-         XPL(1:NPH) = XPH(1:NPH)
-         YPL(1:NPH) = YPH(1:NPH)
-         ZPL(1:NPH) = ZPH(1:NPH)
-      ENDIF
-
-      MP  = MPS
-      NPL = NPH
-
-      RETURN
-      end subroutine restorepol
-
-
       SUBROUTINE XMISAR (X, MMAX)
       USE M_MISSING
       implicit none
@@ -3874,89 +3689,6 @@ end subroutine read_samples_from_arcinfo
  end subroutine sincosdis 
 
 
-     !> Computes the perpendicular distance from point 3 to a line 1-2.
-      SUBROUTINE dLINEDIS(X3,Y3,X1,Y1,X2,Y2,JA,DIS,XN,YN)
-      use m_sferic
-      use geometry_module, only: dbdistance, getdx, getdy, sphertoCart3D, cart3Dtospher
-      use m_missing, only: dmiss
-      use m_sferic, only: jsferic, jasfer3D
-      
-      implicit none
-      DOUBLE PRECISION, intent(in   ) :: X1,Y1,X2,Y2 !< x,y coordinates of the line between point 1 and 2.
-      DOUBLE PRECISION, intent(in   ) :: X3,Y3       !< x,y coordinates of the point for which to compute the distance.
-      integer         , intent(  out) :: ja          !< Whether or not (1/0) the computation was possible. If line points 1 and 2 coincide, ja==0, and distance is just Euclidean distance between 3 and 1.
-      DOUBLE PRECISION, intent(  out) :: DIS         !< Perpendicular distance from point 3 and line 1-2.
-      DOUBLE PRECISION, intent(  out) :: XN,YN       !< Coordinates of the projected point from point 3 onto line 1-2.
-
-      DOUBLE PRECISION :: R2,RL,X21,Y21,Z21,X31,Y31,Z31
-      DOUBLE PRECISION :: xx1,xx2,xx3,yy1,yy2,yy3,zz1,zz2,zz3,xxn,yyn,zzn
-
-!     korste afstand tot lijnelement tussen eindpunten
-      JA  = 0
-      
-      if ( jsferic.eq.0 .or. jasfer3D.eq.0 ) then
-         X21 = getdx(x1,y1,x2,y2,jsferic)
-         Y21 = getdy(x1,y1,x2,y2,jsferic)
-         X31 = getdx(x1,y1,x3,y3,jsferic)
-         Y31 = getdy(x1,y1,x3,y3,jsferic)
-         R2  = dbdistance(x2,y2,x1,y1,jsferic, jasfer3D, dmiss)
-         R2  = R2*R2
-!         IF (R2 .NE. 0) THEN
-         IF (R2 .GT. 1D-8) THEN
-            RL  = (X31*X21 + Y31*Y21) / R2
-            RL  = MAX( MIN(1d0,RL) , 0d0)
-            JA  = 1
-            XN  = X1 + RL*(x2-x1)
-            
-!           fix for spherical, periodic coordinates
-            if ( jsferic.eq.1 ) then
-               if ( x2-x1.gt.180d0 ) then
-                  XN = XN - RL*360d0
-               else if ( x2-x1.lt.-180d0 ) then
-                  XN = XN + RL*360d0
-               end if
-            end if
-            
-            YN  = Y1 + RL*(y2-y1)
-            DIS = dbdistance(x3,y3,xn,yn,jsferic, jasfer3D, dmiss)
-         ELSE  ! node 1 -> node 2
-            DIS = dbdistance(x3,y3,x1,y1,jsferic, jasfer3D, dmiss)
-         ENDIF
-      else
-         call sphertocart3D(x1,y1,xx1,yy1,zz1)
-         call sphertocart3D(x2,y2,xx2,yy2,zz2)
-         call sphertocart3D(x3,y3,xx3,yy3,zz3)
-         
-         x21 = xx2-xx1
-         y21 = yy2-yy1
-         z21 = zz2-zz1
-         x31 = xx3-xx1
-         y31 = yy3-yy1
-         z31 = zz3-zz1
-
-         r2  = x21*x21 + y21*y21 + z21*z21      
-         if (R2 .GT. 1D-8) then
-            RL = (X31*X21 + Y31*Y21 + Z31*Z21) / R2
-            RL  = MAX( MIN(1d0,RL) , 0d0)
-            JA  = 1
-            
-            XXN  = xx1 + RL*x21 
-            YYN  = yy1 + RL*y21
-            ZZN  = zz1 + RL*z21
-            x31 = xxn-xx3
-            y31 = yyn-yy3
-            z31 = zzn-zz3
-            DIS = sqrt(x31*x31 + y31*y31 + z31*z31)      
-            
-            call Cart3Dtospher(xxn,yyn,zzn,xn,yn,maxval((/x1,x2,x3/)))
-         else   
-            DIS = dbdistance(x3,y3,x1,y1, jsferic, jasfer3D, dmiss)
-         endif   
-      end if
-      
-      RETURN
-      END subroutine DLINEDIS
-
       SUBROUTINE dLINEDIS2(X3,Y3,X1,Y1,X2,Y2,JA,DIS,XN,YN,rl)
       use m_sferic
       use geometry_module, only: getdx, getdy, dbdistance, sphertoCart3D, cart3Dtospher
@@ -4508,7 +4240,7 @@ end subroutine read_samples_from_arcinfo
          RLout = 0d0  
          if (r2 .ne. 0d0) then 
             RL = (X31*X21 + Y31*Y21 + Z31*Z21) / R2
-            RLout = 0d0
+            RLout = RL
             RL  = MAX( MIN(1d0,RL) , 0d0)
             JA = 1
             XXN  = xx1 + RL*x21 
@@ -5016,14 +4748,18 @@ end subroutine timdat
       END
  
       SUBROUTINE FIRSTLIN(MRGF)
-      use unstruc_version_module, only: unstruc_version_full
+      use unstruc_version_module, only: unstruc_version_full, get_unstruc_source
       implicit none
       integer :: mrgf
 
-      CHARACTER TEX*80, RUNDAT*20
+      CHARACTER TEX*255, RUNDAT*20
       CALL DATUM(RUNDAT)
+      WRITE(MRGF,'(A)') '* '//trim(unstruc_version_full)
+      call get_unstruc_source(TEX)
+      WRITE(MRGF,'(A)') '* Source: '//trim(TEX)
       TEX = '* File creation date: ' //RUNDAT
-      WRITE(MRGF,'(A/A)') '* '//trim(unstruc_version_full), TEX
+      WRITE(MRGF,'(A)') TEX
+
       RETURN
       END
 
@@ -5355,7 +5091,7 @@ end subroutine timdat
         R2search = 1.1d0*dmaxsize**2  ! 1.1d0: safety
         
 !       get the cell polygon that is safe for periodic, spherical coordinates, inluding poles         
-        call get_cellpolygon(k,Msize,N,xloc,yloc,LnnL,Lorg,zz)
+        call get_cellpolygon(k,Msize,N,1d0,xloc,yloc,LnnL,Lorg,zz)
         
         if ( N.lt.1 ) then
            if ( k.le.Ndxi ) then
@@ -5476,7 +5212,8 @@ end subroutine timdat
 module m_snappol  ! intentionally a module (for assumed size)
 use kdtree2Factory
 implicit none
-contains
+   contains   
+   
 !> snap polygon to mesh
   subroutine snappol(Nin, Xin, Yin, dsep, itype, Nout, Xout, Yout, ipoLout, ierror)
      use m_polygon
@@ -5794,7 +5531,7 @@ contains
      select case(trim(bndtype))
         case( 'boundary' )
            ioutput = INETLINKS
-        case( 'velocitybnd', 'dischargebnd' )
+        case( 'velocitybnd', 'dischargebnd', '1d2dbnd')
            ioutput = IFLOWLINKS
         case DEFAULT
            ioutput = IFLOWNODES
@@ -5811,8 +5548,26 @@ contains
      call count_links(mx1Dend, Nx)
 
 !    allocate
-     allocate(xe(Nx), ye(Nx), xyen(2,Nx), kce(Nx), ke(Nin), ki(Nx))
-     allocate(kcs(Nin), xdum(Nin), ydum(Nin))
+     if(allocated(xe)) deallocate(xe, stat=ierror) 
+     if(allocated(ye)) deallocate(ye, stat=ierror) 
+     if(allocated(xyen)) deallocate(xyen, stat=ierror) 	 
+     if(allocated(kce)) deallocate(kce, stat=ierror) 
+     if(allocated(ke)) deallocate(ke, stat=ierror) 
+     if(allocated(ki)) deallocate(ki, stat=ierror) 
+     if(allocated(kcs)) deallocate(kcs, stat=ierror) 
+     if(allocated(xdum)) deallocate(xdum, stat=ierror) 
+     if(allocated(ydum)) deallocate(ydum, stat=ierror) 
+
+     allocate(xe(Nx), stat=ierror)
+     allocate(ye(Nx), stat=ierror)
+     allocate(xyen(2,Nx), stat=ierror)
+     allocate(kce(Nx), stat=ierror)
+     allocate(ke(Nx), stat=ierror)
+     allocate(ki(Nx), stat=ierror)
+
+     allocate(kcs(Nin), stat=ierror)
+     allocate(xdum(Nin), stat=ierror)
+     allocate(ydum(Nin), stat=ierror)
      
      kce = 0
      ke  = 0
@@ -6205,7 +5960,6 @@ subroutine make_matrix(CFL, s1)
          maxmatvecs = maxsubmatvecs
       end if
       
-      md_findcells = 0  ! try to bypass findcells
       ierror = flow_modelinit()
       
 !!      call initimer()
@@ -6535,7 +6289,7 @@ use m_flowparameters, only: eps10
 implicit none
    double precision, intent(in) :: tim1 !< Current (new) time
 
-   double precision,                 save        :: timprev = -1d0
+   double precision,                 save        :: timprev = -1d0 ! TODO: save is unsafe, replace by using time1 and time0, also two other occurrences
    double precision                              :: timstep
    integer                                       :: i
 
@@ -6564,6 +6318,23 @@ implicit none
    timprev = tim1
 end subroutine updateValuesOnSourceSinks
 
+! update m_wind::vincum(:) with the realized inflow from m_wind::qinextreal(:)
+subroutine updateCumulativeInflow(deltat) 
+    use m_wind
+    use m_flowgeom, only : ndx
+    
+    integer :: k  
+    double precision, intent(in) :: deltat ! dt of current timestep
+    
+    if (jaQinext == 0) return
+
+    do k = 1, ndx
+        vincum(k) = vincum(k) + qinextreal(k)*deltat
+    enddo
+    
+end subroutine updateCumulativeInflow
+    
+    
 subroutine updateBalance()
    use m_flow
    use m_partitioninfo
@@ -6592,118 +6363,45 @@ subroutine updateBalance()
    voltot(IDX_GRWIN )  = voltot(IDX_GRWIN )  + cumvolcur(IDX_GRWIN ) 
    voltot(IDX_GRWOUT)  = voltot(IDX_GRWOUT)  + cumvolcur(IDX_GRWOUT) 
    voltot(IDX_GRWTOT)  = voltot(IDX_GRWTOT)  + cumvolcur(IDX_GRWTOT) 
+   voltot(IDX_LATIN )  = voltot(IDX_LATIN )  + cumvolcur(IDX_LATIN ) 
+   voltot(IDX_LATOUT)  = voltot(IDX_LATOUT)  + cumvolcur(IDX_LATOUT) 
+   voltot(IDX_LATTOT)  = voltot(IDX_LATTOT)  + cumvolcur(IDX_LATTOT) 
 
    cumvolcur = 0d0
 end subroutine updateBalance
    
-subroutine find_flownodesorlinks_merge(n, x, y, n_loc, n_own, iloc_own, iloc_merge, janode)
-   use kdtree2Factory
-   use unstruc_messages
-   use m_flowgeom
-   use network_data
-   use m_missing, only: dmiss
-   use m_sferic, only: jsferic
-   
-   implicit none
-   type(kdtree_instance)                           :: treeinst
-   integer,                          intent(in)    :: n               !< number of flownodes in merged map file
-   double precision, dimension(n),   intent(in)    :: x, y            !< coordinates of flownode circumcenters or flowlink centers in merged map file
-   integer,                          intent(in)    :: n_loc           !< number of flownodes or flowlinks of the current subdomain (including ghosts)
-   integer,                          intent(in)    :: n_own           !< number of flownodes or flowlinks of the current subdomain (excluding ghosts)
-   integer,                          intent(in)    :: janode          !< if janode==1, find flow nodes, otherwise find flow links
-   integer, dimension(n_loc),        intent(inout) :: iloc_own        !< mapping to the actual index on the current subdomain 
-   integer, dimension(n_loc),        intent(inout) :: iloc_merge      !< mapping to the index in the merged map file
-   integer                                         :: ierror = 1
-   integer                                         :: k, nn, i, jj, kk
-   double precision                                :: R2search = 1d-8 !< Search radius
-   double precision                                :: t0, t1
-   character(len=128)                              :: mesg
-   double precision, allocatable                   :: x_tmp(:), y_tmp(:)
 
-   call klok(t0)
-   allocate(x_tmp(n_loc))
-   allocate(y_tmp(n_loc))
-   if(janode == 1) then
-      x_tmp = xzw
-      y_tmp = yzw
-   else if (janode == 2) then ! boundary waterlevel points
-      x_tmp = xz(ndxi+1:ndx)
-      y_tmp = yz(ndxi+1:ndx)
-   else
-      x_tmp = xu
-      y_tmp = yu
-   endif
-   
-   !build kdtree
-   call build_kdtree(treeinst, n, x, y, ierror, jsferic, dmiss)
-   if ( ierror.ne.0 ) then
-      goto 1234
-   end if
-   
-   call mess(LEVEL_INFO, 'Restart parallel run: Finding flow nodes/ flow links...')
-   
-   do k = 1, n_own
-        !  fill query vector
-        kk = iloc_own(k)
-        call make_queryvector_kdtree(treeinst, x_tmp(kk), y_tmp(kk), jsferic)
-        !  count number of points in search area
-        NN = kdtree2_r_count(treeinst%tree, treeinst%qv, R2search)
-        if ( NN.eq.0 ) then
-           call mess(LEVEL_INFO, 'No flownode/flowlink is found')
-           cycle ! no points found
-        else
-           !  reallocate if necessary
-            call realloc_results_kdtree(treeinst, NN)
-            
-           !  find nearest NN samples
-            if (NN > 1) then ! If we found more candidates within small search radius, then we should consider falling back to inside-polygon check of cell contour
-               if (janode == 1) then
-                  write (msgbuf, '(a,i0,a,i0,a)') 'Multiple flow nodes in merged restart file can be matched with current model''s node #', kk, '. Nr of candidates: ', NN, '. Picking last.'
-               else
-                  write (msgbuf, '(a,i0,a,i0,a)') 'Multiple flow links in merged restart file can be matched with current model''s link #', kk, '. Nr of candidates: ', NN, '. Picking last.'
-               end if
-               call err_flush()
-               ! TODO: AvD: return error code from this routine
-            end if
-
-            call kdtree2_n_nearest(treeinst%tree, treeinst%qv, NN, treeinst%results)
-            do i=1,NN
-               jj = treeinst%results(i)%idx
-               iloc_merge(k) = jj 
-            end do
-        endif
-   end do
-
-   call klok(t1)
-
-   write(mesg, "('done in ', F12.5, ' sec.')") t1-t0
-   call mess(LEVEL_INFO, trim(mesg))
-   ierror = 0
-1234 continue
-
-!    deallocate  
-   if ( treeinst%itreestat.ne.ITREE_EMPTY ) then 
-      call delete_kdtree2(treeinst)
-   endif
-
-   return  
-   end subroutine find_flownodesorlinks_merge
 subroutine generatePartitionMDUFile(filename, filename_new)
    use unstruc_model
    use unstruc_messages
    use m_partitioninfo
+   use string_module
    implicit none
-   character(*), intent(in)  :: filename, filename_new
-   integer                   :: k1, k2, k3, k4, k5, k6, n
-   character*500             :: string, string_c, string_tmp, string_v
+   character(len=*), intent(in)  :: filename, filename_new
+   integer                       :: k1, k2, k3, k4, k5, k6, k7, n
+   character(len=500)            :: string, string_c, string_tmp, string_v
+   integer                       :: ja_innumerics, ja_icgsolverset
 
    open(261, file = filename, status ="old", action="read", err=999)
    open(262, file = filename_new, status = "replace", action="write",err=999)
   
-   k1 = 0; k2 = 0; k3 = 0; k4 = 0; k5 = 0; k6 = 0
+   k1 = 0; k2 = 0; k3 = 0; k4 = 0; k5 = 0; k6 = 0; k7 = 0; ja_innumerics = 0; ja_icgsolverset = 0
    do while (.true.)
       read(261, "(a)", err=999, end=1212) string
       n = index(string, '=')
+
+      !> In case icgsolver was not present in input MDU, find-and-replace impossible, so make sure to add it, because it's required.
+      if (strcmpi(string, '[numerics]', 10)) then
+         ja_innumerics = 1
+      elseif (string(1:1) == '[' .and. ja_innumerics == 1) then ! About to close [numerics]
+         if (ja_icgsolverset == 0) then
+            write(string_v, "(I5)") md_icgsolver
+            string_tmp = "Icgsolver = "//trim(adjustl(string_v))//"          # Solver type , 1 = sobekGS_OMP, 2 = sobekGS_OMPthreadsafe, 3 = sobekGS, 4 = sobekGS + Saadilud, 5 = parallel/global Saad, 6 = parallel/Petsc, 7 = parallel/GS"
+            write(262, "(a)") trim(string_tmp)
+         end if
+         ja_innumerics = 0
+      end if
+
       string_c = string(1:n)
       k1 = index(string_c, 'NetFile')
       k2 = index(string_c, 'Icgsolver')
@@ -6719,34 +6417,41 @@ subroutine generatePartitionMDUFile(filename, filename_new)
       if (len_trim(md_flowgeomfile) > 0) then
          k6 = index(string_c, 'FlowGeomFile')
       endif
-      
-      if(k1.eq.0 .and. k2.eq.0 .and. k3.eq.0 .and. k4.eq.0 .and. k5.eq.0 .and. k6.eq.0) then ! Copy the whole row
-         write(262, "(a)") trim(string)     
+      if (len_trim(md_classmap_file) > 0) then
+         k7 = index(string_c, 'ClassMapFile')
+      endif
+
+      if(k1==0 .and. k2==0 .and. k3==0 .and. k4==0 .and. k5==0 .and. k6==0 .and. k7==0) then ! Copy the whole row
+         write(262, "(a)") trim(string)
       else 
          if (k1 .ne. 0) then      ! modify NetFile
            string_tmp = trim(string_c)//" "//trim(md_netfile)//"        # *_net.nc"
            write(262, "(a)") trim(string_tmp)
-         else if (k2 .ne. 0) then ! Modify icgsolver
+         else if (k2 /= 0) then ! Modify icgsolver
             write(string_v, "(I5)") md_icgsolver
             string_tmp = trim(string_c)//" "//trim(adjustl(string_v))//"          # Solver type , 1 = sobekGS_OMP, 2 = sobekGS_OMPthreadsafe, 3 = sobekGS, 4 = sobekGS + Saadilud, 5 = parallel/global Saad, 6 = parallel/Petsc, 7 = parallel/GS"
             write(262, "(a)") trim(string_tmp)
-         else if (k3 .ne. 0) then ! Modify restart file name
+            ja_icgsolverset = 1
+         else if (k3 /= 0) then ! Modify restart file name
             string_tmp = trim(string_c)//" "//trim(md_restartfile)//"       # Restart file, only from netcdf-file, hence: either *_rst.nc or *_map.nc"
             write(262, "(a)") trim(string_tmp)
-         else if (k4 .ne. 0) then ! Modify mapfile
+         else if (k7 /= 0) then ! Modify ClassMapFile. Must be before mapfile as we don't check on whole words
+            string_tmp = trim(string_c)//" "//trim(md_classmap_file)//"       # ClassMapFile name *.nc"
+            write(262, "(a)") trim(string_tmp)
+         else if (k4 /= 0) then ! Modify mapfile
             string_tmp = trim(string_c)//" "//trim(md_mapfile)//"       # MapFile name *_map.nc"
             write(262, "(a)") trim(string_tmp)
-         else if (k5 .ne. 0) then ! Modify Partitionfile
+         else if (k5 /= 0) then ! Modify Partitionfile
             string_tmp = trim(string_c)//" "//trim(md_partitionfile)//"          # *_part.pol, polyline(s) x,y"
             write(262, "(a)") trim(string_tmp)      
-         else if (k6 .ne. 0) then ! Modify FlowGeomFile
+         else if (k6 /= 0) then ! Modify FlowGeomFile
             string_tmp = trim(string_c)//" "//trim(md_flowgeomfile)//"       # FlowGeomFile name *.nc"
             write(262, "(a)") trim(string_tmp)
          endif
-      endif     
+      endif
    enddo
-   
-1212 continue  
+
+1212 continue
    close(261)
    close(262)
    return

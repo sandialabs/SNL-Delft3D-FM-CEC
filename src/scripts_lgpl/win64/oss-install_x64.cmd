@@ -63,6 +63,7 @@ if [%3] EQU [] (
 rem Change to directory tree where this batch file resides (necessary when oss-install.cmd is called from outside of oss/trunk/src)
 cd %~dp0\..\..
 
+call :generic
 call :!project!
 
 goto end
@@ -111,7 +112,7 @@ rem =============================================================
     rem
     rem "echo f |" is (only) needed when dest does not exist
     rem and does not harm in other cases
-    rem 
+    rem
     echo f | xcopy "%fileName%" %dest% /F /Y
     if NOT !ErrorLevel! EQU 0 (
         echo ERROR: while copying "!fileName!" to "!dest!"
@@ -128,7 +129,7 @@ rem =============================================================
     if not !ErrorLevel! EQU 0 (
         echo ERROR: while creating directory "!dest!"
     )
-    call :copyFile "third_party_open\netcdf\src\win32\2005\libsrc\x64\Release\netcdf.dll" !dest!
+    call :copyFile "third_party_open\netcdf\netCDF 4.6.1\bin\*" !dest!
 goto :endproc
 
 
@@ -140,6 +141,7 @@ rem ===============
     echo "installing all open source projects . . ."
 
     call :d_hydro
+    call :dflowfm
     call :dimr
     call :flow2d3d
     call :flow2d3d_openda
@@ -150,6 +152,7 @@ rem     call :delwaq2_openda_lib
     call :waq_plugin_wasteload
     call :part
     call :wave
+    call :waveexe
     call :plugin_culvert
     call :plugin_delftflow_traform
     call :datsel
@@ -190,6 +193,40 @@ goto :endproc
 
 
 
+rem ====================
+rem === INSTALL_GENERIC
+rem ====================
+:generic
+    rem
+    rem Put the newest version of generic dlls in dest_share.
+    rem When compiling a kernel, the actual generic dlls are place in the kernels bin folder.
+    rem The DIMRset collector runs script "...\src\engines_gpl\dimr\scripts\dimr_artifacts.py",
+    rem which removes duplicate dlls, assuming the version in dest_share must be kept,
+    rem assuming the newest version of the dll can be used in combination with kernels build with older versions.
+    rem
+    echo "installing generic . . ."
+
+    set dest_share="!dest_main!\x64\share\bin"
+
+    call :makeDir !dest_share!
+
+    call :copyFile "third_party_open\expat\x64\x64\Release\libexpat.dll"        !dest_share!
+    call :copyFile "third_party_open\intelredist\lib\x64\*.dll"                 !dest_share!
+    call :copyFile "third_party_open\mpich2\x64\bin\*.exe"                      !dest_share!
+    call :copyFile "third_party_open\mpich2\x64\lib\*.dll"                      !dest_share!
+    call :copyFile "third_party_open\pthreads\bin\x64\*.dll"                    !dest_share!
+    call :copyFile "third_party_open\vcredist\x64\Microsoft.VC100.CRT\*.dll"    !dest_share!
+    call :copyFile "third_party_open\vcredist\x64\Microsoft.VC110.CRT\*.dll"    !dest_share!
+    call :copyFile "third_party_open\vcredist\x64\Microsoft.VC120.CRT\*.dll"    !dest_share!
+    call :copyFile "third_party_open\vcredist\x64\Microsoft.VC140.CRT\*.dll"    !dest_share!
+    call :copyNetcdf                                                            !dest_share!
+    echo This directory is automatically created by script https://svn.oss.deltares.nl/repos/delft3d/trunk/src/scripts_lgpl/win64/oss-install_x64.cmd >!dest_share!\readme.txt
+    echo This script is executed via a post-build event >>!dest_share!\readme.txt
+    echo Further modifications can be done via a Python script executed via "DIMR_collector" projects in TeamCity >>!dest_share!\readme.txt
+goto :endproc
+
+
+
 rem ===================
 rem === INSTALL_D_HYDRO
 rem ===================
@@ -201,9 +238,39 @@ rem ===================
 
     call :makeDir !dest_bin!
     call :makeDir !dest_menu!
-    
+
     call :copyFile engines_gpl\d_hydro\bin\x64\Release\d_hydro.exe      !dest_bin!
     call :copyFile engines_gpl\d_hydro\scripts\create_config_xml.tcl    !dest_menu!
+goto :endproc
+
+
+
+rem ====================
+rem === INSTALL_DFLOWFM
+rem ====================
+:dflowfm
+    echo "installing dflowfm . . ."
+
+    set dest_bin="!dest_main!\x64\dflowfm\bin"
+    set dest_default="!dest_main!\x64\dflowfm\default"
+    set dest_scripts="!dest_main!\x64\dflowfm\scripts"
+    set dest_plugins="!dest_main!\x64\plugins\bin"
+    set dest_share="!dest_main!\x64\share\bin"
+
+    call :makeDir !dest_bin!
+    call :makeDir !dest_default!
+    call :makeDir !dest_scripts!
+    call :makeDir !dest_plugins!
+    call :makeDir !dest_share!
+
+    if !compiler_dir!=="" (
+        rem Compiler_dir not set
+    ) else (
+        rem "Compiler_dir:!compiler_dir!"
+        set localstring="!compiler_dir!*.dll"
+        rem Note the awkward usage of !-characters
+        call :copyFile !!localstring! !dest_bin!!
+    )
 goto :endproc
 
 
@@ -223,32 +290,14 @@ rem ================
     call :makeDir !dest_menu!
     call :makeDir !dest_scripts!
     call :makeDir !dest_share!
-    
+
     call :copyFile engines_gpl\dimr\bin\x64\Release\dimr.exe             !dest_bin!
     call :copyFile engines_gpl\dimr\bin\x64\Release\dimr_dll.dll         !dest_bin!
-    call :copyFile "third_party_open\expat\x64\x64\Release\libexpat.dll" !dest_bin!
-    call :copyFile "third_party_open\pthreads\bin\x64\*.dll"             !dest_bin!
-    call :copyFile "third_party_open\mpich2\x64\bin\*.exe"               !dest_bin!
-    call :copyFile "third_party_open\mpich2\x64\lib\*.dll"               !dest_bin!
 
     call :copyFile engines_gpl\d_hydro\scripts\create_config_xml.tcl     !dest_menu!
 
     call :copyFile "engines_gpl\dimr\scripts\generic\win64\*.*"     !dest_scripts!
 
-    call :copyFile "third_party_open\vcredist\x64\Microsoft.VC100.CRT\*.dll"             !dest_share!
-    call :copyFile "third_party_open\vcredist\x64\Microsoft.VC110.CRT\*.dll"             !dest_share!
-    call :copyFile "third_party_open\vcredist\x64\Microsoft.VC120.CRT\*.dll"             !dest_share!
-    call :copyFile "third_party_open\vcredist\x64\Microsoft.VC140.CRT\*.dll"             !dest_share!
-    call :copyFile "third_party_open\intel_fortran\lib\x64\*.dll"                        !dest_share!
-    call :copyNetcdf                                                                     !dest_share!
-    call :copyFile "third_party_open\mpich2\x64\lib\*.dll"                               !dest_share!
-    call :copyFile "third_party_open\mpich2\x64\bin\mpiexec.exe"                         !dest_share!
-    call :copyFile "third_party_open\mpich2\x64\bin\smpd.exe"                            !dest_share!
-    call :copyFile "third_party_open\expat\x64\x64\Release\*.dll"                        !dest_share!
-    call :copyFile "third_party_open\pthreads\bin\x64\*.dll"                             !dest_share!
-    echo This directory is automatically created by script https://svn.oss.deltares.nl/repos/delft3d/trunk/src/scripts_lgpl/win64/oss-install_x64.cmd >!dest_share!\readme.txt
-    echo This script is executed via a post-build event of https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/dimr/packages/dimr/dimr_exe.vcxproj >>!dest_share!\readme.txt
-    echo Further modifications can be done via a Python script executed via "DIMR_collector" projects in TeamCity >>!dest_share!\readme.txt
 goto :endproc
 
 
@@ -264,7 +313,7 @@ rem ====================
     set dest_scripts="!dest_main!\x64\dflow2d3d\scripts"
     set dest_plugins="!dest_main!\x64\plugins\bin"
     set dest_share="!dest_main!\x64\share\bin"
-    
+
     call :makeDir !dest_bin!
     call :makeDir !dest_default!
     call :makeDir !dest_scripts!
@@ -288,14 +337,9 @@ rem ====================
     call :copyFile "engines_gpl\flow2d3d\default\*"                                 !dest_default!
     call :copyFile "utils_lgpl\delftonline\lib\x64\Release\dynamic\delftonline.dll" !dest_bin!
     call :copyFile "utils_lgpl\delftonline\lib\x64\Release\dynamic\delftonline.dll" !dest_plugins!
-    call :copyNetcdf                                                                !dest_share!
     call :copyFile "engines_gpl\flow2d3d\scripts\run_*.bat"                         !dest_scripts!
     call :copyFile "third_party_open\tcl\bin\win64\tclkitsh852.exe"                 !dest_share!
-    
-    rem
-    rem The following if-else statements MUST BE executed AFTER copying "third_party_open\intel_fortran" libraries.
-    rem Some (older) libraries will be overwritten.
-    rem
+
     if !compiler_dir!=="" (
         rem Compiler_dir not set
     ) else (
@@ -327,7 +371,6 @@ rem    )
 rem    rem One of these two dlls will not exist and cause an ErrorLevel=1. Reset it.
 rem    set ErrorLevel=0
 rem    call :copyFile "third_party_open\openda\core\native\lib\win64\*.dll"      !dest_bin!
-rem    call :copyNetcdf                                                          !dest_share!
 goto :endproc
 
 
@@ -339,7 +382,7 @@ rem ===================
     echo "installing delwaq1 . . ."
 
     set dest_bin="!dest_main!\x64\dwaq\bin"
-    
+
     call :makeDir !dest_bin!
 
     call :copyFile engines_gpl\waq\bin\x64\Release\delwaq1.exe                     !dest_bin!
@@ -354,7 +397,7 @@ rem ===================
     echo "installing delwaq2 . . ."
 
     set dest_bin="!dest_main!\x64\dwaq\bin"
-    
+
     call :makeDir !dest_bin!
 
     call :copyFile engines_gpl\waq\bin\x64\Release\delwaq2.exe               	   !dest_bin!
@@ -369,7 +412,7 @@ rem ============================
     echo "installing delwaq_dimr_test . . ."
 
     set dest_bin="!dest_main!\x64\dwaq\bin"
-    
+
     call :makeDir !dest_bin!
 
     call :copyFile engines_gpl\waq\bin\x64\Release\delwaq_dimr_test.exe               	   !dest_bin!
@@ -387,24 +430,19 @@ rem ======================
     set dest_default="!dest_main!\x64\dwaq\default"
     set dest_scripts="!dest_main!\x64\dwaq\scripts"
     set dest_share="!dest_main!\x64\share\bin"
-    
+
     call :makeDir !dest_bin!
     call :makeDir !dest_default!
     call :makeDir !dest_scripts!
     call :makeDir !dest_share!
-    
+
     call :copyFile engines_gpl\waq\bin\x64\Release\delwaq.dll                  !dest_bin!
-    call :copyNetcdf                                                           !dest_share!
 
     call :copyFile engines_gpl\waq\default\bloom.spe                           !dest_default!
     call :copyFile engines_gpl\waq\default\bloominp.d09                        !dest_default!
     call :copyFile engines_gpl\waq\default\proc_def.dat                        !dest_default!
     call :copyFile engines_gpl\waq\default\proc_def.def                        !dest_default!
 	
-    rem
-    rem The following if-else statements MUST BE executed AFTER copying "third_party_open\intel_fortran" libraries.
-    rem Some (older) libraries will be overwritten.
-    rem
     if !compiler_dir!=="" (
            rem Compiler_dir not set
        ) else (
@@ -434,17 +472,12 @@ rem ==============================
 rem    echo "installing delwaq2_openda_lib . . ."
 rem
 rem    set dest_bin="!dest_main!\x64\dwaq\bin"
-rem    
+rem
 rem    call :makeDir !dest_bin!
-rem    
+rem
 rem    call :copyFile engines_gpl\waq\bin\Release\delwaq2_openda_lib.dll          !dest_bin!
-rem    call :copyNetcdf                                                           !dest_share!
 rem	
 
-rem    rem
-rem    rem The following if-else statements MUST BE executed AFTER copying "third_party_open\intel_fortran" libraries.
-rem    rem Some (older) libraries will be overwritten.
-rem    rem
 rem    if !compiler_dir!=="" (
 rem        rem Compiler_dir not set
 rem    ) else (
@@ -472,9 +505,9 @@ rem ================================
     echo "installing waq_plugin_wasteload . . ."
 
     set dest_bin="!dest_main!\x64\dwaq\bin"
-    
+
     call :makeDir !dest_bin!
-    
+
     call :copyFile engines_gpl\waq\bin\x64\Release\waq_plugin_wasteload.dll        !dest_bin!
 goto :endproc
 
@@ -497,10 +530,6 @@ rem ================
     call :copyFile engines_gpl\part\bin\x64\release\delpar.exe !dest!
     call :copyFile "engines_gpl\part\scripts\run_*.bat"        !dest_scripts!
 
-    rem
-    rem The following if-else statements MUST BE executed AFTER copying "third_party_open\intel_fortran" libraries.
-    rem Some (older) libraries will be overwritten.
-    rem
     if !compiler_dir!=="" (
         rem Compiler_dir not set
     ) else (
@@ -511,11 +540,20 @@ rem ================
     )
 	
 goto :endproc
+
+
+
 rem ================
 rem === INSTALL_WAVE
 rem ================
 :wave
-    echo "installing wave . . ."
+    echo "installing wave . . .%1"
+    if [%1] EQU [exe] (
+        set binary=exe
+    ) else (
+        set binary=dll
+    )
+    rem echo "binary:%binary%
 
     set dest_bin=!dest_main!\x64\dwaves\bin
     set dest_default=!dest_main!\x64\dwaves\default
@@ -540,22 +578,18 @@ rem ================
     rem - once for wave.dll     (then wave_exe.exe might not be present yet)
     rem - once for wave_exe.exe (then wave.dll     might not be present yet)
     rem
-    if exist engines_gpl\wave\bin\x64\release\wave.dll (
+    if [%binary%] EQU [dll] (
         call :copyFile engines_gpl\wave\bin\x64\release\wave.dll          "!dest_bin!"
-    )
-    if exist engines_gpl\wave\bin\x64\release\wave_exe.exe (
+    ) else (
         call :copyFile engines_gpl\wave\bin\x64\release\wave_exe.exe      "!dest_bin!\wave.exe"
     )
     call :copyFile engines_gpl\flow2d3d\default\dioconfig.ini         "!dest_default!"
     call :copyFile "third_party_open\swan\bin\w64_i11\*.*"            "!dest_swan_bin!"
-    call :copyFile third_party_open\swan\scripts\swan_install_x64.bat "!dest_swan_scripts!\swan.bat"
+    call :copyFile third_party_open\swan\scripts\swan.bat             "!dest_swan_scripts!"
     call :copyFile "third_party_open\esmf\win64\bin\*.*"              "!dest_esmf_bin!"
     call :copyFile "third_party_open\esmf\win64\scripts\*.*"          "!dest_esmf_scripts!"
     call :copyFile "engines_gpl\wave\scripts\run_*.bat"               "!dest_scripts!"
-    rem
-    rem The following if-else statements MUST BE executed AFTER copying "third_party_open\intel_fortran" libraries.
-    rem Some (older) libraries will be overwritten.
-    rem
+
     if !compiler_dir!=="" (
         rem Compiler_dir not set
     ) else (
@@ -564,6 +598,16 @@ rem ================
         rem Note the awkward usage of !-characters
         call :copyFile !!localstring! !dest_bin!!
     )
+goto :endproc
+
+
+
+rem ===================
+rem === INSTALL_WAVEEXE
+rem ===================
+:waveexe
+    echo "installing waveexe . . ."
+    call :wave exe
 goto :endproc
 
 
@@ -651,12 +695,15 @@ rem ====================
 
     set dest_bin="!dest_main!\x64\dflow2d3d\bin"
     set dest_scripts="!dest_main!\x64\dflow2d3d\scripts"
+    set dest_share="!dest_main!\x64\share\bin"
 
     call :makeDir !dest_bin!
     call :makeDir !dest_scripts!
 
-    call :copyFile engines_gpl\flow2d3d\scripts\mormerge.tcl   !dest_scripts!
+    call :copyFile engines_gpl\flow2d3d\scripts\mormerge.tcl                     !dest_scripts!
+    call :copyFile engines_gpl\flow2d3d\scripts\run_mormerge.bat                 !dest_scripts!
     call :copyFile tools_gpl\mormerge\packages\mormerge\x64\Release\mormerge.exe !dest_bin!
+    call :copyFile third_party_open\tcl\bin\win64\tclkitsh852.exe                !dest_share!
 goto :endproc
 
 
@@ -686,7 +733,6 @@ rem ===================
 
     call :makeDir !dest_bin!
 
-    call :copyFile "third_party_open\pthreads\bin\x64\*.dll"                  !dest_bin!
     call :copyFile tools_gpl\nesthd1\packages\nesthd1\x64\Release\nesthd1.exe !dest_bin!
 goto :endproc
 
@@ -702,7 +748,6 @@ rem ===================
 
     call :makeDir !dest_bin!
 
-    call :copyFile "third_party_open\pthreads\bin\x64\*.dll"                  !dest_bin!
     call :copyFile tools_gpl\nesthd2\packages\nesthd2\x64\Release\nesthd2.exe !dest_bin!
 goto :endproc
 
@@ -751,13 +796,24 @@ rem =====================
     call :copyFile "utils_lgpl\io_netcdf\packages\io_netcdf\dll\x64\Release\io_netcdf.dll"                  !dest_bin!
 goto :endproc
 
+rem =====================
+rem === INSTALL GRIDGEOM
+rem =====================
+:gridgeom
+    echo "installing gridgeom . . ."
 
+    set dest_bin="!dest_main!\x64\share\bin"
+
+    call :makeDir !dest_bin!
+
+    call :copyFile "utils_lgpl\gridgeom\packages\gridgeom\dll\x64\Release\gridgeom.dll"                  !dest_bin!
+goto :endproc
 
 :end
 if NOT %globalErrorLevel% EQU 0 (
     rem
     rem Only jump to :end when the script is completely finished
-    rem 
+    rem
     echo An error occurred while executing this file
     echo Returning with error number %globalErrorLevel%
     exit %globalErrorLevel%

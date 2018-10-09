@@ -25,7 +25,7 @@ module m_readLaterals
 !  Stichting Deltares. All rights reserved.
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: readLaterals.f90 8044 2018-01-24 15:35:11Z mourits $
+!  $Id: readLaterals.f90 59811 2018-08-14 09:07:59Z zeekant $
 !  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_gpl/flow1d/packages/flow1d_io/src/readLaterals.f90 $
 !-------------------------------------------------------------------------------
 
@@ -33,7 +33,7 @@ module m_readLaterals
    use m_network
    use m_Laterals
 
-   use flow1d_io_properties
+   use properties
    use m_hash_search
 
    implicit none
@@ -64,8 +64,9 @@ module m_readLaterals
       double precision                              :: length
       integer                                       :: branchIdx
       type(t_lateral), pointer                      :: pLat
+      type(t_branch), pointer                       :: pBranch
 
-      call tree_create(trim(lateralLocationFile), md_ptr)
+      call tree_create(trim(lateralLocationFile), md_ptr, maxlenpar)
       call prop_file('ini',trim(lateralLocationFile),md_ptr, istat)
       
       numstr = 0
@@ -90,7 +91,21 @@ module m_readLaterals
             if (.not. success) length = 0.0d0
             
             branchIdx = hashsearch(network%brs%hashlist, branchID)
-            if (branchIdx <= 0) Then
+            if (branchIdx > 0) Then
+               
+               pBranch => network%brs%branch(branchIdx)
+               
+               ! Check Chainages
+               if (Chainage < 0.0d0) then
+                  call SetMessage(LEVEL_ERROR, 'Negative Chainage for Lateral Location '''//trim(lateralID)//'''')
+               elseif (Chainage > pBranch%length) then
+                  call SetMessage(LEVEL_ERROR, 'Chainage > Branch Length for Lateral Location '''//trim(lateralID)//'''')
+               elseif (length < 0.0d0) then
+                  call SetMessage(LEVEL_ERROR, 'Negative Length for Lateral Location '''//trim(lateralID)//'''')
+               elseif ((Chainage + length) > pBranch%length) then
+                  call SetMessage(LEVEL_ERROR, 'Chainage + Length > Branch Length for Lateral Location '''//trim(lateralID)//'''')
+               endif
+            else
                call SetMessage(LEVEL_ERROR, 'Error Reading Lateral Location '''//trim(lateralID)//''': Branch: '''//trim(branchID)//''' not Found')
             endif
       
@@ -106,6 +121,12 @@ module m_readLaterals
             allocate(pLat%branch(1))
             allocate(pLat%beginOffset(1))
             allocate(pLat%endOffset(1))
+            
+            if (length > 0.0d0)  then
+               pLat%pointLateral = .false.
+            else
+               pLat%pointLateral = .true.
+            endif
       
             pLat%branch(1)       = branchIdx
             pLat%beginOffset(1)  = Chainage

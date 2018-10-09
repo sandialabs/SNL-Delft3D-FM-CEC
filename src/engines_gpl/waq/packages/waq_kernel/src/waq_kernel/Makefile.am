@@ -8,15 +8,15 @@
 include $(top_srcdir)/common.am
 noinst_LTLIBRARIES = libWaqKernel.la
 
-AM_FCFLAGS += $(OPENMP_FCFLAGS) $(FINCLUDES) $(FMODULES) ${NETCDF_CFLAGS} ${NETCDF_FORTRAN_CFLAGS}
-AM_FFLAGS  += $(OPENMP_FFLAGS)  $(FINCLUDES) $(FMODULES) ${NETCDF_CFLAGS} ${NETCDF_FORTRAN_CFLAGS}
+AM_FCFLAGS += -fopenmp $(OPENMP_FCFLAGS) $(FINCLUDES) $(FMODULES) ${NETCDF_CFLAGS} ${NETCDF_FORTRAN_CFLAGS}
+AM_FFLAGS  += -fopenmp $(OPENMP_FFLAGS)  $(FINCLUDES) $(FMODULES) ${NETCDF_CFLAGS} ${NETCDF_FORTRAN_CFLAGS}
+
 
 #-------------------------------------------------------------------------------
 #Includes
 
 
 FMODULES += \
-        -I${NETCDFROOT}/include \
         -I$(top_builddir)/engines_gpl/waq/include \
         -I$(top_builddir)/engines_gpl/part/packages/data_f/src/ \
         -I$(top_builddir)/engines_gpl/part/packages/utils_f/src/ \
@@ -72,6 +72,7 @@ libWaqKernel_la_SOURCES = \
        dlwq15.f \
        dlwq15a.f \
        dlwq16.f \
+       dlwq16a.f \
        dlwq17.f \
        dlwq18.f \
        dlwq19.f \
@@ -170,6 +171,7 @@ libWaqKernel_la_SOURCES = \
        dlwqnm.f \
        dlwqno.f \
        dlwqnp.f \
+       dlwqnq.f \
        dlwqo2.f \
        dlwqo0.f \
        dlwqpp.f \

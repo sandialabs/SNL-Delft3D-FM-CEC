@@ -31,8 +31,8 @@
 ! 
 ! For more information contact saad@cs.umn.edu
 
-! $Id: saadf90.F90 53893 2017-12-20 18:54:12Z zhao $
-! $HeadURL: https://repos.deltares.nl/repos/ds/trunk/additional/unstruc/src/saadf90.F90 $
+! $Id: saadf90.F90 60461 2018-07-09 08:13:38Z kernkam $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/dflowfm/packages/dflowfm_kernel/src/saadf90.F90 $
 
 !! BLAS routines come either from Intel MKL, or standard BLAS from SPARSKIT. Select at compile time.
 !#if defined __INTEL_COMPILER && __INTEL_COMPILER > 1000
@@ -4418,7 +4418,7 @@
            DO I = 1,N    
               DOTs = DOTs + DX(I)*DY(I)
            ENDDO                            
-            ddotXXX = dots
+           ddotXXX = dots
          end if
   
       ELSE 

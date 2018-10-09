@@ -458,7 +458,7 @@ outer2:  do m = 2, mmax
 
 !     System administration : Antoon Koster
 
-!     created               : November 2013, by Michel Jeuken
+!     created by            : Michelle Jeuken
 
 !     logical unit numbers  : none.
 
@@ -696,7 +696,7 @@ subroutine bilin5(xa        ,ya        ,x0        ,y0        ,w         , &
 !  Stichting Deltares. All rights reserved.
 !
 !-------------------------------------------------------------------------------
-!  $Id: grid_search.f90 7992 2018-01-09 10:27:35Z mourits $
+!  $Id: grid_search.f90 8346 2018-03-13 16:02:19Z jeuke_ml $
 !  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/part/packages/utils_f/src/grid_search.f90 $
 !!--description-----------------------------------------------------------------
 ! NONE

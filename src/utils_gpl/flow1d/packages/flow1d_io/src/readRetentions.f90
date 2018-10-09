@@ -25,7 +25,7 @@ module m_readRetentions
 !  Stichting Deltares. All rights reserved.
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: readRetentions.f90 8044 2018-01-24 15:35:11Z mourits $
+!  $Id: readRetentions.f90 59881 2018-08-23 13:59:12Z noort $
 !  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_gpl/flow1d/packages/flow1d_io/src/readRetentions.f90 $
 !-------------------------------------------------------------------------------
 
@@ -34,7 +34,7 @@ module m_readRetentions
    use m_Storage
    use m_tables
 
-   use flow1d_io_properties
+   use properties
    use m_hash_search
 
    implicit none
@@ -60,20 +60,24 @@ module m_readRetentions
 
       character(len=IdLen)                          :: retentionID
       character(len=IdLen)                          :: branchID
+      character(len=IdLen)                          :: nodeID
       character(len=IdLen)                          :: storageType
       logical                                       :: useTable
       
       double precision                              :: Chainage
       integer                                       :: branchIdx
+      integer                                       :: nodeIdx
+      integer                                       :: local_grid_index
       integer                                       :: gridPoint
       type(t_storage), pointer                      :: pSto
       
       integer                                       :: nLevels
       integer                                       :: interPolate
+      logical                                       :: useStreetStorage
       double precision, allocatable, dimension(:)   :: storLevels
       double precision, allocatable, dimension(:)   :: storAreas
 
-      call tree_create(trim(retentionFile), md_ptr)
+      call tree_create(trim(retentionFile), md_ptr, maxlenpar)
       call prop_file('ini',trim(retentionFile),md_ptr, istat)
       
       numstr = 0
@@ -81,36 +85,61 @@ module m_readRetentions
          numstr = size(md_ptr%child_nodes)
       end if
 
+      success = .true.
+      call prop_get_logical(md_ptr, 'general', 'useStreetStorage', useStreetStorage, success)
+      if (.not. success) then
+         useStreetStorage = .true.
+      endif
+      
       do i = 1, numstr
          
          if (tree_get_name(md_ptr%child_nodes(i)%node_ptr) .eq. 'retention') then
             
             ! Read Data
-            
+            success = .true.
             call prop_get_string(md_ptr%child_nodes(i)%node_ptr, 'retention', 'id', retentionID, success)
             if (success) call prop_get_string(md_ptr%child_nodes(i)%node_ptr, 'retention', 'branchid', branchID, success)
             if (success) call prop_get_double(md_ptr%child_nodes(i)%node_ptr, 'retention', 'chainage', Chainage, success)
-            if (.not. success) then
-               call SetMessage(LEVEL_FATAL, 'Error Reading Retention '''//trim(retentionID)//'''')
+            if (success) then
+               branchIdx = hashsearch(network%brs%hashlist, branchID)
+               if (branchIdx <= 0) Then
+                  call SetMessage(LEVEL_ERROR, 'Error Reading Retention '''//trim(retentionID)//''': Branch: '''//trim(branchID)//''' not Found')
+                  exit
+               endif
+               gridPoint = getCalcPoint(network%brs, branchIdx, Chainage)
+               if (gridPoint == network%brs%branch(branchIdx)%points(1) ) then
+                  gridPoint = -network%brs%branch(branchIdx)%fromNode%index
+                  local_grid_index = -1
+                  branchIdx        = -1
+               elseif (gridPoint == network%brs%branch(branchIdx)%points(2)) then
+                  gridPoint = -network%brs%branch(branchIdx)%toNode%index
+                  branchIdx        = -1
+                  local_grid_index = -1
+               else
+                  local_grid_index = gridPoint - network%brs%branch(branchIdx)%points(1) + 1 
+               endif
+               
+            else
+               success = .true.
+               call prop_get_string(md_ptr%child_nodes(i)%node_ptr, 'retention', 'nodeId', nodeid, success)
+               if (.not. success) then
+                  call SetMessage(LEVEL_FATAL, 'Error Reading Retention '''//trim(retentionID)//'''')
+                  exit
+               endif
+               nodeIdx = hashsearch(network%nds%hashlist, nodeId)
+               if (nodeIdx <= 0) Then
+                  call SetMessage(LEVEL_ERROR, 'Error Reading Retention '''//trim(retentionID)//''': node: '''//trim(nodeID)//''' not Found')
+                  exit
+               endif
+               gridPoint        = network%nds%node(nodeIdx)%index
+               branchIdx        = -1
+               local_grid_index = -1
             endif
 
             call prop_get_string(md_ptr%child_nodes(i)%node_ptr, 'retention', 'storagetype', storageType, success)
             if (.not. success) storageType = 'Reservoir'
             
-            branchIdx = hashsearch(network%brs%hashlist, branchID)
-            if (branchIdx <= 0) Then
-               call SetMessage(LEVEL_ERROR, 'Error Reading Retention '''//trim(retentionID)//''': Branch: '''//trim(branchID)//''' not Found')
-            endif
 
-            ! Bcause of the complicated data structure of SOBEK storage in 'connection nodes'
-            ! must be separated from the ordinary gridpoints
-            gridPoint = getCalcPoint(network%brs, branchIdx, Chainage)
-            if (gridPoint == network%brs%branch(branchIdx)%points(1) ) then
-               gridPoint = -network%brs%branch(branchIdx)%fromNode%index
-            elseif (gridPoint == network%brs%branch(branchIdx)%points(2)) then
-               gridPoint = -network%brs%branch(branchIdx)%toNode%index
-            endif
-            
             network%storS%Count = network%storS%Count + 1
             if (network%storS%Count > network%storS%Size) then
                call realloc(network%storS)
@@ -120,9 +149,14 @@ module m_readRetentions
             nullify(pSto%storageArea)
             nullify(pSto%streetArea)
 
+            ! Bcause of the complicated data structure of SOBEK storage in 'connection nodes'
+            ! must be separated from the ordinary gridpoints
             pSto%id        = retentionID
             pSto%gridPoint = gridPoint
             network%storS%mapping(gridPoint) = network%storS%Count
+            psto%branch_index     = branchIdx
+            psto%local_grid_index = local_grid_index
+            psto%node_index = gridpoint
             if (storageType == 'Closed') then
                pSto%storageType = nt_Closed
             elseif (storageType == 'Loss') then
@@ -135,7 +169,7 @@ module m_readRetentions
             if (success) then
                useTable = .true.
             else
-               nLevels  = 2
+               nLevels  = 1
                useTable = .false.
             endif
             
@@ -162,33 +196,42 @@ module m_readRetentions
                call prop_get_double(md_ptr%child_nodes(i)%node_ptr, 'retention', 'bedlevel', storLevels(1), success)
                if (success) call prop_get_double(md_ptr%child_nodes(i)%node_ptr, 'retention', 'area', storAreas(1), success)
                if (.not. success) then
-                  call SetMessage(LEVEL_FATAL, 'Reading Retentions: Error in Level/Storage Data')
+                  call SetMessage(LEVEL_ERROR, 'Reading Retentions: Error in Level/Storage Data')
+                  cycle
                endif
-               
-               call prop_get_double(md_ptr%child_nodes(i)%node_ptr, 'retention', 'streetlevel', storLevels(2), success)
-               if (.not. success) storLevels(2) = storLevels(1) + 1.0d0
-               
-               call prop_get_double(md_ptr%child_nodes(i)%node_ptr, 'retention', 'streetlevelarea', storAreas(2), success)
-               if (.not. success) storLevels(2) = storLevels(1)
                
                interPolate = 1
                
             endif
 
+            if (storAreas(1) <= 0d0) then
+               call setMessage(LEVEL_ERROR, 'Area at Bed Level for Retention ' // trim(retentionID) // ' <= 0.0. Please enter a positive value')
+            endif
+            
             call setTable(pSto%storageArea, interPolate, storLevels, storAreas, nLevels)
 
-            ! Clear Arrays
-            istat = 0
-            if (allocated(storLevels)) deallocate(storLevels, stat=istat)
-            if (istat == 0 .and. allocated(storAreas)) deallocate(storAreas, stat=istat)
-            if (istat .ne. 0) then
-               call SetMessage(LEVEL_FATAL, 'Reading Retentions: Error Deallocating Arrays')
+            call prop_get_double(md_ptr%child_nodes(i)%node_ptr, 'retention', 'streetlevel', storLevels(1), success)
+            call prop_get_double(md_ptr%child_nodes(i)%node_ptr, 'retention', 'streetstoragearea', storAreas(1), success)
+            if (success .and. storAreas(1) > 0d0 .and. useStreetStorage) then
+               psto%useStreetStorage = .true.
+               call setTable(pSto%streetArea, interPolate, storLevels, storAreas, nLevels)
+            else 
+               psto%useStreetStorage = .false.
             endif
+
       
          endif
       
       end do
       
+      ! Clear Arrays
+      istat = 0
+      if (allocated(storLevels)) deallocate(storLevels, stat=istat)
+      if (istat == 0 .and. allocated(storAreas)) deallocate(storAreas, stat=istat)
+      if (istat .ne. 0) then
+         call SetMessage(LEVEL_ERROR, 'Reading Retentions: Error Deallocating Arrays')
+      endif
+
       call fill_hashtable(network%storS)
       
       call tree_destroy(md_ptr)

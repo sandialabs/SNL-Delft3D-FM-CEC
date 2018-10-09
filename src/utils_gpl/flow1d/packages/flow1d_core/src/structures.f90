@@ -25,7 +25,7 @@ module m_structure
 !  Stichting Deltares. All rights reserved.
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: structures.f90 8044 2018-01-24 15:35:11Z mourits $
+!  $Id: structures.f90 59872 2018-08-21 14:08:32Z zeekant $
 !  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_gpl/flow1d/packages/flow1d_core/src/structures.f90 $
 !-------------------------------------------------------------------------------
 
@@ -46,6 +46,7 @@ module m_structure
    use m_River_Weir
    use m_ExtraResistance
    use m_hash_search
+   use m_Dambreak
 
 
    implicit none
@@ -131,11 +132,12 @@ module m_structure
    integer, public, parameter :: CFiGateOpeningHeight  = 21
    integer, public, parameter :: CFiValveOpening       = 22
    integer, public, parameter :: CFiSetpoint           = 29
-   integer, public, parameter :: CFiHighestParameter   = 29
+   integer, public, parameter :: CFiHighestParameter   = 31
 
     !---------------------------------------------------------
    type, public :: t_structure
       character(IdLen)                 :: id
+      character(IdLen)                 :: st_name
       integer                          :: st_type
       integer                          :: ibran
       integer                          :: left_calc_point
@@ -143,7 +145,18 @@ module m_structure
       integer                          :: link_number
       double precision                 :: x, y
       double precision                 :: distance
+      double precision                 :: charHeight
+      double precision                 :: charWidth
+      integer                          :: state = -1     !< State of the Structure for General Structure, Weir, Orifice and Culvert/Siphon
+                                                         !< 0 = No Flow
+                                                         !< 1 = Free Weir Flow
+                                                         !< 2 = Drowned Weir Flow
+                                                         !< 3 = Free Gate Flow
+                                                         !< 4 = Drowned Gate Flow
+                                                         !< 5 = Free Flow for Culvert and Siphons
+                                                         !< 6 = Drowned Flow for Culvert and Siphons
       integer                          :: compound
+      character(IdLen)                 :: compoundName = ' '
       type(t_weir), pointer            :: weir => null()
       type(t_orifice), pointer         :: orifice => null()
       type(t_pump), pointer            :: pump => null()
@@ -154,6 +167,7 @@ module m_structure
       type(t_advweir),pointer          :: advweir => null()
       type(t_GeneralStructure),pointer :: generalst => null()
       type(t_ExtraResistance),pointer  :: extrares => null()
+      type(t_dambreak),pointer         :: dambreak => null()
    end type
 
    type, public :: t_structureSet
@@ -174,15 +188,20 @@ module m_structure
 
    type, public :: t_compound
       character(IdLen)               :: id
+      character(IdLen)               :: compoundName
       integer nrstruc
       !    integer, dimension(:), pointer :: struct ! vooralsnog niet nodig
       integer gridpoint1
       integer gridpoint2
-      integer istru                       !< help variable to remove compounds with one structure
+      integer istru               !< help variable to remove compounds with one structure
+      logical cleared             ! To Check if compound is still cleared
       double precision discharge
+      double precision velocity
+      double precision water_level_up
+      double precision water_level_down
+      double precision head
       double precision difu
       double precision area
-      double precision velocity
    end type t_compound
 
    type, public :: t_compoundSet
@@ -194,38 +213,39 @@ module m_structure
 
    contains
    
-   integer function AddStructure_short(sts, leftcalc, rightcalc, linknumber, icompound, id, structureType)
+   integer function AddStructure_short(sts, leftcalc, rightcalc, linknumber, icompound, compoundName, id, structureType)
       ! Modules
-
+   
       implicit none
-
+   
       ! Input/output parameters
       type(t_StructureSet) :: sts
       integer              :: leftcalc
       integer              :: rightcalc
       integer              :: linknumber
-      integer              ::  icompound
+      integer              :: icompound
+      character(*)         :: compoundName
       character(*)         :: id
       ! In 3Di branches have both xy and branchid, chainage
-
+   
       integer              :: structureType
-
+   
       ! Local variables
       integer :: ibranch
       double precision :: x
       double precision :: y
       double precision :: distcalc
       
-
+   
       ! Program code
       distcalc = 0d0
       x = 0d0
       y = 0d0
       ibranch = 0
-      AddStructure_short = AddStructureByCalcPoints(sts, leftcalc, rightcalc, linknumber, distcalc, icompound, id, structureType, x, y, ibranch)
+      AddStructure_short = AddStructureByCalcPoints(sts, leftcalc, rightcalc, linknumber, distcalc, icompound, compoundName, id, structureType, x, y, ibranch)
    end function AddStructure_short
 
-   integer function AddStructureByCalcPoints(sts, leftcalc, rightcalc, linknumber, distcalc, icompound, id, structureType, x, y, ibranch)
+   integer function AddStructureByCalcPoints(sts, leftcalc, rightcalc, linknumber, distcalc, icompound, compoundName, id, structureType, x, y, ibranch)
       ! Modules
 
       implicit none
@@ -236,7 +256,8 @@ module m_structure
       integer              :: rightcalc
       integer              :: linknumber
       double precision     :: distcalc
-      integer              ::  icompound
+      integer              :: icompound
+      character(*)         :: compoundName
       character(*)         :: id
       double precision, optional :: x
       double precision, optional :: y
@@ -264,6 +285,7 @@ module m_structure
       sts%struct(i)%link_number        = linknumber
       sts%struct(i)%distance           = distcalc
       sts%struct(i)%compound           = icompound
+      sts%struct(i)%compoundName       = compoundName
       sts%struct(i)%st_type            = structureType
       if (present(x) .and. present(y)) then
          sts%struct(i)%x = x
@@ -296,15 +318,19 @@ module m_structure
       AddStructureByCalcPoints = sts%count
    end function AddStructureByCalcPoints
 
-   integer function AddStructureByBranchLocation(sts, brs, ibranch, dist, icompound, id, structureType)
+   integer function AddStructureByBranchLocation(sts, brs, ibranch, dist, icompound, compoundName, id, structureType)
       ! Modules
 
       implicit none
 
       ! Input/output parameters
-      integer              :: ibranch, icompound
+      integer              :: ibranch
       double precision                 :: dist
       character(*)         :: id
+
+      integer              :: icompound
+      character(*)         :: compoundName
+      
       type(t_StructureSet) :: sts
       type(t_BranchSet)    :: brs
       integer              :: structureType
@@ -318,7 +344,8 @@ module m_structure
       ! Program code
       call getCalcPoints(brs, ibranch, dist, leftcalc, rightcalc, ilink, distcalc)
 
-      AddStructureByBranchLocation = AddStructureByCalcPoints(sts, leftcalc, rightcalc, ilink, distcalc, icompound, id, structureType, ibranch = ibranch)
+      AddStructureByBranchLocation = AddStructureByCalcPoints(sts, leftcalc, rightcalc, ilink, distcalc, &
+                                                              icompound, compoundName, id, structureType, ibranch = ibranch)
       
    end function AddStructureByBranchLocation
 
@@ -588,7 +615,7 @@ end subroutine
             SetValueStruc = .false.
           endif
        case (ST_PUMP)
-          if (iparam==CFiSetpoint) then
+          if (iparam==CFiPumpCapacity) then
              if (sts%struct(istru)%pump%capacity(1)*value < -1e-6) then
                 ! The pump direction may not be changed.
                 line = 'The pumping direction of pump '//trim(sts%struct(istru)%id) //' is changed. This is not allowed.'
@@ -676,8 +703,12 @@ end subroutine
            if (iparam == CFiCrestWidth)         getValueStruc = sts%struct(istru)%orifice%crestwidth
            if (iparam == CFiGateLowerEdgeLevel) getValueStruc = sts%struct(istru)%orifice%openlevel
            if (iparam == CFiGateOpeningHeight)  getValueStruc = sts%struct(istru)%orifice%openlevel - sts%struct(istru)%orifice%crestlevel
-       case (ST_CULVERT, ST_SIPHON, ST_INV_SIPHON)
-           if (iparam == CFiValveOpening) getValueStruc = sts%struct(istru)%culvert%inivalveopen
+       case (ST_CULVERT)
+           if (iparam == CFiCrestLevel)         getValueStruc = sts%struct(istru)%orifice%crestlevel
+           if (iparam == CFiGateLowerEdgeLevel) getValueStruc = sts%struct(istru)%orifice%openlevel
+           if (iparam == CFiGateOpeningHeight)  getValueStruc = sts%struct(istru)%orifice%openlevel - sts%struct(istru)%orifice%crestlevel
+       case (ST_SIPHON, ST_INV_SIPHON)
+           if (iparam == CFiGateOpeningHeight)  getValueStruc = sts%struct(istru)%orifice%openlevel - sts%struct(istru)%orifice%crestlevel
        case (ST_PUMP)
            getValueStruc = sts%struct(istru)%pump%capacitySetpoint
            if (sts%struct(istru)%pump%capacity(1)*getValueStruc < -1e-6) then
@@ -820,6 +851,8 @@ end subroutine
          GetStrucType_from_string = ST_INV_SIPHON
       case ('universal_weir')
          GetStrucType_from_string = ST_UNI_WEIR
+      case ('dambreak')
+         GetStrucType_from_string = ST_DAMBREAK
       case ('bridge')
          GetStrucType_from_string = ST_BRIDGE
       case default
@@ -852,6 +885,8 @@ end subroutine
             GetStrucType_from_int = 'inverted_siphon'
          case (ST_UNI_WEIR)
             GetStrucType_from_int = 'universal_weir'
+         case (ST_DAMBREAK)
+            GetStrucType_from_int = 'dambreak'
          case (ST_BRIDGE)
             GetStrucType_from_int = 'bridge'
          case default

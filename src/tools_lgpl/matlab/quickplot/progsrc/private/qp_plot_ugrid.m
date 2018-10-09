@@ -29,7 +29,7 @@ function [hNew,Thresholds,Param,Parent]=qp_plot_ugrid(hNew,Parent,Param,data,Ops
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
 %   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/private/qp_plot_ugrid.m $
-%   $Id: qp_plot_ugrid.m 7992 2018-01-09 10:27:35Z mourits $
+%   $Id: qp_plot_ugrid.m 62261 2018-10-04 21:21:07Z jagers $
 
 T_=1; ST_=2; M_=3; N_=4; K_=5;
 
@@ -237,7 +237,7 @@ switch NVal
                 hNew=gentext(hNew,Ops,Parent,'Plot not defined');
         end
         
-    case {1,5}
+    case {1,5,6}
         switch axestype
             case {'X-Y','Lon-Lat'}
                 hNew = qp_scalarfield(Parent,hNew,Ops.presentationtype,'UGRID',data,Ops);
@@ -336,6 +336,18 @@ switch NVal
                     end
                 else
                     switch data.ValLocation
+                        case 'FACE'
+                            Skip = isnan(data.FaceNodeConnect);
+                            nNd = sum(~Skip,2);
+                            FNC = data.FaceNodeConnect;
+                            FNC(Skip) = 1;
+                            x = data.X(FNC);
+                            x(Skip) = 0;
+                            x = sum(x,2)./nNd;
+                            y = data.Y(FNC);
+                            y(Skip) = 0;
+                            y = sum(y,2)./nNd;
+                            val = data.Val;
                         case 'EDGE'
                             inode = zeros(length(data.EdgeNodeConnect)+1,1);
                             if ismember(data.EdgeNodeConnect(1,1),data.EdgeNodeConnect(2,:)) && ~ismember(data.EdgeNodeConnect(1,2),data.EdgeNodeConnect(2,:))

@@ -27,8 +27,8 @@
 !                                                                               
 !-------------------------------------------------------------------------------
 
-! $Id: unstruc_messages.f90 54191 2018-01-22 18:57:53Z dam_ar $
-! $HeadURL: https://repos.deltares.nl/repos/ds/trunk/additional/unstruc/src/unstruc_messages.f90 $
+! $Id: unstruc_messages.f90 62178 2018-09-27 09:19:40Z mourits $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/dflowfm/packages/dflowfm_kernel/src/unstruc_messages.f90 $
 !> Info and error messages within Unstruc.
 !! Messages will be printed on stdout and the diagnostics file.
 !! A buffer 'msgbuf' is available to write to.
@@ -38,6 +38,7 @@ use MessageHandling
 implicit none
 
 logical, parameter, private :: printToStdout = .true.
+integer :: threshold_abort = level_error
 
 ! Verbosity levels for logging on screen and in diagnostics file.
 ! Configurable at runtime with '--verbose:...'-flag.
@@ -53,9 +54,14 @@ contains
 !> Initializes the MessageHandling module with the mdia file pointer.
 subroutine initMessaging(mdia)
     integer, intent(in) :: mdia
-    external :: unstruc_errorhandler
+    external :: unstruc_errorhandler, unstruc_guimessage
+
     call SetMessagehandling(printToStdout, .false., mdia, unstruc_errorhandler, &
          thresholdLevel_stdout = loglevel_StdOut, thresholdLevel_file = loglevel_file)
+
+    ! Set the qnerror wrapper, for use in gridoperations, etc.
+    call set_msgbox_callback(unstruc_guimessage)
+
 end subroutine initMessaging
 
 subroutine callback_msg(lvl,msg)

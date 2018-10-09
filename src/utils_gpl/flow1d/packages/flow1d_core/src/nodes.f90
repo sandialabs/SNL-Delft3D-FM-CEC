@@ -25,7 +25,7 @@ module m_node
 !  Stichting Deltares. All rights reserved.
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: nodes.f90 8044 2018-01-24 15:35:11Z mourits $
+!  $Id: nodes.f90 59790 2018-08-09 14:15:22Z noort $
 !  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_gpl/flow1d/packages/flow1d_core/src/nodes.f90 $
 !-------------------------------------------------------------------------------
 
@@ -37,6 +37,10 @@ module m_node
    
    private 
      
+   interface getnodeid
+      module procedure getnodeid_fun
+   end interface
+
    ! node types
    integer, public, parameter :: nt_BND       = -2
    integer, public, parameter :: nt_NotSet    = -1
@@ -51,6 +55,7 @@ module m_node
    public dealloc
    public admin_nodes
    public fill_hashtable
+   public getnodeid
 
    interface fill_hashtable
       module procedure fill_hashtable_nds
@@ -197,5 +202,24 @@ contains
       call hashfill(nds%hashlist)
       
    end subroutine fill_hashtable_nds
+   
+   function getnodeId_fun(nds, gridpoint) result(id)
+   
+      character(len=80)    :: id
+      type(t_nodeset), intent(in)      :: nds
+      integer        , intent(in)      :: gridpoint
+      
+      integer i
+      
+      do i = 1, nds%count
+         if (nds%node(i)%gridNumber == gridpoint) then
+            id  = nds%node(i)%id
+            return
+         endif
+         
+      enddo
+      
+      id = 'NODEID not found'
+   end function getnodeId_fun
    
 end module m_node

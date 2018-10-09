@@ -25,7 +25,7 @@
 !                                                                               
 !-------------------------------------------------------------------------------
 
-! $Id: meshdata.F90 7992 2018-01-09 10:27:35Z mourits $
+! $Id: meshdata.F90 59855 2018-08-16 14:05:22Z carniato $
 ! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_lgpl/io_netcdf/packages/io_netcdf/src/meshdata.F90 $
 
 !> Module for grid operations.
@@ -45,18 +45,19 @@ integer, parameter :: ug_idsLongNamesLen = 80
 !> This is general data structures shared also by gridgeom
 type t_ug_meshgeom
 ! TODO: AvD: extend this to 3D (volumes)
-   character(len=256) :: meshname           !< Name of this mesh ! TODO: AvD: should this be in this data type?
-   integer            :: dim                !< Dimensionality of the mesh (1/2/3)
-   integer            :: numnode            !< Number of mesh nodes.
-   integer            :: numedge            !< Number of mesh edges (size of kn)
-   integer            :: numface            !< Number of mesh faces.
-   integer            :: maxnumfacenodes    !< Maximum of number of face nodes.
-   integer            :: numlayer           !< Number of mesh layers (num interfaces == numlayer + 1), numlayer = 0 means "no layers".
-   integer            :: layertype          !< Type of vertical layer definition (only if numlayer >= 1), one of LAYERTYPE_* parameters.
-   integer            :: nnodes             !< Number of branches
-   integer            :: nbranches          !< Number of branches
-   integer            :: ngeometry          !< Number of geometrical points
-   integer            :: start_index        !< The base index of the arrays
+   character(len=256) :: meshname                !< Name of this mesh ! TODO: AvD: should this be in this data type?
+   integer            :: dim             = -1    !< Dimensionality of the mesh (1/2/3)
+   integer            :: numnode         = -1    !< Number of mesh nodes.
+   integer            :: numedge         = -1    !< Number of mesh edges (size of kn)
+   integer            :: numface         = -1    !< Number of mesh faces.
+   integer            :: maxnumfacenodes = -1    !< Maximum of number of face nodes.
+   integer            :: numlayer        = -1    !< Number of mesh layers (num interfaces == numlayer + 1), numlayer = 0 means "no layers".
+   integer            :: layertype       = -1    !< Type of vertical layer definition (only if numlayer >= 1), one of LAYERTYPE_* parameters.
+   integer            :: nnodes          = -1    !< Number of branches
+   integer            :: nbranches       = -1    !< Number of branches
+   integer            :: ngeometry       = -1    !< Number of geometrical points
+   integer            :: start_index     = -1    !< The base index of the arrays
+   integer            :: epsg            = -1    !< epsg code that uniquely identifies the coordinate reference system 
 
    integer, pointer :: edge_nodes(:,:) => null() !< Edge-to-node mapping array.
    integer, pointer :: face_nodes(:,:) => null() !< Face-to-node mapping array.
@@ -111,6 +112,7 @@ type, bind(C) :: c_t_ug_meshgeomdim
    integer(kind=c_int)      :: nnodes
    integer(kind=c_int)      :: nbranches          !< Number of branches
    integer(kind=c_int)      :: ngeometry          !< Number of geometry points
+   integer(kind=c_int)      :: epsg               !< epsg code that uniquely identifies the coordinate reference system 
    
 end type c_t_ug_meshgeomdim
 
@@ -145,18 +147,19 @@ type, bind(C) :: c_t_ug_meshgeom
    type(c_ptr) :: facey                   !< y-coordinates of the mesh faces.
    type(c_ptr) :: facez                   !< z-coordinates of the mesh faces.
    
-   type(c_ptr)              :: layer_zs           !< Vertical coordinates of the mesh layers' center (either z or sigma).
-   type(c_ptr)              :: interface_zs       !< Vertical coordinates of the mesh layers' interface (either z or sigma).
+   type(c_ptr)  :: layer_zs               !< Vertical coordinates of the mesh layers' center (either z or sigma).
+   type(c_ptr)  :: interface_zs           !< Vertical coordinates of the mesh layers' interface (either z or sigma).
 
 end type c_t_ug_meshgeom
 
    contains 
    
-function convert_meshgeom_to_cptr(meshgeom, c_meshgeom) result(ierr)
+function convert_meshgeom_to_cptr(meshgeom, c_meshgeom, c_meshgeomdim) result(ierr)
 
-   type(t_ug_meshgeom), intent(in)      :: meshgeom
-   type(c_t_ug_meshgeom), intent(inout) :: c_meshgeom
-   integer                              :: ierr
+   type(t_ug_meshgeom), intent(in)         :: meshgeom
+   type(c_t_ug_meshgeom), intent(inout)    :: c_meshgeom
+   type(c_t_ug_meshgeomdim), intent(inout) :: c_meshgeomdim
+   integer                                 :: ierr
    !support variables
    integer,          pointer  :: edge_nodes(:,:) => null()!< Edge-to-node mapping array.
    integer,          pointer  :: face_nodes(:,:) => null()!< Face-to-node mapping array.
@@ -191,6 +194,20 @@ function convert_meshgeom_to_cptr(meshgeom, c_meshgeom) result(ierr)
    double precision, pointer :: interface_zs(:) => null() !< Vertical coordinates of the mesh layers' interface (either z or sigma).
    
    ierr = 0
+   !dimension variables
+   c_meshgeomdim%dim = meshgeom%dim                
+   c_meshgeomdim%numnode = meshgeom%numnode          
+   c_meshgeomdim%numedge = meshgeom%numedge           
+   c_meshgeomdim%numface = meshgeom%numface          
+   c_meshgeomdim%maxnumfacenodes = meshgeom%maxnumfacenodes   
+   c_meshgeomdim%numlayer = meshgeom%numlayer          
+   c_meshgeomdim%layertype = meshgeom%layertype  
+   
+   c_meshgeomdim%nnodes = meshgeom%nnodes  
+   c_meshgeomdim%nbranches = meshgeom%nbranches       
+   c_meshgeomdim%ngeometry = meshgeom%ngeometry
+   c_meshgeomdim%epsg = meshgeom%epsg
+   
    !! array variables
    if (associated(meshgeom%edge_nodes)) then
       call c_f_pointer(c_meshgeom%edge_nodes, edge_nodes, shape(meshgeom%edge_nodes))
@@ -348,46 +365,141 @@ function convert_cptr_to_meshgeom(c_meshgeom, c_meshgeomdim, meshgeom) result(ie
    meshgeom%nnodes = c_meshgeomdim%nnodes  
    meshgeom%nbranches = c_meshgeomdim%nbranches       
    meshgeom%ngeometry = c_meshgeomdim%ngeometry
+   meshgeom%epsg = c_meshgeomdim%epsg
   
    ierr = 0
    
-   call c_f_pointer(c_meshgeom%edge_nodes, meshgeom%edge_nodes, (/ 2, c_meshgeomdim%numedge /)) 
-   call c_f_pointer(c_meshgeom%face_nodes, meshgeom%face_nodes, (/ c_meshgeomdim%maxnumfacenodes, c_meshgeomdim%numface /))
-   call c_f_pointer(c_meshgeom%edge_faces, meshgeom%edge_faces, (/ 2, c_meshgeomdim%numedge /))
-   call c_f_pointer(c_meshgeom%face_edges, meshgeom%face_edges, (/ c_meshgeomdim%maxnumfacenodes, c_meshgeomdim%numface /))
-   call c_f_pointer(c_meshgeom%face_links, meshgeom%face_links, (/ c_meshgeomdim%maxnumfacenodes, c_meshgeomdim%numface /))
+   if(c_associated(c_meshgeom%edge_nodes)) call c_f_pointer(c_meshgeom%edge_nodes, meshgeom%edge_nodes, (/ 2, c_meshgeomdim%numedge /)) 
+   if(c_associated(c_meshgeom%face_nodes)) call c_f_pointer(c_meshgeom%face_nodes, meshgeom%face_nodes, (/ c_meshgeomdim%maxnumfacenodes, c_meshgeomdim%numface /))
+   if(c_associated(c_meshgeom%edge_faces)) call c_f_pointer(c_meshgeom%edge_faces, meshgeom%edge_faces, (/ 2, c_meshgeomdim%numedge /))
+   if(c_associated(c_meshgeom%face_edges)) call c_f_pointer(c_meshgeom%face_edges, meshgeom%face_edges, (/ c_meshgeomdim%maxnumfacenodes, c_meshgeomdim%numface /))
+   if(c_associated(c_meshgeom%face_links)) call c_f_pointer(c_meshgeom%face_links, meshgeom%face_links, (/ c_meshgeomdim%maxnumfacenodes, c_meshgeomdim%numface /))
    
    !Network variables 
-   call c_f_pointer(c_meshgeom%nnodex, meshgeom%nnodex,(/c_meshgeomdim%nnodes/))
-   call c_f_pointer(c_meshgeom%nnodey, meshgeom%nnodey,(/c_meshgeomdim%nnodes/))
+   if(c_associated(c_meshgeom%nnodex)) call c_f_pointer(c_meshgeom%nnodex, meshgeom%nnodex,(/c_meshgeomdim%nnodes/))
+   if(c_associated(c_meshgeom%nnodey)) call c_f_pointer(c_meshgeom%nnodey, meshgeom%nnodey,(/c_meshgeomdim%nnodes/))
    !nodeids and nodelongnames are not communicated using meshgeom
-   call c_f_pointer(c_meshgeom%nedge_nodes, meshgeom%nedge_nodes, (/ 2, c_meshgeomdim%nbranches /))   
+   if(c_associated(c_meshgeom%nedge_nodes)) call c_f_pointer(c_meshgeom%nedge_nodes, meshgeom%nedge_nodes, (/ 2, c_meshgeomdim%nbranches /))   
    !branchids and branchlongnames are not communicated using meshgeom
-   call c_f_pointer(c_meshgeom%nbranchlengths, meshgeom%nbranchlengths, (/ c_meshgeomdim%nbranches /))
-   call c_f_pointer(c_meshgeom%nbranchgeometrynodes, meshgeom%nbranchgeometrynodes, (/ c_meshgeomdim%nbranches /))   
-   call c_f_pointer(c_meshgeom%ngeopointx, meshgeom%ngeopointx, (/ c_meshgeomdim%ngeometry/))
-   call c_f_pointer(c_meshgeom%ngeopointy, meshgeom%ngeopointy, (/ c_meshgeomdim%ngeometry/))   
-   call c_f_pointer(c_meshgeom%nbranchorder, meshgeom%nbranchorder, (/ c_meshgeomdim%nbranches/))   
+   if(c_associated(c_meshgeom%nbranchlengths)) call c_f_pointer(c_meshgeom%nbranchlengths, meshgeom%nbranchlengths, (/ c_meshgeomdim%nbranches /))
+   if(c_associated(c_meshgeom%nbranchgeometrynodes)) call c_f_pointer(c_meshgeom%nbranchgeometrynodes, meshgeom%nbranchgeometrynodes, (/ c_meshgeomdim%nbranches /))   
+   if(c_associated(c_meshgeom%ngeopointx)) call c_f_pointer(c_meshgeom%ngeopointx, meshgeom%ngeopointx, (/ c_meshgeomdim%ngeometry/))
+   if(c_associated(c_meshgeom%ngeopointy)) call c_f_pointer(c_meshgeom%ngeopointy, meshgeom%ngeopointy, (/ c_meshgeomdim%ngeometry/))   
+   if(c_associated(c_meshgeom%nbranchorder)) call c_f_pointer(c_meshgeom%nbranchorder, meshgeom%nbranchorder, (/ c_meshgeomdim%nbranches/))   
    
    !Mesh1d variables
-   call c_f_pointer(c_meshgeom%branchidx, meshgeom%branchidx, (/ c_meshgeomdim%numnode/))
-   call c_f_pointer(c_meshgeom%branchoffsets, meshgeom%branchoffsets, (/ c_meshgeomdim%numnode /))   
+   if(c_associated(c_meshgeom%branchidx)) call c_f_pointer(c_meshgeom%branchidx, meshgeom%branchidx, (/ c_meshgeomdim%numnode/))
+   if(c_associated(c_meshgeom%branchoffsets)) call c_f_pointer(c_meshgeom%branchoffsets, meshgeom%branchoffsets, (/ c_meshgeomdim%numnode /))   
    
-   call c_f_pointer(c_meshgeom%nodex, meshgeom%nodex,(/c_meshgeomdim%numnode/))
-   call c_f_pointer(c_meshgeom%nodey, meshgeom%nodey,(/c_meshgeomdim%numnode/))
-   call c_f_pointer(c_meshgeom%nodez, meshgeom%nodez,(/c_meshgeomdim%numnode/))
-   call c_f_pointer(c_meshgeom%edgex, meshgeom%edgex,(/c_meshgeomdim%numedge/))
-   call c_f_pointer(c_meshgeom%edgey, meshgeom%edgey,(/c_meshgeomdim%numedge/))
-   call c_f_pointer(c_meshgeom%edgez, meshgeom%edgez,(/c_meshgeomdim%numedge/)) 
-   call c_f_pointer(c_meshgeom%facex, meshgeom%facex,(/c_meshgeomdim%numface/))
-   call c_f_pointer(c_meshgeom%facey, meshgeom%facey,(/c_meshgeomdim%numface/))
-   call c_f_pointer(c_meshgeom%facez, meshgeom%facez,(/c_meshgeomdim%numface/))
-  
-   call c_f_pointer(c_meshgeom%layer_zs, meshgeom%layer_zs,(/c_meshgeomdim%numlayer/))
-   call c_f_pointer(c_meshgeom%interface_zs, meshgeom%interface_zs,(/c_meshgeomdim%numlayer + 1/))
+   if(c_associated(c_meshgeom%nodex)) call c_f_pointer(c_meshgeom%nodex, meshgeom%nodex,(/c_meshgeomdim%numnode/))
+   if(c_associated(c_meshgeom%nodey)) call c_f_pointer(c_meshgeom%nodey, meshgeom%nodey,(/c_meshgeomdim%numnode/))
+   if(c_associated(c_meshgeom%nodez)) call c_f_pointer(c_meshgeom%nodez, meshgeom%nodez,(/c_meshgeomdim%numnode/))
+   if(c_associated(c_meshgeom%edgex)) call c_f_pointer(c_meshgeom%edgex, meshgeom%edgex,(/c_meshgeomdim%numedge/))
+   if(c_associated(c_meshgeom%edgey)) call c_f_pointer(c_meshgeom%edgey, meshgeom%edgey,(/c_meshgeomdim%numedge/))
+   if(c_associated(c_meshgeom%edgez)) call c_f_pointer(c_meshgeom%edgez, meshgeom%edgez,(/c_meshgeomdim%numedge/)) 
+   if(c_associated(c_meshgeom%facex)) call c_f_pointer(c_meshgeom%facex, meshgeom%facex,(/c_meshgeomdim%numface/))
+   if(c_associated(c_meshgeom%facey)) call c_f_pointer(c_meshgeom%facey, meshgeom%facey,(/c_meshgeomdim%numface/))
+   if(c_associated(c_meshgeom%facez)) call c_f_pointer(c_meshgeom%facez, meshgeom%facez,(/c_meshgeomdim%numface/))
+   if(c_associated(c_meshgeom%layer_zs)) call c_f_pointer(c_meshgeom%layer_zs, meshgeom%layer_zs,(/c_meshgeomdim%numlayer/))
+   if(c_associated(c_meshgeom%interface_zs)) call c_f_pointer(c_meshgeom%interface_zs, meshgeom%interface_zs,(/c_meshgeomdim%numlayer + 1/))
       
 end function convert_cptr_to_meshgeom
 
+!> by deallocating what is associated, no memory leaks
+function t_ug_meshgeom_destructor(meshgeom) result(ierr)
 
+   type(t_ug_meshgeom) :: meshgeom
+   integer  :: ierr
+   
+   if(associated(meshgeom%edge_nodes)) deallocate(meshgeom%edge_nodes)
+   if(associated(meshgeom%face_nodes)) deallocate(meshgeom%face_nodes)
+   if(associated(meshgeom%edge_faces)) deallocate(meshgeom%edge_faces)
+   if(associated(meshgeom%face_edges)) deallocate(meshgeom%face_edges)
+   if(associated(meshgeom%face_links)) deallocate(meshgeom%face_links)
+   
+   
+   if(associated(meshgeom%nnodex)) deallocate(meshgeom%nnodex)
+   if(associated(meshgeom%nnodey)) deallocate(meshgeom%nnodey)
+   if(associated(meshgeom%nnodeids)) deallocate(meshgeom%nnodeids)
+   if(associated(meshgeom%nnodelongnames)) deallocate(meshgeom%nnodelongnames)
+   if(associated(meshgeom%nedge_nodes)) deallocate(meshgeom%nedge_nodes)
+   if(associated(meshgeom%nbranchids)) deallocate(meshgeom%nbranchids)
+   if(associated(meshgeom%nbranchlongnames)) deallocate(meshgeom%nbranchlongnames)
+   
+   if(associated(meshgeom%nbranchlengths)) deallocate(meshgeom%nbranchlengths)
+   if(associated(meshgeom%nbranchgeometrynodes)) deallocate(meshgeom%nbranchgeometrynodes)
+   if(associated(meshgeom%ngeopointx)) deallocate(meshgeom%ngeopointx)
+   if(associated(meshgeom%ngeopointy)) deallocate(meshgeom%ngeopointy)
+   if(associated(meshgeom%nbranchorder)) deallocate(meshgeom%nbranchorder)
+   
+   if(associated(meshgeom%branchidx)) deallocate(meshgeom%branchidx)
+   if(associated(meshgeom%branchoffsets)) deallocate(meshgeom%branchoffsets)
+   
+   if(associated(meshgeom%nodex)) deallocate(meshgeom%nodex)
+   if(associated(meshgeom%nodey)) deallocate(meshgeom%nodey)
+   if(associated(meshgeom%nodez)) deallocate(meshgeom%nodez)
+   if(associated(meshgeom%edgex)) deallocate(meshgeom%edgex)
+   if(associated(meshgeom%edgey)) deallocate(meshgeom%edgey)
+   
+   if(associated(meshgeom%edgez)) deallocate(meshgeom%edgez)
+   if(associated(meshgeom%facex)) deallocate(meshgeom%facex)
+   if(associated(meshgeom%facey)) deallocate(meshgeom%facey)
+   if(associated(meshgeom%facez)) deallocate(meshgeom%facez)
+   if(associated(meshgeom%layer_zs)) deallocate(meshgeom%layer_zs)
+   if(associated(meshgeom%interface_zs)) deallocate(meshgeom%interface_zs)
+   
+   
+   meshgeom%dim             = -1 
+   meshgeom%numnode         = -1    
+   meshgeom%numedge         = -1    
+   meshgeom%numface         = -1    
+   meshgeom%maxnumfacenodes = -1    
+   meshgeom%numlayer        = -1    
+   meshgeom%layertype       = -1    
+   meshgeom%nnodes          = -1    
+   meshgeom%nbranches       = -1    
+   meshgeom%ngeometry       = -1    
+   meshgeom%start_index     = -1 
+   meshgeom%epsg            = -1 
+
+   ierr = 0
+
+   !nullify
+   meshgeom%edge_nodes => null()
+   meshgeom%face_nodes => null()
+   meshgeom%edge_faces => null()
+   meshgeom%face_edges => null()
+   meshgeom%face_links => null()
+
+   meshgeom%nnodex => null()
+   meshgeom%nnodey => null()
+   meshgeom%nnodeids => null()
+   meshgeom%nnodelongnames       => null()
+   meshgeom%nedge_nodes          => null()
+   meshgeom%nbranchids           => null()
+   meshgeom%nbranchlongnames     => null()
+   
+   meshgeom%nbranchlengths       => null()
+   meshgeom%nbranchgeometrynodes => null()
+   meshgeom%ngeopointx => null()
+   meshgeom%ngeopointy => null()
+   meshgeom%nbranchorder => null()
+   meshgeom%branchidx => null()
+   meshgeom%branchoffsets => null()
+   
+   meshgeom%nodex => null()
+   meshgeom%nodey => null()
+   meshgeom%nodez => null()
+   meshgeom%edgex => null()
+   meshgeom%edgey => null()
+   meshgeom%edgez => null()
+   meshgeom%facex => null()
+   meshgeom%facey => null()
+   meshgeom%facez => null()
+   
+   meshgeom%layer_zs     => null()
+   meshgeom%interface_zs => null()
+      
+   end function t_ug_meshgeom_destructor
 
 end module meshdata

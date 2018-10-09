@@ -123,7 +123,12 @@ rem =============================================================
 rem === copyNetcdf copy the appropriate netcdf.dll            ===
 rem =============================================================
 :copyNetcdf
-    call :copyFile "third_party_open\netcdf\src\win32\2005\libsrc\Release\netcdf.dll" !dest_bin!
+    set dest=%~1
+    if not exist !dest! mkdir !dest!
+    if not !ErrorLevel! EQU 0 (
+        echo ERROR: while creating directory "!dest!"
+    )
+    call :copyFile "third_party_open\netcdf\netCDF 4.6.1-32\bin\*" !dest!
 goto :endproc
 
 
@@ -234,7 +239,6 @@ rem ================
     call :copyFile "third_party_open\vcredist\x86\Microsoft.VC110.CRT\*.dll"             !dest_shared!
     call :copyFile "third_party_open\vcredist\x86\Microsoft.VC120.CRT\*.dll"             !dest_shared!
     call :copyFile "third_party_open\vcredist\x86\Microsoft.VC140.CRT\*.dll"             !dest_shared!
-    call :copyFile "third_party_open\intel_fortran\lib\win32\*.dll"                      !dest_shared!
     call :copyNetcdf                                                                     !dest_shared!
     call :copyFile "third_party_open\mpich2\lib\*.dll"                                   !dest_shared!
     call :copyFile "third_party_open\mpich2\bin\mpiexec.exe"                             !dest_shared!
@@ -287,10 +291,6 @@ rem ====================
     call :copyFile "utils_lgpl\delftonline\lib\Release\dynamic\delftonline.dll" !dest_plugins!
     call :copyNetcdf
     
-    rem
-    rem The following if-else statements MUST BE executed AFTER copying "third_party_open\intel_fortran" libraries.
-    rem Some (older) libraries will be overwritten.
-    rem
     if !compiler_dir!=="" (
         rem Compiler_dir not set
     ) else (
@@ -343,10 +343,6 @@ rem ===========================
     call :copyFile utils_lgpl\delftonline\lib\Release\dynamic\delftonline.dll !dest_plugins!
     call :copyNetcdf
 
-    rem
-    rem The following if-else statements MUST BE executed AFTER copying "third_party_open\intel_fortran" libraries.
-    rem Some (older) libraries will be overwritten.
-    rem
     if !compiler_dir!=="" (
         rem Compiler_dir not set
     ) else (
@@ -409,10 +405,6 @@ rem ======================
     call :copyFile engines_gpl\waq\default\proc_def.dat                        !dest_default!
     call :copyFile engines_gpl\waq\default\proc_def.def                        !dest_default!
 
-    rem
-    rem The following if-else statements MUST BE executed AFTER copying "third_party_open\intel_fortran" libraries.
-    rem Some (older) libraries will be overwritten.
-    rem
     if !compiler_dir!=="" (
         rem Compiler_dir not set
     ) else (
@@ -454,10 +446,6 @@ rem ==============================
     call :copyFile engines_gpl\waq\bin\Release\delwaq2_openda_lib.dll          !dest_bin!
     call :copyNetcdf
 	
-    rem
-    rem The following if-else statements MUST BE executed AFTER copying "third_party_open\intel_fortran" libraries.
-    rem Some (older) libraries will be overwritten.
-    rem
     if !compiler_dir!=="" (
         rem Compiler_dir not set
     ) else (
@@ -505,10 +493,6 @@ rem ================
 
     call :copyFile engines_gpl\part\bin\release\delpar.exe !dest!
 
-    rem
-    rem The following if-else statements MUST BE executed AFTER copying "third_party_open\intel_fortran" libraries.
-    rem Some (older) libraries will be overwritten.
-    rem
     if !compiler_dir!=="" (
         rem Compiler_dir not set
     ) else (
@@ -557,19 +541,14 @@ rem ================
     if exist engines_gpl\wave\bin\release\wave_exe.exe (
         call :copyFile engines_gpl\wave\bin\release\wave_exe.exe      "!dest_bin!\wave.exe"
     ) 
-    call :copyFile engines_gpl\flow2d3d\default\dioconfig.ini             !dest_default!
-    call :copyFile "third_party_open\pthreads\bin\win32\*.dll"      !dest_bin!
-    call :copyFile "third_party_open\intel_fortran\lib\win32\*.dll" !dest_bin!
-    call :copyFile "third_party_open\swan\bin\win32\*.*"                  !dest_swan_bin!
-    call :copyFile third_party_open\swan\scripts\swan_install.bat "       !dest_swan_scripts!\swan.bat"
-    call :copyFile "third_party_open\esmf\win64\bin\*.*"                  !dest_esmf_bin!
-    call :copyFile "third_party_open\esmf\win64\scripts\*.*"              !dest_esmf_scripts!
-    call :copyFile "engines_gpl\wave\scripts\run_*.bat"               "!dest_scripts!"
+    call :copyFile engines_gpl\flow2d3d\default\dioconfig.ini      "!dest_default!"
+    call :copyFile "third_party_open\swan\bin\win32\*.*"           "!dest_swan_bin!"
+    call :copyFile third_party_open\swan\scripts\swan.bat          "!dest_swan_scripts!"
+    call :copyFile "third_party_open\esmf\win64\bin\*.*"           "!dest_esmf_bin!"
+    call :copyFile "third_party_open\esmf\win64\scripts\*.*"       "!dest_esmf_scripts!"
+    call :copyFile "engines_gpl\wave\scripts\run_*.bat"            "!dest_scripts!"
     call :copyNetcdf
-    rem
-    rem The following if-else statements MUST BE executed AFTER copying "third_party_open\intel_fortran" libraries.
-    rem Some (older) libraries will be overwritten.
-    rem
+
     if !compiler_dir!=="" (
         rem Compiler_dir not set
     ) else (

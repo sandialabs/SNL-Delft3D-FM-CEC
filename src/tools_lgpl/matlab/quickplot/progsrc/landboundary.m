@@ -68,7 +68,7 @@ function varargout=landboundary(cmd,varargin)
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
 %   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/landboundary.m $
-%   $Id: landboundary.m 7992 2018-01-09 10:27:35Z mourits $
+%   $Id: landboundary.m 8167 2018-02-15 12:27:14Z jagers $
 
 if nargout>0
     varargout=cell(1,nargout);
@@ -234,6 +234,11 @@ for c = 1:Ncell
     else
         if ndims(data1)>2
             error('Invalid size of data array %i.',c)
+        elseif size(data1,2)==3
+            if size(data1,1)==2
+                data1 = data1';
+            else % accept third column as z coordinate
+            end
         elseif size(data1,2)~=2
             if size(data1,1)==2
                 data1 = data1';

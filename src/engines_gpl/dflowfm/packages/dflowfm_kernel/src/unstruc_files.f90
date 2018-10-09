@@ -27,8 +27,8 @@
 !                                                                               
 !-------------------------------------------------------------------------------
 
-! $Id: unstruc_files.f90 54191 2018-01-22 18:57:53Z dam_ar $
-! $HeadURL: https://repos.deltares.nl/repos/ds/trunk/additional/unstruc/src/unstruc_files.f90 $
+! $Id: unstruc_files.f90 62178 2018-09-27 09:19:40Z mourits $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/dflowfm/packages/dflowfm_kernel/src/unstruc_files.f90 $
 
 module unstruc_files
 !! Centralizes unstruc file management (formerly in REST.F90)
@@ -158,6 +158,9 @@ function defaultFilename(filecat, timestamp, prefixWithDirectory, allowWildcard)
     case ('map')
         activeFile = md_mapfile
         suffix     = '_map.nc'
+    case ('clm')
+        activeFile = md_classmap_file
+        suffix     = '_clm.nc'
     case ('fou')
         activeFile = ''
         suffix     = '_fou.nc'
@@ -252,6 +255,14 @@ function defaultFilename(filecat, timestamp, prefixWithDirectory, allowWildcard)
         activeFile = ''
         suffix     = '_snapped_src' ! .shp extension will be added automatically (and .shx/.dbf)
         
+    case ('shppump')
+        activeFile = ''
+        suffix     = '_snapped_pump' ! .shp extension will be added automatically (and .shx/.dbf)
+        
+   case ('shpdry')
+        activeFile = ''
+        suffix     = '_snapped_dryarea' ! .shp extension will be added automatically (and .shx/.dbf)
+        
     !---------------------------------------------------------!
     ! Shape files
     !---------------------------------------------------------!
@@ -290,11 +301,11 @@ function defaultFilename(filecat, timestamp, prefixWithDirectory, allowWildcard)
     
     ! Output files are generally stored in a subfolder, so prefix them here with that.
     select case (trim(filecat))
-    case ('his', 'map', 'rstold', 'rst', 'bal', 'histek', 'inc_s1', 'tec', 'map.plt', 'net.plt', 'avgwavquant', 'com')                             !! JRE
+    case ('his', 'map', 'clm', 'rstold', 'rst', 'bal', 'histek', 'inc_s1', 'tec', 'map.plt', 'net.plt', 'avgwavquant', 'com')                             !! JRE
         if (prefix_dir) then
             defaultFilename = trim(getoutputdir())//trim(defaultFilename)
         end if
-    case ('shpcrs','shpobs', 'shpweir', 'shpthd', 'shpgate', 'shpemb', 'shpfxw', 'shpsrc')
+    case ('shpcrs','shpobs', 'shpweir', 'shpthd', 'shpgate', 'shpemb', 'shpfxw', 'shpsrc', 'shppump', 'shpdry')
         if (prefix_dir) then        
             shapeOutputDir = trim(getoutputdir())//'snapped'
             call makedir(shapeOutputDir)

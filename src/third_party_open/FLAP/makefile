@@ -44,7 +44,7 @@ EXES := $(EXES) $(DEXE)TEST_DRIVER
 
 all: $(EXES) $(LIBS)
 
-install:
+install: all
 # empty rule as long as this makefile does not build a library (only .mods' and .o's, NOINST)
 
 #Emulate automake's `make dist` behavior for inclusion in other packages that build source dists.

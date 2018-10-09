@@ -27,8 +27,8 @@
 !                                                                               
 !-------------------------------------------------------------------------------
 
-! $Id: tecplot.F90 54161 2018-01-19 13:58:36Z carniato $
-! $HeadURL: https://repos.deltares.nl/repos/ds/trunk/additional/unstruc/src/tecplot.F90 $
+! $Id: tecplot.F90 62178 2018-09-27 09:19:40Z mourits $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/dflowfm/packages/dflowfm_kernel/src/tecplot.F90 $
 !> for Tecplot output
 module m_tecplot
 implicit none

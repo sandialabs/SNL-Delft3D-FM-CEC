@@ -27,8 +27,8 @@
 !                                                                               
 !-------------------------------------------------------------------------------
 
-! $Id: filez.f90 51585 2017-07-10 14:01:15Z kernkam $
-! $HeadURL: https://repos.deltares.nl/repos/ds/trunk/additional/unstruc/src/filez.f90 $
+! $Id: filez.f90 62178 2018-09-27 09:19:40Z mourits $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/dflowfm/packages/dflowfm_kernel/src/filez.f90 $
 !> Opens an existing file for reading.
 !!
 !! When file does not exist or is already open, program stops with
@@ -107,7 +107,7 @@ subroutine doclose(minp)
 use unstruc_files
 implicit none
     integer, intent(inout) :: minp
-    if (minp == 0) return
+    if (minp <= 0) return
     close (minp)
     call mess(LEVEL_INFO, 'Closed file : ', filenames(minp))
     call reg_file_close(minp)
@@ -643,7 +643,7 @@ implicit none
     if (index(rec, trim(key2) ) /= 0) then
         ja = 1
         l1 = index(rec,'=') + 1
-        read(rec(l1:),*) value
+        value = rec(l1:)
         ! call mess(LEVEL_INFO, 'Found optional keyword', trim(key) )
         return
     else
@@ -676,8 +676,8 @@ subroutine unstruc_errorhandler(level)
 
     ierr=0
     
-    if (level >= LEVEL_ERROR) then
-        call close_all_files
+    if (level >= threshold_abort) then
+        call close_all_files()
         close(mdia)
 #ifdef HAVE_MPI
          call MPI_Abort(DFM_COMM_DFMWORLD, DFM_GENERICERROR, ierr)

@@ -77,16 +77,25 @@
    !---------------------------------------------------------------------------!
 
    module m_ec_basic_interpolation
+   
+   use precision
+   use MessageHandling, only: msgbox, mess, LEVEL_ERROR
+
+   interface triinterp2
+      module procedure triinterp2_dbldbl
+      module procedure triinterp2_realdbl
+      module procedure triinterp2_realreal
+   end interface triinterp2
 
    private
    
-   public   ::  triinterp2
    public   ::  bilin_interp
    public   ::  TRIINTfast
    public   ::  AVERAGING2
    public   ::  dlaun
    public   ::  comp_x_dxdxi
    public   ::  bilin_interp_loc
+   public   ::  triinterp2
 
    contains
 
@@ -94,24 +103,44 @@
    !   Triinterp
    !---------------------------------------------------------------------------!
 
-   subroutine triinterp2(XZ, YZ, BL, NDX, JDLA,&
+   subroutine triinterp2_dbldbl(XZ, YZ, BL, NDX, JDLA,&
                         XS, YS, ZS, NS, dmiss, jsferic, jins, jasfer3D, NPL, MXSAM, MYSAM, XPL, YPL, ZPL, transformcoef)
    implicit none
+   !
+   ! Parameters
+   real(hp), intent(in)            :: XZ(:)
+   real(hp), intent(in)            :: YZ(:)
+   real(hp), intent(inout)         :: BL(NDX)
+   integer , intent(in)            :: NDX
+   integer , intent(in)            :: JDLA
+   integer , intent(in)            :: NS
+   integer , intent(in)            :: jins
+   integer , intent(in)            :: jasfer3D
+   integer , intent(in)            :: NPL
+   integer , intent(in)            :: MXSAM
+   integer , intent(in)            :: MYSAM
+   real(hp), intent(in)            :: XS(:)
+   real(hp), intent(in)            :: YS(:)
+   real(hp), intent(in)            :: ZS(:)
+   real(hp), intent(in)            :: dmiss
+   integer                         :: jakdtree
+   integer                         :: jsferic
    
-   double precision, intent(in)            :: XZ(NDX), YZ(NDX)
-   double precision, intent(inout)         :: BL(NDX)
-   integer, intent(in)                     :: NDX, JDLA, NS, jins, jasfer3D, NPL, MXSAM, MYSAM
-   double precision, intent(in)            :: XS(:), YS(:), ZS(:), dmiss
-   integer                                 :: jakdtree, jsferic
-   
-   double precision, intent(in)            :: XPL(:), YPL(:), ZPL(:), transformcoef(:)
-   
-   integer :: i, in_unit, out_unit 
-   
-!   jsferic = 0
+   real(hp), intent(in)            :: XPL(:)
+   real(hp), intent(in)            :: YPL(:)
+   real(hp), intent(in)            :: ZPL(:)
+   real(hp), intent(in)            :: transformcoef(:)
+   !
+   ! Locals
+   integer :: i
+   integer :: in_unit
+   integer :: out_unit
+   !
+   ! Body
+   !   jsferic = 0
   
-!   ! assign 'missing value' to all elements of dRes
-!   BL = -999d0
+   !   ! assign 'missing value' to all elements of dRes
+   !   BL = -999d0
 
    if (ndx < 1) return
 
@@ -122,24 +151,121 @@
    else  ! Delauny
       call TRIINTfast(XS,YS,ZS,NS,1,XZ,YZ,BL,Ndx,JDLA, jakdtree, jsferic, Npl, jins, dmiss, jasfer3D, XPL, YPL, ZPL, transformcoef)
    end if
-   
-      !in_unit = 10 
-      !open (unit=in_unit,file="in.txt",action="write",status="replace")
-      !write (in_unit,*) NS
-      !do i=1, size(XS)
-      !   write (in_unit,*) XS(i),YS(i),ZS(i)
-      !end do 
-      !
-      !out_unit = 20
-      !open (unit=out_unit,file="out.txt",action="write",status="replace")      
-      !write (out_unit,*) NDX, JDLA 
-      !do i=1, size(XZ)
-      !   write (out_unit,*) XZ(i),YZ(i),BL(i)
-      !end do 
-      !
-      !close (out_unit)
 
-   end subroutine triinterp2
+   !   in_unit = 10 
+   !   open (unit=in_unit,file="in.txt",action="write",status="replace")
+   !   write (in_unit,*) NS
+   !   do i=1, size(ZS)
+   !      write (in_unit,*) XS(i),YS(i),ZS(i)
+   !   end do 
+   !   
+   !   out_unit = 20
+   !   open (unit=out_unit,file="out.txt",action="write",status="replace")      
+   !   write (out_unit,*) NDX, JDLA 
+   !   do i=1, size(BL)
+   !      write (out_unit,*) XZ(i),YZ(i),BL(i)
+   !   end do 
+   ! close (out_unit)
+
+   end subroutine triinterp2_dbldbl
+
+
+
+   subroutine triinterp2_realdbl(XZ, YZ, BL, NDX, JDLA,&
+                        XS, YS, ZS, NS, dmiss, jsferic, jins, jasfer3D, NPL, MXSAM, MYSAM, XPL, YPL, ZPL, transformcoef)
+   implicit none
+   !
+   ! parameters
+   real(sp), intent(in)            :: XZ(NDX)
+   real(sp), intent(in)            :: YZ(NDX)
+   real(hp), intent(inout)         :: BL(NDX)
+   integer , intent(in)            :: NDX
+   integer , intent(in)            :: JDLA
+   integer , intent(in)            :: NS
+   integer , intent(in)            :: jins
+   integer , intent(in)            :: jasfer3D
+   integer , intent(in)            :: NPL
+   integer , intent(in)            :: MXSAM
+   integer , intent(in)            :: MYSAM
+   real(hp), intent(in)            :: XS(:)
+   real(hp), intent(in)            :: YS(:)
+   real(hp), intent(in)            :: ZS(:)
+   real(hp), intent(in)            :: dmiss
+   integer                         :: jakdtree
+   integer                         :: jsferic
+   real(hp), intent(in)            :: XPL(:)
+   real(hp), intent(in)            :: YPL(:)
+   real(hp), intent(in)            :: ZPL(:)
+   real(hp), intent(in)            :: transformcoef(:)
+   !
+   ! locals
+   integer                              :: ierror
+   real(hp), dimension (:), allocatable :: xz_dbl
+   real(hp), dimension (:), allocatable :: yz_dbl
+   !
+   ! body
+   allocate (xz_dbl(NDX), stat=ierror)
+   allocate (yz_dbl(NDX), stat=ierror)
+
+   xz_dbl = dble(xz)
+   yz_dbl = dble(yz)
+   call triinterp2_dbldbl(xz_dbl, yz_dbl, bl, NDX, JDLA,&
+                        XS, YS, ZS, NS, dmiss, jsferic, jins, jasfer3D, NPL, MXSAM, MYSAM, XPL, YPL, ZPL, transformcoef)
+   deallocate (xz_dbl, stat=ierror)
+   deallocate (yz_dbl, stat=ierror)
+   end subroutine triinterp2_realdbl
+
+
+
+   subroutine triinterp2_realreal(XZ, YZ, BL, NDX, JDLA,&
+                        XS, YS, ZS, NS, dmiss, jsferic, jins, jasfer3D, NPL, MXSAM, MYSAM, XPL, YPL, ZPL, transformcoef)
+   implicit none
+   !
+   ! parameters
+   real(sp), intent(in)            :: XZ(NDX)
+   real(sp), intent(in)            :: YZ(NDX)
+   real(sp), intent(inout)         :: BL(NDX)
+   integer , intent(in)            :: NDX
+   integer , intent(in)            :: JDLA
+   integer , intent(in)            :: NS
+   integer , intent(in)            :: jins
+   integer , intent(in)            :: jasfer3D
+   integer , intent(in)            :: NPL
+   integer , intent(in)            :: MXSAM
+   integer , intent(in)            :: MYSAM
+   real(hp), intent(in)            :: XS(:)
+   real(hp), intent(in)            :: YS(:)
+   real(hp), intent(in)            :: ZS(:)
+   real(hp), intent(in)            :: dmiss
+   integer                         :: jakdtree
+   integer                         :: jsferic
+   real(hp), intent(in)            :: XPL(:)
+   real(hp), intent(in)            :: YPL(:)
+   real(hp), intent(in)            :: ZPL(:)
+   real(hp), intent(in)            :: transformcoef(:)
+   !
+   ! locals
+   integer                              :: ierror
+   real(hp), dimension (:), allocatable :: xz_dbl
+   real(hp), dimension (:), allocatable :: yz_dbl
+   real(hp), dimension (:), allocatable :: bl_dbl
+   !
+   ! body
+   allocate (xz_dbl(NDX), stat=ierror)
+   allocate (yz_dbl(NDX), stat=ierror)
+   allocate (bl_dbl(NDX), stat=ierror)
+
+   xz_dbl = dble(xz)
+   yz_dbl = dble(yz)
+   bl_dbl = dble(bl)
+   call triinterp2_dbldbl(xz_dbl, yz_dbl, bl_dbl, NDX, JDLA,&
+                        XS, YS, ZS, NS, dmiss, jsferic, jins, jasfer3D, NPL, MXSAM, MYSAM, XPL, YPL, ZPL, transformcoef)
+   bl = real(bl_dbl)
+   deallocate (xz_dbl, stat=ierror)
+   deallocate (yz_dbl, stat=ierror)
+   deallocate (bl_dbl, stat=ierror)
+   end subroutine triinterp2_realreal
+
 
 
    SUBROUTINE TRIINTfast(XS, YS, ZS, NS,NDIM,X,Y,Z,NXY,JDLA,jakdtree, jsferic, NH, jins, dmiss, jasfer3D, &
@@ -545,7 +671,8 @@
    call aerr('idum(50*Ns)',ierr,-50*Ns)
 
    if ( ierr.ne.0 ) then
-      !LC gui related call qnerror('dlaun: out of memory', ' ', ' ')
+      call msgbox('', 'dlaun: out of memory', LEVEL_ERROR)
+      ! TODO: SvdP: consider adding 'call mess' to stop the simulation.
       !         if ( allocated(idum) ) deallocate(idum)  ! gives an error
       return
    end if
@@ -837,7 +964,7 @@
             if ( jasfer3D.eq.0 ) then
                call CROSS(xz, yz, xp, yp, xs(k1), ys(k1), xs(k2), ys(k2), JACROS,SL,SM,XCR,YCR,CRP, jsferic, dmiss)
             else
-               call cross3D(xz, yz, xp, yp, xs(k1), ys(k1), xs(k2), ys(k2), jacros, sL, sm, jsferic_store, dmiss)
+               call cross3D(xz, yz, xp, yp, xs(k1), ys(k1), xs(k2), ys(k2), jacros, sL, sm, xcr, ycr, jsferic_store, dmiss)
             end if
 
             !              use tolerance
@@ -854,7 +981,8 @@
             if ( jadum.eq.1 .and. jacros.eq.1 ) then
                !LC call movabs(xs(k1),ys(k1))
                !LC call lnabs(xs(k2),ys(k2))
-               !LC call qnerror(' ', ' ', ' ')
+               call msgbox('', '', LEVEL_ERROR)
+               ! TODO: SvdP: consider adding 'call mess' to stop the simulation.
             end if
 
             if ( jacros.eq.1 ) then  ! only select this edge if it has a second adjacent triangle
@@ -1116,6 +1244,7 @@
                                                           
       double precision, parameter                         :: dtol = 0d0
       
+      slo = DMISS
       if ( jslo.eq.1 ) then
          call mess(LEVEL_ERROR, 'linear3D: jslo=1 not supported')
       end if
@@ -1194,7 +1323,8 @@
    ierror = 1
 
    if ( MXSAM.eq.0 .or. MYSAM.eq.0 ) then
-      !LC call qnerror('bilin_interp: sample data is unstructured', ' ', ' ')
+      call msgbox('', 'bilin_interp: sample data is unstructured', LEVEL_ERROR)
+      ! TODO: SvdP: consider adding 'call mess' to stop the simulation.
       goto 1234
    end if
 
@@ -1732,7 +1862,7 @@
     !out_unit = 20
     !open (unit=out_unit,file="out.txt",action="write",status="replace")
     !write (out_unit,*) NX
-    !do i=1, NX
+    !do i=1, size(XC)
     !   write (out_unit,*) XC(i),YC(i),ZC(1,i)
     !end do
 

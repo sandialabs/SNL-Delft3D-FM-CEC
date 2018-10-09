@@ -27,8 +27,8 @@
 !                                                                               
 !-------------------------------------------------------------------------------
 
-! $Id: d3ddimens.f90 49641 2017-01-27 16:35:52Z spee $
-! $HeadURL: https://repos.deltares.nl/repos/ds/trunk/additional/unstruc/src/d3ddimens.f90 $
+! $Id: d3ddimens.f90 62178 2018-09-27 09:19:40Z mourits $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/dflowfm/packages/dflowfm_kernel/src/d3ddimens.f90 $
 !-------------------------------------------------------------------------------------------------------
 !  Origin:
 !     URL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/flow2d3d/packages/data/include/dimens.igs

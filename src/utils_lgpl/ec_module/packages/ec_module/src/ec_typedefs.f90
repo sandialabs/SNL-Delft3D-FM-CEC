@@ -23,7 +23,7 @@
 !  are registered trademarks of Stichting Deltares, and remain the property of  
 !  Stichting Deltares. All rights reserved.                                     
 
-!  $Id: ec_typedefs.f90 7992 2018-01-09 10:27:35Z mourits $
+!  $Id: ec_typedefs.f90 62276 2018-10-08 11:15:49Z pijl $
 !  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_lgpl/ec_module/packages/ec_module/src/ec_typedefs.f90 $
 
 !> This module contains all the user defined datatypes.
@@ -201,6 +201,7 @@ module m_ec_typedefs
       integer                       :: targetIndex           !< Write to the target Item's Field's array element number targetIndex (vectormax (here called n_data) should already be accounted for, that offset is *not* recomputed in the converter).
       type(tEcIndexWeight), pointer :: indexWeight => null() !< 
       type(tEcMask)                 :: srcmask               !< Array with mask info on selection of gridpoints
+      logical                       :: extrapolated = .false. !< indexWeight is updated as a result of extrapolation
    end type tEcConverter
    
    type tEcConverterPtr
@@ -258,7 +259,7 @@ module m_ec_typedefs
    type tEcField
       integer                                 :: id                 !< unique Field number, set by ecInstanceCreateField
       real(hp)                                :: timesteps          !< Numer of seconds since tEcTimeFrame%k_refdate.
-      integer                                 :: timesndx = -1      !< index into file: used im general for random access fles (nc) to keep track of position
+      integer                                 :: timesndx = -1      !< index into file: used in general for random access files (nc) to keep track of position
       real(hp)                                :: missingValue       !< value to use for missing data in the data arrays
       real(hp), dimension(:),     pointer     :: arr1dPtr => null() !< points to a 1-dim array field, stored in arr1d OR in a kernel
       real(hp), dimension(:),     allocatable :: arr1d              !< 1-dim array field
@@ -266,6 +267,7 @@ module m_ec_typedefs
       real(hp)                                :: y_spw_eye          !< y-coordinate of spiderweb eye
       character(len=8), allocatable           :: astro_components(:)!< astronomical components labels
       integer, allocatable                    :: astro_kbnumber(:)  !< astronomical components KompBes numbers
+      integer, dimension(4)                   :: bbox = 1           !< bounding box of column- and row indices used from the complete source grid (only used when reading structured grid meteo fields from netCDF)
    end type tEcField
    
    type tEcFieldPtr
@@ -347,13 +349,21 @@ module m_ec_typedefs
    !===========================================================================
    ! Support data types.
    !===========================================================================
-   
+
+   type tFlexibleIndexWeightFactor
+      integer,       pointer :: indices(:,:)
+      real(kind=hp), pointer :: weights(:)
+   end type tFlexibleIndexWeightFactor
    !> 
    type tEcIndexWeight
       ! FM: tdataprovider indxn
       integer , dimension(:,:),   pointer :: indices       => null() !< indices: ([row,column]:nCoordinates)
       ! FM: tdataprovider wfn
       real(hp), dimension(:,:),   pointer :: weightFactors => null() !< weightfactors: ([1,2,3,4]:nCoordinates)
+      integer, dimension(:),      pointer :: substndx                !< substitutes target value j by target value [substndx(j)]
+      ! for extrapolation with e.g. 4 nearest neighbours
+      type(tFlexibleIndexWeightFactor), pointer :: flexIndexWeights(:) => null()
+      integer                                   :: curSizeFlex = 0
    end type tEcIndexWeight
    
    ! ==========================================================================

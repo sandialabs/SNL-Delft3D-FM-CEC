@@ -112,7 +112,7 @@ AC_PROG_FC([ifort gfortran])
 dnl Check the flags needed to link fc programs with ld (i.e. cc)
 AC_FC_LIBRARY_LDFLAGS
 dnl Check for openmp for fortran
-AC_OPENMP
+## AC_OPENMP
 
 dnl Check for underscoring of external names
 AC_FC_WRAPPERS
@@ -142,9 +142,21 @@ AC_PROG_F77([ifort gfortran g77])
 AC_F77_LIBRARY_LDFLAGS
 AC_F77_LINE_LENGTH([132])
 dnl Check for openmp for fortran 77
-AC_OPENMP
+## AC_OPENMP
 dnl check if open(...shared) works
 ACX_F77_SHARED_SPECIFIER
+
+POLYPACK_FFLAGS=
+AX_CHECK_COMPILE_FLAG([-r8],
+        [
+        # Intel ifort
+        POLYPACK_FFLAGS=-r8
+        ],[
+        # GNU gfortran
+        POLYPACK_FFLAGS=-fdefault-real-8
+        ])
+AC_SUBST(POLYPACK_FFLAGS)
+
 AC_LANG_POP
 
 # NetCDF, for fortran 90...
@@ -360,17 +372,31 @@ AC_DEFINE_UNQUOTED(D3D_PLUGIN_EXT, ["$pluginext"], [Delft3D plugin extension])
 ACX_MKL
 AM_CONDITIONAL([USEMKL], test "x$ax_mkl_ok" == "xyes")
 
-dnl Check for PETSc
-AC_ARG_WITH(petsc,[AS_HELP_STRING([--with-petsc],[Build with petsc support @<:@default=no@:>@])], [],[with_petsc=no])
+# Check for PETSc
+AC_MSG_CHECKING([if PETSc is wanted])
+AC_ARG_WITH(	    petsc,
+		    [AS_HELP_STRING([--with-petsc],[Build with petsc support  @<:@default=no@:>@])],
+		    [],
+		    [with_petsc=no])
+
 AS_IF([test "x$with_petsc" != "xno"],
-        [
-          PKG_CHECK_MODULES([PETSc], [PETSc < 3.5])
-          AC_DEFINE([HAVE_PETSC],1,[Defined if you have PETSc library.])
-        ],
-        [
-          AC_MSG_RESULT([no])
-        ]
-)
+	    	[
+			AC_MSG_RESULT([yes])			
+			# now supporting 3.8 onwards, and deprecated 3.4
+			PKG_CHECK_MODULES([PETSc], [PETSc > 3.4 PETSc < 3.5],
+			[
+				AC_MSG_WARN([PETSc 3.4 has been deprecated, please consider upgrading to version 3.8 or higher])
+				AC_DEFINE([USE_DEPRECATED_PETSC34], 1, [Defined for building with deprecated PETSc version 3.4])
+			],
+			[
+				PKG_CHECK_MODULES([PETSc], [PETSc >= 3.8])					
+			])
+			# do we need fortran cflags here??
+			AC_DEFINE([HAVE_PETSC],1,[Defined if you have PETSc library.]) 
+			  
+		],
+	    	AC_MSG_RESULT([no]))
+
 AM_CONDITIONAL([USEPETSC], test "x$with_petsc" != "xno")
 
 dnl Check for METIS
@@ -513,6 +539,7 @@ engines_gpl/dimr/scripts/generic/lnx64/Makefile
 engines_gpl/dimr/scripts/generic/Makefile
 engines_gpl/dimr/scripts/Makefile
 engines_gpl/flow2d3d/Makefile
+engines_gpl/flow2d3d/default/Makefile
 engines_gpl/flow2d3d/packages/data/Makefile
 engines_gpl/flow2d3d/packages/data/src/allocation/Makefile
 engines_gpl/flow2d3d/packages/data/src/basics/Makefile
@@ -572,6 +599,7 @@ engines_gpl/part/packages/utils_f/Makefile
 engines_gpl/part/packages/utils_f/src/Makefile
 engines_gpl/part/scripts/Makefile
 engines_gpl/waq/Makefile
+engines_gpl/waq/default/Makefile
 engines_gpl/waq/packages/delwaq1/Makefile
 engines_gpl/waq/packages/delwaq1/src/Makefile
 engines_gpl/waq/packages/delwaq2/Makefile
@@ -812,10 +840,10 @@ utils_lgpl/gridgeom/Makefile
 utils_lgpl/gridgeom/packages/gridgeom/Makefile
 utils_lgpl/gridgeom/packages/gridgeom/src/Makefile
 utils_lgpl/gridgeom/packages/Makefile
-utils_lgpl/hyd_to_waq_part_lib/Makefile
-utils_lgpl/hyd_to_waq_part_lib/packages/hyd_to_waq_part_lib/Makefile
-utils_lgpl/hyd_to_waq_part_lib/packages/hyd_to_waq_part_lib/src/Makefile
-utils_lgpl/hyd_to_waq_part_lib/packages/Makefile
+utils_lgpl/io_hyd/Makefile
+utils_lgpl/io_hyd/packages/io_hyd/Makefile
+utils_lgpl/io_hyd/packages/io_hyd/src/Makefile
+utils_lgpl/io_hyd/packages/Makefile
 utils_lgpl/io_netcdf/Makefile
 utils_lgpl/io_netcdf/packages/io_netcdf/Makefile
 utils_lgpl/io_netcdf/packages/io_netcdf/src/Makefile

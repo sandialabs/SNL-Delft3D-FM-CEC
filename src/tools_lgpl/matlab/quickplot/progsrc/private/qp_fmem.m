@@ -30,7 +30,7 @@ function [FI,FileName,Tp,Otherargs]=qp_fmem(cmd,varargin)
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
 %   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/private/qp_fmem.m $
-%   $Id: qp_fmem.m 7992 2018-01-09 10:27:35Z mourits $
+%   $Id: qp_fmem.m 8791 2018-05-16 10:50:08Z jagers $
 
 lasttp=qp_settings('LastFileType','');
 
@@ -686,6 +686,13 @@ switch cmd
                     case 'adcircmesh'
                         asciicheck(ASCII,try_next)
                         FI=adcircmesh('open',FileName);
+                        if ~isempty(FI)
+                            FI.Options=0;
+                            Tp=FI.FileType;
+                        end
+                    case 'smsmesh'
+                        asciicheck(ASCII,try_next)
+                        FI=smsmesh('open',FileName);
                         if ~isempty(FI)
                             FI.Options=0;
                             Tp=FI.FileType;

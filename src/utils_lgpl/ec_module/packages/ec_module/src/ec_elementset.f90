@@ -23,7 +23,7 @@
 !  are registered trademarks of Stichting Deltares, and remain the property of  
 !  Stichting Deltares. All rights reserved.                                     
 
-!  $Id: ec_elementset.f90 7992 2018-01-09 10:27:35Z mourits $
+!  $Id: ec_elementset.f90 9127 2018-06-27 12:06:58Z dam_ar $
 !  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_lgpl/ec_module/packages/ec_module/src/ec_elementset.f90 $
 
 !> This module contains all the methods for the datatype tEcElementSet.
@@ -649,6 +649,7 @@ module m_ec_elementSet
          integer                        :: newSize       !< size of maskArray
          integer                        :: istat         !< reallocate status
          integer                        :: i             !< loop counter
+         logical, save                  :: isFirst = .true.
          !
          success = .true.
          elementSetPtr => null()
@@ -682,7 +683,10 @@ module m_ec_elementSet
                   elementSetPtr%mask => elementSetPtr%maskArray
                end if
             else
-               call setECMessage("WARNING: ec_elementSet::ecElementSetSetMaskArray: Won't set a mask for this ElementSet type.")
+               if (isFirst) then
+                  call setECMessage("WARNING: ec_elementSet::ecElementSetSetMaskArray: Won't set a mask for this ElementSet type.")
+                  isFirst = .false.
+               endif
             end if
          else
             call setECMessage("ERROR: ec_elementSet::ecElementSetSetMaskArray: Cannot find an ElementSet with the supplied id.")

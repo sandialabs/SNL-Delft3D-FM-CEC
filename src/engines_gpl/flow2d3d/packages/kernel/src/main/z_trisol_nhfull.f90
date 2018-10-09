@@ -31,7 +31,7 @@ subroutine z_trisol_nhfull(dischy    ,solver    ,icreep   , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: z_trisol_nhfull.f90 7992 2018-01-09 10:27:35Z mourits $
+!  $Id: z_trisol_nhfull.f90 8813 2018-05-17 14:33:34Z mourits $
 !  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/flow2d3d/packages/kernel/src/main/z_trisol_nhfull.f90 $
 !!--description-----------------------------------------------------------------
 !
@@ -1703,7 +1703,7 @@ subroutine z_trisol_nhfull(dischy    ,solver    ,icreep   , &
                      & icx       ,icy       ,lundia    ,d(dps)    ,r(s0)     , &
                      & r(umean)  ,r(vmean)  ,r(z0urou) ,r(z0vrou) ,i(kfu)    , &
                      & i(kfv)    ,zmodel    ,i(kfsmx0) ,i(kfsmn0) ,r(dzs0)   , &
-                     & gdp       )
+                     & lstsci    ,gdp       )
              call timer_stop(timer_fallve, gdp)
           endif
           !
@@ -1761,10 +1761,10 @@ subroutine z_trisol_nhfull(dischy    ,solver    ,icreep   , &
                     & r(dzs1)   ,r(areau)  ,r(areav)  ,r(volum0) ,r(volum1) , &
                     & r(guu)    ,r(gvv)    ,r(bruvai) ,sedtyp    ,r(seddif) , &
                     & r(ws)     ,lsed      ,lsal      ,ltem      ,eqmbcsand , &
-                    & eqmbcmud  ,lsts      ,gdp       )    
+                    & eqmbcmud  ,lsts      ,r(s1)     ,d(dps)    ,gdp       )    
           call z_difuflux(stage  ,lundia ,kmax      ,nmmax     ,nmmaxj    , &
                   & lstsci    ,r(r0)     ,r(r1)     ,r(qxk)    ,r(qyk)    , &
-                  & r(u1)     ,r(v1)     ,&
+                  & r(u1)     ,r(v1)     ,r(s1)     ,d(dps)    , &
                   & r(dicuv)  ,r(guv)    ,r(gvu)    ,r(areau)  ,r(areav)  , &
                   & i(kfuz1)  ,i(kfvz1)  ,i(kfsz1)  ,i(kcs)    ,i(kfs)    , &
                   & i(kfu)    ,i(kfuz0)  ,i(kfv)    ,i(kfvz0)  , &

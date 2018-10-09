@@ -388,7 +388,7 @@ namespace General.tests
         /// <param name="nmeshedges">The number of mesh edges (in)</param>
         /// <returns></returns>
         [DllImport(LibDetails.LIB_DLL_NAME, EntryPoint = "ionc_create_1d_mesh", CallingConvention = CallingConvention.Cdecl)]
-        private static extern int ionc_create_1d_mesh_dll([In] ref int ioncid, [In] string networkname, [In, Out] ref int meshid, string meshname, [In] ref int nmeshpoints, [In] ref int nmeshedges);
+        private static extern int ionc_create_1d_mesh_dll([In] ref int ioncid, [In] string networkname, [In, Out] ref int meshid, string meshname, [In] ref int nmeshpoints);
 
         /// <summary>
         /// Writes the mesh coordinates points 
@@ -401,7 +401,7 @@ namespace General.tests
         /// <param name="nmeshpoints">The number of mesh points (in)</param>
         /// <returns></returns>
         [DllImport(LibDetails.LIB_DLL_NAME, EntryPoint = "ionc_put_1d_mesh_discretisation_points", CallingConvention = CallingConvention.Cdecl)]
-        private static extern int ionc_put_1d_mesh_discretisation_points_dll([In] ref int ioncid, [In] ref int meshid, [In] ref IntPtr c_branchidx, [In] ref IntPtr c_offset, [In] ref IntPtr c_edgenodes, interop_charinfo[] nodeinfo, [In] ref int edgenodes, [In] ref int nmeshpoints, [In] ref int startIndex);
+        private static extern int ionc_put_1d_mesh_discretisation_points_dll([In] ref int ioncid, [In] ref int meshid, [In] ref IntPtr c_branchidx, [In] ref IntPtr c_offset, interop_charinfo[] nodeinfo, [In] ref int nmeshpoints, [In] ref int startIndex);
 
         /// <summary>
         /// Get the number of network nodes
@@ -636,10 +636,10 @@ namespace General.tests
         #endregion
 
         [DllImport(LibDetails.LIB_DLL_NAME, EntryPoint = "ionc_get_meshgeom", CallingConvention = CallingConvention.Cdecl)]
-        public static extern int ionc_get_meshgeom_dll([In] ref int ioncid, [In] ref int meshid, [In, Out] ref meshgeom meshgeom, [In] ref int start_index, [In] ref bool includeArrays);
+        public static extern int ionc_get_meshgeom_dll([In] ref int ioncid, [In] ref int meshid, [In] ref int networkid, [In, Out] ref meshgeom meshgeom, [In] ref int start_index, [In] ref bool includeArrays);
 
         [DllImport(LibDetails.LIB_DLL_NAME, EntryPoint = "ionc_get_meshgeom_dim", CallingConvention = CallingConvention.Cdecl)]
-        public static extern int ionc_get_meshgeom_dim_dll([In] ref int ioncid, [In] ref int meshid, [In, Out] ref meshgeomdim meshgeomdim);
+        public static extern int ionc_get_meshgeom_dim_dll([In] ref int ioncid, [In] ref int meshid, [In] ref int networkid, [In, Out] ref meshgeomdim meshgeomdim);
 
         [DllImport(LibDetails.LIB_DLL_NAME, EntryPoint = "ionc_def_mesh_ids", CallingConvention = CallingConvention.Cdecl)]
         public static extern int ionc_def_mesh_ids_dll([In] ref int ioncid, [In] ref int meshid, [In] ref int iloctype);
@@ -815,15 +815,15 @@ namespace General.tests
             return ionc_write_1d_network_branches_geometry_dll(ref ioncid, ref networkid, ref c_geopointsX, ref c_geopointsY, ref nGeometry);
         }
 
-        public int ionc_create_1d_mesh(ref int ioncid, string networkname, ref int meshid, string meshname, ref int nmeshpoints, ref int nmeshedges)
+        public int ionc_create_1d_mesh(ref int ioncid, string networkname, ref int meshid, string meshname, ref int nmeshpoints)
         {
-            return ionc_create_1d_mesh_dll(ref ioncid, networkname, ref meshid, meshname, ref nmeshpoints, ref nmeshedges);
+            return ionc_create_1d_mesh_dll(ref ioncid, networkname, ref meshid, meshname, ref nmeshpoints);
         }
 
         public int ionc_put_1d_mesh_discretisation_points(ref int ioncid, ref int networkid, ref IntPtr c_branchidx,
-            ref IntPtr c_offset, ref IntPtr c_edgenodes, interop_charinfo[]  nodeinfo, [In] ref int edgenodes, ref int nmeshpoints, ref int startIndex)
+            ref IntPtr c_offset, interop_charinfo[]  nodeinfo, ref int nmeshpoints, ref int startIndex)
         {
-            return ionc_put_1d_mesh_discretisation_points_dll(ref ioncid, ref networkid, ref c_branchidx, ref c_offset, ref c_edgenodes, nodeinfo, ref edgenodes, ref nmeshpoints, ref startIndex);
+            return ionc_put_1d_mesh_discretisation_points_dll(ref ioncid, ref networkid, ref c_branchidx, ref c_offset, nodeinfo, ref nmeshpoints, ref startIndex);
         }
 
         public int ionc_get_1d_network_nodes_count(ref int ioncid, ref int networkid, ref int nNodes)
@@ -959,14 +959,14 @@ namespace General.tests
         }
         #endregion
 
-        public int ionc_get_meshgeom(ref int ioncid, ref int meshid, ref meshgeom meshgeom, ref int start_index, ref bool includeArrays)
+        public int ionc_get_meshgeom(ref int ioncid, ref int meshid, ref int networkid, ref meshgeom meshgeom, ref int start_index, ref bool includeArrays)
         {
-            return ionc_get_meshgeom_dll(ref  ioncid, ref  meshid, ref meshgeom, ref start_index, ref includeArrays);
+            return ionc_get_meshgeom_dll(ref ioncid, ref meshid, ref networkid, ref meshgeom, ref start_index, ref includeArrays);
         }
 
-        public int ionc_get_meshgeom_dim(ref int ioncid, ref int meshid, ref meshgeomdim meshgeomdim)
+        public int ionc_get_meshgeom_dim(ref int ioncid, ref int meshid, ref int networkid, ref meshgeomdim meshgeomdim)
         {
-            return ionc_get_meshgeom_dim_dll(ref  ioncid, ref  meshid, ref meshgeomdim);
+            return ionc_get_meshgeom_dim_dll(ref  ioncid, ref  meshid, ref networkid, ref meshgeomdim);
         }
 
         public int ionc_def_mesh_ids(ref int ioncid, ref int meshid, ref int iconvtype)

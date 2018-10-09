@@ -27,8 +27,8 @@
 !                                                                               
 !-------------------------------------------------------------------------------
 
-! $Id: splines.f90 49641 2017-01-27 16:35:52Z spee $
-! $HeadURL: https://repos.deltares.nl/repos/ds/trunk/additional/unstruc/src/splines.f90 $
+! $Id: splines.f90 62178 2018-09-27 09:19:40Z mourits $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/dflowfm/packages/dflowfm_kernel/src/splines.f90 $
 module M_splines
 use m_missing, only: dxymis
 

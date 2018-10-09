@@ -25,7 +25,7 @@ module m_rdsed
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: rdsed.f90 7992 2018-01-09 10:27:35Z mourits $
+!  $Id: rdsed.f90 62223 2018-10-02 06:50:15Z j.reyns $
 !  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_gpl/morphology/packages/morphology_io/src/rdsed.f90 $
 !-------------------------------------------------------------------------------
 use m_depfil_stm
@@ -59,7 +59,7 @@ subroutine rdsed(lundia    ,error     ,lsal      ,ltem      ,lsed      , &
     use message_module
     use morphology_data_module
     use sediment_basics_module
-    use system_utils, only:SHARED_LIB_EXTENSION
+    use system_utils, only:SHARED_LIB_PREFIX, SHARED_LIB_EXTENSION
     use grid_dimens_module, only: griddimtype
     !
     implicit none
@@ -420,7 +420,12 @@ subroutine rdsed(lundia    ,error     ,lsal      ,ltem      ,lsed      , &
        else
           flspmc = ' '
           call prop_get(sed_ptr, 'SedimentOverall', 'PmCrit', pmcrit(1))
-          pmcrit = min(pmcrit(1), 1.0_fp)
+          !
+          ! Explicit loop because of stack overflow
+          !
+          do nm = 1, griddim%nmmax
+             pmcrit(nm) = min(pmcrit(1), 1.0_fp)
+          enddo
        endif
        !
        ! Get bed shear skin stress parameters
@@ -574,7 +579,7 @@ subroutine rdsed(lundia    ,error     ,lsal      ,ltem      ,lsed      , &
              call prop_get(sedblock_ptr, '*', 'SettleLib', rec)
              dll_name_settle(l) = rec
              if (rec /= ' ') then
-                rec(len_trim(rec)+1:) = SHARED_LIB_EXTENSION
+                write(rec,'(3a)') SHARED_LIB_PREFIX, trim(rec), SHARED_LIB_EXTENSION
                 dll_name_settle(l) = rec
                 istat_ptr = 0
                 istat_ptr = open_shared_library(dll_handle_settle(l), dll_name_settle(l))
@@ -694,6 +699,13 @@ subroutine rdsed(lundia    ,error     ,lsal      ,ltem      ,lsed      , &
                   & facdss    ,sedtyp    ,rhosol    ,sedd50    ,par_settle, &
                   & sdbuni    ,flsdbd    ,cdryb     ,sedpar%sedblock      , &
                   & version   ,error     )
+       !
+       ! nodal relations are not supported in older version sed files 
+       !
+       do l = 0, lsedtot       
+           sedpar%flnrd(l) = ' '
+       enddo
+       !
        close (luninp)
        if (error) return
        !
@@ -1465,7 +1477,12 @@ subroutine echosed(lundia    ,error     ,lsed      ,lsedtot   , &
                 dss(nm, 1) = sedd50fld(nm)*facdss(1)
              enddo
           else
-             dss(:, l) = sedd50(l)*facdss(l)
+             !
+             ! Explicit loop because of stack overflow
+             !
+             do nm = lbound(sedd50fld,1), ubound(sedd50fld,1)
+                dss(nm, l) = sedd50(l)*facdss(l)
+             enddo
           endif
        endif
        !

@@ -23,7 +23,7 @@
 !  are registered trademarks of Stichting Deltares, and remain the property of  
 !  Stichting Deltares. All rights reserved.                                     
 
-!  $Id: ec_quantity.f90 7992 2018-01-09 10:27:35Z mourits $
+!  $Id: ec_quantity.f90 59696 2018-07-31 16:16:07Z leander $
 !  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_lgpl/ec_module/packages/ec_module/src/ec_quantity.f90 $
 
 !> This module contains all the methods for the datatype tEcQuantity.
@@ -151,6 +151,7 @@ module m_ec_quantity
          if (present(timeint)) quantityPtr%timeint = timeint  
          if (present(ncid)) quantityPtr%ncid = ncid  
          success = .true.
+         
       end function ecQuantitySet
       
       !> Change the Units, Fillvalue, Scalefactor and Offset shift of the Quantity corresponding to quantityId
@@ -167,6 +168,7 @@ module m_ec_quantity
          integer,                   intent(in) :: varid       !< id of the variable
                                                               !< order: new = (old*scale) + offset
          character(len=:), allocatable  :: units
+         character(len=5)               :: quantidstr
          integer  :: ierr
          integer  :: attriblen
          real(hp) :: add_offset, scalefactor, fillvalue
@@ -176,23 +178,44 @@ module m_ec_quantity
          scalefactor = 1.d0
          fillvalue = ec_undef_hp
          attriblen=0
-         ierr = nf90_inquire_attribute(ncid, varid, 'units', len=attriblen)
-         if (attriblen>0) then
-            allocate(character(len=attriblen) :: units) 
-            units(1:len(units)) = ''
-            if (nf90_get_att(ncid, varid, 'units', units)==NF90_NOERR) then 
-               call str_upper(units) ! make units attribute case-insensitive 
-               if (.not.(ecQuantitySet(instancePtr, quantityId, units=units))) return
+         if (nf90_inquire_attribute(ncid, varid, 'units', len=attriblen)==NF90_NOERR) then
+            if (attriblen>0) then
+               allocate(character(len=attriblen) :: units) 
+               units(1:len(units)) = ''
+               if (nf90_get_att(ncid, varid, 'units', units)==NF90_NOERR) then 
+                  call str_upper(units) ! make units attribute case-insensitive 
+                  if (.not.(ecQuantitySet(instancePtr, quantityId, units=units))) return
+               end if
             end if
          end if
-         if (nf90_get_att(ncid, varid, '_FillValue', fillvalue)==NF90_NOERR) then                  ! RL: Possibly redundant: we store the missing value with the field
-            if (.not.(ecQuantitySet(instancePtr, quantityId, fillvalue=fillvalue))) return         !     And not with the quantity. TODO: check if this can be removed
+
+         write(quantidstr,'(i5.5)') quantityId
+         ierr = nf90_get_att(ncid, varid, '_FillValue', fillvalue)
+         if (ierr==NF90_NOERR) then
+            if (.not.(ecQuantitySet(instancePtr, quantityId, fillvalue=fillvalue))) then
+               call setECMessage("Unable to set fillValue for quantity "//quantidstr)
+               return
+            end if
          end if
-         if ((nf90_get_att(ncid, varid, 'scale_factor', scalefactor)==NF90_NOERR)         &
-              .or. (nf90_get_att(ncid, varid, 'add_offset', add_offset)==NF90_NOERR)) then
-              if (.not.(ecQuantitySet(instancePtr, quantityId, factor=scalefactor, offset=add_offset))) return
+
+         ierr = nf90_get_att(ncid, varid, 'scale_factor', scalefactor)
+         if (ierr==NF90_NOERR) then
+            if (.not.(ecQuantitySet(instancePtr, quantityId, factor=scalefactor))) then
+               call setECMessage("Unable to set scale factor for quantity "//quantidstr)
+               return
+            end if
          end if
+
+         ierr = nf90_get_att(ncid, varid, 'add_offset', add_offset)
+         if (ierr==NF90_NOERR) then
+            if (.not.(ecQuantitySet(instancePtr, quantityId, offset=add_offset))) then
+               call setECMessage("Unable to set offset for quantity "//quantidstr)
+               return
+            end if
+         end if
+
          success = .true.
+         
       end function ecQuantitySetUnitsFillScaleOffsetFromNcidVarid
      
 end module m_ec_quantity

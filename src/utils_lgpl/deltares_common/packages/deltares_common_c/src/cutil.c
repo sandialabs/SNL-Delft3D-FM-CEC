@@ -24,7 +24,7 @@
 // Stichting Deltares. All rights reserved.
 //
 //------------------------------------------------------------------------------
-// $Id: cutil.c 7992 2018-01-09 10:27:35Z mourits $
+// $Id: cutil.c 8671 2018-05-02 07:45:05Z mourits $
 // $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_lgpl/deltares_common/packages/deltares_common_c/src/cutil.c $
 //------------------------------------------------------------------------------*/
 //  Delft3D - C Utilities
@@ -518,8 +518,8 @@ CUTIL_GETMP (
     sprintf (buf, "%s..%cdefault", path_buffer, slash);
 
     if (!isdir(buf)) {
-        /*---- Try the (Windows) debug location way down in the source code tree itself */
-        sprintf (buf, "%s..%c..%c..%c..%cengines_gpl%cflow2d3d%cdefault", path_buffer, slash, slash, slash, slash, slash, slash);
+        /*---- Try the new (Linux) delivery location */
+        sprintf (buf, "%s..%cshare%cdelft3d", path_buffer, slash, slash);
         if (!isdir(buf)) {
             report_error ("Directory \"default\" does not exist");
             *result = FAILURE;

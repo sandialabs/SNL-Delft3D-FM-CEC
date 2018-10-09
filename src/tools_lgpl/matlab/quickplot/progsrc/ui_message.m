@@ -53,7 +53,7 @@ function H = ui_message(Cmd,varargin)
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
 %   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/ui_message.m $
-%   $Id: ui_message.m 7992 2018-01-09 10:27:35Z mourits $
+%   $Id: ui_message.m 59777 2018-08-08 12:30:11Z jagers $
 
 persistent UD
 
@@ -331,6 +331,9 @@ else
         case 'close'
             set(fig,'visible','off');
         case 'max'
+            if ischar(Msg)
+                Msg = str2double(Msg);
+            end
             MaxNMessages=max(1,Msg);
             while length(MessageOffset)>MaxNMessages
                 MessageOffset(1)=[];

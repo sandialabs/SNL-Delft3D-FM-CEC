@@ -52,7 +52,7 @@ subroutine tritra(stage     ,lundia    ,nst       ,icreep    , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: tritra.f90 7992 2018-01-09 10:27:35Z mourits $
+!  $Id: tritra.f90 8714 2018-05-04 14:55:55Z platzek $
 !  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/flow2d3d/packages/kernel/src/compute/tritra.f90 $
 !!--description-----------------------------------------------------------------
 !
@@ -336,7 +336,8 @@ subroutine tritra(stage     ,lundia    ,nst       ,icreep    , &
                          & lstsci    ,r0        ,r1        ,qxk       ,qyk       , &
                          & dicuv     ,guv       ,gvu       ,areau     ,areav     , &
                          & kfu       ,kfv       ,kfs       ,kcs       ,timest    , &
-                         & icx       ,icy       ,lsed      ,gdp       )
+                         & icx       ,icy       ,lsed      ,s1        ,dps       , &
+                         & gdp       )
              if (roller) then
                  call rolcor(hrms      ,tp        ,theta     ,hu        ,hv         , &
                            & guu       ,gvv       ,qxk       ,qyk       ,eulerisoglm, &
@@ -519,7 +520,8 @@ subroutine tritra(stage     ,lundia    ,nst       ,icreep    , &
                          & lstsci    ,r0        ,r1        ,qxk       ,qyk       , &
                          & dicuv     ,guv       ,gvu       ,areau     ,areav     , &
                          & kfu       ,kfv       ,kfs       ,kcs       ,timest    , &
-                         & icy       ,icx       ,lsed      ,gdp       )
+                         & icy       ,icx       ,lsed      ,s1        ,dps       , &
+                         & gdp       )
              if (roller) then
                  call rolcor(hrms      ,tp        ,theta     ,hu        ,hv         , &
                            & guu       ,gvv       ,qxk       ,qyk       ,eulerisoglm, &

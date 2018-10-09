@@ -321,6 +321,56 @@ fi
 
 
 #---------------------
+# PETSc
+petscModule=""
+
+if [ "$compiler" = 'gnu' ]; then
+    petscModule="petsc/3.4.0_gcc4.9.1_mpich_3.1.4"
+else
+    # Intel compilers
+    if [ "$compiler" = 'intel14' ]; then
+        petscModule="petsc/3.4.0_intel14.0.3_mpich_3.1.4"
+    else
+        if [ "$compiler" = 'intel16' ]; then
+            petscModule="petsc/3.4.0_intel16.0.3_mpich_3.1.4"
+        fi
+    fi
+fi
+initPetsc="module load $petscModule"
+eval $initPetsc
+if [ $? -ne 0 ]; then
+    echo 'ERROR: PETSc initialization fails!'
+    cd $orgdir
+    exit 1
+fi
+
+
+#---------------------
+# METIS
+metisModule=""
+
+if [ "$compiler" = 'gnu' ]; then
+    metisModule="metis/5.1.0_gcc4.9.1"
+else
+    # Intel compilers
+    if [ "$compiler" = 'intel14' ]; then
+        metisModule="metis/5.1.0_intel14.0.3"
+    else
+        if [ "$compiler" = 'intel16' ]; then
+            metisModule="metis/5.1.0_intel16.0.3"
+        fi
+    fi
+fi
+initMetis="module load $metisModule"
+eval $initMetis
+if [ $? -ne 0 ]; then
+    echo 'ERROR: METIS initialization fails!'
+    cd $orgdir
+    exit 1
+fi
+
+
+#---------------------
 # Additional compile flags
 if [ "$compiler" = 'gnu' ]; then
     fflags=''
@@ -351,7 +401,7 @@ else
         netcdfModule="netcdf/v4.3.2_v4.4.0_intel_14.0.3"
     else
         if [ "$compiler" = 'intel16' ]; then
-            netcdfModule="netcdf/v4.4.0_v4.4.4_intel_16.0.3"
+            netcdfModule="netcdf/v4.6.1_v4.4.0_intel_16.0.3"
         fi
     fi
 fi
@@ -374,6 +424,8 @@ echo "module load $automakeModule"
 echo "module load $autoconfModule"
 echo "module load $libtoolModule"
 echo "module load $mpichModule"
+echo "module load $petscModule"
+echo "module load $metisModule"
 echo "module load $netcdfModule"
 echo
 echo "Module display of loaded modules:"
@@ -382,6 +434,8 @@ module display $automakeModule
 module display $autoconfModule
 module display $libtoolModule
 module display $mpichModule
+module display $petscModule
+module display $metisModule
 module display $netcdfModule
 # echo "export ACLOCAL=\"$ACLOCAL\""
 # echo "export AUTOMAKE=\"$AUTOMAKE\""
@@ -462,7 +516,7 @@ command=" \
     AM_FCFLAGS='$LDFLAGSMT_ADDITIONAL $AM_FCFLAGS' \
     FCFLAGS='$flags $fflags $FCFLAGS' \
     AM_LDFLAGS='$LDFLAGSMT_ADDITIONAL $AM_LDFLAGS' \
-        ./configure --prefix=`pwd` $configureArgs &> $log \
+        ./configure --prefix=`pwd` --with-mpi --with-petsc --with-metis=$METIS_DIR $configureArgs &> $log \
     "
 
 log "Running `echo $command | sed 's/ +/ /g'`"
@@ -486,19 +540,10 @@ if [ $noMake -eq 1 ]; then
 fi
 
 log='logs/make.log'
-command="make ds-install &> $log"
+command="FC=mpif90 make ds-install &> $log"
 
 log "Running $command"
 eval $command
-
-# Build D-Flow FM, only when not in singlePrecision mode
-if [ $useSp -eq 0 ]; then
-    log='logs/make_dflowfm.log'
-    command="make -C engines_gpl/dflowfm &> $log"
-
-    log "Running $command"
-    eval $command
-fi
 
 if [ $? -ne 0 ]; then
     log "ERROR: Make fails!"
@@ -506,6 +551,38 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
+# Build D-Flow FM, only when not in singlePrecision mode
+if [ $useSp -eq 0 ]; then
+    log='logs/make_dflowfm.log'
+    command="FC=mpif90 make ds-install -C engines_gpl/dflowfm &> $log"
+
+    log "Running $command"
+    eval $command
+fi
+
+if [ $? -ne 0 ]; then
+    log "ERROR: Make D-Flow FM fails!"
+    cd $orgdir
+    exit 1
+fi
+
+
+#===============================================================================
+# Post-install cleaning
+log "Executing python script 'dimr_artifacts.py' to clean up installation directory"
+log='logs/post-install.log'
+command="python $orgdir/engines_gpl/dimr/scripts/dimr_artifacts.py $orgdir &> $log"
+
+log "Running $command"
+eval $command
+
+if [ $? -ne 0 ]; then
+    log "ERROR: post-install fails!"
+    cd $orgdir
+    exit 1
+fi
+
 log "Build finished"
 cd $orgdir
 exit 0
+

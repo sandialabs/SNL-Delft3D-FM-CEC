@@ -27,8 +27,8 @@
 !                                                                               
 !-------------------------------------------------------------------------------
 
-! $Id: solve_guus.F90 54199 2018-01-23 13:21:44Z zhao $
-! $HeadURL: https://repos.deltares.nl/repos/ds/trunk/additional/unstruc/src/solve_guus.F90 $
+! $Id: solve_guus.F90 62178 2018-09-27 09:19:40Z mourits $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/dflowfm/packages/dflowfm_kernel/src/solve_guus.F90 $
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif 

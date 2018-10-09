@@ -28,12 +28,13 @@ libflow1d_core_la_SOURCES = \
          Qsort.f90 \
          wetcrs_modules.F90 \
          CrossSections.f90 \
-         ExtraResistance.f90 \
          struc_helper.f90 \
+         ExtraResistance.f90 \
          weir.f90 \
          universal_weir.f90 \
          river_weir.f90 \
          Pump.f90 \
+         Dambreak.f90 \
          Orifice.f90 \
          general_structure.f90 \
          culvert.f90 \

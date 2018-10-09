@@ -25,7 +25,7 @@ module m_Pump
 !  Stichting Deltares. All rights reserved.
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: Pump.f90 8044 2018-01-24 15:35:11Z mourits $
+!  $Id: Pump.f90 8776 2018-05-15 14:49:37Z zeekant $
 !  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_gpl/flow1d/packages/flow1d_core/src/Pump.f90 $
 !-------------------------------------------------------------------------------
 
@@ -74,7 +74,7 @@ module m_Pump
       logical                                 :: is_active
       double precision                        :: stage_capacity
       double precision                        :: reduction_factor
-      double precision                        ::  discharge
+      double precision                        :: discharge
 
    end type
 

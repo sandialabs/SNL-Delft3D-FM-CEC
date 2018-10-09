@@ -102,16 +102,17 @@ enum {
    };
 
 enum {
-   COMP_TYPE_FM        = 1, // Used to identify the type of a Component
-   COMP_TYPE_RTC       = 2,
-   COMP_TYPE_WAVE      = 3,
-   COMP_TYPE_FLOW1D    = 4,
-   COMP_TYPE_WANDA     = 5,
-   COMP_TYPE_FLOW2D3D  = 6,
-   COMP_TYPE_FLOW1D2D  = 7,
-   COMP_TYPE_DELWAQ    = 8,
-   COMP_TYPE_RR        = 9,
-   COMP_TYPE_TEST      = 10,
+   COMP_TYPE_DEFAULT_BMI  = 0,
+   COMP_TYPE_FM           = 1, // Used to identify the type of a Component
+   COMP_TYPE_RTC          = 2,
+   COMP_TYPE_WAVE         = 3,
+   COMP_TYPE_FLOW1D       = 4,
+   COMP_TYPE_WANDA        = 5,
+   COMP_TYPE_FLOW2D3D     = 6,
+   COMP_TYPE_FLOW1D2D     = 7,
+   COMP_TYPE_DELWAQ       = 8,
+   COMP_TYPE_RR           = 9,
+   COMP_TYPE_TEST         = 10
 };
 
 enum {
@@ -234,7 +235,22 @@ struct dimr_logger
 {
 	const char        * workingDir;
 	const char        * outputFile;
-    netcdf_references * netcdfReferences;
+   netcdf_references * netcdfReferences;
+
+   // using std::string in entire dimr source code can simplify this function, 
+   // but also others
+   string GetLoggerFilename(const char * dimrWorkingDirectory, const char * dirSeparator)
+   {
+      char* loggerFileName = new char[MAXSTRING];
+      strcpy(loggerFileName, dimrWorkingDirectory);
+      strcat(loggerFileName, dirSeparator);
+      strcat(loggerFileName, workingDir);
+      strcat(loggerFileName, dirSeparator);
+      strcat(loggerFileName, outputFile);
+      string stringFileName( loggerFileName );
+      delete[] loggerFileName;
+      return stringFileName;
+   }
 };
 
 // A coupler defines the communication between two components, one coupler for each direction
@@ -293,8 +309,8 @@ struct dimr_control_block {
 
 class Dimr {
     public:
-        Dimr (void);
-        ~Dimr (void);
+        Dimr ();
+        ~Dimr ();
         void           scanConfigFile(void);
         void           connectLibs(void);
 
@@ -335,8 +351,9 @@ class Dimr {
         char *               redirectFile;   // Name of file to redirect stdout/stderr to
                                              // Default: Off when started via dimr-exe, On otherwise
 		
-        // String constants; initialized below, outside class definition
-
+        char *               dimrWorkingDirectory; // File path where dimr configuration file is
+        const char *         dirSeparator;
+      // String constants; initialized below, outside class definition
     private:
         double         transferValue;
 
@@ -361,6 +378,7 @@ class Dimr {
         void           char_to_ints     (char *, int **, int *);
 
         map<string, int> ncfiles;
+
     };
 
 

@@ -72,6 +72,7 @@ libdflowfm_la_SOURCES=\
         fourier_analysis.f90 \
         unstruc_model.f90 \
         unstruc_files.f90 \
+        unstruc_netcdf_incremental.f90 \
         dredgepolygon.f90 \
         bedform_io.f90 \
         unstruc_startup.f90 \
@@ -185,7 +186,8 @@ FMODULES += \
 #   Fortran 90 flags
 
 AM_FCFLAGS+= \
-    -DHAVE_DISPLAY=0
+    -DHAVE_DISPLAY=0 \
+    -DNetCDF4
 
 if USENETCDF
 AM_FCFLAGS+=${NETCDF_CFLAGS} ${NETCDF_FORTRAN_CFLAGS}

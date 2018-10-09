@@ -25,7 +25,7 @@ module m_network
 !  Stichting Deltares. All rights reserved.
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: Network.f90 8044 2018-01-24 15:35:11Z mourits $
+!  $Id: Network.f90 62209 2018-09-28 09:52:16Z ottevan $
 !  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_gpl/flow1d/packages/flow1d_core/src/Network.f90 $
 !-------------------------------------------------------------------------------
 
@@ -43,6 +43,7 @@ module m_network
    public realloc
    public dealloc
    public admin_network
+   public initialize_1dadmin
  
    interface realloc
       module procedure realloc_1dadmin
@@ -53,7 +54,6 @@ module m_network
       module procedure dealloc_1dadmin
    end interface dealloc
    
-   public initialize_1dadmin
 
    type, public :: t_offset2cross
       integer :: c1 = -1           !< cross section index 1
@@ -72,9 +72,11 @@ module m_network
       integer, allocatable          :: lin2point(:)                        !< indirection list, containing relative index of link on branch adm%lin2ibr(l)
                                                                            !> indirection list, containing local link index for 1d arrays. e.g. flow area of \n  
                                                                            !! link l is found by adm%au_1d(adm%lin2local(l))  
-      integer, allocatable              :: lin2local(:)                        
-      type(t_offset2cross), allocatable :: line2cross(:)                   !< list containing cross section indices per u-location
-      type(t_offset2cross), allocatable :: gpnt2cross(:)                   !< list containing cross section indices per gridpoint-location
+      integer, allocatable          :: lin2local(:)
+      integer, allocatable          :: lin2grid(:)
+      type(t_offset2cross), pointer :: line2cross(:) => null()             !< list containing cross section indices per u-location
+      type(t_offset2cross), pointer :: gpnt2cross(:) => null()             !< list containing cross section indices per gridpoint-location
+      logical, allocatable          :: hysteresis_for_summerdike(:,:)      !< array indicating for hysteresis in summerdikes
 
       double precision, allocatable :: au_1d(:)
       double precision, allocatable :: conv_1d(:)
@@ -88,6 +90,8 @@ module m_network
       integer                                   :: gridpointsCount         !< total number of gridpoints in network NDS%count - NDS%bndCount
       integer                                   :: l1dall                  !< total number of links (internal, boundary and compound links)
       integer                                   :: l1d                     !< total number of links (internal and boundary)
+      integer                                   :: numk                    !< total number of links (internal and boundary)
+      integer                                   :: numl                    !< total number of links (internal and boundary)
       type(t_administration_1d)                 :: adm                     !< network administration
       type(t_nodeSet)                           :: nds                     !< set of nodes
       type(t_branchSet)                         :: brs                     !< set of branches
@@ -103,7 +107,7 @@ module m_network
       type(t_spatial_dataSet)                   :: spData
       type(t_boundarySet)                       :: boundaries
       type(t_transportSet)                      :: trans
-      logical                                   :: available = .false.
+      logical                                   :: loaded = .false.
    end type
    
 contains
@@ -118,8 +122,11 @@ contains
       if (.not. allocated(adm%lin2ibr)) allocate(adm%lin2ibr(all_links_count))   
       if (.not. allocated(adm%lin2point)) allocate(adm%lin2point(all_links_count)) 
       if (.not. allocated(adm%lin2local)) allocate(adm%lin2local(all_links_count)) 
-      if (.not. allocated(adm%line2cross)) allocate(adm%line2cross(all_links_count))
-      if (.not. allocated(adm%gpnt2cross)) allocate(adm%gpnt2cross(all_links_count))
+      if (.not. allocated(adm%lin2grid)) allocate(adm%lin2grid(all_links_count)) 
+      if (.not. associated(adm%line2cross)) allocate(adm%line2cross(all_links_count))
+      if (.not. associated(adm%gpnt2cross)) allocate(adm%gpnt2cross(all_links_count))
+      if (.not. allocated(adm%hysteresis_for_summerdike)) allocate(adm%hysteresis_for_summerdike(2,all_links_count))
+      adm%hysteresis_for_summerdike = .true.
       if (.not. allocated(adm%au_1d)) allocate(adm%au_1d(oned_links_count))
       if (.not. allocated(adm%conv_1d)) allocate(adm%conv_1d(oned_links_count))
       if (.not. allocated(adm%dpu_1d)) allocate(adm%dpu_1d(oned_links_count))
@@ -130,13 +137,15 @@ contains
 
    subroutine dealloc_1dadmin(adm)
       type(t_administration_1d)     :: adm
-      
-      if (allocated(adm%lin2str))      deallocate(adm%lin2str)    
-      if (allocated(adm%lin2ibr))      deallocate(adm%lin2ibr)    
-      if (allocated(adm%lin2point))    deallocate(adm%lin2point)  
-      if (allocated(adm%lin2local))    deallocate(adm%lin2local)  
-      if (allocated(adm%line2cross))   deallocate(adm%line2cross) 
-      if (allocated(adm%gpnt2cross))   deallocate(adm%gpnt2cross) 
+
+      if (allocated(adm%lin2str))      deallocate(adm%lin2str)
+      if (allocated(adm%lin2ibr))      deallocate(adm%lin2ibr)
+      if (allocated(adm%lin2point))    deallocate(adm%lin2point)
+      if (allocated(adm%lin2local))    deallocate(adm%lin2local)
+      if (associated(adm%line2cross))  deallocate(adm%line2cross)
+      if (allocated(adm%lin2grid))    deallocate(adm%lin2grid)
+      if (associated(adm%gpnt2cross))  deallocate(adm%gpnt2cross)
+      if (allocated(adm%hysteresis_for_summerdike)) deallocate(adm%hysteresis_for_summerdike)
       if (allocated(adm%au_1d))        deallocate(adm%au_1d)
       if (allocated(adm%conv_1d))      deallocate(adm%conv_1d)
       if (allocated(adm%dpu_1d))       deallocate(adm%dpu_1d)
@@ -172,7 +181,7 @@ contains
       call dealloc(network%spData)
       call dealloc(network%boundaries)
       call dealloc(network%trans)
-      network%available = .false.
+      network%loaded = .false.
    
    end subroutine deallocNetwork
 
@@ -299,7 +308,6 @@ contains
       !   node(4,inod) = i
       !enddo
 
-      call initialize_1dadmin(network, network%gridpointsCount)
 
    end subroutine admin_network
 
@@ -342,8 +350,12 @@ contains
       double precision                   :: xBeg
       double precision                   :: xEnd
       integer                            :: i
+      integer                            :: nstru
+      logical                            :: structure_found 
       logical                            :: interpolDone
 
+      character(20)                      :: offsetString
+      
       call realloc(network%adm, linall, network%gridpointsCount)
       
       adm = network%adm
@@ -358,9 +370,10 @@ contains
          adm%lin2str(network%sts%struct(istru)%link_number) = istru
       enddo
       
-      adm%lin2ibr = -huge(1)
+      adm%lin2ibr   = -huge(1)
       adm%lin2point = -huge(1)  
       adm%lin2local = -huge(1)
+      adm%lin2grid  = -huge(1)
       
       do ibran = 1, network%brs%Count
          pbran => network%brs%branch(ibran)
@@ -369,6 +382,7 @@ contains
                adm%lin2ibr(pbran%lin(m)) = ibran
                adm%lin2point(pbran%lin(m)) = m
                adm%lin2local(pbran%lin(m)) = pbran%lin(m)
+               adm%lin2grid(pbran%lin(m))  = pbran%grd(m)
             endif
          enddo
       enddo
@@ -400,12 +414,27 @@ contains
             endif
             icrsEnd = lastAtBran(ibran)
             
+            
+            if (icrsbeg > icrsend) then
+               
+               call setmessage(LEVEL_WARN, 'No cross sections found on branch '//trim(pbran%id)//'. Using default rectangular cross section')
+               do i = 1, pbran%uPointsCount
+                  ilnk = pbran%lin(i)
+                  adm%line2cross(ilnk)%c1 = -1
+                  adm%line2cross(ilnk)%c2 = -1
+                  adm%line2cross(ilnk)%f  = 1.0d0
+                  adm%line2cross(ilnk)%distance  = 0d0
+               enddo
+               
+               cycle
+            endif
+            
             icrs1 = icrsBeg
             icrs2 = icrsBeg
 
             xBeg = network%crs%cross(crossOrder(icrsBeg))%location
             xEnd = network%crs%cross(crossOrder(icrsEnd))%location
-            
+
             do m = 1, pbran%uPointsCount
 
                offsetu = pbran%uPointsOffsets(m)
@@ -514,6 +543,17 @@ contains
             endif
             icrsEnd = lastAtBran(ibran)
             
+            if (icrsBeg > icrsEnd) then
+               ! branch without cross sections
+               do m = 1, 2
+                  igpt = pbran%grd(m)
+                  adm%gpnt2cross(igpt)%c1 = 0
+                  adm%gpnt2cross(igpt)%c2 = 0
+                  adm%gpnt2cross(igpt)%f  = 1.0d0
+               enddo
+               cycle   
+            endif
+            
             icrs1 = icrsBeg
             icrs2 = icrsBeg
 
@@ -588,6 +628,10 @@ contains
                         if (icrs1 == icrs2) then 
                            f = 1.0d0
                         else    
+                           if (offset1 == offset2) then 
+                               write(offsetString, '(F10.3)') offset1 
+                               call setmessage(LEVEL_ERROR, 'Mulitple cross sections defined at same chainage ('// trim(offsetString) //') on branch '//trim(pbran%id))
+                           endif
                            f = (offsetg - offset1) / (offset2 - offset1)
                         endif    
                         f = max(f, 0.0d0) 
@@ -640,7 +684,7 @@ contains
       do i = 1, network%sts%Count
          pstru => network%sts%struct(i)
          select case (pstru%st_type) 
-         case (ST_CULVERT) 
+         case (ST_CULVERT, ST_SIPHON, ST_INV_SIPHON) 
             pcul => pstru%culvert
             pcul%pcross => network%crs%cross(pcul%crosssectionnr)
          end select
@@ -671,6 +715,12 @@ contains
    
    end subroutine set_network_pointers
 
+   !> In this subroutine arrays crossorder and lastAtBran are filled \n
+   !! crossorder contains the cross section indices, where the cross sections are ordered 
+   !! in ascending branchid and subsequently in offset.\n
+   !! crossorder(lastAtBran(ibr-1)+1) .. crossorder(lastAtBran(ibr)) contain the cross
+   !! sections on branch ibr, in ascending branch offset.
+   !! sections on branch ibr, in ascending branch offset.
    subroutine crossSectionsSort(crs, brs, crossOrder, lastAtBran)
 
       ! Ordering crs's on branches and x on branches
@@ -765,8 +815,12 @@ contains
          if ( ibran .eq. 1 ) then
             ifirst = 1
          else
+            if (lastAtBran(ibran - 1) == 0) then
+               lastAtBran(ibran-1) = lastAtBran(max(1,ibran-2))
+            endif
             ifirst = lastAtBran(ibran - 1) + 1
          endif
+         
          ilast = lastAtBran(ibran)
 
          ! Sorting procedure per branch
@@ -797,5 +851,29 @@ contains
 
    end subroutine crossSectionsSort
    
+   function getRetentionId(network, gridpoint) result(id)
    
+      use m_Storage
+      use m_node
+   
+      character(len=80)              :: id
+      type(t_network), intent(in)    :: network
+      integer, intent(in)            :: gridpoint
+      
+      integer :: i
+      type(t_storage), pointer, dimension(:) :: stor
+      
+      stor => network%stors%stor
+      
+      do i = 1, network%stors%count
+         if (stor(i)%gridPoint == gridpoint) then
+            id = stor(i)%id
+            return
+         endif
+      enddo
+
+      id = 'No retention area assigned to node '//getnodeid(network%nds, gridpoint)
+      
+   end function getRetentionId
+
 end module m_network

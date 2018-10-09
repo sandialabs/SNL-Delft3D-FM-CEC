@@ -26,14 +26,16 @@
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: reargf.f 7992 2018-01-09 10:27:35Z mourits $
+!  $Id: reargf.f 8111 2018-02-05 15:43:23Z kaaij $
 !  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_gpl/nesthd1/packages/nesthd1/src/reargf.f $
 !
+      real    xymiss 
       real    x( mdim  , ndim  )   , y( mdim  , ndim  )
       logical kw_keyword, kw_found , spher
 
       character*132  rec
 
+      xymiss = 0.0
       spher = .false.
 !
 10    kw_keyword = .false.

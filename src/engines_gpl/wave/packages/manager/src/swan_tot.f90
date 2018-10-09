@@ -25,7 +25,7 @@ subroutine swan_tot (n_swan_grids, n_flow_grids, wavedata, selectedtime)
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: swan_tot.f90 7992 2018-01-09 10:27:35Z mourits $
+!  $Id: swan_tot.f90 59747 2018-08-03 16:52:40Z j.reyns $
 !  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/wave/packages/manager/src/swan_tot.f90 $
 !!--description-----------------------------------------------------------------
 ! NONE
@@ -75,6 +75,8 @@ subroutine swan_tot (n_swan_grids, n_flow_grids, wavedata, selectedtime)
    logical                                       :: success
    logical                                       :: exists
    character(256)                                :: fname
+   character(15), external                       :: datetime_to_string
+   character(15)                                 :: refdstr
    character(500)                                :: message
    type(swan_dom), pointer                       :: dom
 !
@@ -127,7 +129,8 @@ subroutine swan_tot (n_swan_grids, n_flow_grids, wavedata, selectedtime)
       !
       ! Start loop over SWAN grids
       !
-      write(*,'(a,f15.3)') '  Start loop over SWAN grids, time = ',wavedata%time%timmin
+      refdstr = datetime_to_string(wavedata%time%refdate, 0.0)
+      write(*,'(a,f15.3,a,a)') '  Start loop over SWAN grids, time = ',wavedata%time%timmin, ' minutes since ', trim(refdstr)
       do i_swan = 1, n_swan_grids
          dom => swan_run%dom(i_swan)
 

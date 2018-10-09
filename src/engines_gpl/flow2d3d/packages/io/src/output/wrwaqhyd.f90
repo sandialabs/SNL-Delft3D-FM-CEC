@@ -35,7 +35,7 @@
 !  Stichting Deltares. All rights reserved.
 !
 !-------------------------------------------------------------------------------
-!  $Id: wrwaqhyd.f90 7992 2018-01-09 10:27:35Z mourits $
+!  $Id: wrwaqhyd.f90 8579 2018-04-16 08:46:46Z dam_ar $
 !  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/flow2d3d/packages/io/src/output/wrwaqhyd.f90 $
 !!--description-----------------------------------------------------------------
 ! NONE
@@ -43,6 +43,7 @@
 ! NONE
 !!--declarations----------------------------------------------------------------
       use precision
+      use time_module
       implicit none
 !
 !           Global variables
@@ -160,7 +161,7 @@
       write ( lunout2 , '(a      )' ) '''                                                            '''
       write ( lunout1 , '(a      )' ) 'end-description'
       write ( lunout2 , '(a      )' ) 'end-description'
-      call juldat ( itdate, julday )
+      julday = ymd2jul ( itdate )
       write ( lunout1 , '(a,i8,a )' ) 'reference-time           ''',itdate,'000000'''
       write ( lunout2 , '(a,i8,a )' ) 'reference-time           ''',itdate,'000000'''
       timsec = tstart*60.0
@@ -177,10 +178,10 @@
       write ( lunout2 , '(a,i6.6,a )' ) 'hydrodynamic-timestep    ''00000000',itime,''''
       write ( lunout1 , '(a,i8,a )' ) 'conversion-ref-time      ''',itdate,'000000'''
       write ( lunout2 , '(a,i8,a )' ) 'conversion-ref-time      ''',itdate,'000000'''
-      timsec = itwqff*dt*60.0
+      timsec = max(itwqff*dt*60.0,  tstart*60.0)
       call timdat( julday, timsec, idate, itime )
-      write ( lunout1 , '(a,i8,i6.6,a)') 'conversion-start-time     ''',idate,itime,''''
-      write ( lunout2 , '(a,i8,i6.6,a)') 'conversion-start-time     ''',idate,itime,''''
+      write ( lunout1 , '(a,i8,i6.6,a)') 'conversion-start-time    ''',idate,itime,''''
+      write ( lunout2 , '(a,i8,i6.6,a)') 'conversion-start-time    ''',idate,itime,''''
       timsec = itwqfl*dt*60.0
       call timdat( julday, timsec, idate, itime )
       write ( lunout1 , '(a,i8,i6.6,a)') 'conversion-stop-time     ''',idate,itime,''''

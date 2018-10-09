@@ -25,7 +25,7 @@ module m_GlobalParameters
 !  Stichting Deltares. All rights reserved.
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: GlobalParameters.f90 8044 2018-01-24 15:35:11Z mourits $
+!  $Id: GlobalParameters.f90 62280 2018-10-09 06:00:52Z ottevan $
 !  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_gpl/flow1d/packages/flow1d_core/src/GlobalParameters.f90 $
 !-------------------------------------------------------------------------------
    
@@ -46,15 +46,16 @@ module m_GlobalParameters
    logical                          :: fillCulvertsWithGL            = .false.
    logical                          :: doReadCache                   = .false.
    logical                          :: doWriteCache                  = .false.
+   logical                          :: updateTabulatedProfiles       = .false.
    double precision                 :: thresholdDry                  = 0.001d0
    double precision                 :: thresholdFlood                = 0.01d0
    double precision                 :: factorFloodingDividedByDrying = 10.0d0
-   double precision                 :: summerDikeTransitionHeight    = 1.0d0
+   double precision                 :: summerDikeTransitionHeight    = 0.50d0
    double precision                 :: summerDikeThreshold           = 0.4d+0
    double precision                 :: ThresholdSiphon               = 0.1d0
    double precision                 :: StructureDynamicsFactor       = 1.0d0
    double precision                 :: strucalfa                     = 0.9d0
-   double precision                 :: sl                            = 0.0001d0        !< width at top of closed profile (Preisman lock)
+   double precision                 :: sl                            = 0.001d0        !< width at top of closed profile (Preisman lock)
    double precision                 :: pi                            = 3.141592653589793d0
    double precision                 :: ThresholdForPreismannLock     = 0.02d0
    double precision, public         :: dynstructext                  = 1.0d0
@@ -62,11 +63,13 @@ module m_GlobalParameters
    double precision, public         :: latitude                      = 52.25
    double precision, public         :: longitude                     = 0d0
    double precision, public         :: time_zone                     = 0d0
+   integer, public                  :: maxlenpar                     = 100000   
    !TODO temporary unit to be removed, when finished
    integer, public :: luntrans = 0
 
    ! storage table controls
    double precision, public      :: tb_inc = 0.01
+   double precision, public      :: tb_extra_height = 0.0
    character(len=charln), public :: st_filename
    logical, public               :: write_tables
 
@@ -83,7 +86,15 @@ module m_GlobalParameters
    
    integer, parameter  :: DENS_ECKART_MODIFIED = 1
    integer, parameter  :: DENS_ECKART          = 2
-   integer, parameter  :: DENS_UNESCO           = 3
+   integer, parameter  :: DENS_UNESCO          = 3
+   
+   type t_filenames
+      character(len=255) :: onednetwork                  = ' ' !< 1d Network definition             (e.g., flow1d.md1d)
+      character(len=255) :: cross_section_definitions    = ' ' !< 1d cross section definitions
+      character(len=255) :: cross_section_locations      = ' ' !< 1d cross section locations
+      character(len=255) :: retentions                   = ' ' !< 1d cross section retention manhole definitions
+   end type
+
    
    type t_constituent_helper
       integer              :: boundary_index
@@ -131,6 +142,7 @@ module m_GlobalParameters
    integer, public, parameter              :: ST_GENERAL_ST =  8
    integer, public, parameter              :: ST_EXTRA_RES  =  9
    integer, public, parameter              :: ST_UNI_WEIR   = 11
+   integer, public, parameter              :: ST_DAMBREAK   = 13
    integer, public, parameter              :: ST_CULVERT    = 21
    integer, public, parameter              :: ST_SIPHON     = 22
    integer, public, parameter              :: ST_INV_SIPHON = 23
@@ -263,7 +275,7 @@ module m_GlobalParameters
    integer, public, parameter :: CFimomAcceleration         = 103
    integer, public, parameter :: CFimomBedStress            = 104
    integer, public, parameter :: CFimomLosses               = 105
-   integer, public, parameter :: CFimomLateralCorrection          = 106
+   integer, public, parameter :: CFimomLateralCorrection    = 106
    integer, public, parameter :: CFimomWindStress           = 107
    integer, public, parameter :: CFiChangeArea              = 108
    integer, public, parameter :: CFiMeanBedLevelMain        = 109
@@ -280,5 +292,9 @@ module m_GlobalParameters
    integer, public, parameter :: CFiMorVelocity             = 120
    integer, public, parameter :: CFiMorWidth                = 121
    integer, public, parameter :: CFiMorDepth                = 122
+   integer, public, parameter :: CFiPumpHead                = 123
+   integer, public, parameter :: CFiState                   = 124
+   integer, public, parameter :: CFiWindVelocity            = 125
+   integer, public, parameter :: CFiWindDirection           = 126
    
 end module m_GlobalParameters                                 

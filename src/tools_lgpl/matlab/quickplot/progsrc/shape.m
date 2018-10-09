@@ -76,7 +76,7 @@ function varargout=shape(cmd,varargin)
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
 %   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/shape.m $
-%   $Id: shape.m 7992 2018-01-09 10:27:35Z mourits $
+%   $Id: shape.m 8167 2018-02-15 12:27:14Z jagers $
 
 if nargin==0
     if nargout>0
@@ -396,7 +396,11 @@ switch datatype
         fid=fopen([S.FileBase S.ShapeExt],'r','l');
         fseek(fid,S.Idx(1,shapes(1)),-1);
         TNPnt=0;
-        Out=repmat(NaN,S.NPnt+S.NPrt-1,2);
+        if S.ShapeTpName(end)=='z'
+            Out=repmat(NaN,S.NPnt+S.NPrt-1,3);
+        else
+            Out=repmat(NaN,S.NPnt+S.NPrt-1,2);
+        end
         Obj=repmat(NaN,S.NPnt+S.NPrt-1,1);
         for shp=shapes
             fseek(fid,S.Idx(1,shp),-1);

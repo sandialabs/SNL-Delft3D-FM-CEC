@@ -25,7 +25,7 @@
 !                                                                               
 !-------------------------------------------------------------------------------
 
-! $Id: gridgeom.F90 8020 2018-01-18 13:58:43Z carniato $
+! $Id: gridgeom.F90 61856 2018-09-17 10:50:37Z carniato $
 ! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_lgpl/gridgeom/packages/gridgeom/src/gridgeom.F90 $
 
 !> Module for grid operations.
@@ -56,23 +56,87 @@ function ggeo_get_xy_coordinates(branchids, branchoffsets, geopointsX, geopoints
 
 end function ggeo_get_xy_coordinates
 
-function ggeo_make1D2Dinternalnetlinks(c_jsferic, c_jasfer3D, c_jglobe) result(ierr)
+
+function ggeo_get_start_end_nodes_of_branches(branchidx, branchStartNode, branchEndNode) result(ierr)
+
+   use odugrid
    
+   integer, dimension(:), intent(in)      :: branchidx
+   
+   integer, dimension(:), intent(inout)   :: branchStartNode
+   integer, dimension(:), intent(inout)   :: branchEndNode
+   integer                                :: ierr
+   
+   ierr = odu_get_start_end_nodes_of_branches(branchidx, branchStartNode, branchEndNode)
+
+end function ggeo_get_start_end_nodes_of_branches
+
+
+
+function ggeo_make1D2Dinternalnetlinks(xplLinks, yplLinks, zplLinks, oneDmask, c_jsferic, c_jasfer3D, c_jglobe) result(ierr)
+
    use gridoperations
    use m_sferic
    
    integer :: ierr
+   double precision, intent(in) :: xplLinks(:), yplLinks(:), zplLinks(:)
+   integer, intent(in)          :: oneDmask(:)
    integer, intent(in)          :: c_jsferic
    integer, intent(in)          :: c_jasfer3D
    integer, intent(in)          :: c_jglobe
-   
+
    jsferic  = c_jsferic
    jasfer3D = c_jasfer3D
    jglobe   = c_jglobe
 
-   ierr = make1D2Dinternalnetlinks()
+   ierr = make1D2Dinternalnetlinks(xplLinks, yplLinks, zplLinks, oneDmask)
 
 end function ggeo_make1D2Dinternalnetlinks
+
+
+function ggeo_make1D2Droofgutterpipes(xplRoofs, yplRoofs, zplRoofs, oneDmask, c_jsferic, c_jasfer3D, c_jglobe) result(ierr)
+
+   use gridoperations
+   use m_sferic
+   
+   integer :: ierr
+   double precision, intent(in) :: xplRoofs(:), yplRoofs(:), zplRoofs(:)
+   integer, intent(in)          :: c_jsferic
+   integer, intent(in)          :: c_jasfer3D
+   integer, intent(in)          :: c_jglobe
+   integer, intent(in)          :: oneDmask(:)
+
+   jsferic  = c_jsferic
+   jasfer3D = c_jasfer3D
+   jglobe   = c_jglobe
+   ierr     = 0
+
+   call make1D2Droofgutterpipes(xplRoofs, yplRoofs, zplRoofs, oneDmask)
+
+end function ggeo_make1D2Droofgutterpipes
+
+
+function ggeo_make1D2Dstreetinletpipes(xsStreetInletPipes, ysStreetInletPipes, oneDmask, c_jsferic, c_jasfer3D, c_jglobe) result(ierr)
+
+   use gridoperations
+   use m_sferic
+   
+   integer                      :: ierr
+   double precision, intent(in) :: xsStreetInletPipes(:), ysStreetInletPipes(:)
+   integer, intent(in)          :: oneDmask(:)
+   integer, intent(in)          :: c_jsferic
+   integer, intent(in)          :: c_jasfer3D
+   integer, intent(in)          :: c_jglobe
+
+   jsferic  = c_jsferic
+   jasfer3D = c_jasfer3D
+   jglobe   = c_jglobe
+   ierr     = 0
+
+   call make1D2Dstreetinletpipes(xsStreetInletPipes, ysStreetInletPipes, oneDmask)
+
+end function ggeo_make1D2Dstreetinletpipes
+
 
 
 end module gridgeom

@@ -27,7 +27,7 @@
 !
 !-------------------------------------------------------------------------------
 
-! $Id: network_data.f90 8044 2018-01-24 15:35:11Z mourits $
+! $Id: network_data.f90 62230 2018-10-02 15:17:27Z carniato $
 ! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_lgpl/gridgeom/packages/gridgeom/src/network_data.f90 $
 
 !> Global network data (==unstructured grid).
@@ -85,10 +85,10 @@ module network_data
   type (tface), allocatable         :: netcell_sav(:)  ! backup of netcell (for increasenetcells)
   integer,  allocatable             :: cellmask(:)     !< (nump) Mask array for net cells
 
-  double precision, allocatable, target :: xzw(:)  !< [m] centre of gravity {"shape": ["nump"]}
-  double precision, allocatable         :: xzw0(:)    ! Backup of xzw
-  double precision, allocatable, target :: yzw(:)  !< [m] centre of gravity {"shape": ["nump"]}
-  double precision, allocatable         :: yzw0(:)    ! Backup of yzw
+  double precision, allocatable, target :: xzw(:)      !< [m] centre of gravity {"shape": ["nump"]}
+  double precision, allocatable         :: xzw0(:)     ! Backup of xzw
+  double precision, allocatable, target :: yzw(:)      !< [m] centre of gravity {"shape": ["nump"]}
+  double precision, allocatable         :: yzw0(:)     ! Backup of yzw
 
 
   ! Net node related
@@ -125,7 +125,7 @@ module network_data
   integer, allocatable             :: LNN(:)          !< (numl) Nr. of cells in which link participates (ubound for non-dummy values in lne(:,L))
   integer, allocatable             :: LNN0(:)
   integer                          :: NUMK0
-  integer,              target     :: numk            !< [-] Nr. of net nodes. {"shape": []}
+  integer, target                  :: numk            !< [-] Nr. of net nodes. {"shape": []}
   integer                          :: NUML0, NUML     !< Total nr. of net links. In link arrays: 1D: 1:NUML1D, 2D: NUML1D+1:NUML
   integer                          :: NUML1D          !< Nr. of 1D net links.
   integer                          :: NUMP0, NUMP     !< Nr. of 2d netcells.
@@ -219,7 +219,9 @@ module network_data
      
 !  netlink permutation by setnodadm
    integer, dimension(:), allocatable :: Lperm  !< permuation of netlinks by setnodadm, dim(numL)
-   
+!  netnode permutation by setnodadm
+   integer, dimension(:), allocatable :: nodePermutation   !< permutation of netnodes by setnodadm, dim(numk)
+
    contains
    
    function network_data_destructor() result (ierr)
@@ -296,25 +298,9 @@ module network_data
    if(allocated(K1BR)) deallocate(K1BR)  
    if(allocated(NRLB)) deallocate(NRLB)
    
-   !if(allocated(KN))   deallocate(KN)
-   !if(allocated(LC))   deallocate(LC)
-   !if(allocated(RLIN)) deallocate(RLIN)
-   !
-   !if(allocated(XK)) deallocate(XK)
-   !if(allocated(YK)) deallocate(YK)
-   !if(allocated(ZK)) deallocate(ZK)
-   !
-   !if(allocated(RNOD)) deallocate(RNOD)
-   !
-   !if(allocated(XK0)) deallocate(XK0) 
-   !if(allocated(YK0)) deallocate(YK0)    
-   !if(allocated(ZK0)) deallocate(ZK0) 
-   !
-   !if(allocated(NMK))  deallocate(NMK)        
-   !if(allocated(KC))   deallocate(KC)       
-   !if(allocated(NMK0)) deallocate(NMK0)        
-   !if(allocated(KC0))  deallocate(KC0)       
-   !if(allocated(NB))   deallocate(NB)     
+   if(allocated(XPL)) deallocate(XPL)
+   if(allocated(YPL)) deallocate(YPL)
+   if(allocated(ZPL)) deallocate(ZPL)
    
    ! default initialize all variables
    NUMK0     = 0
@@ -365,6 +351,8 @@ module network_data
    jaswan = 0
    netstat = NETSTAT_CELLS_DIRTY
    keepcircumcenters = 0
+   KMAX = 0
+   LMAX = 0
    
    ! return error
    ierr = 0

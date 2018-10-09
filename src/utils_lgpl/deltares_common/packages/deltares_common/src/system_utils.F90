@@ -25,7 +25,7 @@ module system_utils
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: system_utils.F90 7992 2018-01-09 10:27:35Z mourits $
+!  $Id: system_utils.F90 9194 2018-07-10 07:48:09Z jeuke_ml $
 !  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_lgpl/deltares_common/packages/deltares_common/src/system_utils.F90 $
 !-------------------------------------------------------------------------------
 !
@@ -35,9 +35,11 @@ module system_utils
 !
 
 #if (defined(HAVE_CONFIG_H))
+    character(3), parameter :: SHARED_LIB_PREFIX = 'lib'
     character(3), parameter :: SHARED_LIB_EXTENSION = '.so'
     character(1), parameter :: FILESEP = '/'
 #else
+    character(0), parameter :: SHARED_LIB_PREFIX = ''
     character(4), parameter :: SHARED_LIB_EXTENSION = '.dll'
     character(1), parameter :: FILESEP = '\'
 #endif
@@ -217,5 +219,64 @@ function exifil(name, unit)
        exifil = .true.
     endif
 end function exifil
+
+function makedir(dirname) result(istat)
+!!--description-----------------------------------------------------------------
+!
+!    Function: An integer function that creates a directory (also for linux)
+!              when it does not yet exist.
+!              Returns the error status from the 'system' command.
+!
+!!--declarations----------------------------------------------------------------
+
+#ifdef __INTEL_COMPILER
+    use ifport
+#endif
+    implicit none
+    character(len=*), intent(in) :: dirname
+
+    character(len=256)           :: command
+    integer                      :: istat
+    logical                      :: l_exist
+    integer                      :: lslash
+    character(len=999)           :: pathstr
+    character(len=1)             :: slash
+!
+!! executable statements -------------------------------------------------------
+!
+    istat = 0
+
+    call get_environment_variable('PATH',pathstr)
+   
+    slash = char(47)
+    lslash = index (pathstr,slash)
+    if (lslash .eq. 0) then
+       slash = char(92)
+    endif
+
+#ifdef __INTEL_COMPILER
+    inquire(directory = trim(dirname), exist = l_exist)
+#else
+    ! GNU
+    inquire(file = trim(dirname)//slash//".", exist = l_exist)
+#endif
+    if (l_exist) then
+       return
+    end if
+
+    if ( slash .eq. char(47)) then
+!      linux
+       command = "mkdir -p "//trim(dirname)
+    else
+!      windows
+       command = "mkdir "//trim(dirname)
+    end if
+
+    istat = system(command)
+    ! Fortran2008, not available before Intel 15:
+    ! call execute_command_line(command)
+      
+    return
+end function
 
 end module system_utils

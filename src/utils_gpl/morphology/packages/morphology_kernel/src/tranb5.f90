@@ -28,7 +28,7 @@ subroutine tranb5(u         ,v         ,d50       ,d90       ,chezy     , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: tranb5.f90 7992 2018-01-09 10:27:35Z mourits $
+!  $Id: tranb5.f90 8257 2018-03-01 13:11:23Z jagers $
 !  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_gpl/morphology/packages/morphology_kernel/src/tranb5.f90 $
 !!--description-----------------------------------------------------------------
 ! computes sediment transport according to
@@ -205,7 +205,7 @@ subroutine tranb5(u         ,v         ,d50       ,d90       ,chezy     , &
     if (crstr) then
        call bailtr(h         ,hrms      ,t         ,theta     ,w         , &
                  & dzdx      ,dzdy      ,sbksi     ,sbeta     ,ssksi     , &
-                 & sseta     ,epssl     ,faca      ,facu      )
+                 & sseta     ,epssl     ,faca      ,facu      ,ag        )
     else
        sbksi = 0.
        sbeta = 0.

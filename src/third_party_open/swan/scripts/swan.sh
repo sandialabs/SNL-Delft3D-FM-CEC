@@ -43,7 +43,10 @@ echo >>swan_sh.log
 debug=0
 OMP_NUM_THREADS_BACKUP=$OMP_NUM_THREADS
 
-testpar=$NHOSTS
+# When using mpi to run FLOW in parallel, it is not possible to use mpi
+# to run SWAN in parallel. By using "testpar=1", SWAN will not use mpi.
+testpar=1
+# testpar=$NHOSTS
 # testpar=$NSLOTS
 if [ ! -z "$testpar" ]; then
   if [ $testpar -gt 1 ]; then
@@ -170,7 +173,7 @@ if [ ${ready} -eq 0 ]; then
          #
          ## General.
          #
-         mpirun -np $NSLOTS ${SWANEXEC}
+         mpirun -np $NSLOTS ${SWANEXEC} >>swan_sh.log
 
          #
          ## Specific for MPICH2, mpiexec offers more possibilities than mpirun (for
@@ -207,7 +210,7 @@ if [ ${ready} -eq 0 ]; then
          #
          # SWAN run on 1 node.
          #
-         ${SWANEXEC}
+         ${SWANEXEC} >>swan_sh.log
          #
          # Move PRINT file to output file
          #

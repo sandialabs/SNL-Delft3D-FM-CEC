@@ -25,7 +25,7 @@ module bmi
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: wave_bmi.f90 7992 2018-01-09 10:27:35Z mourits $
+!  $Id: wave_bmi.f90 8686 2018-05-02 15:34:22Z mourits $
 !  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/wave/packages/wave/src/wave_bmi.f90 $
 !!--description-----------------------------------------------------------------
 ! NONE
@@ -429,8 +429,8 @@ end function char_array_to_string
 pure function string_to_char_array(string, length)
   !
   ! Global
-  character(len=length), intent(in) :: string
   integer(c_int),intent(in) :: length
+  character(len=length), intent(in) :: string
   !
   ! Return value
   character(kind=c_char,len=1) :: string_to_char_array(length+1)

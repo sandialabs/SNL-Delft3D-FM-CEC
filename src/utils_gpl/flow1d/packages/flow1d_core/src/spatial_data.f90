@@ -26,7 +26,7 @@ module m_spatial_data
 !  Stichting Deltares. All rights reserved.
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: spatial_data.f90 8044 2018-01-24 15:35:11Z mourits $
+!  $Id: spatial_data.f90 59679 2018-07-31 12:47:53Z dam_ar $
 !  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_gpl/flow1d/packages/flow1d_core/src/spatial_data.f90 $
 !-------------------------------------------------------------------------------
 
@@ -82,7 +82,7 @@ module m_spatial_data
       integer                                       :: size   = 0            !< current length of array quant
       integer                                       :: growsBy = 2000        !< used increment for extending array quant
       integer                                       :: count   = 0           !< number of registered quantial Conditions
-      type(t_spatial_data), pointer, dimension(:)   :: quant                
+      type(t_spatial_data), pointer, dimension(:)   :: quant   => null()             
       integer                                       :: level      = -1      !< index of level in quant array
       integer                                       :: depth      = -1      !< index of level in quant array
       integer                                       :: discharge  = -1      !< index of discharge in quant array

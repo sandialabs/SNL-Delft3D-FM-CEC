@@ -29,7 +29,7 @@ function data = dual_ugrid(data)
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
 %   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/private/dual_ugrid.m $
-%   $Id: dual_ugrid.m 7992 2018-01-09 10:27:35Z mourits $ 
+%   $Id: dual_ugrid.m 62258 2018-10-04 21:01:37Z jagers $ 
 
 X = data.X;
 Y = data.Y;
@@ -168,5 +168,9 @@ data.FaceNodeConnect = NodeFaceDual;
 %-----
 bEdgeVal = data.Val(max(EdgeFaceConnect(iBoundaryEdges,:),[],2));
 bNodeVal = (bEdgeVal(iBoundEdge1) + bEdgeVal(iBoundEdge2))/2;
-data.Val = [data.Val;bEdgeVal;bNodeVal];
+if size(data.Val,1)>1
+    data.Val = cat(1,data.Val,bEdgeVal,bNodeVal);
+else
+    data.Val = cat(2,data.Val,bEdgeVal,bNodeVal);
+end
 data.ValLocation = 'NODE';

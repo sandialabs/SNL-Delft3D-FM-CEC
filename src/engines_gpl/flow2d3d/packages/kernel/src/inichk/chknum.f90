@@ -25,7 +25,7 @@ subroutine chknum(lundia    ,error     ,roumet    ,rouflo    ,gdp)
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: chknum.f90 7992 2018-01-09 10:27:35Z mourits $
+!  $Id: chknum.f90 8579 2018-04-16 08:46:46Z dam_ar $
 !  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/flow2d3d/packages/kernel/src/inichk/chknum.f90 $
 !!--description-----------------------------------------------------------------
 !
@@ -36,6 +36,7 @@ subroutine chknum(lundia    ,error     ,roumet    ,rouflo    ,gdp)
 ! NONE
 !!--declarations----------------------------------------------------------------
     use precision
+    use time_module
     !
     use globaldata
     !
@@ -97,8 +98,8 @@ subroutine chknum(lundia    ,error     ,roumet    ,rouflo    ,gdp)
     ! Define TIMJAN
     !
     itjan1 = itdate - mod(itdate, 10000) + 0101
-    call juldat(itdate    ,julday    )
-    call juldat(itjan1    ,juljan    )
+    julday = ymd2jul(itdate)
+    juljan = ymd2jul(itjan1)
     timjan = (julday - juljan)*24.
     !
     ! check ITER1, only warning will be issued

@@ -26,8 +26,8 @@
 !
 !-------------------------------------------------------------------------------
 
-! $Id: unstruc_bmi.F90 54191 2018-01-22 18:57:53Z dam_ar $
-! $HeadURL: https://repos.deltares.nl/repos/ds/trunk/additional/unstruc/src/unstruc_bmi.F90 $
+! $Id: unstruc_bmi.F90 61489 2018-08-29 11:44:45Z mourits $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/dflowfm/packages/dflowfm_lib/src/unstruc_bmi.F90 $
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
@@ -432,6 +432,8 @@ end function dfm_finalize_computational_timestep
   integer function finalize() bind(C, name="finalize")
     !DEC$ ATTRIBUTES DLLEXPORT :: finalize
     use m_partitioninfo
+
+    call writesomefinaloutput()
 
     if ( jampi.eq.1 ) then
 !        finalize before exit
@@ -963,6 +965,7 @@ subroutine get_var(c_var_name, x) bind(C, name="get_var")
   use m_sobekdfm
   use m_alloc
   use string_module
+  use m_cell_geometry ! TODO: UNST-1705: temp, replace by m_flowgeom
 
   character(kind=c_char), intent(in) :: c_var_name(*) !< Variable name. May be slash separated string "name/item/field": then get_compound_field is called.
   type(c_ptr), intent(inout) :: x
@@ -1099,7 +1102,7 @@ subroutine get_var(c_var_name, x) bind(C, name="get_var")
   call str_token(tmp_var_name, varset_name, DELIMS='/')
   ! Check for valid group/set name (e.g. 'observations')
   select case(varset_name)
-  case ("pumps", "weirs", "gates", "sourcesinks", "observations", "crosssections")
+  case ("pumps", "weirs", "gates", "generalstructures", "sourcesinks", "observations", "crosssections")
      ! A valid group name, now parse the location id first...
      call str_token(tmp_var_name, item_name, DELIMS='/')
      if (len_trim(item_name) > 0) then
@@ -1193,9 +1196,6 @@ subroutine set_var(c_var_name, xptr) bind(C, name="set_var")
   !        call c_f_pointer(xptr, x_1d_double_ptr, (/ 1 /))
   !        call setMessageHandling(thresholdLevel = nint(x_1d_double_ptr(1)), prefix_logging = "dflow1d")
   !end select
-  
-       
-
 
 end subroutine set_var
 
@@ -1274,8 +1274,9 @@ subroutine set_var_slice(c_var_name, c_start, c_count, xptr) bind(C, name="set_v
       return
   case("zk")
       do i = 1, c_count(1)
-          call update_land(c_start(1), x_1d_double_ptr(i))
+          call update_land_nodes(c_start(1) + i-1, x_1d_double_ptr(i))
       enddo
+      call land_change_callback()
 
       !zkdropstep = value - zk(index + 1)
       !call dropland(xz(index + 1), yz(index + 1), 1)
@@ -1297,6 +1298,22 @@ subroutine set_var_slice(c_var_name, c_start, c_count, xptr) bind(C, name="set_v
 
 end subroutine set_var_slice
 
+
+subroutine on_land_change() bind(C, name="on_land_change")
+!DEC$ ATTRIBUTES DLLEXPORT :: on_land_change
+    implicit none
+    call land_change_callback()
+end subroutine on_land_change
+
+
+subroutine update_land(c_node_index, c_new_zk) bind(C, name="update_land")
+!DEC$ ATTRIBUTES DLLEXPORT :: update_land
+    implicit none
+    integer(c_int), intent(in) :: c_node_index
+    real(c_double), intent(in) :: c_new_zk    
+    
+    call update_land_nodes(c_node_index, c_new_zk)
+end subroutine update_land
 
 !> Adds model features to the active model.
 !!
@@ -1428,6 +1445,8 @@ subroutine get_compound_field(c_var_name, c_item_name, c_field_name, x) bind(C, 
   use m_flowexternalforcings
   use m_observations
   use m_monitoring_crosssections
+  use m_strucs
+  use m_structures, only: valdambreak
 
   character(kind=c_char), intent(in) :: c_var_name(*)   !< Name of the set variable, e.g., 'pumps'
   character(kind=c_char), intent(in) :: c_item_name(*)  !< Name of a single item's index/location, e.g., 'Pump01'
@@ -1459,6 +1478,7 @@ subroutine get_compound_field(c_var_name, c_item_name, c_field_name, x) bind(C, 
          x = c_loc(qpump(item_index))
          return
      end select
+
   ! WEIRS
   case("weirs")
      call getStructureIndex('weirs', item_name, item_index)
@@ -1473,6 +1493,7 @@ subroutine get_compound_field(c_var_name, c_item_name, c_field_name, x) bind(C, 
          ! TODO: RTC: AvD: get this from weir params
          return
      end select
+
   ! GATES
   case("gates")
      call getStructureIndex('gates', item_name, item_index)
@@ -1484,7 +1505,7 @@ subroutine get_compound_field(c_var_name, c_item_name, c_field_name, x) bind(C, 
          x = c_loc(zcgen((item_index-1)*3+1))
          return
      case("door_height")
-         ! TODO: RTC: AvD: get this from gate/genstru params.
+         x = c_loc(generalstruc(item_index)%gatedoorheight)
          return
      case("lower_edge_level")
          x = c_loc(zcgen((item_index-1)*3+2))
@@ -1496,6 +1517,31 @@ subroutine get_compound_field(c_var_name, c_item_name, c_field_name, x) bind(C, 
          ! TODO: RTC: AvD: get this from gate/genstru params
          return
      end select
+
+  ! GENERALSTRUCTURES
+  case("generalstructures")
+     call getStructureIndex('generalstructures', item_name, item_index)
+     if (item_index == 0) then
+         return
+     endif
+     select case(field_name)
+     case("levelcenter")
+         x = c_loc(zcgen((item_index-1)*3+1))
+         return
+     case("gatedoorheight")
+         x = c_loc(generalstruc(item_index)%gatedoorheight)
+         return
+     case("gateheight") ! Pending a new naming (in preparation by stout). This 'gateheight' is actually the gate_lower_edge_level
+         x = c_loc(zcgen((item_index-1)*3+2))
+         return
+     case("door_opening_width")
+         x = c_loc(zcgen((item_index-1)*3+3))
+         return
+     case("horizontal_opening_direction")
+         ! TODO: RTC: AvD: get this from gate/genstru params
+         return
+     end select
+
   ! SOURCE-SINKS
   case("sourcesinks")
      call getStructureIndex('sourcesinks', item_name, item_index)
@@ -1511,6 +1557,32 @@ subroutine get_compound_field(c_var_name, c_item_name, c_field_name, x) bind(C, 
          return
      case("change_in_temperature")
          x = c_loc(qstss((item_index-1)*3+3))
+         return
+     end select
+  ! Dambreak
+  case("dambreak")
+     call getStructureIndex('dambreak', item_name, item_index)
+     if (item_index == 0) then
+         return
+     endif
+     select case(field_name)
+     case("dambreak_s1up")
+         x = c_loc(waterLevelsDambreakUpStream(item_index))
+         return
+     case("dambreak_s1dn")
+         x = c_loc(waterLevelsDambreakDownStream(item_index))
+         return
+     case("dambreak_breach_depth")
+         x = c_loc(breachDepthDambreak(item_index))
+         return
+     case("dambreak_breach_width")
+         x = c_loc(breachWidthDambreak(item_index))
+         return
+     case("dambreak_instantaneous_discharge")
+         x = c_loc(valdambreak(1, item_index))
+         return
+     case("dambreak_cumulative_discharge")
+         x = c_loc(valdambreak(2, item_index))
          return
      end select
 
@@ -1587,6 +1659,7 @@ subroutine set_compound_field(c_var_name, c_item_name, c_field_name, xptr) bind(
   use iso_c_binding, only: c_double, c_char, c_loc, c_f_pointer
   use iso_c_utils
   use unstruc_messages
+  use m_strucs
 
   character(kind=c_char), intent(in) :: c_var_name(*)   !< Name of the set variable, e.g., 'pumps'
   character(kind=c_char), intent(in) :: c_item_name(*)  !< Name of a single item's index/location, e.g., 'Pump01'
@@ -1615,6 +1688,9 @@ subroutine set_compound_field(c_var_name, c_item_name, c_field_name, xptr) bind(
   ! PUMPS
   case("pumps")
      call getStructureIndex('pumps', item_name, item_index)
+     if (item_index == 0) then
+         return
+     endif
      select case(field_name)
      case("capacity")
          call c_f_pointer(xptr, x_0d_double_ptr)
@@ -1625,6 +1701,9 @@ subroutine set_compound_field(c_var_name, c_item_name, c_field_name, xptr) bind(
   ! WEIRS
   case("weirs")
      call getStructureIndex('weirs', item_name, item_index)
+     if (item_index == 0) then
+         return
+     endif
      select case(field_name)
      case("crest_level")
          call c_f_pointer(xptr, x_0d_double_ptr)
@@ -1634,17 +1713,22 @@ subroutine set_compound_field(c_var_name, c_item_name, c_field_name, xptr) bind(
          ! TODO: RTC: AvD: set this in weir params
          return
      end select
+     call update_zcgen_widths_and_heights()
 
   ! GATES
   case("gates")
      call getStructureIndex('gates', item_name, item_index)
+     if (item_index == 0) then
+         return
+     endif
      select case(field_name)
      case("sill_level")
          call c_f_pointer(xptr, x_0d_double_ptr)
          zcgen((item_index-1)*3+1) = x_0d_double_ptr
          return
      case("door_height")
-         ! TODO: RTC: AvD: set this in gate/genstru params
+         call c_f_pointer(xptr, x_0d_double_ptr)
+         generalstruc(item_index)%gatedoorheight = x_0d_double_ptr ! Not time-controlled, set directly in generalstruc.
          return
      case("lower_edge_level")
          call c_f_pointer(xptr, x_0d_double_ptr)
@@ -1658,6 +1742,36 @@ subroutine set_compound_field(c_var_name, c_item_name, c_field_name, xptr) bind(
          ! TODO: RTC: AvD: set this once it's used
          return
      end select
+     call update_zcgen_widths_and_heights()
+
+  ! GENERAL STRUCTURES
+  case("generalstructures")
+     call getStructureIndex('generalstructures', item_name, item_index)
+     if (item_index == 0) then
+         return
+     endif
+     select case(field_name)
+     case("levelcenter")
+         call c_f_pointer(xptr, x_0d_double_ptr)
+         zcgen((item_index-1)*3+1) = x_0d_double_ptr
+         return
+     case("gatedoorheight")
+         call c_f_pointer(xptr, x_0d_double_ptr)
+         generalstruc(item_index)%gatedoorheight = x_0d_double_ptr ! Not time-controlled, set directly in generalstruc.
+         return
+     case("gateheight") ! Pending a new naming (in preparation by stout). This 'gateheight' is actually the gate_lower_edge_level
+         call c_f_pointer(xptr, x_0d_double_ptr)
+         zcgen((item_index-1)*3+2) = x_0d_double_ptr
+         return
+     case("door_opening_width")
+         call c_f_pointer(xptr, x_0d_double_ptr)
+         zcgen((item_index-1)*3+3) = x_0d_double_ptr
+         return
+     case("horizontal_opening_direction")
+         ! TODO: RTC: AvD: get this from gate/genstru params
+         return
+     end select
+     call update_zcgen_widths_and_heights()
 
   ! SOURCE-SINKS
   case("sourcesinks")
@@ -1737,6 +1851,22 @@ subroutine get_compound_field_name(c_var_name, c_field_index, c_field_name) bind
      case(5)
          field_name = "horizontal_opening_direction"
      end select
+
+  ! GENERALSTUCTURES
+  case("generalstructures")
+     select case(field_index)
+     case(1)
+        field_name = "levelcenter"
+     case(2)
+        field_name = "gatedoorheight"
+     case(3)
+        field_name = "gateheight" ! Pending a new naming (in preparation by stout). This 'gateheight' is actually the gate_lower_edge_level
+     case(4)
+        field_name = "door_opening_width"
+     case(5)
+        field_name = "horizontal_opening_direction"
+     end select
+
   ! SOURCE-SINKS
   case("sourcesinks")
      select case(field_index)
@@ -2006,7 +2136,8 @@ subroutine set_1d_double_at_index(c_var_name, index, value)  bind(C, name="set_1
  case("unorm")
     u1(index + 1) = value
  case("zk")
-    call update_land(index + 1, value)
+    call update_land_nodes(index + 1, value)
+    call land_change_callback()
 
     !zkdropstep = value - zk(index + 1)
     !call dropland(xz(index + 1), yz(index + 1), 1)
@@ -2467,6 +2598,9 @@ subroutine get_snapped_feature(c_feature_type, c_Nin, cptr_xin, cptr_yin, c_Nout
    use iso_c_binding, only: c_int, c_double, c_char, c_ptr, c_f_pointer
    use m_snappol
    use m_missing
+   use m_sferic
+   use geometry_module, only: comp_breach_point
+   use m_alloc
    implicit none
 
    character(kind=c_char),             intent(in)    :: c_feature_type(MAXSTRLEN)   !< feature type ('thindam')
@@ -2483,11 +2617,17 @@ subroutine get_snapped_feature(c_feature_type, c_Nin, cptr_xin, cptr_yin, c_Nout
 
    real(c_double), pointer                           :: ptr(:)                      ! temporary pointer
 
-   double precision, dimension(:), target, allocatable, save     :: xout, yout                  !< memory leak
-   integer,          dimension(:), target, allocatable, save     :: feature_ids                 !< memory leak
-
-   double precision, dimension(:), allocatable       :: xin, yin
-
+   double precision, dimension(:), target, allocatable, save      :: xout, yout      !< memory leak
+   integer,          dimension(:), target, allocatable, save      :: feature_ids     !< memory leak  
+   double precision, dimension(:), allocatable                    :: xintemp, yintemp
+   integer                                                        :: ntemp
+   double precision, dimension(:), allocatable                    :: xin, yin
+   
+   ! Dambreak
+   integer                                                        :: startIndex, i, noutSnapped, lstart, oldSize
+   double precision, dimension(:), target, allocatable            :: xSnapped, ySnapped 
+   double precision                                               :: start_location_x, start_location_y, x_breach, y_breach  
+   
    c_ierror = 1
 
 !     read feature type from c-ptr
@@ -2502,15 +2642,121 @@ subroutine get_snapped_feature(c_feature_type, c_Nin, cptr_xin, cptr_yin, c_Nout
    call c_f_pointer(cptr_yin, ptr, (/c_Nin/))
    yin(:) = ptr
 
+! xin, yin arrays store the coordinates of the feature and are terminated with a dmiss value. 
+! The last valid coordinate is thus stored at index size(xin)-1  
    select case( feature_type )
-   case("thindam")
+   case("thindam","roofs")
       call snappol(c_Nin, xin, yin, DMISS, 1, c_Nout, xout, yout, feature_ids, c_ierror)
    case("fixedweir", "crosssection", "gate", "weir", "pump")
       call snappol(c_Nin, xin, yin, DMISS, 2, c_Nout, xout, yout, feature_ids, c_ierror)
    case("obspoint")
       call snappnt(c_Nin, xin, yin, DMISS, c_Nout, xout, yout, feature_ids, c_ierror)
-   case DEFAULT
-      call snapbnd(feature_type, c_Nin, xin, yin, DMISS, c_Nout, xout, yout, feature_ids, c_ierror)
+   case("sourcesink")
+      startIndex = 1
+      i = 1
+      ntemp   = 0
+      oldSize = 0
+      if (allocated(xintemp)) deallocate(xintemp)
+      if (allocated(yintemp)) deallocate(yintemp)
+      do while (i <= size(xin))
+         if(xin(i) == dmiss) then
+            if (allocated(xintemp)) oldSize = size(xintemp)
+            if (i - startIndex > 1) then
+               ! it is a polyline with at least 2 vertexses
+               ntemp = oldSize + 3
+               call realloc(xintemp, ntemp, keepExisting = .true.)
+               call realloc(yintemp, ntemp, keepExisting = .true.)
+               xintemp(oldSize + 1) = xin(startIndex)
+               yintemp(oldSize + 1) = yin(startIndex)
+               xintemp(oldSize + 2) = xin(i - 1)
+               yintemp(oldSize + 2) = yin(i - 1)
+               xintemp(oldSize + 3) = dmiss
+               yintemp(oldSize + 3) = dmiss
+            elseif (i - startIndex == 1) then
+               ! just one point
+               ntemp = oldSize + 2
+               call realloc(xintemp, ntemp, keepExisting = .true.)
+               call realloc(yintemp, ntemp, keepExisting = .true.)
+               xintemp(oldSize + 1) = xin(startIndex)
+               yintemp(oldSize + 1) = yin(startIndex)
+               xintemp(oldSize + 2) = dmiss
+               yintemp(oldSize + 2) = dmiss
+            else if (i - startIndex < 0) then
+               startIndex =  i + 1
+               continue
+            end if
+           ! the next start index
+           startIndex =  i + 1
+      endif
+      i = i + 1
+   enddo
+   if (ntemp > 0) then
+      call snappnt(ntemp, xintemp, yintemp, DMISS, c_Nout, xout, yout, feature_ids, c_ierror)
+   endif
+   ! re-map feature_ids array
+   i = 1
+   ntemp   = 1
+   do while (i <= size(xout))
+      feature_ids(i) = ntemp
+      if(xout(i) == dmiss) then
+         feature_ids(i) = 0
+         ntemp = ntemp + 1
+      else
+         feature_ids(i) = ntemp
+      endif
+      i = i + 1
+   enddo
+   case("dambreak")
+      ! Extract polygon and the breach point coordinates
+      startIndex = 1
+      c_Nout     = 0
+      i          = 1
+      oldSize    = 0
+      if (allocated(xout)) deallocate(xout)
+      if (allocated(yout)) deallocate(yout)
+      if (allocated(feature_ids)) deallocate(feature_ids)
+      do while (i <= size(xin))
+         if(xin(i) == dmiss) then
+            ntemp = i - startIndex  + 1
+            ! Deallocation of any previous result
+            noutSnapped = 0
+            if(allocated(xintemp))  deallocate(xintemp)
+            if(allocated(yintemp))  deallocate(yintemp)
+            if(allocated(xSnapped)) deallocate(xSnapped)
+            if(allocated(ySnapped)) deallocate(ySnapped)
+            ! Allocation and assignment: polyline, dimiss, breach point 
+            allocate(xintemp(ntemp))
+            allocate(yintemp(ntemp))
+            xintemp = xin(startIndex: i - 1)
+            yintemp = yin(startIndex: i - 1)
+            start_location_x = xin(i + 1)
+            start_location_y = yin(i + 1)
+            ! Determine the flow links intersected by the input polygon, save the coordinates in xSnapped, ySnapped      
+            call snappol(ntemp, xintemp, yintemp, dmiss, 2, noutSnapped, xSnapped, ySnapped, feature_ids, c_ierror)
+            ! Project the breach point into the input polygon, determines the flow link where the breach is starting and gives back the coordinates of the middle point (x_breach, y_breach)
+            ! note: default values for jsferic, jasfer3D and dmiss
+            call comp_breach_point(start_location_x, start_location_y, xintemp, yintemp, ntemp, xSnapped, ySnapped, lstart, x_breach, y_breach, jsferic, jasfer3D, dmiss)
+            ! Save the results (snapped line, dmiss, snapped point, dmiss)
+            if(allocated(xout)) oldSize = size(xout)
+            c_Nout = c_Nout + noutSnapped  + 2
+            call realloc(xout, c_Nout, keepExisting = .true.)
+            call realloc(yout, c_Nout, keepExisting = .true.)
+            xout(oldSize + 1 : oldSize + noutSnapped) = xSnapped
+            yout(oldSize + 1 : oldSize + noutSnapped) = ySnapped
+            xout(oldSize + noutSnapped + 1) = x_breach
+            yout(oldSize + noutSnapped + 1) = y_breach
+            xout(oldSize + noutSnapped + 2) = dmiss
+            yout(oldSize + noutSnapped + 2) = dmiss
+            call realloc(feature_ids,  c_Nout, keepExisting = .true.)
+            feature_ids(oldSize + noutSnapped + 1) = feature_ids(c_Nout - 3) + 1
+            feature_ids(oldSize + noutSnapped + 2) = 0
+            startIndex =  i  +  2
+            i = startIndex
+         endif
+         i = i + 1
+      enddo
+   case default
+      call snapbnd(feature_type, c_Nin, xin, yin, dmiss, c_Nout, xout, yout, feature_ids, c_ierror)
    end select
    if ( c_ierror /= 0 .or. c_Nout == 0) goto 1234
 

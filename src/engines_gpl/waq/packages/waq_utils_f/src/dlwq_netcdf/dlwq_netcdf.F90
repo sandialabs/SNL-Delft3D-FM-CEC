@@ -26,6 +26,7 @@
 !
 module dlwq_netcdf
     use netcdf
+    use output, only: ncopt
 
     implicit none
 
@@ -647,18 +648,23 @@ end function dlwqnc_copy_associated
 !     otherwise we get an error "nf90_eedge"
 !
 integer function dlwqnc_copy_int_var( ncidin, ncidout, varin, varout, ndims, dimids, dimsizes )
+!   use ISO_C_BINDING
+
     integer, intent(in)                   :: ncidin, ncidout, varin, varout, ndims
     integer, intent(in), dimension(:)     :: dimids, dimsizes
 
-    integer                               :: sz
+    integer                               :: sz, sz1
     integer                               :: ierror
     integer                               :: ierr
     integer                               :: i, j
     integer                               :: xtype, length, attnum
     integer                               :: oldvarid, newvarid
 
+!   integer(kind=c_int), dimension(:), allocatable    :: value
     integer, dimension(:), allocatable    :: value
     integer, dimension(:,:), allocatable  :: value2d
+
+    integer                               :: start, count, chunk
 
     dlwqnc_copy_int_var = -1
 
@@ -667,17 +673,11 @@ integer function dlwqnc_copy_int_var( ncidin, ncidout, varin, varout, ndims, dim
         do i = 1,ndims
             sz = sz * dimsizes(dimids(i))
         enddo
-        allocate( value(sz) )
+        allocate( value(sz), stat = ierr )
         ierror = nf90_get_var( ncidin, varin, value )
     else
-        allocate( value2d(dimsizes(dimids(1)),dimsizes(dimids(2))) )
+        allocate( value2d(dimsizes(dimids(1)),dimsizes(dimids(2))), stat = ierr )
         ierror = nf90_get_var( ncidin, varin, value2d )
-    endif
-
-    if ( ierror /= nf90_noerr ) then
-        dlwqnc_copy_int_var = ierror
-        if (dlwqnc_debug) write(*,*) 'Error retrieving integer values: ', ierror, ' -- size: ', sz
-        return
     endif
 
     if ( ndims /= 2 ) then
@@ -685,6 +685,7 @@ integer function dlwqnc_copy_int_var( ncidin, ncidout, varin, varout, ndims, dim
     else
         ierror = nf90_put_var( ncidout, varout, value2d )
     endif
+
     if ( ierror /= nf90_noerr ) then
         dlwqnc_copy_int_var = ierror
         return
@@ -1091,19 +1092,30 @@ integer function dlwqnc_create_wqvariable( ncidout, mesh_name, wqname, longname,
         endif
     enddo
 
+    !
+    ! TODO: support for chunking - this requires an array of chunksizes per dimension
+    !
     if ( nolayid /= dlwqnc_type2d ) then
 #ifdef NetCDF4
-        ierror = nf90_def_var( ncidout, name, nf90_float, (/ noseglid, nolayid, ntimeid /), wqid, &
-                     deflate_level= dlwqnc_deflate )
-#else
-        ierror = nf90_def_var( ncidout, name, nf90_float, (/ noseglid, nolayid, ntimeid /), wqid)
+        if ( ncopt(1) == 4 .and. ncopt(2) /= 0 ) then
+            ierror = nf90_def_var( ncidout, name, nf90_float, (/ noseglid, nolayid, ntimeid /), wqid, &
+                         deflate_level= ncopt(2) )
+        else
+#endif
+            ierror = nf90_def_var( ncidout, name, nf90_float, (/ noseglid, nolayid, ntimeid /), wqid)
+#ifdef NetCDF4
+        endif
 #endif
     else
 #ifdef NetCDF4
-        ierror = nf90_def_var( ncidout, name2d, nf90_float, (/ noseglid, ntimeid /), wqid, &
-                     deflate_level= dlwqnc_deflate )
-#else
-        ierror = nf90_def_var( ncidout, name2d, nf90_float, (/ noseglid, ntimeid /), wqid)
+        if ( ncopt(1) == 4 .and. ncopt(2) /= 0 ) then
+            ierror = nf90_def_var( ncidout, name2d, nf90_float, (/ noseglid, ntimeid /), wqid, &
+                         deflate_level= ncopt(2) )
+        else
+#endif
+            ierror = nf90_def_var( ncidout, name2d, nf90_float, (/ noseglid, ntimeid /), wqid)
+#ifdef NetCDF4
+        endif
 #endif
     endif
 !    ierror = nf90_def_var( ncidout, name, nf90_float, (/ noseglid, nolayid, ntimeid /), wqid )
@@ -1112,7 +1124,11 @@ integer function dlwqnc_create_wqvariable( ncidout, mesh_name, wqname, longname,
         dlwqnc_create_wqvariable = ierror
         return
     else if ( ierror == nf90_enameinuse ) then
-        ierror = nf90_inq_varid( ncidout, name, wqid )
+        if ( nolayid /= dlwqnc_type2d ) then
+            ierror = nf90_inq_varid( ncidout, name, wqid )
+        else
+            ierror = nf90_inq_varid( ncidout, name2d, wqid )
+        endif
     endif
 
     ierror = nf90_put_att( ncidout, wqid, "long_name", longname )
@@ -1128,7 +1144,7 @@ integer function dlwqnc_create_wqvariable( ncidout, mesh_name, wqname, longname,
     endif
 
     ierror = nf90_put_att( ncidout, wqid, "_FillValue", -999.0 )
-    if ( ierror /= 0 ) then
+    if ( ierror /= 0 .and. ierror /= nf90_elatefill ) then
         dlwqnc_create_wqvariable = ierror
         return
     endif

@@ -23,15 +23,17 @@
 !  are registered trademarks of Stichting Deltares, and remain the property of  
 !  Stichting Deltares. All rights reserved.                                     
 
-!  $Id: ec_item.f90 7992 2018-01-09 10:27:35Z mourits $
+!  $Id: ec_item.f90 59682 2018-07-31 12:56:39Z leander $
 !  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_lgpl/ec_module/packages/ec_module/src/ec_item.f90 $
 
 !> This module contains all the methods for the datatype tEcItem.
 !! @author arjen.markus@deltares.nl
 !! @author adri.mourits@deltares.nl
 !! @author stef.hummel@deltares.nl
-!! @author edwin.bos@deltares.nl
+!! @author edwin.spee@deltares.nl
+!! @author Edwin Bos
 module m_ec_item
+   use string_module
    use m_ec_typedefs
    use m_ec_parameters
    use m_ec_message
@@ -59,6 +61,7 @@ module m_ec_item
    public :: ecItemGetProvider
    public :: ecItemGetArr1dPtr
    public :: ecItemGetQHtable
+   public :: ecItemEstimateResultSize
    
    contains
       
@@ -196,6 +199,30 @@ module m_ec_item
             end if
          end do
       end function ecItemGetValues
+      
+      
+      ! =======================================================================
+      !> Retrieve the id of the provider (filereader) that supplies this item
+      function ecItemEstimateResultSize(instancePtr, itemId) result(ressize)
+         implicit none
+         integer                    :: ressize
+         type(tEcInstance), pointer :: instancePtr  !< intent(in)
+         integer, intent(in)        :: itemId
+         type(tEcItem), pointer     :: itemPtr !< Item under consideration
+         integer :: i
+
+         ressize = -1
+         ! Find the Item.
+         do i=1, instancePtr%nItems ! TODO: This lookup loop of items may be expensive for large models, use a lookup table with ids.
+            itemPtr => instancePtr%ecItemsPtr(i)%ptr
+            if ((itemPtr%id == itemId) .and. (itemPtr%role == itemType_target)) then
+               ressize = itemPtr%quantityPtr%vectormax &
+                       * max(itemPtr%elementsetPtr%nCoordinates,1) &
+                       * max(1,itemPtr%elementsetPtr%n_layers)
+               exit
+            end if
+         end do
+      end function ecItemEstimateResultSize
       
 ! =======================================================================
       !> Retrieve the id of the provider (filereader) that supplies this item
@@ -384,10 +411,13 @@ module m_ec_item
          real(hp),                  intent(in)    :: timesteps     !< objective: t0<=timesteps<=t1
          integer ,                  intent(in)    :: interpol_type !< interpolation
          !
-         integer                        :: i                       !< loop counter
-         integer                        :: j                       !< loop counter
-         type(tEcFileReader), pointer   :: fileReaderPtr           !< helper pointer for a file reader 
-         character(len=300) :: str, filename
+         integer                                  :: i                     !< loop counter
+         integer                                  :: j                     !< loop counter
+         type(tEcFileReader), pointer             :: fileReaderPtr         !< helper pointer for a file reader
+         character(len=22)                        :: strnum1               !< 1st number converted to string for error message
+         character(len=22)                        :: strnum2               !< 2nd number converted to string for error message
+         character(len=*), parameter              :: fmtBignum = '(f22.3)' !< format string also suitable for very big numbers
+         character(len=maxFileNameLen), pointer   :: filename              !< file name in error message
          !
          success = .false.
          fileReaderPtr => null()
@@ -411,27 +441,27 @@ module m_ec_item
                   end if
                end do
             end do frs
-         endif 
+         endif
          !
-         
-         ! timesteps < t0 : not supported 
+
+         ! timesteps < t0 : not supported
          if (comparereal(timesteps, item%sourceT0FieldPtr%timesteps) == -1) then
             if (interpol_type /= interpolate_time_extrapolation_ok) then
                if (associated (fileReaderPtr)) then
                   if (associated (fileReaderPtr%bc)) then
-                     filename = fileReaderPtr%bc%fname
+                     filename => fileReaderPtr%bc%fname
                   else
-                     filename = fileReaderPtr%fileName
+                     filename => fileReaderPtr%fileName
                   endif
-                  call setECMessage("       in file: '"//trim(filename)//"'.")                
+                  call setECMessage("       in file: '"//trim(filename)//"'.")
                endif
-               write(str, '(a,f13.3,a,f8.1,a,a)') "             Requested: t=", timesteps, ' seconds'
-               call setECMessage(str)
-               write(str, '(a,f13.3,a,f8.1,a,a)') "       Current EC-time: t=", item%sourceT0FieldPtr%timesteps,' seconds'
-               call setECMessage(str)
-               write(str, '(a,i0,a,f10.3,a,a)')    "Requested time preceeds current forcing EC-timelevel by ", &
-                   &        int(item%sourceT0FieldPtr%timesteps-timesteps)," seconds = ", (item%sourceT0FieldPtr%timesteps-timesteps)/86400.," days."
-               call setECMessage(str)
+               call real2stringLeft(strnum1, '(f22.3)', timesteps)
+               call setECMessage("             Requested: t= " // trim(strnum1) // ' seconds')
+               call real2stringLeft(strnum1, '(f22.3)', item%sourceT0FieldPtr%timesteps)
+               call setECMessage("       Current EC-time: t= " // trim(strnum1) // ' seconds')
+               call real2stringLeft(strnum1, '(f22.3)', item%sourceT0FieldPtr%timesteps-timesteps)
+               call real2stringLeft(strnum2, '(f22.3)', (item%sourceT0FieldPtr%timesteps-timesteps)/86400)
+               call setECMessage("Requested time preceeds current forcing EC-timelevel by " // trim(strnum1) // " seconds = " // trim(strnum2) // " days.")
             else
                success = .true.
             endif

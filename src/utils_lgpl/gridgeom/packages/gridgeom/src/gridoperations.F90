@@ -1,17 +1,23 @@
    !LC TO DO: PASS CALL-BACK  FUNCTION FOR INTERACTER MESSAGES
    module gridoperations
 
+   use MessageHandling, only: msgbox, mess, LEVEL_ERROR
    implicit none
 
    !new functions
    public :: make1D2Dinternalnetlinks
+   public :: make1D2Droofgutterpipes
+   public :: make1D2Dstreetinletpipes
+   public :: ggeo_make1D2Dembeddedlinks
    public :: ggeo_convert
    public :: ggeo_convert_1d_arrays
    public :: ggeo_get_links_count
    public :: ggeo_get_links
-   public :: ggeo_create_edge_nodes
+   public :: ggeo_count_or_create_edge_nodes
    public :: ggeo_deallocate
-   public :: ggeo_edge_nodes_count
+   public :: ggeo_initialize
+   public :: ggeo_make1D2DRiverLinks
+
 
    !from net.f90
    public :: RESTORE
@@ -19,7 +25,7 @@
    public :: INCREASENETW
    public :: increasenetcells
    public :: alreadycell
-   public :: SETNEWPOINT
+   public :: setnewpoint
    public :: CROSSED2d_BNDCELL
    public :: OTHERNODE
    public :: OTHERNODECHK
@@ -45,6 +51,7 @@
    public :: INCELLS
    public :: sort_links_ccw
    public :: get_cellpolygon
+   public :: make_dual_cell
    
    ! rest.f90
    public ::INVIEW
@@ -53,6 +60,7 @@
    ! unstruct.F90
    public :: getcellsurface
    public :: getcellweightedcenter
+   public :: getcellcircumcenter
 
    private
 
@@ -202,7 +210,7 @@
       CALL AERR('XK (KMAX), YK (KMAX), ZK (KMAX), KC (KMAX), NMK (KMAX), RNOD(KMAX)', IERR, 7*KMAX)
 
       DO K = 1,KMAX
-         IF (K .LE. SIZE(NMK0) ) THEN
+         IF ((allocated(NMK0)).and.(K .LE. SIZE(NMK0))) THEN
             KNXX = MAX(NMK0(K),KNX)
          ELSE
             KNXX = KNX
@@ -555,7 +563,8 @@
    double precision, dimension(:), allocatable :: Lperm_new
 
    integer :: jacrosscheck ! remove 2D crossing netlinks (1) or not (0)
-   integer :: japermout ! output permutation array (1) or not (0)
+   integer :: japermout    ! output permutation array (1) or not (0)
+   integer :: janodperm    ! output node permutation array (1) or not (0)
 
    jacrosscheck = jacrosscheck_
    japermout = 0
@@ -569,14 +578,15 @@
    E = 1E-6 ; E1 = 1-E
 
    if ( japermout.eq.1 ) then
-      !     allocate permutation array
+      ! allocate permutation array
       call realloc(Lperm, numL, keepExisting=.false., fill=0)
       do L=1,numL
          Lperm(L) = L
       end do
       allocate(Lperm_new(numL))
+      ! allocate permutation array for nodes
+      call realloc(nodePermutation, numk, keepExisting=.false., fill=0)
    end if
-
 
    IF (JACROSSCHECK == 1) THEN
       LL = 0
@@ -684,11 +694,13 @@
          YK (KK) = YK(K)
          ZK (KK) = ZK(K)
          KCK(KK) = KCK(K)               ! COPY ORG KC
-         KC2(K)  = KK                   ! EN HIER GAAT IE NAARTOE
+         KC2(K)  = KK                   ! EN HIER GAAT IE NAARTOE         
+         if ( japermout.eq.1 ) then
+            nodePermutation(k) = kk     ! k is old node number, kk is new number
+         end if
       ENDIF
    ENDDO
    NUMK = KK
-
 
    DO L   = 1,NUML
       K1  = KN(1,L)  ; K2  = KN(2,L) ; K3 = KN(3,L)
@@ -724,7 +736,7 @@
       K1 = KN(1,L) ;
       K2 = KN(2,L) ;
       DO LL = 1,NMK(K1) ! Check all previously added links
-         if (KN(1,NOD(K1)%LIN(LL)) == K2 .or. KN(2,NOD(K1)%LIN(LL)) == K2) then
+         if ( (kn(3,L) /=1) .and. (KN(1,NOD(K1)%LIN(LL)) == K2 .or. KN(2,NOD(K1)%LIN(LL)) == K2)) then
             KN(1,L) = 0
             KN(2,L) = 0
             jDupLinks = 1
@@ -865,19 +877,19 @@
       ! We can safely ignore it here, but won't, because this saves some
       ! realloc costs for xz, yz in flow_geominit.
       numc = max(ndx,nump)
-      if (numc > size(xz)) then
+      if ((numc > size(xz)).or.(.not.allocated(xz))) then
          call realloc(xz, numc, stat=ierr, keepExisting=.false.)
          call aerr('xz(numc)',IERR, numc)
          call realloc(yz, numc, stat=ierr, keepExisting=.false.)
          call aerr('yz(numc)',IERR, numc)
       end if
-      if (numc > size(xzw)) then
+      if ((numc > size(xzw)).or.(.not.allocated(xzw))) then
          call realloc(xzw, numc, stat=ierr, keepExisting=.false.)
          call aerr('xzw(numc)',IERR, numc)
          call realloc(yzw, numc, stat=ierr, keepExisting=.false.)
          call aerr('yzw(numc)',IERR, numc)
       end if
-      if (numc > size(ba)) then
+      if ((numc > size(ba)).or.(.not.allocated(ba))) then
          call realloc(ba, numc, stat=ierr, keepExisting=.false.)
          call aerr('ba(numc)',IERR, numc)
       endif
@@ -890,15 +902,44 @@
    end if
    end subroutine update_cell_circumcenters
 
+   !> Compute circumcenter of a netcell and its average depth value.
+   !! See also getcellcircumcenter
+   subroutine getcellcircumcenter( n, xz, yz, zz )     ! circumcenter etc, depending on celltype
+   use network_data
+   use geometry_module, only: getcircumcenter
+   use m_missing,       only: dmiss, jins,dxymis
+   use m_sferic,        only: jsferic, jasfer3D, jglobe
+
+   implicit none
+   integer,          intent(in)       :: n         !< Netcell number
+   double precision, intent(out)      :: xz, yz    !< Coordinates of circumcenter point, undefined for void cells.
+   double precision, intent(out)      :: zz        !< Depth value at cc point, undefined for void cells.   
+   integer,            parameter      :: Msize=10
+
+   double precision, dimension(Msize) :: xv, yv
+   integer, dimension(Msize)          :: Lorg
+   integer, dimension(Msize)          :: LnnL
+   integer                            :: i, k, L, nn
+
+   nn = netcell(n)%n
+
+   if ( nn.lt.1 ) return  ! safety
+
+   call get_cellpolygon(n, Msize, nn, 1d0, xv, yv, LnnL, Lorg, zz)
+   call getcircumcenter(nn, xv, yv, LnnL, xz, yz, jsferic, jasfer3D, jglobe, jins, dmiss, dxymis, dcenterinside)
+
+   end subroutine getcellcircumcenter
+
+
    !> Finds 2D cells in the unstructured net.
    !! Optionally within a polygon mask.
    ! Resets netcell data and also computes circumcenters in xz (flowgeom)
-   SUBROUTINE FINDCELLS(JP)
+   SUBROUTINE findcells(jp)
    
    use network_data
    use geometry_module, only: dbpinpol
-   use m_polygon,  only: NPL, xpl, ypl, zpl
-   use m_missing,  only: dmiss, jins
+   use m_polygon,       only: NPL, xpl, ypl, zpl
+   use m_missing,       only: dmiss, jins
    use m_cell_geometry
    use m_sferic
 
@@ -965,7 +1006,12 @@
    if ( jakeepmask.ne.1 ) then
       KC   =  0
       DO K = 1,NUMK
-         CALL DBPINPOL(xk(k), yk(k), ik, dmiss, JINS, NPL, xpl, ypl, zpl)
+         if (NPL > 0) then 
+            CALL DBPINPOL(xk(k), yk(k), ik, dmiss, JINS, NPL, xpl, ypl, zpl)
+         else
+            CALL DBPINPOL(xk(k), yk(k), ik, dmiss, JINS, NPL)
+         endif
+            
          IF (IK > 0) THEN
             KC(K) = IK
          ENDIF
@@ -1037,7 +1083,8 @@
    !  kc(1:numk) = kc_sav(1:numk)
    !  deallocate(kc_sav)
 
-   NDX2D = NUMP                                        ! NR OF 2d CELLS=NUMP
+   ! NR OF 2d CELLS=NUMP
+   NDX2D = NUMP                                        
 
    lasttopology = numk + numl
 
@@ -1971,6 +2018,10 @@
    ELSE IF (JVIEW .EQ. 4) THEN
       !    CALL DVIEW(XD,YD,-ZD,X,Y,Z)
       CALL DVIEW(XD,YD,-ZD,X,Y,Z)
+   ELSE !In all other cases (e.g. when HOWTOVIEW is not set, e.g. in the gridgeom library)
+      x = xd
+      y = yd
+      z = zd
    ENDIF
    RETURN
    END SUBROUTINE DRIETWEE
@@ -1999,6 +2050,10 @@
       XD = X
       YD = Y
       ZD = XYZ
+   ELSE !In all other cases (e.g. when HOWTOVIEW is not set, e.g. in the gridgeom library)
+      xd = x
+      yd = y
+      zd = xyz
    ENDIF
 
    RETURN
@@ -2133,7 +2188,7 @@
    end subroutine sort_links_ccw
 
    !> get netcell polygon that is safe for periodic, spherical coordinates and poles
-   subroutine get_cellpolygon(n, Msize, nn, xv, yv, LnnL, Lorg, zz)
+   subroutine get_cellpolygon(n, Msize, nn, rcel, xv, yv, LnnL, Lorg, zz)
    use network_data
    use m_missing, only : dmiss
    use m_sferic
@@ -2142,6 +2197,7 @@
    integer,                            intent(in)  :: n      !< cell number
    integer,                            intent(in)  :: Msize  !< array size
    integer,                            intent(out) :: nn     !< polygon size
+   double precision,                   intent(in)  :: rcel   !< cell enlargement factor around cell center
    double precision, dimension(Msize), intent(out) :: xv, yv !< polygon coordinates
    integer,          dimension(Msize), intent(out) :: LnnL   !< original link LnnL
    integer,          dimension(Msize), intent(out) :: Lorg   !< original link number (>0) or added link (0)
@@ -2248,6 +2304,13 @@
       zz = zz / numz
    endif
 
+   if (rcel /= 1d0) then
+      do m=1,nn
+         xv(m) = xzw(n) + rcel*(xv(m) - xzw(n))
+         yv(m) = yzw(n) + rcel*(yv(m) - yzw(n))
+      end do
+   end if
+      
    !  check periodicity
    if ( jsferic.eq.1 ) then
       do m=1,nn
@@ -2257,11 +2320,67 @@
          else if ( xv(mp1)-xv(m).lt.-180d0 ) then
             xv(mp1) = xv(mp1) + 360d0
          end if
+         ! TODO: SvdP: need sferic check for y coord as well, after the above new RCEL addition? [AvD]
       end do
    end if
 
    return
    end subroutine get_cellpolygon
+   
+   SUBROUTINE CLOSETO1Dnetnode(XP1,YP1,N1,dist,oneDMask) !
+
+   use network_data
+   use geometry_module, only: dbdistance
+   use m_sferic
+   use m_missing
+
+   implicit none
+   double precision, intent(in)  :: XP1, YP1
+   double precision, intent(out) :: dist     ! find 1D point close to x,y:
+   integer         , intent(out) :: n1       ! 1D point found
+   integer, optional, intent(in) :: oneDMask(:)
+
+
+   double precision :: dismin
+   integer          :: ja, k, k1, k2, L
+   double precision :: dis,dis1,dis2
+
+   N1 = 0
+   DISMIN = 9E+33
+   DO L = 1,numl
+      IF (kn(3,L) == 1 .or. kn(3,L) == 6) then !  .or. kn(3,L) == 4) THEN
+         K1 = kn(1,L) ; K2 = kn(2,L)         
+         ! If mask is present we check that the 1d nodes are the nodes I want to connect
+         if (present(oneDMask)) then
+            if (oneDMask(k1).eq.0) then !! Fortran does not support logical and
+               dis1 = DISMIN 
+            endif
+            if (oneDMask(k2).eq.0) then 
+               dis2 = DISMIN 
+            endif
+            if (oneDMask(k1).eq.1) then 
+               dis1 =  dbdistance(XP1,YP1,Xk(K1),Yk(K1),jsferic, jasfer3D, dmiss)    
+            endif
+            if (oneDMask(k2).eq.1) then 
+               dis2 =  dbdistance(XP1,YP1,Xk(K2),Yk(K2),jsferic, jasfer3D, dmiss)    
+            endif            
+         else
+            dis1 = dbdistance(XP1,YP1,Xk(K1),Yk(K1),jsferic, jasfer3D, dmiss)
+            dis2 = dbdistance(XP1,YP1,Xk(K2),Yk(K2),jsferic, jasfer3D, dmiss)    
+         endif
+         if (dis1 < dis2) then
+            k = k1 ; dis = dis1
+         else
+            k = k2 ; dis = dis2
+         endif
+         if (DIS .LT. DISMIN) then
+            N1 = k
+            DISMIN = DIS
+         endif
+      endif
+   enddo
+   dist = dismin
+   END SUBROUTINE CLOSETO1Dnetnode
 
    !-----------------------------------------------------------------!
    ! rest.f90
@@ -2323,7 +2442,7 @@
    double precision                  :: zz
    integer                           :: jaccw     ! counterclockwise (1) or not (0) (not used here)
 
-   call get_cellpolygon(n,Mmax,nn,xh,yh,LnnL,Lorg,zz)
+   call get_cellpolygon(n,Mmax,nn,1d0,xh,yh,LnnL,Lorg,zz)
    call comp_masscenter(nn, xh , yh, xzwr, yzwr, ba, jaccw,  jsferic, jasfer3D, dmiss)
 
    end subroutine getcellsurface
@@ -2359,10 +2478,10 @@
          yv(i) = yk(k)
       end do
 
-      call comp_circumcenter3D(nn, xv, yv, xz, yz, jsferic, dmiss)
+      call comp_circumcenter3D(nn, xv, yv, xz, yz, jsferic, dmiss, dcenterinside)
    else
       !   get the cell polygon that is safe for periodic, spherical coordinates, inluding poles
-      call get_cellpolygon(n,Mmax,nn,xv,yv,LnnL,Lorg,zz)
+      call get_cellpolygon(n,Mmax,nn,1d0,xv,yv,LnnL,Lorg,zz)
       call getcircumcenter(nn, xv, yv, lnnl, xz, yz, jsferic, jasfer3D, jglobe, jins, dmiss, dxymis, dcenterinside)
    end if
 
@@ -2381,48 +2500,83 @@
    !-----------------------------------------------------------------!
    ! Library public functions
    !-----------------------------------------------------------------!
-   function make1D2Dinternalnetlinks() result(ierr)
+   function make1D2Dinternalnetlinks(xplLinks, yplLinks, zplLinks, oneDmask) result(ierr)
 
    use m_cell_geometry, only: xz, yz
-  use network_data
-  use m_alloc
-  use m_missing, only:  dmiss, dxymis, jadelnetlinktyp
-  use geometry_module, only: dbdistance, normalout
-  use m_sferic, only: jsferic, jasfer3D
-
+   use network_data
+   use m_alloc
+   use m_missing, only:  dmiss, dxymis, jadelnetlinktyp, jins
+   use geometry_module, only: dbdistance, normalout, dbpinpol
+   use m_sferic, only: jsferic, jasfer3D  
+  
    implicit none
 
-   integer          :: K1, K2, K3, L, NC1, NC2, JA, KK2(2), KK, NML
-   integer          :: i, ierr, k, kcell
-   DOUBLE PRECISION :: XN, YN, XK2, YK2, WWU
-
-   call SAVENET()
+   !input 
+   double precision, optional, intent(in) :: xplLinks(:), yplLinks(:), zplLinks(:) ! optional polygons to reduce the area where the 1D2Dlinks are generated
+   integer, optional, intent(in)          :: oneDmask(:)
+   
+   !locals
+   integer                                :: K1, K2, K3, L, NC1, NC2, JA, KK2(2), KK, NML, LL
+   integer                                :: i, ierr, k, kcell
+   double precision                       :: XN, YN, XK2, YK2, WWU
+   integer                                :: insidePolygons
+   
+   ierr = 0
+   call savenet()
    call findcells(0)
 
    KC = 2
-   DO L = 1,NUML  ! FLAG TO 1 ANY NODE TOUCHED BY SOMETHING 1D
+   do L = 1,NUML  ! FLAG TO 1 ANY NODE TOUCHED BY SOMETHING 1D
       K1  = KN(1,L) ; K2  = KN(2,L); K3 = KN(3,L)
-      IF (K3 .NE. 4 .AND. K3 .NE. 2 .AND. K3 .NE. 0) THEN ! only for yet-isolated 1D channels with KN(3,L)==1
+      IF (K3 .NE. 4 .AND. K3 .NE. 2 .AND. K3 .NE. 0) THEN ! only for yet-isolated 1D channels with KN(3,L)==1         
          KC(K1) = 1 ; KC(K2) = 1
-      ENDIF
-   ENDDO
+         if (jadelnetlinktyp == 5 .or. jadelnetlinktyp == 7) then 
+            do k  = 1,nmk(k1)
+               LL = nod(k1)%lin(k)
+               if (kn(3,LL) == 5 .or. kn(3,LL) == 7) then 
+                  kc(k1) = 2 ; exit  ! when already connected by pipe forget it
+               endif   
+            enddo   
+            do k  = 1,nmk(k2)
+               LL = nod(k2)%lin(k)
+               if (kn(3,LL) == 5 .or. kn(3,LL) == 7) then 
+                  kc(k2) = 2 ; exit  ! when already connected by pipe forget it
+               endif   
+            enddo   
+         endif
+         !Account for oneDmask if present. Assumption is that oneDmask contains 1/0 values
+         if (present(oneDmask)) then
+            if (oneDmask(k1).ne.1) then
+                kc(k1) = 2
+            endif
+            if (oneDmask(k2).ne.1) then
+                kc(k2) = 2
+            endif
+         endif 
+      endif
+   enddo
 
    if (jadelnetlinktyp .ne. 0) then
       kn3typ = jadelnetlinktyp
    else
       kn3typ = 3
    endif
-
+   
    NML  = NUML
    DO K = 1,NUMK
 
-      IF (NMK(K) > 0) THEN ! == 2 .or. ) THEN
+      IF (NMK(K) > 0) THEN ! == 2 .or. ) THEN ! Do not connect the extreme vertices of the 1d mesh
 
-         IF (KC(K) == 1) THEN
+         IF (allocated(KC) .and. KC(K) == 1) THEN
+            if ( present(xplLinks) .and. present(yplLinks) .and. present(zplLinks)) then
+                insidePolygons = - 1 
+                call dbpinpol(XK(K), YK(K), insidePolygons, dmiss, jins, size(xplLinks), xplLinks, yplLinks, zplLinks) 
+                if (insidePolygons .ne. 1) cycle
+            endif
             NC1 = 0
             CALL INCELLS(XK(K), YK(K), NC1)
             IF (NC1 > 1) THEN
-               CALL SETNEWPOINT(XZ(NC1),YZ(NC1),ZK(K) ,NC2)
+               CALL SETNEWPOINT(XZ(NC1),YZ(NC1),ZK(K), NC2)
                call connectdbn(NC2, K, L)
                KN(3,L) = kn3typ
             ELSE
@@ -2469,12 +2623,411 @@
 
    ENDDO
 
-   CALL SETNODADM(0)
-
    end function make1D2Dinternalnetlinks
+   
+   subroutine make1D2Droofgutterpipes(xplRoofs, yplRoofs, zplRoofs, oneDmask)      !
+      
+      use m_missing
+      use m_polygon
+      use geometry_module
+      use m_alloc
+      use network_data
+      use m_cell_geometry
+      
+      implicit none
+   
+      !dfm might have already allocated xpl, ypl, zpl
+      double precision, optional, intent(in)  :: xplRoofs(:), yplRoofs(:), zplRoofs(:)
+      integer, optional, intent(in)           :: oneDmask(:)
+      
+      integer                                 :: inp, n, n1, ip, i, k1, k2, L
+      double precision                        :: XN1, YN1, DIST
+      integer,          allocatable           :: nodroof(:), nod1D(:)
+      double precision, allocatable           :: dismin(:)
+      character(len=5)                        :: sd
+      character(len=1), external              :: get_dirsep
+      integer                                 :: ierr
+      integer                                 :: nInputPolygon
+   
+      call findcells(0)
+      
+      !allocate and assign polygon if input arrays are present
+      !when called from DFM xpl, ypl, and zpl arrays are already allocated in m_polygon
+      if (present(xplRoofs)) then
+         npl = size(xplRoofs)
+         call increasepol(size(xplRoofs), 0)
+         xpl(1:npl) = xplRoofs
+         ypl(1:npl) = yplRoofs
+         zpl(1:npl) = zplRoofs
+         inp = -1
+      endif 
+      
+      kc   = 0
+      do n = 1,nump
+         call inwhichpolygon(xzw(n), yzw(n), inp)
+         if (inp > 0) then
+            kc(n) = inp
+         endif
+      enddo
+      
+      do i = 1,npoly
+         xpl(iiend(i)) = xpl(iistart(i))
+         ypl(iiend(i)) = ypl(iistart(i))
+         zpl(iiend(i)) = zpl(iistart(i))
+      enddo
+      
+      allocate( dismin(npoly), nodroof(npoly), nod1D(npoly) )
+      dismin = 9d9 ; nodroof = 0 ; nod1D = 0
+      do n  = 1,nump
+         if (kc(n) > 0) then
+            ip = kc(n)
+            call CLOSETO1Dnetnode(xzw(n), yzw(n), N1, DIST, oneDmask)
+            if (dist < dismin(ip)) then
+               dismin(ip) = dist ; nodroof(ip) = n; nod1D(ip) = n1
+            endif
+         endif
+      enddo
+      
+      do ip = 1,npoly
+         n1 = nodroof(ip)
+         if (n1 > 0) then
+            call setnewpoint(xz(n1),yz(n1),dmiss,k1)
+            k2 = nod1D(ip) 
+            call connectdbn(k1,k2,l)
+            kn(3,l) = 7
+         endif
+      enddo
+      
+      deallocate( dismin, nodroof, nod1D )
+   
+   end subroutine make1D2Droofgutterpipes
 
+   subroutine make1D2Dstreetinletpipes(xsStreetInletPipes, ysStreetInletPipes, oneDmask)
+   
+       use m_missing
+       use m_polygon
+       use geometry_module
+       use m_alloc
+       use network_data
+       use m_cell_geometry
+       use m_samples
+
+       implicit none
+       
+      !allocate and assign samples if input arrays are present
+      !when called from DFM xs, ys are already allocated in m_samples
+      double precision, optional, intent(in)  :: xsStreetInletPipes(:), ysStreetInletPipes(:)
+      integer, optional, intent(in)           :: oneDmask(:) !< Masking array for 1d mesh points (1 connect, 0 do not connect)
+      integer                                 :: n,k,n1,k1,L
+      double precision                        :: DIST
+
+       call findcells(0)
+       if (present(xsStreetInletPipes)) then
+         ns = size(xsStreetInletPipes)
+         call INCREASESAM(ns)
+         Xs(1:ns) = xsStreetInletPipes
+         Ys(1:ns) = ysStreetInletPipes
+      endif
+
+       do n  = 1,ns
+          call INCELLS(Xs(n),Ys(n),K)
+          if (k > 0) then
+             call CLOSETO1Dnetnode(xzw(k), yzw(k), N1, DIST, oneDmask)
+             CALL SETNEWPOINT(xzw(k),yzw(k),dmiss,k1)
+             call CONNECTDBN(K1,N1,L)
+             kn(3,L) = 5
+          endif
+       enddo
+
+   end subroutine make1D2Dstreetinletpipes
+
+   !> make dual cell polygon around netnode k
+   subroutine make_dual_cell(k, N, rcel, xx, yy, num, Wu1Duni)
+      
+      use network_data
+      use m_polygon
+      use m_missing
+      use m_sferic
+      use geometry_module, only: normalout, comp_masscenter, half, xpav, spher2locvec
+      
+      implicit none
+
+      integer,                        intent(in)  :: k         !< netnode number
+      integer,                        intent(in)  :: N         !< array size
+      double precision,               intent(in)  :: rcel      !< dual-cell enlargement factor around dual-cell center
+      double precision, dimension(N), intent(out) :: xx, yy    !< dual-cell polygon coordinates
+      integer,                        intent(out) :: num       !< polygon dimension
+      double precision,               intent(in)  :: Wu1Duni   !< 
+      
+      !locals
+      integer                                     :: ierror ! error (1) or not (0)
+      integer,          dimension(N)              :: iclist
+      double precision                            :: xc, yc, area, w, sn, cs, xh, yh, aa, cs2, cs3, sn2, sn3, f
+      double precision, dimension(1)              :: csloc, snloc, csloc2, snloc2, csloc3, snloc3
+      double precision                            :: xh2, yh2, xh3, yh3
+
+      integer                                     :: i, ic, k1, k2, L, NN, Nc, ja2D, Lp, k3, ip, is, ncol
+      integer                                     :: jacounterclockwise          ! counterclockwise (1) or not (0) (not used here)
+      
+      integer                                     :: jatolan ! copy cells to landboundary (useful for plotting)
+      
+      jatolan = 0
+
+      ierror = 1
+
+      !if ( k.eq.4399 ) then
+      !   continue
+      !end if
+
+      NN = nmk(k)
+
+      ja2D = 1
+      do i=1,NN
+          L = nod(k)%lin(i)
+          if (kn(3,L) /= 2 .and. kn(3,L).ne.0 ) ja2D = 0  
+      enddo   
+
+      if ( NN.gt.N ) then
+         call msgbox('', 'make_dual_cell: array size error', LEVEL_ERROR)
+         ! TODO: SvdP: consider adding 'call mess' to stop the simulation.
+         goto 1234
+      end if
+
+      if (ja2D == 1) then  
+   !     get ordered cell list
+         call get_celllist(k, N, iclist)
+         
+   !     construct dual cell polygon
+         num = 0
+         do i=1,NN
+            num = num+1
+            L = nod(k)%lin(i)
+            k1 = k
+            k2 = kn(1,L)+kn(2,L)-k
+            xx(num) = 0.5d0*(xk(k1)+xk(k2))
+            yy(num) = 0.5d0*(yk(k1)+yk(k2))
+            
+!           fix for periodic, spherical coordinates   
+            if ( jsferic.eq.1 ) then
+               if ( xk(k2)-xk(k1).gt.180d0 ) then
+                  xx(num) = xx(num) - 180d0
+               else if ( xk(k2)-xk(k1).lt.-180d0 ) then
+                  xx(num) = xx(num) + 180d0
+               end if
+            end if
+         
+            num = num+1
+            ic = iclist(i)
+            if ( ic.ne.0 ) then
+               Nc = netcell(ic)%N
+               xx(num) = xzw(ic)
+               yy(num) = yzw(ic)
+            else
+               xx(num) = xk(k)
+               yy(num) = yk(k)
+            end if
+         end do
+         
+   !     compute dual cell center
+         call comp_masscenter(num, xx, yy, xc, yc, area, jacounterclockwise, jsferic, jasfer3D, dmiss)
+
+!        fix for periodic, spherical coordinates           
+         if ( xc-xk(k).gt.180d0 ) then
+            xc = xc - 360d0
+         else if ( xc-xk(k).lt.-180d0 ) then
+            xc = xc + 360d0
+         end if
+         
+   !     enlarge dual cell
+         do i=1,num
+            xx(i) = xc + RCEL*(xx(i)-xc)
+            yy(i) = yc + RCEL*(yy(i)-yc)
+         end do
+
+      else ! 1D
+      
+         w   = 0.5d0*Wu1Duni * RCEL ! RCEL a bit different in 1D
+         num = 0
+         
+         if (nn == 1) then 
+
+            L = nod(k)%lin(1) ; call othernode(k,L,k2)
+            
+            call normalout( xk(k), yk(k), xk(k2), yk(k2), cs, sn, jsferic, 1, dmiss, dxymis)
+            call half(xk(k), yk(k), xk(k2), yk(k2), xh, yh, jsferic, jasfer3D)
+            call spher2locvec(xk(k),yk(k),1,(/xh/),(/yh/),(/cs/),(/sn/),csloc,snloc, jsferic, 1, dmiss)
+    
+            num     = num + 1
+            call xpav(xk(k),yk(k),-w,csloc(1),snloc(1),xx(num),yy(num),jsferic,1)
+            
+            num     = num + 1
+            call xpav(xh,yh,-w,cs,sn,xx(num),yy(num),jsferic,1)
+            
+            num     = num + 1
+            call xpav(xh,yh,w,cs,sn,xx(num),yy(num),jsferic,1)
+            
+            num     = num + 1
+            call xpav(xk(k),yk(k),w,csloc(1),snloc(1),xx(num),yy(num),jsferic,1)
+            
+         else 
+            
+            if (nn == 2) then 
+               is =  1
+            else    
+               is = -1
+            endif  
+    
+            do i = 1,NN
+               L = nod(k)%lin(i) ; call othernode(k,L,k2)
+              
+               ip = i + 1 ; if (i == nn) ip = 1 
+               Lp = nod(k)%lin(ip) ; call othernode(k,Lp,k3)   
+
+               call normalout( xk(k2), yk(k2), xk(k), yk(k),  cs2, sn2, jsferic, 1, dmiss, dxymis) 
+               call half(xk(k), yk(k), xk(k2), yk(k2), xh2, yh2, jsferic, jasfer3D)
+               call spher2locvec(xk(k),yk(k),1,(/xh2/),(/yh2/),(/cs2/),(/sn2/),csloc2,snloc2, jsferic, 1, dmiss)
+               
+               call normalout( xk(k) , yk(k), xk(k3), yk(k3), cs3, sn3, jsferic, 1, dmiss, dxymis)
+               call half(xk(k), yk(k), xk(k3), yk(k3), xh3, yh3, jsferic, jasfer3D)
+               call spher2locvec(xk(k),yk(k),1,(/xh3/),(/yh3/),(/cs3/),(/sn3/),csloc3,snloc3, jsferic, 1, dmiss)
+               
+               f = w/(1d0+csloc2(1)*csloc3(1)+snloc2(1)*snloc3(1)) 
+               
+               num     = num + 1
+               call xpav(xh2,yh2,w,cs2,sn2,xx(num),yy(num),jsferic,1)
+
+               num     = num + 1
+               call xpav(xk(k),yk(k),f,csloc2(1)+csloc3(1),snloc2(1)+snloc3(1),xx(num),yy(num),jsferic,1)
+
+               num    = num + 1
+               call xpav(xh3,yh3,w,cs3,sn3,xx(num),yy(num),jsferic,1)
+
+            enddo   
+        
+                 
+         endif   
+         
+         if (num .ge. 3) then 
+             call random_number(aa)
+             ncol = 255*aa
+             !call DISPF2closed(xx,yy,num,num,ncol)
+             
+             if ( jatolan.eq.1 ) then
+                call INCREASELAN(MXLAN+num+2)
+                xlan(MXLAN+1) = dmiss
+                ylan(MXLAN+1) = dmiss
+                xlan(MXLAN+2:MXLAN+num+2) = (/ xx(1:num), xx(1) /)
+                ylan(MXLAN+2:MXLAN+num+2) = (/ yy(1:num), yy(1) /)
+                MXLAN = MXLAN+num+2
+             end if
+         endif   
+         
+      endif   
+         
+      ierror = 0
+   1234 continue
+      return
+   end subroutine make_dual_cell
+   
+   !net.f90, 34233
+   !> find netcells surrounding a netnode, order in link direction "nod()%cell"
+   !>   cell "0" is a fictious boundary-cell
+   subroutine get_celllist(k, N, iclist)
+      use network_data
+      implicit none
+
+      integer,               intent(in)  :: k         !< netnode
+      integer,               intent(in)  :: N         !< array size
+      integer, dimension(N), intent(out) :: iclist    !< list of netcells attached to the node
+
+      integer                            :: ierror    ! error (1) or not (0)
+
+      integer                            :: i, ip1, ic1, ic2, j, ja, L, Lp1, NN
+      integer                            :: ii, iim1
+
+      ierror = 1
+
+      NN = nmk(k)
+
+      if ( NN.gt.N ) then
+         call msgbox('', 'get_celllist: array size error', LEVEL_ERROR)
+         ! TODO: SvdP: consider adding 'call mess' to stop the simulation.
+         goto 1234
+      end if
+
+      do i=1,NN
+   !     find cell between ith and (i+1)rst link, 0 indicates no cell (boundary)
+         L = nod(k)%lin(i)
+         ip1 = i+1; if ( ip1.gt.NN ) ip1=ip1-NN
+         Lp1 = nod(k)%lin(ip1)
+
+         ic1 = lne(1,L)
+         if ( lnn(L).gt.1) then
+            ic2 = lne(2,L)
+         else
+            ic2 = 0  ! boundary netlink
+         end if
+
+   !    check if cell ic1 contains link (i+1)
+        ja = 0
+        if ( lnn(L).gt.0 ) then
+!          find own link index
+           ii = 1
+           do while ( netcell(ic1)%lin(ii).ne.L .and. ii.lt.netcell(ic1)%N )
+              ii = ii+1
+           end do
+!          check if previous netlink in netcell ic1 is netlink (i+1)
+           iim1 = ii-1; if ( iim1.lt.1 ) iim1=iim1+netcell(ic1)%N
+
+              if ( netcell(ic1)%lin(iim1).eq.Lp1 ) then
+                 ja = 1
+              end if
+        end if
+
+        if (ja.eq.1 ) then
+   !       cell ic1 is between the ith and (i+1)rst link
+           iclist(i) = ic1
+        else
+   !    if cell ic1 does not contain link (i+1), use ic2 (0 for boundary, or isolated, or 1D links)
+           iclist(i) = ic2
+        end if
+      end do
+
+   !  determine if ic1 or ic2 
+
+      ierror = 0
+   1234 continue   
+      return
+   end subroutine get_celllist
+
+!----------------------------------------------------------------------!
+! 
+!----------------------------------------------------------------------! 
+   function ggeo_initialize()  result(ierr)
+   
+   use network_data
+   integer :: ierr
+   
+   ierr = 0
+   
+   if (.not. allocated(xk)) then
+      allocate( xk (1), yk (1), zk (1) , NOD (1) , KC (1) , NMK (1) , RNOD(1)   )
+      allocate(nod(1)%lin(1))
+   endif
+   if (.not. allocated(xk0)) then
+      allocate( xk0(1), yk0(1), zk0(1) , NOD0(1) , KC0(1) , NMK0(1), KN0(1,1), LC0(1)  )
+      allocate(nod0(1)%lin(1))
+      nmk0 = 0
+   endif
+   KMAX = 2
+   LMAX = 2
+   CALL INCREASENETW(KMAX, LMAX)
+   
+   end function ggeo_initialize
+
+   
    !< converter function
-   function ggeo_convert(meshgeom) result(ierr)
+   function ggeo_convert(meshgeom, start_index) result(ierr)
 
    use meshdata
    use network_data
@@ -2482,13 +3035,17 @@
 
    implicit none
    type(t_ug_meshgeom), intent(in)      :: meshgeom
-   integer                              :: numk_last, numl_last, ierr, numk_read, l
+   integer, intent(in)                  :: start_index   
+   integer                              :: numk_last, numl_last, ierr, numk_read, l, incrementIndex
 
+   incrementIndex = 0
    ierr = 0
 
    numk_last = LNUMK
    numl_last = LNUML
    numk_read = meshgeom%numnode
+   
+   if (start_index == 0) incrementIndex = 1;
 
    !Prepare net vars for new data and fill with values from file, increases nod, xk, yk, zk, kn if needed
 
@@ -2499,13 +3056,13 @@
 
    do l=1,meshgeom%numedge
       ! Append the netlink table, and also increment netnode numbers in netlink array to ensure unique ids.
-      kn(1:2,numl_last+l) = numk_last + meshgeom%edge_nodes(1:2,l) !to calculate in 1D!
+      kn(1:2,numl_last+l) = numk_last + meshgeom%edge_nodes(1:2,l) + incrementIndex !to calculate in 1D!
       kn(3,  numl_last+l) = meshgeom%dim
    end do
 
    !Increase the number of links
-   NUML = numl_last + meshgeom%numedge
-   NUMK = numk_last + meshgeom%numnode
+   if (meshgeom%numedge>0) NUML = numl_last + meshgeom%numedge
+   if (meshgeom%numnode>0) NUMK = numk_last + meshgeom%numnode
 
    LNUMK = NUMK
    LNUML = NUML
@@ -2516,25 +3073,28 @@
 
    use network_data
    use m_dimens
+   use m_polygon
 
    integer ierr
    ierr = network_data_destructor()
    ierr = m_dimens_destructor()
+   ierr = m_polygon_destructor()
 
    end function
 
    !< get the number of created links
-   function ggeo_get_links_count(nlinks) result(ierr)
+   function ggeo_get_links_count(nlinks, linkType) result(ierr)
 
    use network_data
 
    integer, intent(inout)  :: nlinks
    integer                 :: l, ierr
+   integer                 :: linkType
 
    ierr = 0
    nlinks = 0
-   do l=1,NUML
-      if(kn(3,l).eq.3) then
+   do l=1,numl1d + numl
+      if(kn(3,l).eq.linkType) then
          nlinks = nlinks + 1
       end if
    end do
@@ -2542,18 +3102,19 @@
    end function ggeo_get_links_count
 
    !< get the links
-   function ggeo_get_links(arrayfrom, arrayto)  result(ierr)
+   function ggeo_get_links(arrayfrom, arrayto, linkType)  result(ierr)
 
    use network_data
 
-   integer, intent(inout):: arrayfrom(:), arrayto(:)
-   integer :: ierr, nlinks, l, nc
+   integer, intent(inout)  :: arrayfrom(:), arrayto(:)
+   integer                 :: ierr, nlinks, l, nc
+   integer                 :: linkType
 
    ierr     = 0
    nlinks   = 0
 
-   do l=1,numl
-      if(kn(3,l).eq.3) then
+   do l=1,numl1d + numl
+      if(kn(3,l).eq.linkType) then
          nlinks = nlinks + 1
          nc = 0
          call incells(xk(kn(1,l)), yk(kn(1,l)), nc)
@@ -2561,7 +3122,7 @@
             ierr = -1
             return
          endif
-         arrayfrom(nlinks) = nc  !2d cell
+         arrayfrom(nlinks) = nc       !2d cell
          arrayto(nlinks)   = kn(2,l)  !1dlink
       end if
    end do
@@ -2572,6 +3133,7 @@
    function ggeo_convert_1d_arrays(nodex, nodey, branchoffset, branchlength, branchidx, sourcenodeid, targetnodeid, meshgeom, startindex) result(ierr)
 
    use meshdata
+   use odugrid
    use m_alloc
 
    double precision, intent(in)         :: nodex(:), nodey(:), branchoffset(:), branchlength(:)
@@ -2586,59 +3148,68 @@
    allocate(meshgeom%nodex(meshgeom%numnode))
    allocate(meshgeom%nodey(meshgeom%numnode))
    allocate(meshgeom%branchidx(size(branchidx,1)))
-
-   ierr = ggeo_edge_nodes_count(sourcenodeid, targetnodeid, meshgeom%numnode, numedge)
-   meshgeom%numedge = numedge
-   allocate(meshgeom%edge_nodes(2, meshgeom%numedge))
-
+   
    !Assign the node coordinates
+   meshgeom%branchidx  = branchidx
    meshgeom%nodex      =  nodex
    meshgeom%nodey      =  nodey
-   meshgeom%branchidx =  branchidx
+   
+   ierr = ggeo_count_or_create_edge_nodes(meshgeom%branchidx, branchoffset, sourcenodeid, targetnodeid, branchlength, startindex, meshgeom%numedge) 
+   
+   allocate(meshgeom%edge_nodes(2, meshgeom%numedge))
 
    !Calculate the edge_nodes
-   ierr = ggeo_create_edge_nodes(meshgeom%branchidx, branchoffset, sourcenodeid, targetnodeid, meshgeom%edge_nodes, branchlength, startindex)
+   ierr = ggeo_count_or_create_edge_nodes(meshgeom%branchidx, branchoffset, sourcenodeid, targetnodeid, branchlength, startindex, meshgeom%numedge, meshgeom%edge_nodes)
 
    end function ggeo_convert_1d_arrays
+   
+   
+   function ggeo_connect_edges(startEdge, endEdge, connectionMask, numedege, edgenodes) result(ierr)
+   
+   
+   integer, intent(in)                    :: startEdge, endEdge
+   
+   integer, intent(inout)                 :: connectionMask(:)
+   integer, intent(inout)                 :: numedege
+   integer, optional, intent(inout)       :: edgenodes(:,:)
+   integer                                :: ierr
+   logical                                :: createEdgeNodes
+   
+   ierr = -1
+   createEdgeNodes = .false.
+   
+   if(present(edgenodes)) then
+      createEdgeNodes = .true. 
+   endif
 
-   function ggeo_edge_nodes_count(sourcenodeid, targetnodeid, numnode, numedge) result(ierr)
-
-   integer, intent(in)     :: sourcenodeid(:), targetnodeid(:), numnode
-   integer, intent(inout)  :: numedge
-   integer                 :: ierr, i, k, nnetworknodes, noverlaps, nbranches
-   integer, allocatable    :: connectedBranches(:)
-
+   if((connectionMask(startEdge).eq.0).or.(connectionMask(endEdge).eq.0)) then
+      numedege = numedege + 1 
+      connectionMask(startEdge) = connectionMask(startEdge) + 1
+      connectionMask(endEdge)   = connectionMask(endEdge) + 1
+      if (createEdgeNodes) then
+         edgenodes(1,numedege) = startEdge
+         edgenodes(2,numedege) = endEdge
+      endif
+   endif
+   
    ierr = 0
-   nbranches = size(sourcenodeid)
-   ! calculate the number of edge nodes, considering the overlaps
-   ! (if more nodes are shared, then we have less edge nodes)
-   nnetworknodes = max(maxval(sourcenodeid),maxval(targetnodeid))
-   allocate(connectedBranches(nnetworknodes))
-   connectedBranches = 0
-   do i = 1, nnetworknodes
-      !for each node count how many branches are sharing it
-      do k = 1, nbranches
-         if ((targetnodeid(k).eq.i).or.(sourcenodeid(k).eq.i)) then
-            connectedBranches(i) = connectedBranches(i) + 1
-         endif
-      enddo
-   enddo
-   noverlaps = sum(connectedBranches) - nnetworknodes
-   numedge = numnode - (nBranches - noverlaps)
-
-   end function ggeo_edge_nodes_count
+   
+   end function ggeo_connect_edges
 
 
    !< Algorithm to calculate the edgenodes array. The only assumption made here is that the mesh nodes are written consecutively,
    !< in the same direction indicated by the sourcenodeid and the targetnodeid arrays (e.g.
    !< 1  -a-b-c-> 2 and not 1 -c-a-b-> 2 where 1 and 2 are network nodes and a, b, c are mesh nodes )
-   function ggeo_create_edge_nodes(branchidx, branchoffset, sourcenodeid, targetnodeid, edgenodes, branchlength, startindex) result(ierr) !edge_nodes
+   function ggeo_count_or_create_edge_nodes(branchidx, branchoffset, sourcenodeid, targetnodeid, branchlength, startindex, numedege, edgenodes) result(ierr) !edge_nodes
+   
+   use odugrid
 
-   integer, intent(in)          :: branchidx(:), sourcenodeid(:), targetnodeid(:), startindex
-   double precision, intent(in) :: branchoffset(:),branchlength(:)
-   integer, intent(inout)       :: edgenodes(:,:)
-   integer, allocatable         :: meshnodemapping(:),internalnodeindexses(:)
-   integer                      :: nnetworknodes, nBranches,nmeshnodes, ierr , k , n, br, st, en, kk, firstvalidarraypos
+   integer, intent(in)                    :: branchidx(:), sourcenodeid(:), targetnodeid(:), startindex
+   double precision, intent(in)           :: branchoffset(:),branchlength(:)
+   integer, intent(inout)                 :: numedege
+   integer, allocatable                   :: meshnodemapping(:,:), internalnodeindexses(:), connectionMask(:), correctedBranchidx(:)
+   integer, optional, intent(inout)       :: edgenodes(:,:)
+   integer                                :: nnetworknodes, nBranches,nmeshnodes, ierr , k , n, br, st, en, kk, firstvalidarraypos
 
    ierr = 0
    firstvalidarraypos = 0
@@ -2651,55 +3222,294 @@
    nnetworknodes = max(maxval(sourcenodeid),maxval(targetnodeid)) + firstvalidarraypos
    nmeshnodes = size(branchidx)
    nbranches = size(sourcenodeid)
-   allocate(meshnodemapping(nnetworknodes))
+   allocate(correctedBranchidx(nmeshnodes))
+   allocate(meshnodemapping(2,nbranches))
    allocate(internalnodeindexses(nmeshnodes))
+   allocate(connectionMask(nmeshnodes)) !safety mask, to avoid generating too many nodes
 
+   correctedBranchidx = branchidx + firstvalidarraypos
    !map the mesh nodes
    meshnodemapping = -1
-   do br = 1, nbranches
-      do n=1, nmeshnodes
-         if ((abs(branchoffset(n)).le.1e-6).and.(branchidx(n)+firstvalidarraypos.eq.br)) then
-            meshnodemapping(sourcenodeid(br)+firstvalidarraypos) = n
-         endif
-         if ((abs(branchoffset(n)-branchlength(br)).le.1e-6).and.(branchidx(n)+firstvalidarraypos.eq.br)) then
-            meshnodemapping(targetnodeid(br)+firstvalidarraypos) = n
-         endif
-      enddo
-   enddo
+   ierr = odu_get_start_end_nodes_of_branches(correctedBranchidx, meshnodemapping(1,:), meshnodemapping(2,:))
 
-   k = 0
+   numedege = 0
+   connectionMask  =  0
    do br = 1, nbranches
-      if ((meshnodemapping(sourcenodeid(br)+firstvalidarraypos).eq.-1).or.(meshnodemapping(targetnodeid(br)+firstvalidarraypos).eq.-1)) then
+      if ((meshnodemapping(1,br).eq.-1).or.(meshnodemapping(2,br).eq.-1)) then
          ierr = -1
          return
       endif
       ! starting and ending nodes
-      st =  meshnodemapping(sourcenodeid(br)+firstvalidarraypos)
-      en =  meshnodemapping(targetnodeid(br)+firstvalidarraypos)
+      st =  meshnodemapping(1,br)
+      en =  meshnodemapping(2,br)
       !the nodes between
       kk =  0
+      internalnodeindexses = 0
       do n=1, nmeshnodes
-         if(branchidx(n)+firstvalidarraypos.eq.br.and.(n.ne.st).and.(n.ne.en)) then
+         if(correctedBranchidx(n).eq.br.and.(n.ne.st).and.(n.ne.en)) then
             kk = kk + 1
             internalnodeindexses(kk) = n
          endif
       enddo
+      !if no internal nodes, connect and cycle
+      if (kk.eq.0) then
+         ierr = ggeo_connect_edges(st, en, connectionMask, numedege, edgenodes)
+         cycle
+      endif
       !connect the start node to the first internal node
-      k = k + 1
-      edgenodes(1,k) = st
-      edgenodes(2,k) = internalnodeindexses(1)
-      !connect end node to iternal
+      ierr = ggeo_connect_edges(st, internalnodeindexses(1), connectionMask, numedege, edgenodes)
+      !connect internal nodes
       do n =1, kk - 1
-         k = k +1
-         edgenodes(1,k) = internalnodeindexses(n)
-         edgenodes(2,k) = internalnodeindexses(n)  + 1
+         ierr = ggeo_connect_edges(internalnodeindexses(n), internalnodeindexses(n+1), connectionMask, numedege, edgenodes)
       enddo
       !connect the last internal node to the end node
-      k = k + 1
-      edgenodes(1,k) = internalnodeindexses(kk)
-      edgenodes(2,k) = en
+      ierr = ggeo_connect_edges(internalnodeindexses(kk), en, connectionMask, numedege, edgenodes)   
+   enddo
+   
+   end function ggeo_count_or_create_edge_nodes
+   
+   !> Makes 1d2d embedded links: 1D is typically overlapping the 2D grid,
+   !! and potentially more than one 1d2d link per 1d mesh node is created.
+   !! 2D cells are connected if they are intersected by a 1D edge. They are
+   !! connected to the nearest of the two endpoints of each 1D edge.
+   function ggeo_make1D2Dembeddedlinks(jsferic, jasfer3D, oneDMask)  result(ierr)
+
+   use network_data
+   use m_missing,       only: dmiss
+   use geometry_module, only: dbdistance, crossinbox
+   use kdtree2Factory
+   use m_cell_geometry
+
+   implicit none
+   
+   integer, intent(in)           :: jsferic, jasfer3D 
+   integer, optional, intent(in) :: oneDMask(:)
+   
+   !output
+   integer                       :: ierr !< Error status, 0 if success, nonzero in case of error.
+   
+   !locals
+   integer                       :: k, kk, k1, k2, k3, k4, k5, k6, ncellsinSearchRadius, numberCellNetlinks, isCrossing, newPointIndex, newLinkIndex
+   integer                       :: l, cellNetLink, cellId, kn3ty, numnetcells
+   double precision              :: searchRadiusSquared, ldistance, rdistance, maxdistance, sl, sm, xcr, ycr, crp
+   integer, allocatable          :: localCellmask(:)
+   
+   type(kdtree_instance) :: treeinst
+
+   ierr = 0
+   !LC: is this the right type?
+   kn3ty = 3
+   call savenet()
+   call findcells(0)
+
+   numnetcells = size(xz(:))
+   if (numnetcells>0) then
+      call build_kdtree(treeinst, size(xz(:)), xz(:), yz(:), ierr, jsferic, dmiss)
+   else
+      return
+   endif
+
+   allocate(localCellmask(nump))
+   localCellmask = 0
+   do l = 1, numl1d
+      k1  = kn(1,l); k2  = kn(2,l); k3 = kn(3,l)
+      !get the left 1d mesh point
+      call make_queryvector_kdtree(treeinst, xk(k1), yk(k1), jsferic)
+
+      !compute the search radius
+      ldistance = 0d0
+      if (l>=2) then
+         k4 = kn(1,l-1)
+         ldistance = dbdistance(xk(k4),yk(k4),xk(k1),yk(k1), jsferic, jasfer3D, dmiss)
+      endif
+      rdistance = dbdistance(xk(k1),yk(k1),xk(k2),yk(k2), jsferic, jasfer3D, dmiss)
+      maxdistance = max(ldistance, rdistance)
+      !1.1d0: safety
+      searchRadiusSquared = 1.1d0*maxdistance**2
+      !count number of cells in the search area
+      nCellsInSearchRadius = kdtree2_r_count(treeinst%tree,treeinst%qv,searchRadiusSquared)
+      !no cells found
+      if ( nCellsInSearchRadius.eq.0 ) cycle
+      !reallocate if necessary
+      call realloc_results_kdtree(treeinst, nCellsInSearchRadius)
+      !find nearest cells
+      call kdtree2_n_nearest(treeinst%tree,treeinst%qv,nCellsInSearchRadius,treeinst%results)
+      !connection loop
+      isCrossing = 0
+      do k = 1, nCellsInSearchRadius
+         !check if one of the cell net link crosses the current 1d link
+         cellId= treeinst%results(k)%idx
+         !this cell has been already explored or is already connected 
+         if (localCellmask(cellId).ne.0) cycle
+         !check if the cell is already connected
+         numberCellNetlinks = size(netcell(cellId)%lin)
+         do kk = 1, numberCellNetlinks
+            if (localCellmask(cellId).ne.0) cycle
+            cellNetLink =  netcell(cellId)%lin(kk)
+            k5  = kn(1,cellNetLink); 
+            k6  = kn(2,cellNetLink);
+            call crossinbox (xk(k5), xk(k5), xk(k6), xk(k6), xk(k1), xk(k1), xk(k2), yk(k2), isCrossing, sl, sm, xcr, ycr, crp, jsferic, dmiss)
+            newLinkIndex = -1
+            if (isCrossing == 1) then
+               ldistance = dbdistance(xk(k1), yk(k1), xz(cellId), yz(cellId), jsferic, jasfer3D, dmiss)
+               rdistance = dbdistance(xk(k2), yk(k2), xz(cellId), yz(cellId), jsferic, jasfer3D, dmiss)     
+               if (ldistance<=rdistance) then
+                  if (present(oneDMask)) then !again, Fortran does not have logical and two nested if statement are needed
+                     if(oneDMask(k1)==1) then
+                        call setnewpoint(xz(cellId),yz(cellId),zk(cellId), newPointIndex)
+                        call connectdbn(newPointIndex, k1, newLinkIndex)
+                     endif
+                  else
+                     call setnewpoint(xz(cellId),yz(cellId),zk(cellId), newPointIndex)
+                     call connectdbn(newPointIndex, k1, newLinkIndex)
+                  endif
+               else
+                  if (present(oneDMask)) then !again, Fortran does not have logical and two nested if statement are needed
+                     if(oneDMask(k2)==1) then
+                        call setnewpoint(xz(cellId),yz(cellId),zk(cellId), newPointIndex)
+                        call connectdbn(newPointIndex, k2, newLinkIndex)
+                     endif
+                  else
+                     call setnewpoint(xz(cellId),yz(cellId),zk(cellId), newPointIndex)
+                     call connectdbn(newPointIndex, k2, newLinkIndex)
+                  endif
+               endif
+               if (newLinkIndex.ne.-1) then
+                  kn(3,newLinkIndex) = kn3ty
+                  !cell is connected, set localCellmask mask and end cycle
+                  localCellmask(cellId) = 2
+               endif
+            else
+               localCellmask(cellId) = 3
+            endif
+            !loop over numberCellNetlinks
+         enddo
+       !loop over ncellsInSearchRadius
+      enddo
+   !loop over numl1d
    enddo
 
-   end function ggeo_create_edge_nodes
+   end function ggeo_make1D2Dembeddedlinks
+
+   !> Makes 1d2d river links: 1D is typically a non-overlapping 2D grid,
+   !! and potentially more than one 1d2d link per 1d mesh node is created.
+   !! 2D cells are connected if they are at the boundary of the domain and inside the search radius.
+   !! They are connected to the nearest 1d point.
+   function ggeo_make1D2DRiverLinks(jsferic, jasfer3D, searchRadius, oneDMask) result(ierr)
+
+   use network_data
+   use m_missing,       only: dmiss
+   use geometry_module, only: dbdistance, crossinbox
+   use kdtree2Factory
+   use m_cell_geometry
+
+   implicit none
+
+   !input
+   integer, intent(in)              :: jsferic, jasfer3D
+   double precision, intent(in)     :: searchRadius
+   integer, optional, intent(in)    :: oneDMask(:)
+
+
+   !locals
+   integer                       :: ierr !< Error status, 0 if success, nonzero in case of error.
+   integer                       :: k, kk, k1, k2, k3, ncellsinSearchRadius, numberCellNetlinks, prevConnectedNetNode, newPointIndex
+   integer                       :: newLinkIndex
+   integer                       :: l, cellNetLink, cellId, kn3localType, numnetcells
+   double precision              :: searchRadiusSquared, maxdistance, prevDistance, currDistance
+   logical                       :: isBoundaryCell
+   type(kdtree_instance)         :: treeinst
+   integer, allocatable          :: localCellmask(:)
+
+   ierr = 0
+   !LC: is this the right type for rivers
+   kn3localType = 3 
+   call savenet()
+   call findcells(0)
+
+   numnetcells = size(xz(:))
+   if (numnetcells>0) then
+      call build_kdtree(treeinst, size(xz(:)), xz(:), yz(:), ierr, jsferic, dmiss)
+   else
+      return
+   endif
+
+   allocate(localCellmask(nump))
+   localCellmask = 0
+   do l = 1, numl1d + 1
+      !only check the left point
+      if( l .eq. numl1d + 1) then
+         k1  = kn(2,l-1)
+      else
+         k1  = kn(1,l)
+      endif
+      !get the left 1d mesh point
+      call make_queryvector_kdtree(treeinst, xk(k1), yk(k1), jsferic)
+      !the search radius
+      searchRadiusSquared = searchRadius**2
+      !count number of cells in the search area
+      nCellsInSearchRadius = kdtree2_r_count(treeinst%tree,treeinst%qv,searchRadiusSquared)
+      !no cells found
+      if ( nCellsInSearchRadius.eq.0 ) cycle
+      !reallocate if necessary
+      call realloc_results_kdtree(treeinst, nCellsInSearchRadius)
+      !find nearest cells
+      call kdtree2_n_nearest(treeinst%tree,treeinst%qv,nCellsInSearchRadius,treeinst%results)
+      !connection loop
+      do k = 1, nCellsInSearchRadius
+         !get the current cell id and the previously connected net node
+         cellId= treeinst%results(k)%idx
+         prevConnectedNetNode = localCellmask(cellId)
+         !already not a boundary net node
+         if (prevConnectedNetNode.eq.-1) cycle
+         !check if it is a boundary cell
+         isBoundaryCell = .false.
+         do kk =1, size(netcell(cellId)%lin)
+            cellNetLink =  netcell(cellId)%lin(kk)
+            if(lnn(cellNetLink).eq.1) then
+               isBoundaryCell=.true.
+               exit
+            endif
+         enddo
+         !not a boundary cell
+         if (.not.isBoundaryCell) then
+            localCellmask(cellId) = - 1
+            cycle
+         !a candidate connection already exist
+         else if(prevConnectedNetNode.ne.0) then
+            prevDistance = dbdistance(xk(prevConnectedNetNode),yk(prevConnectedNetNode),xz(cellId),yz(cellId), jsferic, jasfer3D, dmiss)
+            currDistance = dbdistance(xk(k1),yk(k2),xz(cellId),yz(cellId), jsferic, jasfer3D, dmiss)
+            if (currDistance<prevDistance) then
+               localCellmask(cellId) = k1
+            endif
+         else if(prevConnectedNetNode.eq.0) then
+            localCellmask(cellId) = k1
+         endif
+      enddo
+   enddo
+
+   !make the connections
+   do cellId = 1, nump
+      newLinkIndex = -1
+      if (localCellmask(cellId).ne.0) then
+         !check presence of oneDMask
+         if (present(oneDMask)) then !again, Fortran does not have logical and two nested if statement are needed
+            if(oneDMask(localCellmask(cellId))==1) then
+               call setnewpoint(xz(cellId), yz(cellId), zk(cellId), newPointIndex)
+               call connectdbn(newPointIndex, localCellmask(cellId), newLinkIndex)
+            endif
+         else
+            call setnewpoint(xz(cellId),yz(cellId),zk(cellId), newPointIndex)
+            call connectdbn(newPointIndex, localCellmask(cellId), newLinkIndex)
+         endif
+         if (newLinkIndex.ne.-1) then
+            !cell is connected, set kn
+            kn(3,newLinkIndex) = kn3localType
+         endif
+      endif
+   enddo
+
+   end function ggeo_make1D2DRiverLinks
+
 
    end module gridoperations

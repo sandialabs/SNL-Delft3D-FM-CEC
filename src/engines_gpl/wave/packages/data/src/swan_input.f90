@@ -25,7 +25,7 @@ module swan_input
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: swan_input.f90 7992 2018-01-09 10:27:35Z mourits $
+!  $Id: swan_input.f90 61848 2018-09-14 14:27:26Z mourits $
 !  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/wave/packages/data/src/swan_input.f90 $
 !!--description-----------------------------------------------------------------
 !
@@ -331,7 +331,7 @@ module swan_input
        character(15)                            :: writehottime  = '00000000.000000'       ! Time in the name of the hotfile that has to be written by SWAN
        character(15)                            :: keephottime   = '00000000.000000'       ! Time in the name of the hotfile that should not be deleted
        character(50), dimension(:), allocatable :: pntfilnam     ! Name of file containing locations for which output is requested
-       character(20), dimension(:), allocatable :: pntfilnamtab  ! Name of file containing output on locations
+       character(50), dimension(:), allocatable :: pntfilnamtab  ! Name of file containing output on locations
        !
        type(handletype)                         :: tseriesfile
        !
@@ -1120,6 +1120,8 @@ end subroutine scan_mdw
 subroutine read_keyw_mdw(sr          ,wavedata   ,keywbased )
     use properties
     use read_grids
+    use time_module
+    use string_module
     implicit none
     !
     type(swan)                  :: sr
@@ -1162,6 +1164,8 @@ subroutine read_keyw_mdw(sr          ,wavedata   ,keywbased )
     integer                     :: iter
     integer                     :: n_outpars
     integer                     :: par
+    integer                     :: slash_er
+    integer                     :: slash_ok
     integer, dimension(4)       :: def_ts_hs
     integer, dimension(4)       :: def_ts_tp
     integer, dimension(4)       :: def_ts_wd
@@ -1298,7 +1302,7 @@ subroutine read_keyw_mdw(sr          ,wavedata   ,keywbased )
        goto 999
     endif
     call setrefdate(wavedata%time,refdate)
-    call juldat(refdate ,sr%refjulday)
+    sr%refjulday = ymd2jul(refdate)
     !
     tscale = 60.0
     call prop_get_real   (mdw_ptr, 'General', 'TScale', tscale)
@@ -2761,11 +2765,21 @@ subroutine read_keyw_mdw(sr          ,wavedata   ,keywbased )
        enddo
     endif
     !
+    ! In paths:
+    ! Forward slash works fine on both Windows and Linux
+    ! Backward slash does not work on Linux
+    slash_ok = 47 ! /
+    slash_er = 92 ! \
+    call replace_char(sr%flowgridfile, slash_er, slash_ok)
+    do i = 1, sr%nloc
+       call replace_char(sr%pntfilnam(i), slash_er, slash_ok)
+    enddo
+    !
     write(*,*) 'Done reading input'
     !
     return
 999 continue
-    call wavestop(1, "ERROR whil reading keyword based mdw file")
+    call wavestop(1, "ERROR while reading keyword based mdw file")
 end subroutine read_keyw_mdw
 !
 !

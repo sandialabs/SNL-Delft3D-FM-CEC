@@ -27,8 +27,8 @@
 !                                                                               
 !-------------------------------------------------------------------------------
 
-! $Id: fm_thahbc.f90 54191 2018-01-22 18:57:53Z dam_ar $
-! $HeadURL: https://repos.deltares.nl/repos/ds/trunk/additional/unstruc/src/fm_thahbc.f90 $
+! $Id: fm_thahbc.f90 62178 2018-09-27 09:19:40Z mourits $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/dflowfm/packages/dflowfm_kernel/src/fm_thahbc.f90 $
 !!--description-----------------------------------------------------------------
 ! FROM DELFT3D
 ! computes boundary values at open boundaries,

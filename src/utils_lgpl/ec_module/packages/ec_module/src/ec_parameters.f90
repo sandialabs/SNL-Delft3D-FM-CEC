@@ -23,7 +23,7 @@
 !  are registered trademarks of Stichting Deltares, and remain the property of  
 !  Stichting Deltares. All rights reserved.                                     
 
-!  $Id: ec_parameters.f90 7992 2018-01-09 10:27:35Z mourits $
+!  $Id: ec_parameters.f90 62177 2018-09-27 08:52:38Z nabi $
 !  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_lgpl/ec_module/packages/ec_module/src/ec_parameters.f90 $
 
 !> This module contains the Ec-module's enumerations and constants.
@@ -36,7 +36,7 @@ module m_ec_parameters
 
    implicit none
 
-   integer,  parameter :: maxNameLen           = 100
+   integer,  parameter :: maxNameLen           = 256
    integer,  parameter :: maxRecordLen         = 132
    integer,  parameter :: maxFileNameLen       = 256
    integer,  parameter :: maxFileReaderFiles   = 3
@@ -118,6 +118,7 @@ module m_ec_parameters
    integer, parameter :: interpolate_smoothing                  = 11 !< Not yet supported: only spatial, smoothing
    integer, parameter :: interpolate_intdiffusion               = 12 !< Not yet supported: only spatial, internal diffusion
    integer, parameter :: interpolate_vertprofile                = 13 !< Not yet supported: only initial vertical profiles
+   integer, parameter :: extrapolate_spacetimeSaveWeightFactors = 14 !< inter/extra-polate in space, save the space weight factors, then interpolate in time
 
    ! enumeration for time interpolation types
    integer, parameter :: timeint_lin                           = 1   !< linear
@@ -164,7 +165,6 @@ module m_ec_parameters
    integer, parameter :: convType_qhtable = 15
    integer, parameter :: convType_sigma   = 16
    integer, parameter :: convType_samples = 17
-
 
    ! Error states, in addition to success=.true./.false. returns.
    integer, parameter :: EC_UNKNOWN_ERROR      = -1 !< Unknown error.

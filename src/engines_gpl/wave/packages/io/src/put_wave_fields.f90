@@ -59,7 +59,7 @@ subroutine crewav(filnam   ,itide    ,hrms     ,tp       ,dir      , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: put_wave_fields.f90 7992 2018-01-09 10:27:35Z mourits $
+!  $Id: put_wave_fields.f90 59766 2018-08-07 12:38:45Z j.reyns $
 !  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/wave/packages/io/src/put_wave_fields.f90 $
 !!--description-----------------------------------------------------------------
 ! NONE
@@ -479,7 +479,7 @@ subroutine crewav_netcdf(fg       ,itide    ,hrms     ,tp       ,dir      , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: put_wave_fields.f90 7992 2018-01-09 10:27:35Z mourits $
+!  $Id: put_wave_fields.f90 59766 2018-08-07 12:38:45Z j.reyns $
 !  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/wave/packages/io/src/put_wave_fields.f90 $
 !!--description-----------------------------------------------------------------
 ! NONE
@@ -666,7 +666,7 @@ subroutine crewav_netcdf(fg       ,itide    ,hrms     ,tp       ,dir      , &
 !tps  = 0.0
 !ubot = 0.0
 !wlen = 0.0
-
+!
 !hrms = 0.0
 !tp   = 0.0
 !dir  = 0.0

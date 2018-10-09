@@ -25,7 +25,7 @@ module M_friction                                 !< friction parameters, (more 
 !  Stichting Deltares. All rights reserved.
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: Roughness.f90 8044 2018-01-24 15:35:11Z mourits $
+!  $Id: Roughness.f90 8775 2018-05-15 12:53:23Z noort $
 !  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_gpl/flow1d/packages/flow1d_core/src/Roughness.f90 $
 !-------------------------------------------------------------------------------
 
@@ -288,7 +288,7 @@ double precision function getFrictionValue(rgs, spData, ibranch, section, igrid,
     rad = max(r, 1.d-6)
     dep = max(d, 1.d-6)
     !
-    isec1 = section + 1
+    isec1 = section
     !
     !     Formulation = .not. Engelund
     !

@@ -1,4 +1,5 @@
 module ModelTypes
+   use messageHandling 
 !----- AGPL --------------------------------------------------------------------
 !                                                                               
 !  Copyright (C)  Stichting Deltares, 2017-2018.                                
@@ -25,7 +26,7 @@ module ModelTypes
 !  Stichting Deltares. All rights reserved.
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: ModelTypes.f90 8044 2018-01-24 15:35:11Z mourits $
+!  $Id: ModelTypes.f90 61901 2018-09-25 13:47:09Z zeekant $
 !  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_gpl/flow1d/packages/flow1d_core/src/ModelTypes.f90 $
 !-------------------------------------------------------------------------------
 
@@ -37,14 +38,19 @@ module ModelTypes
         integer          :: currentTimeStep
         double precision :: currentTime               ! current time in seconds
         double precision :: timeStep                  ! time step in seconds
-        double precision :: outputTimeStep            ! output timestep in seconds
+        double precision :: mapOutputTimeStep         ! output timestep in seconds for grid points and reach segments
+        double precision :: hisOutputTimeStep         ! output timestep in seconds for other data
         integer          :: startDate
         integer          :: endDate
         integer          :: startTime
         integer          :: endTime
         integer          :: restartendTimestep
-        integer          :: restartInterval            ! output timestep in seconds
-        integer          :: nextRestarttimestep            ! output timestep in seconds
+        integer          :: restartInterval 
+        integer          :: nextRestarttimestep
+        logical          :: writerestart
+        logical          :: userestart
+        
+        character(len=Charln) :: restartFile
         ! model state variables with dimension of number of points / cells
     end type
 end module

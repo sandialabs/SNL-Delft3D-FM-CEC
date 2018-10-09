@@ -1,5 +1,14 @@
 function H=qp_uifigure(Name,closecom,tag,pos,callbackfcn)
 %QP_UIFIGURE Create a new empty dialog figure.
+%    H = QP_UIFIGURE(NAME,CLOSECOM,TAG,POS,CBF) creates a new dialog figure
+%    with the title set equal to NAME, tag equal to TAG, position equal to
+%    POS (shifted to on screen), resizing off, and close request function
+%    set to
+%        [CBF ' ' CLOSECOM] if CBF and CLOSECOM are strings
+%        {CBF CLOSECOM} otherwise
+%    The figure visibility is set to 'off'.
+%
+%    See also QP_UIMENU, FIGURE, UIMENU, UICONTROL.
 
 %----- LGPL --------------------------------------------------------------------
 %                                                                               
@@ -29,7 +38,7 @@ function H=qp_uifigure(Name,closecom,tag,pos,callbackfcn)
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
 %   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/private/qp_uifigure.m $
-%   $Id: qp_uifigure.m 7992 2018-01-09 10:27:35Z mourits $
+%   $Id: qp_uifigure.m 8849 2018-05-25 12:44:53Z jagers $
 
 Inactive=qp_settings('UIInActiveColor');%[0.5 0.5 1];%
 %
@@ -49,7 +58,7 @@ pos(1:2)=min(pos(1:2),MonPos(1:2)+MonPos(3:4)-pos(3:4)-[0 70]);
 %
 if ~isempty(closecom)
     if ischar(callbackfcn)
-        closecom=sprintf('%s %s',callbackfcn,closecom);
+        closecom = [callbackfcn ' ' closecom];
     else
         closecom = {callbackfcn closecom};
     end

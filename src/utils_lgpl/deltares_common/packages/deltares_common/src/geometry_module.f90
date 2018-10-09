@@ -25,7 +25,7 @@ module geometry_module
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: geometry_module.f90 8006 2018-01-12 15:07:09Z carniato $
+!  $Id: geometry_module.f90 61509 2018-09-03 13:06:23Z dam_ar $
 !  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_lgpl/deltares_common/packages/deltares_common/src/geometry_module.f90 $
 !!--description-----------------------------------------------------------------
 !
@@ -35,6 +35,7 @@ module geometry_module
 ! NONE
 !!--declarations----------------------------------------------------------------
 
+   use MessageHandling, only: msgbox, mess, LEVEL_ERROR
    implicit none
 
    private
@@ -67,9 +68,11 @@ module geometry_module
    public :: ave3D
    !from rest.F90 
    public :: crossinbox          ! line 38
+   public :: dlinedis            ! line 3889 
    public :: dprodout            ! line 3941
    public :: dcosphi             ! line 3986
    public :: spher2locvec        ! line 4391
+   public :: spher2locvec2       ! line 4391
    public :: normalin            ! line 4825
    public :: normalout           ! line 4884
    public :: normaloutchk        ! line 4948  
@@ -85,6 +88,7 @@ module geometry_module
    public :: GETCIRCUMCENTER     ! line 18653
    public :: dotp                ! line 18843
    public :: circumcenter3       ! line 18851
+   public :: comp_breach_point
    
    interface clockwise
       module procedure clockwise_sp
@@ -92,6 +96,55 @@ module geometry_module
    end interface clockwise
 
    contains
+
+   !> projects a point to a polyline and finds the closest link
+   subroutine comp_breach_point(start_location_x, start_location_y, xp, yp, np, xl, yl, Lstart, x_breach, y_breach, jsferic, jasfer3D, dmiss)
+
+   implicit none
+
+   !input
+   integer, intent(in)                       :: np, jsferic, jasfer3D
+   integer, intent(inout)                    :: Lstart
+   double precision, intent(in)              :: start_location_x, start_location_y, dmiss
+   double precision, allocatable, intent(in) :: xp(:), yp(:), xl(:), yl(:)
+   double precision, intent(inout)           :: x_breach, y_breach
+   
+   !locals
+   integer                                   :: k, ja, Lf, k1, k2
+   double precision                          :: dis, distemp, xn, yn, xntempa, yntempa, xc, yc
+
+   ! Project the start of the breach on the polyline, find xn and yn
+   !if(.not.allocated(xp)) return
+   !if(.not.allocated(yp)) return
+   xn = dmiss
+   yn = dmiss
+   dis = huge(dmiss)
+   do k  = 1, np - 1
+      call dlinedis(start_location_x, start_location_y, xp(k), yp(k), xp(k + 1), yp(k + 1), ja, distemp, xntempa, yntempa, jsferic, jasfer3D, dmiss)
+      if (distemp <= dis ) then
+         xn  = xntempa
+         yn  = yntempa
+         dis = distemp
+      endif
+   enddo
+
+   ! Assign the flow links and the starting link of the breach
+   dis = huge(dmiss)      
+   do k = 1, size(xl) - 1
+      ! compute the mid point of the segment
+      call half(xl(k), yl(k), xl(k+1), yl(k+1), xc, yc, jsferic, jasfer3D)
+      ! calculate the distance with projected start of the breach
+      distemp = dbdistance(xn, yn, xc, yc, jsferic, jasfer3D, dmiss)
+      ! identify the closest link to the projected point
+      if (distemp <= dis) then
+         Lstart   = k
+         x_breach = xc
+         y_breach = yc
+         dis      = distemp
+      endif
+   enddo
+   
+   end subroutine comp_breach_point   
 
       !> Checks orientation of a polygon in single precision.
       function clockwise_sp(x,y) result(cw)
@@ -536,19 +589,12 @@ module geometry_module
 
       DET =  X43*Y21 - Y43*X21
 
-!     SPvdP: make eps have proper dimension
-      EPS = max(EPS*MAXVAL((/ X21,Y21,X43,Y43,X31,Y31 /)), tiny(0d0))
+      EPS = max(EPS*MAXVAL((/ X21,Y21,X43,Y43 /)), tiny(0d0))
       IF (ABS(DET) .LT. EPS) THEN
          RETURN
       ELSE
          SM = (Y31*X21 - X31*Y21) / DET
-         IF (ABS(X21) .GT. EPS) THEN
-            SL = (SM*X43 + X31) / X21
-         ELSE IF (ABS(Y21) .GT. EPS) THEN
-            SL = (SM*Y43 + Y31) / Y21
-         ELSE
-            SL   = 0d0
-         ENDIF
+         SL = (Y31*X43 - X31*Y43) / DET
          IF (SM .GE. 0d0 .AND. SM .LE. 1d0 .AND. &
              SL .GE. 0d0 .AND. SL .LE. 1d0) THEN
             JACROS = 1
@@ -565,7 +611,7 @@ module geometry_module
       
       end subroutine CROSS
       
-      subroutine cross3D(x1, y1, x2, y2, x3, y3, x4, y4, jacros, sL, sm, jsferic, dmiss)    ! ,SL,SM,XCR,YCR,CRP, jsferic, dmiss)
+      subroutine cross3D(x1, y1, x2, y2, x3, y3, x4, y4, jacros, sL, sm, xcr, ycr, jsferic, dmiss)    ! ,SL,SM,XCR,YCR,CRP, jsferic, dmiss)
       
          implicit none
          
@@ -575,10 +621,12 @@ module geometry_module
          double precision, intent(in)   :: x4, y4 !< fourth point coordinates
          integer,          intent(out)  :: jacros !< line 1-2 crosses line 3-4 (1) or not (0)
          double precision, intent(out)  :: sL, sm
+         double precision, intent(out)  :: xcr, ycr
          integer,          intent(in)   :: jsferic
          double precision, intent(in)   :: dmiss
          
          double precision, dimension(3) :: xx1, xx2, xx3, xx4
+         double precision, dimension(3) :: xxcr
          
          double precision, dimension(3) :: n12, n34, n
          
@@ -624,6 +672,9 @@ module geometry_module
                SL .GE. 0d0 .AND. SL .LE. 1d0 ) THEN
             jacros = 1
          endif
+         
+         xxcr    = xx1 + SL*(xx2-xx1)
+         call Cart3Dtospher(xxcr(1),xxcr(2),xxcr(3),xcr,ycr,max(x1, x2))
          
          return
       end subroutine cross3D
@@ -719,9 +770,13 @@ module geometry_module
       integer                                         :: num
       double precision, intent(in)                    :: dmiss
       integer, intent(in)                             :: JINS, NPL
-      double precision, intent(in)                    :: xpl(NPL), ypl(NPL), zpl(NPL)
-
-      call dbpinpol_optinside_perpol(xp, yp, 0, 0, in, num, dmiss, JINS, NPL, xpl, ypl, zpl)
+      double precision, optional,intent(in)           :: xpl(:), ypl(:), zpl(:)
+      
+      if (NPL>0 .and. present(xpl)) then
+         call dbpinpol_optinside_perpol(xp, yp, 0, 0, in, num, dmiss, JINS, NPL, xpl, ypl, zpl)
+      else
+         call dbpinpol_optinside_perpol(xp, yp, 0, 0, in, num, dmiss, JINS, NPL)
+      endif
       end subroutine dbpinpol
 
       !> The original dbpinpol routine, extended with an optional per-polygon-specified inside-mode.
@@ -756,8 +811,8 @@ module geometry_module
       integer :: jins_opt !< The actual used jins-mode (either global, or per poly)
       double precision, intent(in)                    :: dmiss
       integer, intent(in)                             :: JINS, NPL
-      double precision, intent(in)                    :: xpl(NPL), ypl(NPL), zpl(NPL)
-
+      double precision, optional, intent(in)          :: xpl(NPL), ypl(NPL), zpl(NPL)
+      
       numselect = 0
 
       if ( NPL.eq.0 ) then
@@ -821,7 +876,6 @@ module geometry_module
          iend   = iiend(ipoly)
 
          !         write(6,"('dbpinpol: ipoly=', I4, ', istart=', I16, ', iend=', I16)") ipoly, istart, iend
-
 
          if ( istart.ge.iend .or. iend.gt.NPL ) exit ! done
 
@@ -1164,6 +1218,86 @@ module geometry_module
       RETURN
       end subroutine crossinbox
 
+      !> Computes the perpendicular distance from point 3 to a line 1-2.
+      subroutine dlinedis(X3,Y3,X1,Y1,X2,Y2,JA,DIS,XN,YN, jsferic, jasfer3D, dmiss)
+      
+      implicit none
+      DOUBLE PRECISION, intent(in   ) :: X1,Y1,X2,Y2 !< x,y coordinates of the line between point 1 and 2.
+      DOUBLE PRECISION, intent(in   ) :: X3,Y3       !< x,y coordinates of the point for which to compute the distance.
+      integer         , intent(  out) :: ja          !< Whether or not (1/0) the computation was possible. If line points 1 and 2 coincide, ja==0, and distance is just Euclidean distance between 3 and 1.
+      DOUBLE PRECISION, intent(  out) :: DIS         !< Perpendicular distance from point 3 and line 1-2.
+      DOUBLE PRECISION, intent(  out) :: XN, YN      !< Coordinates of the projected point from point 3 onto line 1-2.
+      integer,          intent(in   ) :: jsferic, jasfer3D
+      double precision, intent(in   ) :: dmiss
+      
+      DOUBLE PRECISION :: R2,RL,X21,Y21,Z21,X31,Y31,Z31
+      DOUBLE PRECISION :: xx1,xx2,xx3,yy1,yy2,yy3,zz1,zz2,zz3,xxn,yyn,zzn
+
+!     korste afstand tot lijnelement tussen eindpunten
+      JA  = 0
+      
+      if ( jsferic.eq.0 .or. jasfer3D.eq.0 ) then
+         X21 = getdx(x1,y1,x2,y2,jsferic)
+         Y21 = getdy(x1,y1,x2,y2,jsferic)
+         X31 = getdx(x1,y1,x3,y3,jsferic)
+         Y31 = getdy(x1,y1,x3,y3,jsferic)
+         R2  = dbdistance(x2,y2,x1,y1,jsferic, jasfer3D, dmiss)
+         R2  = R2*R2
+!         IF (R2 .NE. 0) THEN
+         IF (R2 .GT. 1D-8) THEN
+            RL  = (X31*X21 + Y31*Y21) / R2
+            RL  = MAX( MIN(1d0,RL) , 0d0)
+            JA  = 1
+            XN  = X1 + RL*(x2-x1)
+            
+!           fix for spherical, periodic coordinates
+            if ( jsferic.eq.1 ) then
+               if ( x2-x1.gt.180d0 ) then
+                  XN = XN - RL*360d0
+               else if ( x2-x1.lt.-180d0 ) then
+                  XN = XN + RL*360d0
+               end if
+            end if
+            
+            YN  = Y1 + RL*(y2-y1)
+            DIS = dbdistance(x3,y3,xn,yn,jsferic, jasfer3D, dmiss)
+         ELSE  ! node 1 -> node 2
+            DIS = dbdistance(x3,y3,x1,y1,jsferic, jasfer3D, dmiss)
+         ENDIF
+      else
+         call sphertocart3D(x1,y1,xx1,yy1,zz1)
+         call sphertocart3D(x2,y2,xx2,yy2,zz2)
+         call sphertocart3D(x3,y3,xx3,yy3,zz3)
+         
+         x21 = xx2-xx1
+         y21 = yy2-yy1
+         z21 = zz2-zz1
+         x31 = xx3-xx1
+         y31 = yy3-yy1
+         z31 = zz3-zz1
+
+         r2  = x21*x21 + y21*y21 + z21*z21      
+         if (R2 .GT. 1D-8) then
+            RL = (X31*X21 + Y31*Y21 + Z31*Z21) / R2
+            RL  = MAX( MIN(1d0,RL) , 0d0)
+            JA  = 1
+            
+            XXN  = xx1 + RL*x21 
+            YYN  = yy1 + RL*y21
+            ZZN  = zz1 + RL*z21
+            x31 = xxn-xx3
+            y31 = yyn-yy3
+            z31 = zzn-zz3
+            DIS = sqrt(x31*x31 + y31*y31 + z31*z31)      
+            
+            call Cart3Dtospher(xxn,yyn,zzn,xn,yn,maxval((/x1,x2,x3/)))
+         else   
+            DIS = dbdistance(x3,y3,x1,y1, jsferic, jasfer3D, dmiss)
+         endif   
+      end if
+      
+      RETURN
+      END subroutine dlinedis
 
       double precision function dprodout(x1,y1,x2,y2,x3,y3,x4,y4, jsferic, jasfer3D)    ! out product of two segments
       implicit none
@@ -1364,8 +1498,101 @@ module geometry_module
       end if
 
       return
-      end subroutine spher2locvec
+      end subroutine spher2locvec 
 
+            subroutine spher2locvec2(xref,yref,N,xglob,yglob,vxglob,vyglob,vxloc,vyloc, jsferic, jasfer3D, dmiss)
+
+      use mathconsts, only: degrad_hp
+
+      implicit none
+
+      double precision,               intent(in)  :: xref,  yref     !< global coordinates of reference point (longitude, latitude)
+      integer,                        intent(in)  :: N               !< number of global coordinates
+      double precision, intent(in)  :: xglob, yglob    !< global coordinates, (longitude, latitude)
+      double precision, intent(in)  :: vxglob, vyglob !< vector components in global coordinates
+      double precision, dimension(N), intent(out) :: vxloc,  vyloc   !< vector components in local coordinates
+
+      double precision, dimension(3)              :: exxp, eyyp, ezzp   ! base vectors of rotated 3D Cartesian reference frame
+      double precision, dimension(3)              :: elambda, ephi
+      double precision, dimension(3)              :: elambdap, ephip
+      double precision, dimension(3)              :: elambdaloc, ephiloc
+      double precision                            :: vxx, vyy, vzz
+
+      double precision                            :: xx, yy, zz     !  3D Cartesian coordinates
+      double precision                            :: xxp, yyp, zzp  !  3D Cartesian coordinates in rotated frame
+      double precision                            :: xloc, yloc
+
+      double precision                            :: lambda0, phi0
+      double precision                            :: lambda, phi
+      double precision                            :: lambdap, phip
+
+      integer                                     :: i
+      integer, intent(in)                         :: jsferic
+      integer, intent(in)                         :: jasfer3D
+      double precision, intent(in)                :: dmiss
+
+
+      if ( jsferic.eq.0 .or. jasfer3D.eq.0 ) then
+         do i=1,N
+            vxloc(i) = vxglob
+            vyloc(i) = vyglob
+         end do
+
+      else
+         phi0 = yref*degrad_hp
+         lambda0 = xref*degrad_hp
+
+         !           compute base vectors
+         exxp = (/  cos(phi0) * cos(lambda0),  cos(phi0) * sin(lambda0), sin(phi0) /)
+         eyyp = (/             -sin(lambda0),              cos(lambda0), 0d0       /)
+         ezzp = (/ -sin(phi0) * cos(lambda0), -sin(phi0) * sin(lambda0), cos(phi0) /)
+
+         do i=1,N
+            lambda = xglob*degrad_hp
+            phi    = yglob*degrad_hp
+
+            !              get 3d-coordinates
+            call sphertocart3d(xglob,yglob,xx,yy,zz)
+
+            !              project to rotated frame
+            xxp = exxp(1) * xx + exxp(2) * yy + exxp(3) * zz
+            yyp = eyyp(1) * xx + eyyp(2) * yy + eyyp(3) * zz
+            zzp = ezzp(1) * xx + ezzp(2) * yy + ezzp(3) * zz
+
+            !              tranform to local spherical coordinates
+            call Cart3Dtospher(xxp,yyp,zzp,xloc,yloc,xref)
+
+            lambdap = xloc*degrad_hp
+            phip    = yloc*degrad_hp
+
+            !              compute global base vectors at other point in 3D (xx,yy,zz) frame
+            elambda = (/          -sin(lambda),           cos(lambda), 0d0 /)
+            ephi    = (/ -sin(phi)*cos(lambda), -sin(phi)*sin(lambda), cos(phi) /)
+
+            !              compute vector in 3D (xx,yy,zz) frame
+            vxx = vxglob * elambda(1) + vyglob * ephi(1)
+            vyy = vxglob * elambda(2) + vyglob * ephi(2)
+            vzz = vxglob * elambda(3) + vyglob * ephi(3)
+
+            !              compute base vectors at other point in rotated 3D (xxp,yyp,zzp) frame
+            elambdap = (/           -sin(lambdap),            cos(lambdap), 0d0 /)
+            ephip    = (/ -sin(phip)*cos(lambdap), -sin(phip)*sin(lambdap), cos(phip) /)
+
+            !              compute local base vectors in (xx,yy,zz) frame
+            elambdaloc = exxp * elambdap(1) + eyyp * elambdap(2) + ezzp * elambda(3)
+            ephiloc    = exxp * ephip(1)    + eyyp * ephip(2)    + ezzp * ephip(3)
+
+            !              compute vectors in other point in local base (elambdaloc,ephiloc)
+            vxloc = elambdaloc(1) * vxx + elambdaloc(2) * vyy + elambdaloc(3) * vzz
+            vyloc = ephiloc(1)    * vxx + ephiloc(2)    * vyy + ephiloc(3)    * vzz
+         end do
+
+      end if
+
+      return
+      end subroutine spher2locvec2
+
+      
       !
       ! normalin
       !
@@ -1616,7 +1843,11 @@ module geometry_module
       double precision               :: lambda, phi
       integer, intent(in)            :: jsferic, jasfer3D
 
-      if ( jsferic.eq.1 .and. jasfer3D.eq.1 ) then
+      if ( jsferic.eq.0 ) then
+         xu = x + alpha*vx
+         yu = y + alpha*vy
+      else
+         if ( jasfer3D.eq.1 ) then
          !     compute global base vectors at other point in 3D (xx,yy,zz) frame
          lambda = x*degrad_hp
          phi    = y*degrad_hp
@@ -1631,8 +1862,9 @@ module geometry_module
          yyu = yy + alpha*vyy
          zzu = zz + alpha*vzz
          call Cart3Dtospher(xxu,yyu,zzu,xu,yu,x)
-      else
-         ! LC to re-enable call mess(LEVEL_ERROR, 'xpav: not supported')
+         else
+            ! LC to re-enable call mess(LEVEL_ERROR, 'xpav: not supported')
+         end if
       end if
 
       return
@@ -1949,7 +2181,7 @@ module geometry_module
 
       !  check convergence
       if ( iter.ge.MAXITER ) then
-         !LC this error message should be re-enabled call qnerror('comp_masscenter: no convergence', ' ', ' ')
+         call msgbox('', 'comp_masscenter: no convergence', LEVEL_ERROR)
          write(1234,*) 'L1'
          write(1234,*) N, 2
          do i=1,N
@@ -1993,7 +2225,7 @@ module geometry_module
       ! comp_circumcenter3D
       !
       !> compute circumcenter using 3D coordinates
-      subroutine comp_circumcenter3D(N, xv, yv, xz, yz, jsferic, dmiss)
+      subroutine comp_circumcenter3D(N, xv, yv, xz, yz, jsferic, dmiss, dcenterinside)
 
       use physicalconsts, only: earth_radius
 
@@ -2029,6 +2261,12 @@ module geometry_module
 
       integer, intent(in)              :: jsferic
       double precision, intent(in)     :: dmiss
+      double precision, intent(in)     :: dcenterinside
+                                       
+      double precision                 :: xzw, yzw
+      double precision                 :: SL,SM,XCR,YCR,CRP
+      
+      integer                          :: jacros, in
 
       !  compute 3D coordinates and first iterate of circumcenter in 3D coordinates and Lagrange multiplier lambda
       xxc = 0d0
@@ -2044,6 +2282,8 @@ module geometry_module
       xxc = xxc/N
       yyc = yyc/N
       zzc = zzc/N
+      
+      call Cart3Dtospher(xxc,yyc,zzc,xzw,yzw,xv(1))
 
       !  compute tangential vectors and edge midpoints, edge i is from nodes i to i+1, and convergence tolerance
       do i=1,N
@@ -2150,11 +2390,33 @@ module geometry_module
 
       !  check convergence
       if ( iter.ge.MAXITER ) then
-         ! LC message error ro re-enable call qnerror('comp_circumcenter3D: no convergence', ' ', ' ')
+         call msgbox('', 'comp_circumcenter3D: no convergence', LEVEL_ERROR)
+         ! TODO: SvdP: consider adding 'call mess' to stop the simulation.
       end if
 
       !  project circumcenter back to spherical coordinates
       call Cart3Dtospher(xxc,yyc,zzc,xz,yz,maxval(xv(1:N)))
+      
+!     check if circumcenter is inside cell
+      if ( dcenterinside .le. 1d0 .and. dcenterinside.ge.0d0 ) then
+         call pinpok3D(xz,yz,N,xv,yv,in, dmiss, 1, jsferic, 1)                    ! circumcentre may not lie outside cell
+         if (in == 0) then
+            do i  = 1,N
+               ip1 = i + 1; if ( ip1.gt.N ) ip1=ip1-N
+               call CROSS3D(xzw, yzw, xz, yz, xv(i), yv(i), xv(ip1), yv(ip1),&
+                  JACROS,SL,SM,xcr,ycr,jsferic, dmiss)
+
+               if (jacros == 1) then
+                  !               xz = 0.5d0*( xh(m) + xh(m2) ) ! xcr
+                  !               yz = 0.5d0*( yh(m) + yh(m2) ) ! ycr
+                  xz = xcr
+                  yz = ycr
+
+                  exit
+               endif
+            enddo
+         endif
+      endif
 
       return
       end subroutine comp_circumcenter3D
@@ -2263,12 +2525,12 @@ module geometry_module
             endif
          enddo
 
-         if (nintlinks > 1 .or. nn.eq.3) then                ! nn.eq.3: always for triangles
+         if (nintlinks > 1 .or. nn == 3) then                ! nn == 3: always for triangles
             do k = 1,100                                     ! Zhang, Schmidt and Perot 2002, formula A3
                xccfo = xccf
                yccfo = yccf
                do m  = 1,nn
-                  if ( lnnl( m ) == 2 .or. nn.eq.3) then     ! nn.eq.3: always for triangles
+                  if ( lnnl( m ) == 2 .or. nn == 3 ) then     ! nn == 3: always for triangles
                      xe1= xv(m)
                      ye1= yv(m)
                      m2 = m + 1; if (m == nn) m2 = 1
@@ -2407,5 +2669,5 @@ module geometry_module
       endif
 
       end subroutine circumcenter3
- 
+
 end module geometry_module

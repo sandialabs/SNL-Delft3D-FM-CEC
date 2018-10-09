@@ -25,7 +25,7 @@
 !
 !-------------------------------------------------------------------------------
 
-!  $Id: coordinate_reference_system.F90 7992 2018-01-09 10:27:35Z mourits $
+!  $Id: coordinate_reference_system.F90 59913 2018-08-27 14:44:10Z dam_ar $
 !  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_lgpl/io_netcdf/packages/io_netcdf/src/coordinate_reference_system.F90 $
 
 !> Module for utility types and functions for working with coordinates in different coordinate systems.
@@ -57,7 +57,6 @@ module coordinate_reference_system
 
    !> Container for information about coordinate reference system in a NetCDF-file.
    type t_crs
-      logical                         :: is_spherical  !< Whether or not spherical (otherwise some projected crs).
       character(len=64)               :: varname = ' ' !< Name of the NetCDF variable containing this CRS
       integer                         :: epsg_code     !< EPSG code (more info: http://spatialreference.org/)
       type(nc_attribute), allocatable :: attset(:)     !< General set with all/any attributes about this CRS.

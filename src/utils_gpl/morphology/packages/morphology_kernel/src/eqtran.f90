@@ -39,7 +39,7 @@ subroutine eqtran(sig       ,thick     ,kmax      ,ws        ,ltur      , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: eqtran.f90 7992 2018-01-09 10:27:35Z mourits $
+!  $Id: eqtran.f90 9180 2018-07-05 13:06:56Z mourits $
 !  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_gpl/morphology/packages/morphology_kernel/src/eqtran.f90 $
 !!--description-----------------------------------------------------------------
 !
@@ -810,4 +810,5 @@ subroutine eqtran(sig       ,thick     ,kmax      ,ws        ,ltur      , &
            sbcv = sbcv + sscv
        endif
     endif
+    dss = real(realpar(RP_DSS)  ,fp)
 end subroutine eqtran

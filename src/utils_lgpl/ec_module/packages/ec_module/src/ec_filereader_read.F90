@@ -23,7 +23,7 @@
 !  are registered trademarks of Stichting Deltares, and remain the property of  
 !  Stichting Deltares. All rights reserved.                                     
 
-!  $Id: ec_filereader_read.F90 7992 2018-01-09 10:27:35Z mourits $
+!  $Id: ec_filereader_read.F90 62276 2018-10-08 11:15:49Z pijl $
 !  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_lgpl/ec_module/packages/ec_module/src/ec_filereader_read.F90 $
 
 !> This module contains the read methods for the meteo files.
@@ -76,7 +76,7 @@ module m_ec_filereader_read
    
    ! Related to astronomic components
    integer, parameter                      :: kcmp = 1       !< 
-   integer, parameter                      :: mxkc = 234     !< 
+   integer, parameter                      :: mxkc = 235     !< 
    integer,           dimension(16*mxkc)   :: kb_values      !< Help var.
    character(len=8),  dimension(mxkc)      :: kb_keys = ''   !< Array with the names of all components
    character(len=128) :: message
@@ -668,6 +668,7 @@ module m_ec_filereader_read
       !> Read the next record from a NetCDF file.
       function ecNetcdfReadNextBlock(fileReaderPtr, item, t0t1) result(success)
          use netcdf
+         use m_ec_field, only:ecFieldCreate1DArray, ecFieldSetMissingValue
          !
          logical                      :: success       !< function status
          type(tEcFileReader), pointer :: fileReaderPtr !< intent(in)
@@ -680,13 +681,17 @@ module m_ec_filereader_read
          integer                                 :: times_index      !< Index in tEcTimeFrame's times array
          real(hp)                                :: netcdf_timesteps !< seconds since k_refdate
          integer                                 :: i, j, k          !< loop counters
-         real(hp), dimension(:,:), allocatable :: data_block       !< 2D slice of NetCDF variable's data
+         real(hp), dimension(:,:), allocatable :: data_block         !< 2D slice of NetCDF variable's data
          integer                                 :: istat            !< allocation status
          real(hp)                                :: dmiss_nc         !< local netcdf missing
 
-         real(hp)                                :: mintime, maxtime      !< range of kernel times that can be requested from this netcdf reader
+         real(hp)                                :: mintime, maxtime !< range of kernel times that can be requested from this netcdf reader
          logical                                 :: valid_field
-         character(len=300) :: str
+         character(len=20)                       :: cnumber1         !< number converted to string for error message
+         character(len=20)                       :: cnumber2         !< idem
+         integer                                 :: ncol, col0, col1 !< bounding box and bounding box extent use to restrict reading a patch from a meteo-field from netCDF
+         integer                                 :: nrow, row0, row1
+         integer                                 :: nlay
          
          !
          success = .false.
@@ -738,8 +743,9 @@ module m_ec_filereader_read
          maxtime = ecSupportTimeToTimesteps(fileReaderPtr%tframe, int(fileReaderPtr%tframe%nr_timesteps))
 
          if (comparereal(fieldPtr%timesteps, maxtime) /= -1) then
-            write(str, '(a,f10.2,a,f10.2,a,f10.2)') '   Valid range: ',mintime,' to ',maxtime
-            call setECMessage(str)
+            call real2string(cnumber1, '(f12.2)', mintime)
+            call real2string(cnumber2, '(f12.2)', maxtime)
+            call setECMessage('   Valid range: ' // trim(cnumber1) // ' to ' // trim(cnumber2))
             call setECMessage("Data block requested outside valid time window in "//trim(fileReaderPtr%filename)//".")
             if (.True.) then                                       ! TODO : pass if extrapolation (constant value) is allowed here, now always allowed
                 fieldPtr%timesteps = huge(fieldPtr%timesteps)      ! set time to infinity
@@ -766,6 +772,28 @@ module m_ec_filereader_read
                return
             end if
             !
+            col0 = fieldPtr%bbox(1)
+            row0 = fieldPtr%bbox(2)
+            col1 = fieldPtr%bbox(3)
+            row1 = fieldPtr%bbox(4)
+            nrow = row1 - row0 + 1
+            ncol = col1 - col0 + 1
+            nlay = item%elementSetPtr%n_layers
+
+            ! Create storage for the field data if still unallocated and set to missing value
+            if (.not.allocated(fieldPtr%arr1d)) then 
+               allocate(fieldPtr%arr1d(ncol*nrow*max(nlay,1)), stat = istat)
+               if (istat /= 0) then
+                  call setECMessage("ERROR: ec_field::ecFieldCreate1dArray: Unable to allocate additional memory.")
+                  write(message,'(a,i0,a,i0,a,i0,a,i0,a)') 'Failed to create storage for item ',item%id,': (',ncol,'x',nrow,'x',nlay,').'
+                  call setECMessage(trim(message))
+                  return
+               else
+                  fieldPtr%arr1d = ec_undef_hp
+                  fieldPtr%arr1dPtr => fieldPtr%arr1d
+               end if
+            end if
+            
             valid_field = .False.
             do while (.not.valid_field)
                ! - 3 - Read a scalar data block.
@@ -781,9 +809,9 @@ module m_ec_filereader_read
                ! - 4 - Read a grid data block.
                valid_field = .False.
 
-               allocate(data_block( item%elementSetPtr%n_cols, item%elementSetPtr%n_rows), stat = istat)
+               allocate(data_block(ncol, nrow), stat = istat)
                if (istat/=0) then
-                  write(message,'(a,i0,a,i0,a)') 'Allocating temporary array of ',item%elementSetPtr%n_cols,' x ',item%elementSetPtr%n_rows,' elements.'
+                  write(message,'(a,i0,a,i0,a)') 'Allocating temporary array of ',ncol,' x ',nrow,' elements.'
                   call setECMessage(trim(message))
                   call setECMessage("Allocation of data_block (data from NetCDF) failed.")
                   return
@@ -791,34 +819,24 @@ module m_ec_filereader_read
 
                if (item%elementSetPtr%nCoordinates > 0) then
                   if (item%elementSetPtr%n_layers == 0) then                  ! 2D elementset
-                     ierror = nf90_get_var(fileReaderPtr%fileHandle, varid, data_block, start=(/1, 1, times_index/), count=(/item%elementSetPtr%n_cols, item%elementSetPtr%n_rows, 1/))
+!                    ierror = nf90_get_var(fileReaderPtr%fileHandle, varid, data_block, start=(/1, 1, times_index/), count=(/item%elementSetPtr%n_cols, item%elementSetPtr%n_rows, 1/))
+                     ierror = nf90_get_var(fileReaderPtr%fileHandle, varid, data_block, start=(/col0, row0, times_index/), count=(/ncol, nrow, 1/))
                      ! copy data to source Field's 1D array, store (X1Y1, X1Y2, ..., X1Yn_rows, X2Y1, XYy2, ..., Xn_colsY1, ...)
-                     do i=1, item%elementSetPtr%n_rows
-                        do j=1, item%elementSetPtr%n_cols
-!                           if (data_block(j,i,1) == dmiss_nc) then 
-!                              fieldPtr%arr1dPtr( (i-1)*item%elementSetPtr%n_cols + j ) = 0d0
-!                           else                     
-                              fieldPtr%arr1dPtr( (i-1)*item%elementSetPtr%n_cols + j ) = data_block(j,i)
-                              valid_field = .True.
-!                           endif
+                     do i=1, nrow
+                        do j=1, ncol
+                           fieldPtr%arr1dPtr( (i-1)*ncol +  j ) = data_block(j,i)
                         end do
                      end do
-                  else                                                                                                                       
+                     valid_field = .True.
+                  else
                      ! copy data to source Field's 1D array, store (X1Y1, X1Y2, ..., X1Yn_rows, X2Y1, XYy2, ..., Xn_colsY1, ...)
                      do k=1, item%elementSetPtr%n_layers
-                        ierror = nf90_get_var(fileReaderPtr%fileHandle, varid, data_block, start=(/1, 1, k, times_index/), count=(/item%elementSetPtr%n_cols, item%elementSetPtr%n_rows, 1, 1/))
-                        do i=1, item%elementSetPtr%n_rows
-                           do j=1, item%elementSetPtr%n_cols
-!                              if (data_block(j,i,k) == dmiss_nc) then 
-!                                 fieldPtr%arr1dPtr( (k-1)*item%elementSetPtr%n_cols*item%elementSetPtr%n_rows        &
-!                                                  + (i-1)*item%elementSetPtr%n_cols                              &
-!                                                  +  j ) = 0d0
-!                              else                     
-                                 fieldPtr%arr1dPtr( (k-1)*item%elementSetPtr%n_cols*item%elementSetPtr%n_rows        &
-                                                  + (i-1)*item%elementSetPtr%n_cols                                &
-                                                  +  j ) = data_block(j,i)
-                                 valid_field = .True.
-!                              endif
+!                       ierror = nf90_get_var(fileReaderPtr%fileHandle, varid, data_block, start=(/1, 1, k, times_index/), count=(/item%elementSetPtr%n_cols, item%elementSetPtr%n_rows, 1, 1/))
+                        ierror = nf90_get_var(fileReaderPtr%fileHandle, varid, data_block, start=(/col0, row0, k, times_index/), count=(/ncol, nrow, 1, 1/))
+                        do i=row0, row1
+                           do j=col0, col1
+                              fieldPtr%arr1dPtr( (k-1)*ncol*nrow + (i-1)*ncol +  j ) = data_block(j,i)
+                              valid_field = .True.
                            end do
                         end do
                      end do
@@ -1221,14 +1239,14 @@ module m_ec_filereader_read
       !> Read the file from the current line untill a line containing the keyword is found and read.
       !! meteo1.f90: reaspwheader
       function ecFindInFile(minp, keyword) result(rec)
-         character(maxNameLen)                 :: rec
-         integer                  , intent(in) :: minp    !< IO unit number
-         character(*)             , intent(in) :: keyword !< keyword to find
+         character(maxFileNameLen)                 :: rec
+         integer                      , intent(in) :: minp    !< IO unit number
+         character(*)                 , intent(in) :: keyword !< keyword to find
          !
          ! locals
-         integer               :: istat !< status of read operation
-         character(maxNameLen) :: rec_small
-         character(maxNameLen) :: keyword_small
+         integer                                   :: istat !< status of read operation
+         character(maxFileNameLen)                     :: rec_small
+         character(maxFileNameLen)                     :: keyword_small
          !
          ! body
          rec = ' '
@@ -1253,24 +1271,22 @@ module m_ec_filereader_read
             end if
          enddo
       end function ecFindInFile
-      
+            
       ! =======================================================================
       
       !> In a spiderweb or curvi file, find the value curresponding to the specified keyword.
       !! meteo1.f90: reaspwheader
       function ecSpiderwebAndCurviFindInFile(minp, keyword, do_rewind) result(answer)
-         character(len=20)                     :: answer
-         integer,                   intent(in) :: minp      !< IO unit number
-         character(len=*),          intent(in) :: keyword   !< keyword to find
-         logical, optional,         intent(in) :: do_rewind !< rewind file before search        
+         character(len=maxFileNameLen)                     :: answer
+         integer,                   intent(in)             :: minp      !< IO unit number
+         character(len=*),          intent(in)             :: keyword   !< keyword to find
+         logical, optional,         intent(in)             :: do_rewind !< rewind file before search
          !
-         character(len=maxNameLen) :: word
-         character(len=maxNameLen) :: rec     !< content of read line
-         integer                   :: istat   !< status of read operation
-         integer                   :: indx    !< helper index variable
+         character(len=maxFileNameLen+20)                  :: rec         !< content of read line
+         integer                                           :: indx        !< helper index variable
+         integer                                           :: indxComment !< position in string of comments
          !
          answer = ' '
-         word = keyword
          if (present(do_rewind)) then
             if (do_rewind) then
                rewind(unit = minp)
@@ -1279,19 +1295,23 @@ module m_ec_filereader_read
             rewind(unit = minp)
          end if
          !
-         rec = ecFindInFile(minp, word)
+         rec = ecFindInFile(minp, keyword)
          indx = index(rec, '=')
+         indxComment = index(rec, '#')
          if (indx /= 0) then
-            read(rec(indx+1:indx+20),"(A20)", iostat = istat) answer
-            if (istat /= 0) then
-               call setECMessage("ERROR: ec_filereader_read::ecSpiderwebAndCurviFindInFile: Failed to read an existing line.")
-               answer = '                    '
-            end if
+            if (indxComment /= 0) then
+               answer = rec(indx+1:indxComment - 1)
+            else
+               answer = rec(indx+1:)
+            endif
+         else
+            call setECMessage("ERROR: ec_filereader_read::ecSpiderwebAndCurviFindInFile: Failed to read an existing line.")
+            answer = ' '
          end if
       end function ecSpiderwebAndCurviFindInFile
       
       ! =======================================================================
-      
+     
       !> In a t3D file, find the list of values following the specified keyword.
       function ect3DFindInFile(minp, keyword, do_rewind) result(answer)
          character(len=1000)        :: answer
@@ -1499,7 +1519,7 @@ module m_ec_filereader_read
       !> simulation of external kompbes-file
       !! meteo1 : kompbs
       subroutine kompbs(l)
-         character(80), dimension(234), intent(out) :: l !< Array with tidal components
+         character(80), dimension(235), intent(out) :: l !< Array with tidal components
          !
          l(1)   = 'SA                 1                            '
          l(2)   = 'SSA                2                            '
@@ -1735,6 +1755,7 @@ module m_ec_filereader_read
          l(232) = '5MS12    12-10    10    10-10         5 6       '
          l(233) = '3MNKS12  12 -9  1 10     8 -8   -11   4 6120    '
          l(234) = '4M2S12   12 -8     8     8 -8         4 6       '
+         l(235) = 'N4        4 -6  2  4     4 -4         2 6       '
       end subroutine kompbs
       
       ! =======================================================================
@@ -2725,7 +2746,7 @@ module m_ec_filereader_read
          mask%mmax = mask%mmin + mask%mrange - 1 
          mask%nmax = mask%nmin + mask%nrange - 1 
          success = .true. 
-         call doclose(fmask)
+         close(fmask)
       end function ecParseARCinfoMask
       
        subroutine strip_comment(rec)

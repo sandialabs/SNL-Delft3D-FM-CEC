@@ -27,8 +27,8 @@
 !                                                                               
 !-------------------------------------------------------------------------------
 
-! $Id: rgfstuff.f90 54131 2018-01-18 14:02:31Z carniato $
-! $HeadURL: https://repos.deltares.nl/repos/ds/trunk/additional/unstruc/src/rgfstuff.f90 $
+! $Id: rgfstuff.f90 62178 2018-09-27 09:19:40Z mourits $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/dflowfm/packages/dflowfm_kernel/src/rgfstuff.f90 $
      MODULE M_MAPPROPARAMETERS
      implicit none
       double precision :: XCE,YCE,DELTX,DELTY,XF,YF,FI, XCSTEREO, YCSTEREO
@@ -6322,6 +6322,7 @@
      use m_grid
      implicit none
      if (allocated (xch) ) then 
+        call increasegrid(mch,nch)
         xc = xch
         yc = ych
         zc = zch

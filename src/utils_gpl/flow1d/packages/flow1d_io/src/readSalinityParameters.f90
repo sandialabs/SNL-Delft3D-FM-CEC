@@ -25,14 +25,14 @@ module m_readSalinityParameters
 !  Stichting Deltares. All rights reserved.
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: readSalinityParameters.f90 8044 2018-01-24 15:35:11Z mourits $
+!  $Id: readSalinityParameters.f90 8130 2018-02-09 16:34:49Z dam_ar $
 !  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_gpl/flow1d/packages/flow1d_io/src/readSalinityParameters.f90 $
 !-------------------------------------------------------------------------------
 
    use MessageHandling
    use ModelParameters
    use m_network
-   use flow1d_io_properties
+   use properties
    use m_hash_search
 
    implicit none
@@ -75,7 +75,7 @@ module m_readSalinityParameters
          return
       endif
       
-      call tree_create(trim(salinityFile), md_ptr)
+      call tree_create(trim(salinityFile), md_ptr, maxlenpar)
       call prop_file('ini',trim(salinityFile),md_ptr, istat)
 
       ! read numerical options

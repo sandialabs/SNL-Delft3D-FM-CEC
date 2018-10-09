@@ -29,7 +29,7 @@ function [DomainNr,Props,subf,selected,stats,Ops]=qp_interface_update_options(mf
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
 %   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/private/qp_interface_update_options.m $
-%   $Id: qp_interface_update_options.m 7992 2018-01-09 10:27:35Z mourits $
+%   $Id: qp_interface_update_options.m 8084 2018-01-31 13:26:04Z jagers $
 
 [DomainNr,Props,subf,selected,stats,vslice,hslice] = get_basics(mfig,UD.MainWin);
 [Ops,PlotType,EnablePlot,EnableLoad] = get_options(Props,selected,vslice,hslice,UD);
@@ -950,10 +950,17 @@ if ((nval==1 || nval==6) && TimeSpatial==2) || nval==1.9 || strcmp(nvalstr,'stri
         case 'polygons'
             lineproperties=1;
         case 'polylines'
-            markerflatfill=nval>0;
-            edgeflatcolour=nval>0;
-            SingleColor=0;
-            MultipleColors=1;
+            if nval==0 || nval==4
+                markerflatfill=0;
+                edgeflatcolour=0;
+                SingleColor=1;
+                MultipleColors=0;
+            else
+                markerflatfill=1;
+                edgeflatcolour=1;
+                SingleColor=0;
+                MultipleColors=1;
+            end
             lineproperties=1;
         case 'grid with numbers'
             ask_for_textprops=1;

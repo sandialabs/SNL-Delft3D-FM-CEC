@@ -44,7 +44,7 @@ function varargout=d3d_waqfil(FI,domain,field,cmd,varargin)
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
 %   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/private/d3d_waqfil.m $
-%   $Id: d3d_waqfil.m 7992 2018-01-09 10:27:35Z mourits $
+%   $Id: d3d_waqfil.m 8109 2018-02-05 12:44:41Z jagers $
 
 %========================= GENERAL CODE =======================================
 T_=1; ST_=2; M_=3; N_=4; K_=5;
@@ -1961,8 +1961,23 @@ if isempty(x)
     try
         ErrMsg='Cannot find or open ';
         tbl=qp_settings('delwaq_procdef');
-        if isequal(tbl,'auto') || ~exist(tbl,'file')
-            tbl=cat(2,getenv('D3D_HOME'),filesep,getenv('ARCH'),filesep,'waq',filesep,'default',filesep,'proc_def.dat');
+        for WAQDIR = {'waq','dwaq'}
+            waq = WAQDIR{1};
+            if isequal(tbl,'auto') || ~exist(tbl,'file')
+                tbl=cat(2,getenv('D3D_HOME'),filesep,getenv('ARCH'),filesep,waq,filesep,'default',filesep,'proc_def.dat');
+            end
+            if ~exist(tbl,'file')
+                if isstandalone % from d3d_qp.exe on Windows (or old Linux)
+                    % two levels up to "D3D_HOME/ARCH" and then proc_def.dat should be located in waq/default
+                    tbl=cat(2,qp_basedir('exe'),filesep,'..',filesep,'..',filesep,waq,filesep,'default',filesep,'proc_def.dat');
+                elseif ispc % from d3d_qp.m on Windows (or old Linux)
+                    % one level up to "D3D_HOME/ARCH" and then proc_def.dat should be located in waq/default
+                    tbl=cat(2,qp_basedir('exe'),'..',filesep,waq,filesep,'default',filesep,'proc_def.dat');
+                else % from d3d_qp.m on (new) Linux
+                    % one level to "share" and then proc_def.dat should be located in dwaq
+                    tbl=cat(2,qp_basedir('exe'),'..',filesep,waq,filesep,'proc_def.dat');
+                end
+            end
         end
         if ~exist(tbl,'file') && ispc
             for drive = 'cdef'

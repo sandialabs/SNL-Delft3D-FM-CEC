@@ -27,8 +27,8 @@
 !                                                                               
 !-------------------------------------------------------------------------------
 
-! $Id: net_main.F90 54131 2018-01-18 14:02:31Z carniato $
-! $HeadURL: https://repos.deltares.nl/repos/ds/trunk/additional/unstruc/src/net_main.F90 $
+! $Id: net_main.F90 62232 2018-10-02 16:03:16Z zhao $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/dflowfm/packages/dflowfm-cli_exe/src/net_main.F90 $
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
@@ -103,6 +103,7 @@
    character(len=maxnamelen) :: restartfile     !< storing the name of the restart files
    character(len=maxnamelen) :: md_mapfile_base !< storing the user-defined map file
    character(len=maxnamelen) :: md_flowgeomfile_base !< storing the user-defined flowgeom file
+   character(len=maxnamelen) :: md_classmapfile_base !< storing the user-defined class map file
     
    integer, external         :: iget_jaopengl
    integer, external         :: read_commandline
@@ -238,7 +239,7 @@
         
        if ( len_trim(md_ident) > 0 ) then ! partitionmduparse
           icgsolver = md_icgsolver
-          call partition_from_commandline(md_netfile, md_Ndomains, md_jacontiguous, icgsolver, md_pmethod, md_dryptsfile, md_genpolygon)
+          call partition_from_commandline(md_netfile, md_Ndomains, md_jacontiguous, icgsolver, md_pmethod, md_dryptsfile, md_encfile, md_genpolygon)
           L    = index(md_netfile, '_net')-1
           md_mdu = md_ident
           if (len_trim(md_restartfile) > 0) then ! If there is a restart file
@@ -249,11 +250,13 @@
                 restartfile = md_restartfile
                 Lrst = index(restartfile, '_rst.nc')
                 Lmap = index(restartfile, '_map.nc')
-            endif   
+            endif
           endif
-          
+
           md_mapfile_base = md_mapfile
           md_flowgeomfile_base = md_flowgeomfile
+          md_classmapfile_base = md_classmap_file
+
           do i = 0,  Ndomains - 1
              write(sdmn_loc, '(I4.4)') i
              md_netfile = trim(md_netfile(1:L)//'_'//sdmn_loc//'_net.nc')
@@ -278,10 +281,13 @@
              if (len_trim(md_flowgeomfile_base)>0) then
                 md_flowgeomfile = md_flowgeomfile_base(1:index(md_flowgeomfile_base,'.nc',back=.true.)-1)//'_'//sdmn_loc//".nc"
              endif
+             if (len_trim(md_classmapfile_base)>0) then
+                md_classmap_file = md_classmapfile_base(1:index(md_classmapfile_base,'.nc',back=.true.)-1)//'_'//sdmn_loc//".nc"
+             endif
              call generatePartitionMDUFile(trim(md_ident)//'.mdu', trim(md_mdu)//'_'//sdmn_loc//'.mdu')
-          enddo   
+          enddo
        else
-          call partition_from_commandline(md_netfile,md_ndomains,md_jacontiguous,md_icgsolver, md_pmethod, md_dryptsfile, md_genpolygon)
+          call partition_from_commandline(md_netfile,md_ndomains,md_jacontiguous,md_icgsolver, md_pmethod, md_dryptsfile, md_encfile, md_genpolygon)
        end if
 
        goto 1234  !      stop
@@ -313,7 +319,6 @@
    
     if (len_trim(md_ident) > 0) then
         ! An MDU file was read.
-        md_findcells = 0  ! try to bypass findcells
         ierr = flow_modelinit()
         if ( ierr /= DFM_NOERR ) goto 1234  ! error: finalize and stop
       

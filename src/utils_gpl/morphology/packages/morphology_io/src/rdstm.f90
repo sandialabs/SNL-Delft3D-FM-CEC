@@ -25,7 +25,7 @@ module m_rdstm
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: rdstm.f90 7992 2018-01-09 10:27:35Z mourits $
+!  $Id: rdstm.f90 8147 2018-02-14 07:46:55Z ottevan $
 !  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_gpl/morphology/packages/morphology_io/src/rdstm.f90 $
 !-------------------------------------------------------------------------------
 
@@ -50,6 +50,7 @@ type stmtype
     type(morpar_type)                        , pointer     :: morpar
     type(bedcomp_data)                       , pointer     :: morlyr
     type(trapar_type)                        , pointer     :: trapar
+    type(t_nodereldata)                      , pointer     :: nrd
     integer                                                :: lsedsus
     integer                                                :: lsedtot
     real(fp)      , dimension(:), allocatable              :: facdss
@@ -70,6 +71,7 @@ subroutine rdstm(stm, griddim, filsed, filmor, filtrn, &
 !!--declarations----------------------------------------------------------------
     use grid_dimens_module
     use properties ! includes tree_structures
+    use m_ini_noderel ! for node relation definitions
     !
     implicit none
 !
@@ -115,6 +117,7 @@ subroutine rdstm(stm, griddim, filsed, filmor, filtrn, &
     allocate(stm%morpar , stat = istat)
     allocate(stm%trapar , stat = istat)
     allocate(stm%morlyr , stat = istat)
+    allocate(stm%nrd    , stat = istat)
     !
     call nullsedpar(stm%sedpar)
     call nullmorpar(stm%morpar)
@@ -172,7 +175,11 @@ subroutine rdstm(stm, griddim, filsed, filmor, filtrn, &
                & stm%iopsus, nmlb, nmub, filsed, &
                & sedfil_tree, stm%sedpar, stm%trapar, griddim)
     if (error) goto 999
+    ! 
+    !  For 1D branches read the node relation definitions
     !
+    call ini_noderel(stm%nrd, stm%sedpar, stm%lsedtot)
+    !     
     ! Read morphology parameters
     !
     ! morpar filled by rdmor
@@ -236,6 +243,7 @@ function clrstm(stm) result(istat)
 !
 !!--declarations----------------------------------------------------------------
     use morphology_data_module
+    use m_ini_noderel
     implicit none
 !
 ! Call variables
@@ -265,6 +273,10 @@ function clrstm(stm) result(istat)
     if (associated(stm%morlyr) .and. istat==0) then
         istat = clrmorlyr(stm%morlyr)
         deallocate(stm%morlyr, STAT = istat)
+    endif
+    if (associated(stm%nrd) .and. istat==0) then
+        call clr_noderel(istat, stm%nrd)
+        deallocate(stm%nrd, STAT = istat)
     endif
 end function clrstm
 

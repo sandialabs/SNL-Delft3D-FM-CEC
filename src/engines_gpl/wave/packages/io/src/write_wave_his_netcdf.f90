@@ -25,7 +25,7 @@ subroutine write_wave_his_netcdf (sg, sof, n_swan_grids, i_swan, wavedata)
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: write_wave_his_netcdf.f90 7992 2018-01-09 10:27:35Z mourits $
+!  $Id: write_wave_his_netcdf.f90 8744 2018-05-09 08:23:21Z mourits $
 !  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/wave/packages/io/src/write_wave_his_netcdf.f90 $
 !!--description-----------------------------------------------------------------
 ! NONE
@@ -118,7 +118,7 @@ subroutine write_wave_his_netcdf (sg, sof, n_swan_grids, i_swan, wavedata)
     character(NAMLEN), dimension(:), allocatable, save :: statnam
     character(NAMLEN), dimension(:), allocatable, save :: statid
     character(100)                                     :: string
-    character(20)                                      :: tabfil
+    character(50)                                      :: tabfil
     character(256)                                     :: version_full
     logical                                            :: formatok
 !

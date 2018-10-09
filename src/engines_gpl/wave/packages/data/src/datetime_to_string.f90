@@ -25,7 +25,7 @@ function datetime_to_string(date, time) result (dtstring)
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: datetime_to_string.f90 7992 2018-01-09 10:27:35Z mourits $
+!  $Id: datetime_to_string.f90 8579 2018-04-16 08:46:46Z dam_ar $
 !  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/wave/packages/data/src/datetime_to_string.f90 $
 !!--description-----------------------------------------------------------------
 !
@@ -34,6 +34,7 @@ function datetime_to_string(date, time) result (dtstring)
 ! NONE
 !!--declarations----------------------------------------------------------------
 !
+use time_module, only : ymd2jul
 implicit none
 !
 ! Global variables
@@ -56,7 +57,7 @@ integer       :: julday
 !
 !! executable statements -------------------------------------------------------
 !
-   call juldat(date, julday)
+   julday = ymd2jul(date)
    call timdat(julday, time, idate, itime)
    iyear = idate/10000
    imon  = (idate - iyear*10000)/100

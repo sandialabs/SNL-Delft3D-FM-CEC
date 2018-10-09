@@ -27,8 +27,8 @@
 !                                                                               
 !-------------------------------------------------------------------------------
 
-! $Id: fourier_analysis.f90 51400 2017-06-29 11:45:28Z leander $
-! $HeadURL: https://repos.deltares.nl/repos/ds/trunk/additional/unstruc/src/fourier_analysis.f90 $
+! $Id: fourier_analysis.f90 62193 2018-09-27 10:13:21Z dam_ar $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/dflowfm/packages/dflowfm_kernel/src/fourier_analysis.f90 $
 !-------------------------------------------------------------------------------------------------------
 !  Origin: 
 !     URL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/flow2d3d/packages/data/include/fourier.igs
@@ -37,8 +37,8 @@
 module m_fourier_analysis
    
 !-------------------------------------------------------------------------------
-!  $Id: fourier_analysis.f90 51400 2017-06-29 11:45:28Z leander $
-!  $HeadURL: https://repos.deltares.nl/repos/ds/trunk/additional/unstruc/src/fourier_analysis.f90 $
+!  $Id: fourier_analysis.f90 62193 2018-09-27 10:13:21Z dam_ar $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/dflowfm/packages/dflowfm_kernel/src/fourier_analysis.f90 $
 !-------------------------------------------------------------------------------
 ! TODO:
 !     * finalizing 
@@ -114,6 +114,7 @@ module m_fourier_analysis
     integer                   :: nofou  ! Number of fourier components to be analyzed
 
     real(fp)                  :: ag_fouana = 9.81d0  
+    real(fp)                  :: time_unit_factor
 
     public fouini
     public alloc_fourier_analysis_arrays
@@ -143,8 +144,8 @@ module m_fourier_analysis
 
    subroutine alloc_fourier_analysis_arrays(gdfourier,gddimens,nofou)
    !-------------------------------------------------------------------------------
-   !  $Id: fourier_analysis.f90 51400 2017-06-29 11:45:28Z leander $
-   !  $HeadURL: https://repos.deltares.nl/repos/ds/trunk/additional/unstruc/src/fourier_analysis.f90 $
+   !  $Id: fourier_analysis.f90 62193 2018-09-27 10:13:21Z dam_ar $
+   !  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/dflowfm/packages/dflowfm_kernel/src/fourier_analysis.f90 $
    !!--description-----------------------------------------------------------------
    !
    !!--declarations----------------------------------------------------------------
@@ -231,8 +232,8 @@ module m_fourier_analysis
                    & lstsc    ,lsal      ,ltem     ,&
                    & tstart   ,tstop     ,dt       ,success)
    !-------------------------------------------------------------------------------
-   !  $Id: fourier_analysis.f90 51400 2017-06-29 11:45:28Z leander $
-   !  $HeadURL: https://repos.deltares.nl/repos/ds/trunk/additional/unstruc/src/fourier_analysis.f90 $
+   !  $Id: fourier_analysis.f90 62193 2018-09-27 10:13:21Z dam_ar $
+   !  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/dflowfm/packages/dflowfm_kernel/src/fourier_analysis.f90 $
    !!--description-----------------------------------------------------------------
    !
    !    Function: - Read fourier input file and stores the
@@ -491,13 +492,14 @@ module m_fourier_analysis
        endif
        !
        read (columns(2), fmt) rstart
+       rstart = rstart * time_unit_factor           ! convert to kernel time unit
        !
        ftmstr(ifou) = nint(rstart/dt)
        !
        ! original code translates as : 'if abs(real(nint(rstart/dt)*dt-rstart) > (0.1_fp*dt)'         ! RL666
        if ( mod(real(rstart,fp),real(dt,fp)) > 0.1_fp*dt) then 
           ! call prterr(lundia, 'U044', errmsg)
-          write (msgbuf,*) 'Fourier sample interval start ',rstart,' not at an integer number of user timesteps, ',dt,'.'
+          write (msgbuf,*) 'Fourier sample interval start not at an integer number of user timesteps DtUser.'
           call warn_flush()
           goto 6666
        endif
@@ -505,7 +507,7 @@ module m_fourier_analysis
        !
        if (rstart<tstart) then
           ! call prterr(lundia, 'F005', ' ')
-          write (msgbuf,*) 'Fourier sample interval start ,',rstart,' preceeds simulation start, ',tstart,'.'
+          write (msgbuf,*) 'Fourier sample interval start preceeds simulation start TStart.'
           call warn_flush()
           goto 6666
        endif
@@ -521,12 +523,13 @@ module m_fourier_analysis
        endif
        !
        read (columns(3), fmt) rstop
+       rstop = rstop * time_unit_factor           ! convert to kernel time unit
        !
        ftmsto(ifou) = nint(rstop/dt)
        ! original code translates as : 'if abs(real(nint(rstop/dt)*dt-rstart) > (0.1_fp*dt)'         ! RL666
        if ( mod(real(rstop,fp),real(dt,fp)) > 0.1_fp*dt) then 
           ! call prterr(lundia, 'U044', errmsg)
-          write (msgbuf,*) 'Fourier sample interval stop ',rstop,' not at an integer number of user timesteps, ',dt,'.'
+          write (msgbuf,*) 'Fourier sample interval stop not at an integer number of user timesteps DtUser.'
           call warn_flush()
           goto 6666
        endif
@@ -534,7 +537,7 @@ module m_fourier_analysis
        !
        if (rstop>tstop) then
           ! call prterr(lundia, 'F006', ' ')
-          write (msgbuf,*) 'Fourier sample interval stop ,',rstop,' exceeds simulation end, ',tstop,'.'
+          write (msgbuf,*) 'Fourier sample interval stop exceeds simulation end TStop.'
           call warn_flush()
           goto 6666
        endif
@@ -901,8 +904,8 @@ end subroutine setfouunit
    subroutine fouana( ifou      ,kfs       ,kfst0     ,nst      , rarray    , &
                    &   dps       ,gdfourier ,gddimens  ,umean, vmean)
    !-------------------------------------------------------------------------------
-   !  $Id: fourier_analysis.f90 51400 2017-06-29 11:45:28Z leander $
-   !  $HeadURL: https://repos.deltares.nl/repos/ds/trunk/additional/unstruc/src/fourier_analysis.f90 $
+   !  $Id: fourier_analysis.f90 62193 2018-09-27 10:13:21Z dam_ar $
+   !  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/dflowfm/packages/dflowfm_kernel/src/fourier_analysis.f90 $
    !!--description-----------------------------------------------------------------
    !
    !    Function: - performs fourier analysis i.e. computes suma
@@ -1034,7 +1037,9 @@ end subroutine setfouunit
              else
                 do n = 1, nmaxus
                    do m = 1, mmax
-                      fousma(n, m, ifou) = max(fousma(n,m,ifou), rarray(n,m))
+                      if (kfs(n,m) == 1) then
+                         fousma(n, m, ifou) = max(fousma(n,m,ifou), rarray(n,m))
+                      endif
                    enddo
                 enddo
              endif
@@ -1079,7 +1084,9 @@ end subroutine setfouunit
              !
              do n = 1, nmaxus
                 do m = 1, mmax
-                   fousma(n,m,ifou) = min(fousma(n,m,ifou), rarray(n,m))
+                   if (kfs(n,m) == 1) then
+                      fousma(n,m,ifou) = min(fousma(n,m,ifou), rarray(n,m))
+                   endif
                 enddo
              enddo
           elseif (fouelp(ifou) == 'a') then
@@ -1088,8 +1095,10 @@ end subroutine setfouunit
              !
              do n = 1, nmaxus
                 do m = 1, mmax
-                   fousma(n,m,ifou) = fousma(n,m,ifou) + rarray(n,m)
-                   fousmb(n,m,ifou) = fousmb(n,m,ifou) + 1.
+                   if (kfs(n,m) == 1) then
+                      fousma(n,m,ifou) = fousma(n,m,ifou) + rarray(n,m)
+                      fousmb(n,m,ifou) = fousmb(n,m,ifou) + 1.
+                   endif
                 enddo
              enddo
           !
@@ -1099,18 +1108,20 @@ end subroutine setfouunit
              angl = real(nst - ftmstr(ifou),fp)*foufas(ifou)
              do n = 1, nmaxus
                 do m = 1, mmax
-                   fousma(n,m,ifou) = fousma(n,m,ifou) + rarray(n,m)*cos(angl)
-                   fousmb(n,m,ifou) = fousmb(n,m,ifou) + rarray(n,m)*sin(angl)
+                   if (kfs(n,m) == 1) then
+                      fousma(n,m,ifou) = fousma(n,m,ifou) + rarray(n,m)*cos(angl)
+                      fousmb(n,m,ifou) = fousmb(n,m,ifou) + rarray(n,m)*sin(angl)
+                   endif
                 enddo
              enddo
           endif
        endif
    end subroutine fouana
                    
-   subroutine fouini(lunfou, success, ag)
+   subroutine fouini(lunfou, success, ag, time_unit_user, time_unit_kernel)
    !-------------------------------------------------------------------------------
-   !  $Id: fourier_analysis.f90 51400 2017-06-29 11:45:28Z leander $
-   !  $HeadURL: https://repos.deltares.nl/repos/ds/trunk/additional/unstruc/src/fourier_analysis.f90 $
+   !  $Id: fourier_analysis.f90 62193 2018-09-27 10:13:21Z dam_ar $
+   !  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/dflowfm/packages/dflowfm_kernel/src/fourier_analysis.f90 $
    !!--description-----------------------------------------------------------------
    !
    !    Function: - Checks if fourier analysis are requested
@@ -1140,6 +1151,7 @@ end subroutine setfouunit
        integer , intent(in)            :: lunfou   !!  Unit number for fourier input file
        logical                         :: success  !!  Flag=True if no error is encountered
        real(fp), intent(in), optional  :: ag       !!  override gravitational constant 
+       character(len=*), intent(in)    :: time_unit_user, time_unit_kernel
 
    !
    ! Local variables
@@ -1152,6 +1164,29 @@ end subroutine setfouunit
    !
    !! executable statements -------------------------------------------------------
    !
+       time_unit_factor=1.0
+       select case (time_unit_user)
+       case('D')
+          time_unit_factor=3600.*24. 
+       case('H')
+          time_unit_factor=3600. 
+       case('M')
+          time_unit_factor=60. 
+       case('S')
+          time_unit_factor=1. 
+       end select
+
+       select case (time_unit_kernel)
+       case('D')
+          time_unit_factor=time_unit_factor/(3600.*24.)
+       case('H')
+          time_unit_factor=time_unit_factor/(3600.)
+       case('M')
+          time_unit_factor=time_unit_factor/(60.)
+       end select
+
+       ! The user specified times in the .fou files need to be multiplied by the time_unit_factor, to correspond with the kernel times
+
        if (present(ag)) then 
           ag_fouana = ag 
        endif 
@@ -1224,7 +1259,7 @@ end subroutine setfouunit
              nofouvar = nofouvar + 2
           endif
        !
-       ! requested fourier analysis cell-centred horizontal and vertical velocity
+       ! requested fourier analysis cell-centred eastward and northward velocity
        !
        elseif (columns(1)(1:2)=='ux' .or. columns(1)(1:2)=='uy') then
           nofou = nofou + 1
@@ -1347,7 +1382,7 @@ end subroutine setfouunit
     integer                              , pointer :: kmax
     double precision, pointer :: fieldptr1(:,:), fieldptr2(:,:)
 
-    integer    :: itdate   !<  Reference time in YYYYMMDD as an integer 
+    integer    :: itdate   !<  Reference time in yyyymmdd as an integer 
     
     read(refdat,*) itdate 
     
@@ -1447,8 +1482,8 @@ end subroutine setfouunit
     !  Stichting Deltares. All rights reserved.                                     
     !                                                                               
     !-------------------------------------------------------------------------------
-    !  $Id: fourier_analysis.f90 51400 2017-06-29 11:45:28Z leander $
-    !  $HeadURL: https://repos.deltares.nl/repos/ds/trunk/additional/unstruc/src/fourier_analysis.f90 $
+    !  $Id: fourier_analysis.f90 62193 2018-09-27 10:13:21Z dam_ar $
+    !  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/dflowfm/packages/dflowfm_kernel/src/fourier_analysis.f90 $
     !!--description-----------------------------------------------------------------
     !
     !    Function: - open fourier analysis output file
@@ -1508,7 +1543,7 @@ end subroutine setfouunit
     !
     ! Global variables
     !
-        integer                                                            , intent(in)  :: itdate  !< Reference time in YYYYMMDD
+        integer                                                            , intent(in)  :: itdate  !< Reference time in yyyymmdd as an integer
         real(fp)                                                           , intent(in)  :: dtsec   !< Integration time step [in seconds]
         character(20) , dimension(:)                                       , intent(in)  :: namcon  !< Description and declaration in esm_alloc_char.f90
         character(5)                                                       , intent(in)  :: versio  !< Version nr. of the current package
@@ -1654,14 +1689,14 @@ end subroutine setfouunit
                  ibluv = ibluv + 1
                  blnm = 'UX??'
                  write (blnm(3:4), '(i2.2)') ibluv
-                 namfun = 'horizontal velocity'
+                 namfun = 'X-component of cell-centre velocity'
               endif
               if (founam(ifou)(:2)=='uy') then
                  unc_loc = UNC_LOC_S
                  ibluv = ibluv + 1
                  blnm = 'UY??'
                  write (blnm(3:4), '(i2.2)') ibluv
-                 namfun = 'vertical velocity'
+                 namfun = 'Y-component of cell-centre velocity'
               endif
               if (founam(ifou)(:3)=='uxa') then
                  unc_loc = UNC_LOC_S
@@ -1713,7 +1748,7 @@ end subroutine setfouunit
               ierr = unc_put_att(fileids%ncid,idvar(:,ivar), 'long_name','Fourier analysis '//trim(namfunlong)//', '//trim(fouvarnamlong(ivar)))
               ierr = unc_put_att(fileids%ncid,idvar(:,ivar), 'units',fouvarunit(ivar))
               ierr = unc_put_att(fileids%ncid,idvar(:,ivar), 'layer_number', flayno(ifou))
-              ierr = unc_put_att(fileids%ncid,idvar(:,ivar), 'Reference_date_in_YYYYMMDD', itdate)
+              ierr = unc_put_att(fileids%ncid,idvar(:,ivar), 'Reference_date_in_yyyymmdd', itdate)
               ierr = unc_put_att(fileids%ncid,idvar(:,ivar), 'Starttime_fourier_analysis_in_minutes_since_reference_date', tfastr)
               ierr = unc_put_att(fileids%ncid,idvar(:,ivar), 'Stoptime_fourier_analysis_in_minutes_since_reference_date', tfasto)
               
@@ -1722,7 +1757,7 @@ end subroutine setfouunit
               case('s1','r1','u1','ux','uy','uxa','uya')
                  ierr = unc_put_att(fileids%ncid, idvar(:,ivar),  'coordinates'  , 'FlowElem_xcc FlowElem_ycc')
               case('qxk','taubpu','ws')
-                 ierr = unc_put_att(fileids%ncid, idvar(:,ivar),  'coordinates'  , 'FlowElem_xu FlowElem_yu')
+                 ierr = unc_put_att(fileids%ncid, idvar(:,ivar),  'coordinates'  , 'FlowLink_xu FlowLink_yu')
               end select
               ierr = unc_put_att(fileids%ncid,idvar(:,ivar), 'Number_of_cycles', fnumcy(ifou))
               ierr = unc_put_att(fileids%ncid,idvar(:,ivar), 'Frequency_degrees_per_hour', freqnt)
@@ -1793,8 +1828,8 @@ end subroutine setfouunit
     subroutine fouvecmax(mmax       ,nmaxus      ,nofou     , &
                        & ifou       ,nst         ,gdfourier  ,gddimens      )
     !-------------------------------------------------------------------------------
-    !  $Id: fourier_analysis.f90 51400 2017-06-29 11:45:28Z leander $
-    !  $HeadURL: https://repos.deltares.nl/repos/ds/trunk/additional/unstruc/src/fourier_analysis.f90 $
+    !  $Id: fourier_analysis.f90 62193 2018-09-27 10:13:21Z dam_ar $
+    !  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/dflowfm/packages/dflowfm_kernel/src/fourier_analysis.f90 $
     !!--description-----------------------------------------------------------------
     !
     !    Function: - Determines the maximum of the different vector parameters
@@ -1897,8 +1932,8 @@ end subroutine setfouunit
    !----- GPL ---------------------------------------------------------------------
    !  Copyright (C)  Stichting Deltares, 2011-2018.                                
    !-------------------------------------------------------------------------------
-   !  $Id: fourier_analysis.f90 51400 2017-06-29 11:45:28Z leander $
-   !  $HeadURL: https://repos.deltares.nl/repos/ds/trunk/additional/unstruc/src/fourier_analysis.f90 $
+   !  $Id: fourier_analysis.f90 62193 2018-09-27 10:13:21Z dam_ar $
+   !  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/dflowfm/packages/dflowfm_kernel/src/fourier_analysis.f90 $
    !!--description-----------------------------------------------------------------
    !
    !    Function: - writes results of fourier analysis to output
@@ -2121,7 +2156,9 @@ end subroutine setfouunit
                    case ('x','i','e')
                       glbarr2(n,m) = real(fousma(n,m,ifou),sp)
                    case ('a')
-                      glbarr2(n,m) = real(fousma(n,m,ifou),sp)/(real(ftmsto(ifou) - ftmstr(ifou),fp))
+                      if( fousmb(n,m,ifou) > 0d0 ) then
+                         glbarr2(n,m) = real(fousma(n,m,ifou),sp)/ fousmb(n,m,ifou) !(real(ftmsto(ifou) - ftmstr(ifou),fp))
+                      endif
                    end select
                 endif
              enddo

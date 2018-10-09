@@ -25,7 +25,7 @@ module morphology_data_module
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: morphology_data_module.f90 7992 2018-01-09 10:27:35Z mourits $
+!  $Id: morphology_data_module.f90 59748 2018-08-04 04:37:35Z ottevan $
 !  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_gpl/morphology/packages/morphology_data/src/morphology_data_module.f90 $
 !!--module description----------------------------------------------------------
 !
@@ -126,7 +126,8 @@ integer, parameter, public :: RP_D15MX = 50     ! same, d15
 integer, parameter, public :: RP_POROS = 51     ! same, porosity
 integer, parameter, public :: RP_DZDX  = 52     ! same, bottom slope x dir
 integer, parameter, public :: RP_DZDY  = 53     ! same, bottom slope y dir
-integer, parameter, public :: MAX_RP   = 53
+integer, parameter, public :: RP_DM    = 54     ! median sediment diameter
+integer, parameter, public :: MAX_RP   = 54
 !
 integer, parameter, public :: IP_NM    =  1
 integer, parameter, public :: IP_N     =  2
@@ -460,9 +461,13 @@ end type morpar_type
 
 type t_noderelation
    character(len=CHARLEN)                         :: Node       = ' '
+   integer                                        :: NodeIdx    = 0    !< Cell centre index 
    character(len=CHARLEN)                         :: BranchIn   = ' '
+   integer                                        :: BranchInLn = 0    !< Link index 
    character(len=CHARLEN)                         :: BranchOut1 = ' '
+   integer                                        :: BranchOut1Ln = 0   !< Link index 
    character(len=CHARLEN)                         :: BranchOut2 = ' '
+   integer                                        :: BranchOut2Ln = 0   !< Link index 
    character(len=CHARLEN)                         :: tableName  = ' '
    character(len=CHARLEN)                         :: Method     = ' '
    real(fp)                                       :: expQ       = -1.0_fp
@@ -1500,7 +1505,7 @@ subroutine nullmorpar(morpar)
     avaltime           = 86400.0_fp
     duneavalan         = .false.
     hswitch            = 0.1_fp
-    dzmaxdune          = 0.05_fp
+    dzmaxdune          = 100.0_fp           ! with Marlies, 20180417
     !
     ihidexp            = 1
     itmor              = 0

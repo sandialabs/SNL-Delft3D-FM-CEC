@@ -27,8 +27,8 @@
 !                                                                               
 !-------------------------------------------------------------------------------
 
-! $Id: unstruc_opengl.F90 53642 2017-12-04 15:33:06Z kernkam $
-! $HeadURL: https://repos.deltares.nl/repos/ds/trunk/additional/unstruc/src/unstruc_opengl.F90 $
+! $Id: unstruc_opengl.F90 62178 2018-09-27 09:19:40Z mourits $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/dflowfm/packages/dflowfm_kernel/src/unstruc_opengl.F90 $
 module unstruc_opengl
    use precision
 #ifdef HAVE_OPENGL

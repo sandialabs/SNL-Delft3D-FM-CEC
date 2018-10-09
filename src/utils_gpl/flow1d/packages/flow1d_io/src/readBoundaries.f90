@@ -25,7 +25,7 @@ module m_readBoundaries
 !  Stichting Deltares. All rights reserved.
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: readBoundaries.f90 8044 2018-01-24 15:35:11Z mourits $
+!  $Id: readBoundaries.f90 8130 2018-02-09 16:34:49Z dam_ar $
 !  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_gpl/flow1d/packages/flow1d_io/src/readBoundaries.f90 $
 !-------------------------------------------------------------------------------
 
@@ -34,7 +34,7 @@ module m_readBoundaries
    use m_network
    use m_boundaryConditions
 
-   use flow1d_io_properties
+   use properties
    use m_tables
    use m_hash_search
    use string_module
@@ -101,7 +101,7 @@ module m_readBoundaries
       boundaries => network%boundaries
       nds        => network%nds
 
-      call tree_create(trim(boundaryLocationFile), md_ptr)
+      call tree_create(trim(boundaryLocationFile), md_ptr, maxlenpar)
       call prop_file('ini',trim(boundaryLocationFile),md_ptr, istat)
       
       numstr = 0

@@ -67,7 +67,7 @@
      +         IN1   , IN2   , IN3   , IN4   , IN5   ,
      +         IN6   , IN7   , IN8   , IN9   , IN10  ,
      +         IN11
-      INTEGER  IKMRK , IKMRK1, IKMRK2, ISEG  , IQ    , IFROM , ITO
+      INTEGER  ISEG
       INTEGER  IB    , IPBUCK, IPTCNT, LUNREP, IACTION, ATTRIB
 
       INTEGER  NOBUCK
@@ -179,7 +179,7 @@
 !        otherwise this is the last one
 !
       IACTION = 0
-      IF ( TIME >= TSTART-0.5*DELT ) THEN
+      IF ( TIME >= TSTART-0.5*DELT .AND. TIME <= TSTOP+0.5*DELT) THEN
          IACTION = 2
          IF ( TIME <= TSTART+0.5*DELT ) THEN
             DO ISEG=1,NOSEG

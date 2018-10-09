@@ -29,7 +29,7 @@ function Fcn=qp_file2function(Info)
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
 %   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/private/qp_file2function.m $
-%   $Id: qp_file2function.m 7992 2018-01-09 10:27:35Z mourits $
+%   $Id: qp_file2function.m 8791 2018-05-16 10:50:08Z jagers $
 
 persistent MissingFileTypes
 %
@@ -116,6 +116,7 @@ F={'Delft3D-com'                'd3d_comfil'
     'SHYFEM mesh'                'flexmeshfil'
     'GeoSystems mesh'            'flexmeshfil'
     'Gmsh'                       'flexmeshfil'
+    'SMS mesh'                   'flexmeshfil'
     'diff'                       'difffil'
     'shipma'                     'shipmafil'
     'geodata'                    'geodatafil'

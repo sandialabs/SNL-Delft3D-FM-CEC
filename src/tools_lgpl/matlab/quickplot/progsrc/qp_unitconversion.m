@@ -66,7 +66,7 @@ function varargout=qp_unitconversion(varargin)
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
 %   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/qp_unitconversion.m $
-%   $Id: qp_unitconversion.m 7992 2018-01-09 10:27:35Z mourits $
+%   $Id: qp_unitconversion.m 8961 2018-06-11 14:56:29Z jagers $
 
 persistent unittableread
 if isempty(unittableread)
@@ -524,11 +524,6 @@ if isempty(i) && length(unit)>5 && strcmpi(unit(end-4:end),' abs.') % this is mo
     i=strmatch(unit,unittable{1},'exact');
 end
 %
-MightBePlural = length(unit)>2 && unit(end)=='s'; % don't think ms is meters but milliseconds.
-if isempty(i) && MightBePlural
-    i=strmatch(unit(1:end-1),unittable{1},'exact');
-end
-%
 prefix=1;
 if isempty(i)
     [v,n,e]=sscanf(unit,'%f',2);
@@ -580,9 +575,6 @@ if isempty(i)
         end
         if prefixfound
             i=strmatch(unit,unittable{1},'exact');
-            if isempty(i) && MightBePlural
-                i=strmatch(unit(1:end-1),unittable{1},'exact');
-            end
         end
         if isempty(i)
             % no match ...

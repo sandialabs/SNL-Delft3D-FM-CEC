@@ -23,7 +23,7 @@
 !  are registered trademarks of Stichting Deltares, and remain the property of  
 !  Stichting Deltares. All rights reserved.                                     
 
-!  $Id: ec_filereader.F90 7992 2018-01-09 10:27:35Z mourits $
+!  $Id: ec_filereader.F90 62276 2018-10-08 11:15:49Z pijl $
 !  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_lgpl/ec_module/packages/ec_module/src/ec_filereader.F90 $
 
 !> This module contains all the methods for the datatype tEcFileReader.
@@ -269,14 +269,13 @@ module m_ec_filereader
                                fileReaderPtr%items(3)%ptr%sourceT0FieldPtr%arr1d(i), &
                                fileReaderPtr%items(1)%ptr%sourceT0FieldPtr%astro_kbnumber(i),   &
                                yyyymmdd, hhmmss, istat)
+                     if (istat /= 0) success = .false.
                   end do
                   ! Shift time interval with dtnodal
                   do i=1, fileReaderPtr%nItems
                      fileReaderPtr%items(i)%ptr%sourceT0FieldPtr%timesteps = timesteps
                      fileReaderPtr%items(i)%ptr%sourceT1FieldPtr%timesteps = timesteps + fileReaderPtr%tframe%dtnodal
                   end do
-                  success = .true.
-                  if (istat /= 0) success = .false.
                case (BC_FUNC_QHTABLE)
                   do i=1, fileReaderPtr%nItems
                      fileReaderPtr%items(i)%ptr%sourceT1FieldPtr%timesteps = fileReaderPtr%items(i)%ptr%sourceT1FieldPtr%timesteps + 10000.0_hp
@@ -285,10 +284,6 @@ module m_ec_filereader
                case default
                   call setECMessage("ERROR: ec_filereader::ecFileReaderReadNextRecord: Unsupported BC function type.")
                end select
-            case (provFile_svwp)
-               call setECMessage("ERROR: ec_filereader::ecFileReaderReadNextRecord: Unsupported file type.")
-            case (provFile_svwp_weight)
-               call setECMessage("ERROR: ec_filereader::ecFileReaderReadNextRecord: Unsupported file type.")
             case (provFile_t3D)
                 numlay = size(fileReaderPtr%items(1)%ptr%elementsetptr%z)
                 vectormax = fileReaderPtr%items(1)%ptr%quantityptr%vectormax
@@ -327,16 +322,8 @@ module m_ec_filereader
                   fileReaderPtr%items(i)%ptr%sourceT1FieldPtr%timesteps = fileReaderPtr%items(i)%ptr%sourceT1FieldPtr%timesteps + 10000.0_hp
                end do
                success = .true.
-            case (provFile_curvi_weight)
-               call setECMessage("ERROR: ec_filereader::ecFileReaderReadNextRecord: Unsupported file type.")
-            case (provFile_samples)
-               ! NOTE: don't support readNextRecord, because sample data is read once by ecSampleReadAll upon init.
-               call setECMessage("ERROR: ec_filereader::ecFileReaderReadNextRecord: Unsupported file type.")
-            case (provFile_triangulationmagdir)
-               call setECMessage("ERROR: ec_filereader::ecFileReaderReadNextRecord: Unsupported file type.")
-            case (provFile_poly_tim)
-               call setECMessage("ERROR: ec_filereader::ecFileReaderReadNextRecord: Unsupported file type.")
             case (provFile_fourier)
+               success = .true.
                if(allocated(fileReaderPtr%items(1)%ptr%sourceT0FieldPtr%astro_components)) then ! Astronomical case
                   success = ecTimeFrameRealHpTimestepsToDateTime(fileReaderPtr%tframe, timesteps, yyyymmdd, hhmmss)
                   n_invalid_components = (ecFileReaderLookupAstroComponents(fileReaderPtr)) 
@@ -350,6 +337,7 @@ module m_ec_filereader
                                fileReaderPtr%items(3)%ptr%sourceT0FieldPtr%arr1d(i),            &
                                fileReaderPtr%items(1)%ptr%sourceT0FieldPtr%astro_kbnumber(i),   &
                                yyyymmdd, hhmmss, istat)
+                     if (istat /= 0) success = .false.
                   end do
                   ! Shift time interval with dtnodal
                   do i=1, fileReaderPtr%nItems
@@ -361,10 +349,6 @@ module m_ec_filereader
                      fileReaderPtr%items(i)%ptr%sourceT1FieldPtr%timesteps = fileReaderPtr%items(i)%ptr%sourceT1FieldPtr%timesteps + 10000.0_hp
                   end do
                endif
-               success = .true.
-               if (istat /= 0) success = .false.
-            case (provFile_grib)
-               call setECMessage("ERROR: ec_filereader::ecFileReaderReadNextRecord: Unsupported file type.")
             case (provFile_netcdf)
                qname = fileReaderPtr%items(1)%ptr%quantityPtr%name
                call str_lower(qname)
@@ -393,8 +377,25 @@ module m_ec_filereader
                         fileReaderPtr%items(i)%ptr%sourceT1FieldPtr => fileReaderPtr%items(i)%ptr%sourceT0FieldPtr
                         fileReaderPtr%items(i)%ptr%sourceT0FieldPtr => fieldPtrA
                      endif
+                     ! Initially, both T0 and T1 refer to ec_undef_hp < 0
+                     ! At this point, after swapping, T0-field is still uninitialized
+                     ! In the next lines, 
+                     if (fileReaderPtr%items(i)%ptr%sourceT0FieldPtr%timesteps<0.0_hp) then
+                        fileReaderPtr%items(i)%ptr%sourceT0FieldPtr%timesteps = fileReaderPtr%items(i)%ptr%sourceT1FieldPtr%timesteps
+                        success = ecNetcdfReadNextBlock(fileReaderPtr, fileReaderPtr%items(i)%ptr, t0t1)
+                        if (t0t1 == 0) then
+                           ! flip t0 and t1
+                           fieldPtrA => fileReaderPtr%items(i)%ptr%sourceT1FieldPtr
+                           fileReaderPtr%items(i)%ptr%sourceT1FieldPtr => fileReaderPtr%items(i)%ptr%sourceT0FieldPtr
+                           fileReaderPtr%items(i)%ptr%sourceT0FieldPtr => fieldPtrA
+                        endif
+                     end if
                   end do
-               end select 
+               end select
+            case (provFile_svwp, provFile_svwp_weight, provFile_curvi_weight, provFile_samples, &
+                  provFile_triangulationmagdir, provFile_poly_tim, provFile_grib)
+               ! NOTE for provFile_samples: don't support readNextRecord, because sample data is read once by ecSampleReadAll upon init.
+               call setECMessage("ERROR: ec_filereader::ecFileReaderReadNextRecord: Unsupported file type.")
             case default
                call setECMessage("ERROR: ec_filereader::ecFileReaderReadNextRecord: Unknown file type.")
          end select
@@ -562,12 +563,10 @@ module m_ec_filereader
             if (nmissing>0) then 
                do icmp=1, kcmp
                   if (fileReaderPtr%items(1)%ptr%sourceT0FieldPtr%astro_kbnumber(icmp)<0) then
-                     call message('unknown component '     &
-                                 // trim(fileReaderPtr%items(1)%ptr%sourceT0FieldPtr%astro_components(icmp)),                      &
-                                      ' amplitude set to 0 ', ' ')
                      call setECMessage('unknown component '     &
                                  // trim(fileReaderPtr%items(1)%ptr%sourceT0FieldPtr%astro_components(icmp)),                      &
                                       ' amplitude set to 0 ')
+                     ! TODO: return the appropriate state
                   end if
                end do
             end if

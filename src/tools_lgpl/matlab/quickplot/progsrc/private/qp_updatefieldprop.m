@@ -29,7 +29,7 @@ function qp_updatefieldprop(UD)
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
 %   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/private/qp_updatefieldprop.m $
-%   $Id: qp_updatefieldprop.m 7992 2018-01-09 10:27:35Z mourits $
+%   $Id: qp_updatefieldprop.m 62256 2018-10-04 20:53:05Z jagers $
 
 MW=UD.MainWin;
 Inactive=UD.Inactive;
@@ -237,8 +237,18 @@ else
     %
     set(MW.T,'enable','off')
     set(MW.AllT,'enable','off','value',0)
-    set(MW.EditT,'enable','off','string','1','backgroundcolor',Inactive,'userdata',1)
-    set(MW.MaxT,'enable','on','string','1','userdata',1)
+    if DimFlag(T_)
+        if sz(T_)==1
+            set(MW.EditT,'enable','off','string','1','backgroundcolor',Inactive,'userdata',1)
+            set(MW.MaxT,'enable','on','string','1','userdata',1)
+        else
+            set(MW.EditT,'enable','off','string','-','backgroundcolor',Inactive,'userdata',1)
+            set(MW.MaxT,'enable','on','string','0','userdata',0)
+        end
+    else
+        set(MW.EditT,'enable','off','string',' ','backgroundcolor',Inactive,'userdata',1)
+        set(MW.MaxT,'enable','on','string','-','userdata',1)
+    end
     set(MW.ShowT,'enable','off')
     set(MW.TList,'enable','off','max',2,'value',[],'string','','backgroundcolor',Inactive,'userdata',0)
 end
@@ -549,6 +559,7 @@ if strcmp(get(MW.HSelType,'enable'),'on')
     set(MW.MN,'enable','on',vis{:})
     set(MW.EditMN,'enable','on','backgroundcolor',Active,vis{:})
     set(MW.MN2XY,vis{:})
+    set(MW.MNrev,vis{:})
     if ~isempty(Props) && isfield(Props,'DimFlag') && Props(fld).DimFlag(M_) && ~Props(fld).DimFlag(N_)
         set(MW.MN2M,vis{:})
     else

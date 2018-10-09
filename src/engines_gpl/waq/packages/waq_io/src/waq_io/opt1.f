@@ -22,7 +22,8 @@
 !!  rights reserved.
 
       subroutine opt1 ( iopt1  , lun    , is     , lchar  , filtype,
-     &                  dtflg1 , dtflg3 , nitem  , ierr   , iwar   )
+     &                  dtflg1 , dtflg3 , nitem  , ierr   , iwar   ,
+     &                  dont_read                                  )
 
 !     Deltares Software Centre
 
@@ -62,6 +63,7 @@
       integer   (4) , intent(inout) :: filtype(*)     !< type of binary file
       integer   (4) , intent(inout) :: ierr           !< Local error flag
       integer   (4) , intent(inout) :: iwar           !< Cumulative warning count
+      logical       , intent(in)    :: dont_read      !< do not actually read tokens, if true, the information is already provided
 
 !     local
 
@@ -117,16 +119,20 @@
             endif
 
          case ( -2, 0 )                   !    External binairy intermediate file
-   10       if ( gettoken( cdummy, ierr2 ) .gt. 0 ) goto 30     !   Get file name
-            if ( cdummy .eq. 'UNFORMATTED' ) then
-               filtype(is) = filtype(is) + 10
-               write ( lunut, * ) 'UNFORMATTED file detected'
-               goto 10
-            endif
-            if ( cdummy .eq. 'BIG_ENDIAN' ) then
-               filtype(is) = filtype(is) + 20
-               write ( lunut, * ) 'BIG_ENDIAN  file detected'
-               goto 10
+            if ( dont_read ) then
+               cdummy = lchar(is)
+            else
+   10          if ( gettoken( cdummy, ierr2 ) .gt. 0 ) goto 30     !   Get file name
+               if ( cdummy .eq. 'UNFORMATTED' ) then
+                  filtype(is) = filtype(is) + 10
+                  write ( lunut, * ) 'UNFORMATTED file detected'
+                  goto 10
+               endif
+               if ( cdummy .eq. 'BIG_ENDIAN' ) then
+                  filtype(is) = filtype(is) + 20
+                  write ( lunut, * ) 'BIG_ENDIAN  file detected'
+                  goto 10
+               endif
             endif
             lchar(is) = cdummy
             write ( lunut , 2040 ) cdummy
@@ -278,8 +284,7 @@
 
          case ( -2 )
             write ( lunut , 2060 ) cdummy
-            iwar = iwar + 1
-            ierr = 0
+            ierr = 1
 
          case ( -1 )
             write ( lunut , 2100 ) cdummy
@@ -306,7 +311,7 @@
  2040 format (/' Information from unformatted intermediate file.' ,
      &        /' Filename is: ',A )
  2050 format ( ' Information from the standard input file.' )
- 2060 format ( ' WARNING file does not exist.'/' Filename: ',A )
+ 2060 format ( ' ERROR: File does not exist.'/' Filename: ',A )
  2070 format ( ' ERROR reading input!' )
  2080 format (/' Nr: Interpolation        From                  ',
      &         ' To                  Start with      Hydro-dynamic',

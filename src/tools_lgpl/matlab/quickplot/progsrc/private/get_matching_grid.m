@@ -34,18 +34,19 @@ function [G,GridFileName]=get_matching_grid(MapSeg,pn,filterspec)
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
 %   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/private/get_matching_grid.m $
-%   $Id: get_matching_grid.m 7992 2018-01-09 10:27:35Z mourits $
+%   $Id: get_matching_grid.m 8468 2018-03-29 08:54:39Z jagers $
 
 GridSeg=-1;
 PerLayer=0;
-CouldReadGridData = 0;
-filters = {'*.cco;*.lga' 'Delft3D Grid (Aggregation) Files'
-    '*.m2b' 'SOBEK Grid Aggregation Files'
+filters = {'*.cco;*.lga;*.m2b;*.geo;geo*;*.slf;T2DD12;*.dwq;*.nc;*.shp' 'Any Supported Grid Files'
+    '*.cco;*.lga'      'Delft3D Grid (Aggregation) Files'
+    '*.m2b'            'SOBEK Grid Aggregation Files'
     '*.geo;geo*;*.slf' 'Telemac Grid Files'
-    'T2DD12;*.dwq' 'DIDO Aggregation File (for Telemac)'
-    '*.nc' 'UGRID netCDF Files (D-Flow FM, Untrim)'
-    '*.shp' 'Shape File'};
-telemacfilter = filters(3,:);
+    'T2DD12;*.dwq'     'DIDO Aggregation File (for Telemac)'
+    '*.nc'             'UGRID netCDF Files (D-Flow FM, Untrim)'
+    '*.shp'            'Shape File'
+    '*.*'              'All Files'};
+telemacfilter = filters(4,:);
 if nargin<3
     filterspec = '';
 end

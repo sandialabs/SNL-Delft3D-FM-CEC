@@ -25,7 +25,7 @@ module m_readObservationPoints
 !  Stichting Deltares. All rights reserved.
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: readObservationPoints.f90 8044 2018-01-24 15:35:11Z mourits $
+!  $Id: readObservationPoints.f90 61643 2018-09-06 13:04:12Z zeekant $
 !  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_gpl/flow1d/packages/flow1d_io/src/readObservationPoints.f90 $
 !-------------------------------------------------------------------------------
 
@@ -34,7 +34,7 @@ module m_readObservationPoints
    use m_ObservationPoints
    use m_GlobalParameters
 
-   use flow1d_io_properties
+   use properties
    use m_hash_search
    use m_hash_list
    use string_module
@@ -89,7 +89,7 @@ module m_readObservationPoints
       binfile = observationPointsFile(1:pos)//'cache'
       inquire(file=binfile, exist=file_exist)
       if (doReadCache .and. file_exist) then
-         open(newunit=ibin, file=binfile, status='old', form='binary', action='read', iostat=istat)
+         open(newunit=ibin, file=binfile, status='old', form='unformatted', access='stream', action='read', iostat=istat)
          if (istat /= 0) then
             call setmessage(LEVEL_FATAL, 'Error opening Observation Point Cache file')
             ibin = 0
@@ -100,7 +100,7 @@ module m_readObservationPoints
          return
       endif
 
-      call tree_create(trim(observationPointsFile), md_ptr)
+      call tree_create(trim(observationPointsFile), md_ptr, maxlenpar)
       call prop_file('ini',trim(observationPointsFile),md_ptr, istat)
       
       numstr = 0

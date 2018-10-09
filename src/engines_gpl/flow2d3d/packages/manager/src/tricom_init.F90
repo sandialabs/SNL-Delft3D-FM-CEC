@@ -25,7 +25,7 @@ subroutine tricom_init(olv_handle, gdp)
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: tricom_init.F90 8013 2018-01-17 08:46:32Z platzek $
+!  $Id: tricom_init.F90 8579 2018-04-16 08:46:46Z dam_ar $
 !  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/flow2d3d/packages/manager/src/tricom_init.F90 $
 !!--description-----------------------------------------------------------------
 !
@@ -44,6 +44,7 @@ subroutine tricom_init(olv_handle, gdp)
 ! NONE
 !!--declarations----------------------------------------------------------------
     use precision
+    use time_module
     use meteo
     use SyncRtcFlow
     use sync_flm
@@ -925,7 +926,7 @@ subroutine tricom_init(olv_handle, gdp)
     !
     ! Calculate Julian start day for use in TRISOL
     !
-    call juldat(itdate    ,julday    )
+    julday = ymd2jul(itdate)
     !
     ! Define start time and timesteps (in seconds)
     !

@@ -319,7 +319,7 @@ function wave () {
     copyFile "$prefix/bin/wave.exe"                                  $dest_bin
     copyFile "$srcdir/engines_gpl/flow2d3d/default/dioconfig.ini"    $dest_default
     copyFile "$srcdir/third_party_open/swan/bin/linux/*.*"           $dest_swan_bin
-    copyFile "$srcdir/third_party_open/swan/scripts/swan_install.sh" $dest_swan_scripts/swan.sh
+    copyFile "$srcdir/third_party_open/swan/scripts/swan.sh"         $dest_swan_scripts
     copyFile "$srcdir/third_party_open/esmf/lnx64/bin/*"             $dest_esmf_bin
     copyFile "$srcdir/third_party_open/esmf/lnx64/scripts/*.*"       $dest_esmf_scripts
     copyFile "$srcdir/engines_gpl/wave/scripts/run_*.sh"             $dest_scripts
@@ -568,6 +568,15 @@ function shared () {
 
 
 # =======================
+# === INSTALL_ESMF ======
+# =======================
+function gatherESMF () {
+    cp $srcroot/third_party_open/esmf/lnx64/bin/libesmf.so $prefix/lib
+}
+
+
+
+# =======================
 # === INSTALL_SHARED ====
 # =======================
 function gatherDependencies () {
@@ -602,6 +611,11 @@ dest_main=$2
 project=$3
 curdir=`pwd`
 
+scriptdirname=`readlink \-f \$0`
+scriptdir=`dirname $scriptdirname`
+srcroot=$scriptdir/../..
+
+
 if [ "$prefix" == '' ]; then
     echo "ERROR: No prefix directory specified as argument of oss-install.sh"
     exit 1
@@ -612,16 +626,19 @@ if [ "$dest_main" == '' ]; then
     exit 1
 fi
 
-if [ "$project" == '' ]; then
-    # Install all engines
-    project=install_all
-fi
+# if [ "$project" == '' ]; then
+#     # Install all engines
+#     project=install_all
+# fi
 
 echo Prefix            : $prefix
 echo Target directory  : $dest_main
 echo Project           : $project
 echo Current directory : $curdir
+echo Source root dir   : $srcroot
 
+
+gatherESMF
 
 gatherDependencies
 

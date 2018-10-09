@@ -26,7 +26,7 @@
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: nesthd1.f90 7992 2018-01-09 10:27:35Z mourits $
+!  $Id: nesthd1.f90 8114 2018-02-06 15:21:51Z kaaij $
 !  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_gpl/nesthd1/packages/nesthd1/src/nesthd1.f90 $
 !****&******************************************************************
 ! Deltares                         marine and coastal management
@@ -242,7 +242,7 @@
 !-----------------------------------------------------------------------
 
       call detang (xbnd     ,ybnd   ,angle    ,mcbsp    ,ncbsp    , &
-     &             icom2    ,mmax2  ,nmax2    ,maxbnd   ,nobnd )
+     &             mmax2    ,nmax2  ,maxbnd   ,nobnd              )
 
 !-----------------------------------------------------------------------
 !---- 9. Write weight factors/angles velocity boundary

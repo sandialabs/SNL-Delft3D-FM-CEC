@@ -27,7 +27,7 @@
 !                                                                               
 !-------------------------------------------------------------------------------
 
-! $Id: polygon.f90 8044 2018-01-24 15:35:11Z mourits $
+! $Id: polygon.f90 62219 2018-10-01 13:45:18Z carniato $
 ! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_lgpl/gridgeom/packages/gridgeom/src/polygon.f90 $
    module m_tpoly !< tpoly-type polygon/polyline
    implicit none
@@ -463,10 +463,26 @@ end module m_tpoly
     end if
     end subroutine polorientation
     
-   subroutine allocpoladm()
+   subroutine allocpoladm(N)
    use m_alloc
    use m_polygon
+   integer, intent(in) :: N !< Desired array capacity for polygon administration
+
+   integer :: maxpolycur
+   
+   !inquire for size only if allocated
+   if(allocated(xpmin)) then
+      maxpolycur = size(xpmin)
+   else
+      maxpolycur = 0
+   endif
+   
+   if (n <= maxpolycur ) then 
+      return
+   endif
+   
    maxpoly = ceiling(maxpoly*1.1)
+
    call realloc(xpmin, maxpoly, keepExisting=.true.)
    call realloc(xpmax, maxpoly, keepExisting=.true.)
    call realloc(ypmin, maxpoly, keepExisting=.true.)
@@ -508,11 +524,11 @@ end module m_tpoly
   
    !     initialization
    if ( in < 0 ) then
-      call allocpoladm()
       ipoint = 1
       ipoly = 0
-      do while ( ipoint.lt.NPL .and. ipoly.lt.MAXPOLY )
+      do while (ipoint.lt.NPL)
          ipoly = ipoly+1
+         call allocpoladm(ipoly)
 
          !           get polygon start and end pointer respectively
          call get_startend(NPL-ipoint+1,xpl(ipoint:NPL),ypl(ipoint:NPL), istart, iend, dmiss)

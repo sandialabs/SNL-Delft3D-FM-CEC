@@ -113,7 +113,7 @@ libdir=$D3D_HOME/lib
     #
 
     # Run
-export LD_LIBRARY_PATH=$bindir:$libdir:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=$libdir:$LD_LIBRARY_PATH
 
     # Create shared memory block
 esmContext=`$bindir/esm_create 2> /dev/null`
@@ -152,3 +152,8 @@ else
     echo "ESM context deleted: $esmContext"
 fi 
 
+    # Nefis files don't get write permission for the group bit
+    # Add it explicitly, only when stderr = 0
+if [ $? -eq 0 ]; then
+    chmod -R g+rw *.dat *.def &>/dev/null || true
+fi

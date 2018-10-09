@@ -25,7 +25,7 @@ module time_module
    !  Stichting Deltares. All rights reserved.                                     
    !                                                                               
    !-------------------------------------------------------------------------------
-   !  $Id: time_module.f90 7992 2018-01-09 10:27:35Z mourits $
+   !  $Id: time_module.f90 62180 2018-09-27 09:37:50Z spee $
    !  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_lgpl/deltares_common/packages/deltares_common/src/time_module.f90 $
    !!--description-----------------------------------------------------------------
    !
@@ -34,7 +34,7 @@ module time_module
    !!--pseudo code and references--------------------------------------------------
    ! NONE
    !!--declarations----------------------------------------------------------------
-
+   use precision_basics, only : hp
    implicit none
 
    private
@@ -42,45 +42,50 @@ module time_module
    public :: time_module_info
    public :: datetime2sec
    public :: sec2ddhhmmss
-   public :: ymd2jul
-   public :: jul2ymd
+   public :: ymd2jul, ymd2reduced_jul
    public :: mjd2jul
    public :: jul2mjd
-   public :: date2mjd
+   public :: date2mjd   ! obsolete, use ymd2reduced_jul
    public :: mjd2date
    public :: datetime_to_string
    public :: parse_ud_timeunit
+   public :: split_date_time
 
    interface ymd2jul
-      module procedure GregorianDateToJulianDateNumber
-      module procedure GregorianYearMonthDayToJulianDateNumber
+      ! obsolete, use ymd2reduced_jul
+      module procedure CalendarDateToJulianDateNumber
+      module procedure CalendarYearMonthDayToJulianDateNumber
    end interface ymd2jul
 
-   interface jul2ymd
-      module procedure JulianDateNumberToGregorianDate
-      module procedure JulianDateNumberToGregorianYearMonthDay
-   end interface jul2ymd
-
    interface date2mjd
+      ! obsolete, use ymd2reduced_jul
       module procedure ymd2mjd
-      module procedure ymdhms2mjd
       module procedure datetime2mjd
+      module procedure ymdhms2mjd
    end interface date2mjd
+
+   interface ymd2reduced_jul
+      module procedure ymd2reduced_jul_string
+      module procedure ymd2reduced_jul_int
+      module procedure ymd2reduced_jul_int3
+   end interface ymd2reduced_jul
 
    interface mjd2date
       module procedure mjd2datetime
-      module procedure mjd2ymdhms
       module procedure mjd2ymd
    end interface mjd2date
-   
+
    interface datetime_to_string
       module procedure datetime2string
       module procedure jul_frac2string
       module procedure mjd2string
    end interface datetime_to_string
 
+   real(kind=hp), parameter :: offset_reduced_jd   = 2400000.5_hp
+   integer      , parameter :: firstGregorianDayNr = 2299161
+
    contains
-      
+
       ! ------------------------------------------------------------------------------
       !   Subroutine: time_module_info
       !   Purpose:    Add info about this time module to the messages stack
@@ -97,12 +102,10 @@ module time_module
           !
           !! executable statements ---------------------------------------------------
           !
-          call addmessage(messages,'$Id: time_module.f90 7992 2018-01-09 10:27:35Z mourits $')
+          call addmessage(messages,'$Id: time_module.f90 62180 2018-09-27 09:37:50Z spee $')
           call addmessage(messages,'$URL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_lgpl/deltares_common/packages/deltares_common/src/time_module.f90 $')
       end subroutine time_module_info
-      
-      
-      
+
       ! ------------------------------------------------------------------------------
       !   Subroutine: datetime2sec
       !   Purpose:    Convert a 6 integer datetime vector to a number of seconds
@@ -148,15 +151,13 @@ module time_module
              sec   = sec*60 + datetime(6)
           endif
       end function datetime2sec
-      
-      
-      
+
       ! ------------------------------------------------------------------------------
       !   Subroutine: sec2ddhhmmss
       !   Purpose:    Convert a number of seconds to ddhhmmss integer
       !   Arguments:
       !   sec         Number of seconds
-      !   ddhhmmss    Integer with days, hours, minutes and seconds formatted as ddhhmmss 
+      !   ddhhmmss    Integer with days, hours, minutes and seconds formatted as ddhhmmss
       ! ------------------------------------------------------------------------------
       function sec2ddhhmmss(sec) result (ddhhmmss)
           !
@@ -189,8 +190,198 @@ module time_module
           ddhhmmss = ss + 100*mm + 10000*hh + 1000000*dd
       end function sec2ddhhmmss
 
-      ! =======================================================================
-      
+!---------------------------------------------------------------------------------------------
+! implements interface ymd2reduced_jul
+!---------------------------------------------------------------------------------------------
+      !> calculates reduced Julian Date base on a string 'yyyyddmm' with or without separator
+      function ymd2reduced_jul_string(date, reduced_jul_date) result (success)
+         character(len=*), intent(in) :: date             !< date as string 'yyyyddmm' or 'yyyy dd mm'
+         real(kind=hp), intent(out)   :: reduced_jul_date !< returned date as reduced modified julian
+         logical                      :: success          !< function result
+
+         integer :: year, month, day, ierr
+         character :: separator
+         logical :: has_separators
+         character(len=20) :: fmt
+
+         separator = date(5:5)
+         has_separators = (separator < '0' .or. separator > '9')
+
+         if (len_trim(date) >= 10) then
+            fmt = '(i4,x,i2,x,i2)'
+         else if (has_separators) then
+            fmt = '(i4,x,i1,x,i1)'
+         else
+            fmt = '(i4,i2,i2)'
+         endif
+
+         read(date, fmt, iostat=ierr) year, month, day
+
+         if (ierr == 0) then
+            success = ymd2reduced_jul_int3(year, month, day, reduced_jul_date)
+         else
+            success  = .false.
+         endif
+
+      end function ymd2reduced_jul_string
+
+      !> calculates reduced Julian Date base on a integer yyyyddmm
+      function ymd2reduced_jul_int(yyyymmdd, reduced_jul_date) result(success)
+         integer,       intent(in)  :: yyyymmdd          !< date as integer yyyymmdd
+         real(kind=hp), intent(out) :: reduced_jul_date  !< output reduced Julian Date number
+         logical                    :: success           !< function result
+
+         integer :: year, month, day
+
+         call splitDate(yyyymmdd, year, month, day)
+
+         success = ymd2reduced_jul_int3(year, month, day, reduced_jul_date)
+
+      end function ymd2reduced_jul_int
+
+      !> calculates reduced Julian Date base on integers year, month and day
+      function ymd2reduced_jul_int3(year, month, day, reduced_jul_date) result(success)
+         integer      , intent(in)  :: year              !< year
+         integer      , intent(in)  :: month             !< month
+         integer      , intent(in)  :: day               !< day
+         real(kind=hp), intent(out) :: reduced_jul_date  !< output reduced Julian Date number
+         logical                    :: success           !< function result
+
+         integer :: jdn
+
+         if (.false.) then
+            call testConversion()
+         endif
+
+         jdn = CalendarYearMonthDayToJulianDateNumber(year, month, day)
+
+         if (jdn == 0) then
+            reduced_jul_date = 0.0_hp
+            success = .false.
+         else
+            reduced_jul_date = real(jdn, hp) - offset_reduced_jd
+            success = .true.
+         endif
+
+      end function ymd2reduced_jul_int3
+
+!---------------------------------------------------------------------------------------------
+! implements interface ymd2jul
+!---------------------------------------------------------------------------------------------
+      !> Calculates the Julian Date Number from a calender date.
+      !! Returns 0 in case of failure.
+      function CalendarDateToJulianDateNumber(yyyymmdd) result(jdn)
+         integer             :: jdn      !< calculated Julian Date Number
+         integer, intent(in) :: yyyymmdd !< Gregorian calender date
+         !
+         integer :: year  !< helper variable
+         integer :: month !< helper variable
+         integer :: day   !< helper variable
+         !
+         call splitDate(yyyymmdd, year, month, day)
+         jdn = CalendarYearMonthDayToJulianDateNumber(year, month, day)
+      end function CalendarDateToJulianDateNumber
+
+      !> helper function to split integer yyyyddmm in 3 integers year, month and day
+      subroutine splitDate(yyyymmdd, year, month, day)
+         integer, intent(in)  :: yyyymmdd !< calender date
+         integer, intent(out) :: year     !< year
+         integer, intent(out) :: month    !< month
+         integer, intent(out) :: day      !< day
+
+         year = yyyymmdd/10000
+         month = yyyymmdd/100 - year*100
+         day = yyyymmdd - month*100 - year*10000
+      end subroutine splitDate
+
+      !> Calculates the Julian Date Number from a year, month and day.
+      !! Returns 0 in case of failure.
+      function CalendarYearMonthDayToJulianDateNumber(year, month, day) result(jdn)
+         integer :: jdn               !< calculated Julian Date Number
+         integer, intent(in) :: year  !< year
+         integer, intent(in) :: month !< month
+         integer, intent(in) :: day   !< day
+
+         integer, parameter :: justBeforeFirstGregorian(3) = [1582, 10, 14]
+         integer, parameter :: justAfterLastJulian(3)      = [1582, 10,  5]
+
+         if (compareDates([year, month, day], justBeforeFirstGregorian) == 1) then
+            jdn = GregorianYearMonthDayToJulianDateNumber(year, month, day)
+         else if (compareDates([year, month, day], justAfterLastJulian) == -1) then
+            jdn = JulianYearMonthDayToJulianDateNumber(year, month, day)
+         else
+            jdn = 0
+         endif
+      end function CalendarYearMonthDayToJulianDateNumber
+
+      !> helper function to compare dates
+      !> return 0 if equal, -1 if x is earlier than y, +1 otherwise
+      integer function compareDates(x, y)
+         integer, intent(in) :: x(3)  !< date 1 : [year, month, day]
+         integer, intent(in) :: y(3)  !< date 2 (idem)
+
+         integer :: i
+
+         compareDates = 0
+         do i = 1, 3
+            if (x(i) < y(i)) then
+               compareDates = -1
+               exit
+            else if (x(i) > y(i)) then
+               compareDates = 1
+               exit
+            endif
+         enddo
+      end function compareDates
+
+      !> calculates Julian Date Number based on date before oktober 1582
+      function JulianYearMonthDayToJulianDateNumber(year, month, day) result(jdn)
+      integer, intent(in) :: year  !< year
+      integer, intent(in) :: month !< month
+      integer, intent(in) :: day   !< day
+      integer             :: jdn   !< function result: Juliun day number
+
+      integer :: y, m, d
+      real(kind=hp) :: jd
+
+      jd = JulianYearMonthDayToJulianDateRealNumber(year, month, day) + 0.5_hp
+      jdn = nint(jd)
+
+      !
+      ! Calculate backwards to test if the assumption is correct
+      !
+      call JulianDateNumberToCalendarYearMonthDay(jdn, y, m, d)
+      !
+      ! Test if calculation is correct
+      !
+      if (CompareDates([y, m, d], [year, month, day]) /= 0) then
+         jdn = 0
+      endif
+
+      end function JulianYearMonthDayToJulianDateNumber
+
+      !> from https://quasar.as.utexas.edu/BillInfo/JulianDateCalc.html
+      function JulianYearMonthDayToJulianDateRealNumber(year, month, day) result(jdn)
+      integer, intent(in) :: year  !< year
+      integer, intent(in) :: month !< month
+      integer, intent(in) :: day   !< day
+      real(kind=hp)       :: jdn   !< function result: Julian day number
+
+      integer       :: y, m
+      real(kind=hp) :: e, f
+
+      y = year
+      m = month
+      if (m < 3) then
+         y = y-1
+         m = m + 12
+      endif
+      e = floor(365.25_hp  * real(y + 4716, hp))
+      f = floor(30.6001_hp * real(m + 1, hp))
+
+      jdn = day + e + f - 1524.5_hp
+      end function JulianYearMonthDayToJulianDateRealNumber
+
       !> Calculates the Julian Date Number from a Gregorian calender date.
       !! Returns 0 in case of failure.
       function GregorianDateToJulianDateNumber(yyyymmdd) result(jdn)
@@ -201,14 +392,13 @@ module time_module
          integer :: month !< helper variable
          integer :: day   !< helper variable
          !
-         year = yyyymmdd/10000
-         month = yyyymmdd/100 - year*100
-         day = yyyymmdd - month*100 - year*10000
+         call splitDate(yyyymmdd, year, month, day)
+         !
          jdn = GregorianYearMonthDayToJulianDateNumber(year, month, day)
       end function GregorianDateToJulianDateNumber
-      
+
       ! =======================================================================
-      
+
       !> Calculates the Julian Date Number from a Gregorian year, month and day.
       !! Returns 0 in case of failure.
       function GregorianYearMonthDayToJulianDateNumber(year, month, day) result(jdn)
@@ -231,17 +421,84 @@ module time_module
          !
          ! Calculate backwards to test if the assumption is correct
          !
-         call jul2ymd(jdn, y, m, d)
+         call JulianDateNumberToCalendarYearMonthDay(jdn, y, m, d)
          !
          ! Test if calculation is correct
          !
-         if ((y /= year) .or. (m /= month) .or. (d /= day)) then
+         if (CompareDates([y, m, d], [year, month, day]) /= 0) then
             jdn = 0
          endif
       end function GregorianYearMonthDayToJulianDateNumber
-      
+
       ! =======================================================================
-      
+
+      subroutine JulianDateNumberToCalendarDate(jdn, yyyymmdd)
+         integer, intent(in) :: jdn       !< Julian Date Number
+         integer, intent(out) :: yyyymmdd !< calculated calender date
+
+         integer :: year  !< helper variable
+         integer :: month !< helper variable
+         integer :: day   !< helper variable
+
+         if (jdn >= firstGregorianDayNr) then
+            call JulianDateNumberToGregorianDate(jdn, yyyymmdd)
+         else
+            call JulianDateNumberToJulianYearMonthDay(jdn, year, month, day)
+            yyyymmdd = year*10000 + month*100 + day
+         endif
+      end subroutine JulianDateNumberToCalendarDate
+
+      subroutine JulianDateNumberToCalendarYearMonthDay(jdn, year, month, day)
+         integer, intent(in)  :: jdn   !< Julian Date Number
+         integer, intent(out) :: year  !< calculated year
+         integer, intent(out) :: month !< calculated month
+         integer, intent(out) :: day   !< calculated day
+
+         if (jdn >= firstGregorianDayNr) then
+            call JulianDateNumberToGregorianYearMonthDay(jdn, year, month, day)
+         else
+            call JulianDateNumberToJulianYearMonthDay(jdn, year, month, day)
+         endif
+      end subroutine JulianDateNumberToCalendarYearMonthDay
+
+      !> calculates (year, month, day) based on Julian date number before oktober 1582
+      subroutine JulianDateNumberToJulianYearMonthDay(jdn, year, month, day)
+         integer, intent(in)  :: jdn   !< Julian Date Number
+         integer, intent(out) :: year  !< calculated year
+         integer, intent(out) :: month !< calculated month
+         integer, intent(out) :: day   !< calculated day
+
+         real(kind=hp) :: jd
+
+         jd = jdn-0.5_hp
+
+         call JulianDateRealNumberToJulianYearMonthDay(jd, year, month, day)
+      end subroutine JulianDateNumberToJulianYearMonthDay
+
+      !> from https://quasar.as.utexas.edu/BillInfo/JulianDateCalc.html
+      subroutine JulianDateRealNumberToJulianYearMonthDay(jdn, year, month, day)
+         real(kind=hp), intent(in)  :: jdn   !< Julian Date Number
+         integer, intent(out)       :: year  !< calculated year
+         integer, intent(out)       :: month !< calculated month
+         integer, intent(out)       :: day   !< calculated day
+
+         real(kind=hp) :: a, b, z, f
+         integer       :: c, d, e
+
+         z = jdn + 0.5_hp
+         f = z - floor(z)
+         a = z
+         b = a + 1524
+         c = floor((b - 122.1_hp)/365.25_hp)
+         d = floor(365.25_hp*c)
+         e = floor((b - d)/30.6001_hp)
+
+         month = merge(e-13, e-1, e > 13)
+         day   = b - d - floor(30.6001_hp * real(e, hp)) + f
+         year  = merge(c-4715, c-4716, month < 3)
+
+      end subroutine JulianDateRealNumberToJulianYearMonthDay
+
       !> Calculates the Gregorian calender date from a Julian Date Number.
       subroutine JulianDateNumberToGregorianDate(jdn, yyyymmdd)
          integer, intent(in) :: jdn       !< Julian Date Number
@@ -254,9 +511,9 @@ module time_module
          call JulianDateNumberToGregorianYearMonthDay(jdn, year, month, day)
          yyyymmdd = year*10000 + month*100 + day
       end subroutine JulianDateNumberToGregorianDate
-      
+
       ! =======================================================================
-      
+
       !> Calculates the Gregorian year, month, day triplet from a Julian Date Number.
       subroutine JulianDateNumberToGregorianYearMonthDay(jdn, year, month, day)
          integer, intent(in)  :: jdn   !< Julian Date Number
@@ -282,7 +539,7 @@ module time_module
       end subroutine JulianDateNumberToGregorianYearMonthDay
 
       ! =======================================================================
-      
+
       !> Parses an UDUnit-conventions datetime unit string.
       !! TODO: replace this by calling C-API from UDUnits(-2).
       function parse_ud_timeunit(timeunitstr, iunit, iyear, imonth, iday, ihour, imin, isec) result(ierr)
@@ -377,19 +634,18 @@ module time_module
             ierr = ierr_
          end if
       end function datetime2string
-      
-      function jul_frac2string(jul, dayfrac, ierr) result(datetimestr)
-         use precision_basics
-         implicit none
-         integer           , intent(in)  :: jul
-         real(hp), optional, intent(in)  :: dayfrac
-         integer , optional, intent(out) :: ierr        !< Error status, 0 if success, nonzero in case of format error.
-         character(len=20)               :: datetimestr !< The resulting date time string. Considering using trim() on it.
 
-         real(hp) :: days
-         real(hp) :: dayfrac_
-         integer  :: ierr_
-         
+      function jul_frac2string(jul, dayfrac, ierr) result(datetimestr)
+         implicit none
+         integer                , intent(in)  :: jul
+         real(kind=hp), optional, intent(in)  :: dayfrac
+         integer      , optional, intent(out) :: ierr        !< Error status, 0 if success, nonzero in case of format error.
+         character(len=20)                    :: datetimestr !< The resulting date time string. Considering using trim() on it.
+
+         real(kind=hp) :: days
+         real(kind=hp) :: dayfrac_
+         integer       :: ierr_
+
          if (present(dayfrac)) then
              dayfrac_ = dayfrac
          else
@@ -400,18 +656,17 @@ module time_module
             ierr = ierr_
          end if
       end function jul_frac2string
-      
+
       function mjd2string(days, ierr) result(datetimestr)
-         use precision_basics
          implicit none
-         real(hp)          , intent(in)  :: days
+         real(kind=hp)     , intent(in)  :: days
          integer , optional, intent(out) :: ierr        !< Error status, 0 if success, nonzero in case of format error.
          character(len=20)               :: datetimestr !< The resulting date time string. Considering using trim() on it.
 
-         integer  :: iyear, imonth, iday, ihour, imin, isec
-         real(hp) :: second
-         integer  :: ierr_
-         
+         integer       :: iyear, imonth, iday, ihour, imin, isec
+         real(kind=hp) :: second
+         integer       :: ierr_
+
          ierr_ = -1
          if (mjd2datetime(days,iyear,imonth,iday,ihour,imin,second)/=0) then
             isec = nint(second) ! unfortunately rounding instead of truncating requires all of the following checks
@@ -445,8 +700,7 @@ module time_module
                   iday = 1
                endif
             case default ! February
-                if ((iyear/4)*4==iyear .and. (.not.(iyear/100)*100==iyear .or. &
-                                              &    (iyear/400)*400==iyear)) then ! leap year, 29 days
+                if (leapYear(iyear)) then
                    if (iday == 30) then
                       imonth = 3
                       iday = 1
@@ -468,31 +722,43 @@ module time_module
          end if
       end function mjd2string
 
+      !> helper function to find out if a year is a leap year or not
+      logical function leapYear(iyear)
+         integer, intent(in) :: iyear
 
-!---------------------------------------------------------------------------------------------
-! implements interface date2mjd
-!---------------------------------------------------------------------------------------------
+         integer :: jdn
+
+         if (mod(iyear, 4) /= 0) then
+            ! basic check: if year is not a multiple of 4 it is certainly NOT a leap year
+            leapYear = .false.
+         else
+            ! if it is a multiple of 4, it is quite complex,
+            ! so check if 29 February is a valid date in that year:
+            jdn = CalendarYearMonthDayToJulianDateNumber(iyear, 2, 29)
+            leapYear = (jdn /= 0)
+         endif
+      end function leapYear
+
+      ! implements (obsolete!) interface date2mjd
       function ymd2mjd(ymd) result(days)
-         use precision_basics
          implicit none
          integer, intent(in)       :: ymd
-         real(hp)                  :: days
-         integer  :: year, month, day, hour, minute
-         real(hp) :: second
+         real(kind=hp)             :: days
+         integer       :: year, month, day, hour, minute
+         real(kind=hp) :: second
          year   = int(ymd/10000)
          month  = int(mod(ymd,10000)/100)
          day    = mod(ymd,100)
          days = datetime2mjd(year,month,day,0,0,0.d0)
-      end function
+      end function ymd2mjd
 
       function ymdhms2mjd(ymd,hms) result(days)
-         use precision_basics
          implicit none
          integer, intent(in)       :: ymd
-         real(hp), intent(in)      :: hms
-         real(hp)                  :: days
-         integer  :: year, month, day, hour, minute
-         real(hp) :: second
+         real(kind=hp), intent(in) :: hms
+         real(kind=hp)             :: days
+         integer       :: year, month, day, hour, minute
+         real(kind=hp) :: second
          year   = int(ymd/10000)
          month  = int(mod(ymd,10000)/100)
          day    = mod(ymd,100)
@@ -500,42 +766,39 @@ module time_module
          minute = int(mod(hms,10000.d0)/100)
          second = mod(hms,100.d0)
          days = datetime2mjd(year,month,day,hour,minute,second)
-      end function
+      end function ymdhms2mjd
 
       function datetime2mjd(year,month,day,hour,minute,second) result(days)
-         use precision_basics
          implicit none
-         integer, intent(in)	:: year, month, day	
-         integer, intent(in)	:: hour, minute
-         real(hp):: second
-         real(hp) :: days
-         real(hp) :: dayfrac
+         integer, intent(in)   :: year, month, day
+         integer, intent(in)   :: hour, minute
+         real(kind=hp):: second
+         real(kind=hp) :: days
+         real(kind=hp) :: dayfrac
          dayfrac = (hour*3600+minute*60+second)/(24*3600)
-         days = jul2mjd(GregorianYearMonthDayToJulianDateNumber(year,month,day),dayfrac)
+         days = jul2mjd(CalendarYearMonthDayToJulianDateNumber(year,month,day),dayfrac)
       end function datetime2mjd
 
 !---------------------------------------------------------------------------------------------
       function mjd2jul(days,frac) result(jul)
-         use precision_basics
          implicit none
-         real(hp)          , intent(in)  :: days
-         real(hp), optional, intent(out) :: frac
-         integer                         :: jul
+         real(kind=hp)          , intent(in)  :: days
+         real(kind=hp), optional, intent(out) :: frac
+         integer                              :: jul
 
-         jul = int(days+2400001.0_hp) ! should use 2400000.5_hp ?
+         jul = int(days+offset_reduced_jd)
          if (present(frac)) then
-             frac = mod(days,1.0_hp)  ! should use days + 0.5_hp ?
+             frac = mod(days,0.5_hp)
          endif
       end function mjd2jul
 
       function jul2mjd(jul,frac) result(days)
-         use precision_basics
          implicit none
-         integer           , intent(in)  :: jul
-         real(hp), optional, intent(in)  :: frac
-         real(hp)                        :: days
+         integer                , intent(in)  :: jul
+         real(kind=hp), optional, intent(in)  :: frac
+         real(kind=hp)                        :: days
 
-         days = real(jul,hp)-2400001.0_hp ! should use 2400000.5_hp ?
+         days = real(jul,hp)-offset_reduced_jd
          if (present(frac)) then
              days = days + frac
          endif
@@ -545,14 +808,13 @@ module time_module
 ! implements interface mjd2date
 !---------------------------------------------------------------------------------------------
       function mjd2ymd(days,ymd) result(success)
-         use precision_basics
          implicit none
-         real(hp), intent(in)       :: days
+         real(kind=hp), intent(in)  :: days
          integer, intent(out)       :: ymd
-         integer  :: year, month, day, hour, minute
-         real(hp) :: second
-         integer  :: success
-         
+         integer       :: year, month, day, hour, minute
+         real(kind=hp) :: second
+         integer       :: success
+
          success = 0
          if (mjd2datetime(days,year,month,day,hour,minute,second)==0) return
          ymd = year*10000 + month*100 + day
@@ -560,15 +822,14 @@ module time_module
       end function mjd2ymd
 
       function mjd2ymdhms(days,ymd,hms) result(success)
-         use precision_basics
          implicit none
-         real(hp), intent(in)       :: days
-         integer, intent(out)       :: ymd
-         real(hp), intent(out)      :: hms
-         integer  :: year, month, day, hour, minute
-         real(hp) :: second
-         integer  :: success
-         
+         real(kind=hp), intent(in)       :: days
+         integer, intent(out)            :: ymd
+         real(kind=hp), intent(out)      :: hms
+         integer       :: year, month, day, hour, minute
+         real(kind=hp) :: second
+         integer       :: success
+
          success = 0
          if (mjd2datetime(days,year,month,day,hour,minute,second)==0) return
          ymd = year*10000 + month*100 + day
@@ -577,23 +838,90 @@ module time_module
       end function mjd2ymdhms
 
       function mjd2datetime(days,year,month,day,hour,minute,second) result(success)
-         use precision_basics
          implicit none
-         real(hp), intent(in)  :: days
-         integer,  intent(out) :: year, month, day	
-         integer,  intent(out) :: hour, minute
-         real(hp), intent(out) :: second
-         real(hp) :: dayfrac
-         integer  :: jul
-         integer  :: success
-         
+         real(kind=hp), intent(in)  :: days
+         integer,  intent(out)      :: year, month, day
+         integer,  intent(out)      :: hour, minute
+         real(kind=hp), intent(out) :: second
+         real(kind=hp) :: dayfrac
+         integer       :: jul
+         integer       :: success
+
          success = 0
          jul = mjd2jul(days,dayfrac)
-         call JulianDateNumberToGregorianYearMonthDay(jul,year,month,day)
+         call JulianDateNumberToCalendarYearMonthDay(jul,year,month,day)
          hour = int(dayfrac*24)
          minute = int(mod(dayfrac*24*60,60.d0))
          second = mod(dayfrac*24*60*60,60.d0)
          success = 1
       end function mjd2datetime
-      
+
+      !> split a string in date and time part
+      subroutine split_date_time(string, date, time)
+         character(len=*), intent(in)  :: string  !< input string like 1950-01-01 00:00:00; with or without time
+         character(len=*), intent(out) :: date    !< output date, in this case 1950-01-01
+         character(len=*), intent(out) :: time    !< output time, in this case 00:00:00
+
+         character(len=:), allocatable :: date_time
+         integer                       :: ipos
+
+         date_time = trim(adjustl(string))
+         ipos      = index(date_time, ' ')
+
+         if (ipos > 0) then
+            date = date_time(1:ipos-1)
+            time = adjustl(date_time(ipos+1:))
+         else
+            date = date_time
+            time = ' '
+         endif
+      end subroutine split_date_time
+
+      ! todo: move to unit test environment
+      subroutine testConversion
+         integer :: jdn1, jdn2, jdn3, jdn4, yyyymmdd, yyyymmdd2, istat
+         real(kind=hp) :: mjd, mjd2
+
+         jdn1 = CalendarYearMonthDayToJulianDateNumber(1, 1, 1)
+         jdn2 = CalendarYearMonthDayToJulianDateNumber(1582, 10, 4)
+         jdn3 = CalendarYearMonthDayToJulianDateNumber(1582, 10, 15)
+         jdn4 = CalendarYearMonthDayToJulianDateNumber(2001, 1, 1)
+
+         if (jdn1 /= 1721424) write(*,*) 'error for 1-1-1'
+         if (jdn2 /= 2299160) write(*,*) 'error for 4-10-1582'
+         if (jdn3 /= 2299161) write(*,*) 'error for 15-10-1582'
+         if (jdn4 /= 2451911) write(*,*) 'error for 1-1-2001'
+
+         mjd = 55833.5
+         istat = mjd2date(mjd, yyyymmdd)
+         mjd2 = ymd2mjd(yyyymmdd)
+         if (mjd /= mjd2) write(*,*) 'error for mjd=55833.5'
+
+         yyyymmdd = 15821015
+         mjd = ymd2mjd(yyyymmdd)
+         istat = mjd2date(mjd, yyyymmdd2)
+         if (yyyymmdd /= yyyymmdd2) write(*,*) 'error for yyyymmdd = 15821015'
+
+         yyyymmdd = 15821004
+         mjd2 = ymd2mjd(yyyymmdd)
+         istat = mjd2date(mjd, yyyymmdd2)
+         if (yyyymmdd /= yyyymmdd2) write(*,*) 'error for yyyymmdd = 15821004'
+         if (abs(mjd - mjd2 - 1d0) > 1d-4) write(*,*) 'error for jump 15821004 -> 15821015'
+
+      contains
+      function ymd2mjd(ymd) result(days)
+         implicit none
+         integer, intent(in)       :: ymd
+         real(kind=hp)             :: days
+         integer       :: year, month, day, hour, minute
+         real(kind=hp) :: second
+         !year   = int(ymd/10000)
+         !month  = int(mod(ymd,10000)/100)
+         !day    = mod(ymd,100)
+         call splitDate(ymd, year, month, day)
+         days = date2mjd(year,month,day,0,0,0.d0)
+      end function
+
+      end subroutine testConversion
+
 end module time_module

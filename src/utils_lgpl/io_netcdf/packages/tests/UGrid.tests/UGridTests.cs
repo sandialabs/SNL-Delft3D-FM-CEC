@@ -383,7 +383,6 @@ namespace UGrid.tests
         {
             // Mesh variables
             IntPtr c_branchidx    = Marshal.AllocCoTaskMem(Marshal.SizeOf(typeof(int))    * l_nmeshpoints);
-            IntPtr c_edgenodes    = Marshal.AllocCoTaskMem(2* Marshal.SizeOf(typeof(int)) * l_nedgenodes);
             IntPtr c_sourcenodeid = Marshal.AllocCoTaskMem(Marshal.SizeOf(typeof(int))    * l_nBranches);
             IntPtr c_targetnodeid = Marshal.AllocCoTaskMem(Marshal.SizeOf(typeof(int))    * l_nBranches);
             IntPtr c_branchoffset = Marshal.AllocCoTaskMem(Marshal.SizeOf(typeof(double)) * l_nmeshpoints);
@@ -398,7 +397,7 @@ namespace UGrid.tests
                 int meshid = -1;
 
                 //1. Create: the assumption here is that l_nedgenodes is known (we could move this calculation inside ionc_create_1d_mesh)
-                int ierr = wrapper.ionc_create_1d_mesh(ref ioncid, l_networkName.ToString(), ref meshid, l_meshname.ToString(), ref l_nmeshpoints, ref l_nedgenodes);
+                int ierr = wrapper.ionc_create_1d_mesh(ref ioncid, l_networkName.ToString(), ref meshid, l_meshname.ToString(), ref l_nmeshpoints);
                 Assert.That(ierr, Is.EqualTo(0));
 
                 //2. Create the edge nodes (the algorithm is in gridgeom.dll, not in ionetcdf.dll)
@@ -408,12 +407,8 @@ namespace UGrid.tests
                 Marshal.Copy(l_branchoffset, 0, c_branchoffset, l_nmeshpoints);
                 Marshal.Copy(l_branchlength, 0, c_branchlength, l_nBranches);
                 
-                var gridwrapper = new GridGeomLibWrapper();
-                ierr = gridwrapper.ggeo_create_edge_nodes(ref c_branchoffset, ref c_branchlength, ref c_branchidx, ref c_sourcenodeid, ref c_targetnodeid, ref c_edgenodes,ref l_nBranches, ref l_nmeshpoints, ref l_nedgenodes, ref l_startIndex);
-                Assert.That(ierr, Is.EqualTo(0));
-                
-                //4. Write the discretization points
-                ierr = wrapper.ionc_put_1d_mesh_discretisation_points(ref ioncid, ref meshid, ref c_branchidx, ref c_branchoffset, ref c_edgenodes, meshnodeidsinfo, ref l_nmeshpoints, ref l_nedgenodes, ref l_startIndex);
+                //3. Write the discretization points
+                ierr = wrapper.ionc_put_1d_mesh_discretisation_points(ref ioncid, ref meshid, ref c_branchidx, ref c_branchoffset, meshnodeidsinfo, ref l_nmeshpoints, ref l_startIndex);
                 Assert.That(ierr, Is.EqualTo(0));
             }
             finally
@@ -422,7 +417,6 @@ namespace UGrid.tests
                 Marshal.FreeCoTaskMem(c_branchoffset);
                 Marshal.FreeCoTaskMem(c_mesh1indexes);
                 Marshal.FreeCoTaskMem(c_mesh2indexes);
-                Marshal.FreeCoTaskMem(c_edgenodes);
                 Marshal.FreeCoTaskMem(c_sourcenodeid);
                 Marshal.FreeCoTaskMem(c_targetnodeid);
                 Marshal.FreeCoTaskMem(c_contacttype);
@@ -621,7 +615,7 @@ namespace UGrid.tests
             //1. Create a netcdf file 
             int ioncid = 0; //file variable 
             int mode = 1; //create in write mode
-            var ierr = -1;
+            var ierr= -1;
             string tmpstring; //temporary string for several operations
             string c_path = TestHelper.TestDirectoryPath() + @"\write1d.nc";
             TestHelper.DeleteIfExists(c_path);
@@ -754,7 +748,7 @@ namespace UGrid.tests
             try
             {
                 //1. Open a netcdf file 
-                string c_path = TestHelper.TestDirectoryPath() + @"\write1d.nc";
+                string c_path = TestHelper.TestFilesDirectoryPath() + @"\write1d.nc";
                 Assert.IsTrue(File.Exists(c_path));
                 int ioncid = 0; //file variable 
                 int mode = 0; //create in read mode
@@ -883,8 +877,8 @@ namespace UGrid.tests
             }
         }
 
-        // Deltashell creates a new file to write the 1d geometry and mesh as in the first test create1dUGRIDNetcdf
-        // and clones the 2d mesh data read from a file produced by RGFgrid. 
+        //// Deltashell creates a new file to write the 1d geometry and mesh as in the first test create1dUGRIDNetcdf
+        //// and clones the 2d mesh data read from a file produced by RGFgrid. 
         [Test]
         [NUnit.Framework.Category("UGRIDTests")]
         public void Clones2dMesh()
@@ -1239,8 +1233,8 @@ namespace UGrid.tests
         [NUnit.Framework.Category("UGRIDTests")]
         public void read1dNetwork()
         {
-            //1. Open a netcdf file 
-            string c_path = TestHelper.TestDirectoryPath() + @"\write1dNetwork.nc";
+            //1. Open a netcdf file (file from test data, but actually created previously)
+            string c_path = TestHelper.TestFilesDirectoryPath() + @"\write1dNetwork.nc";
             Assert.IsTrue(File.Exists(c_path));
             int ioncid = 0; //file variable 
             int mode = 0; //create in read mode
@@ -1624,8 +1618,7 @@ namespace UGrid.tests
             Assert.IsTrue(File.Exists(sourcetwod_path));
             int sourcetwodioncid = -1; //file id 
             int sourcetwomode = 0; //read mode
-            int ierr = wrapperNetcdf.ionc_open(sourcetwod_path, ref sourcetwomode, ref sourcetwodioncid, ref iconvtype,
-                ref convversion);
+            int ierr = wrapperNetcdf.ionc_open(sourcetwod_path, ref sourcetwomode, ref sourcetwodioncid, ref iconvtype, ref convversion);
             Assert.That(ierr, Is.EqualTo(0));
 
             //2. Define the network
@@ -1703,10 +1696,10 @@ namespace UGrid.tests
             for (int i = 0; i < l_nnodes; i++)
             {
                 string tmpstring = "";
-                tmpstring = "nodesids";
+                tmpstring = "nodesids" + i ;
                 tmpstring = tmpstring.PadRight(IoNetcdfLibWrapper.idssize, ' ');
                 l_nodesinfo[i].ids = tmpstring.ToCharArray();
-                tmpstring = "nodeslongNames";
+                tmpstring = "nodeslongNames" + i;
                 tmpstring = tmpstring.PadRight(IoNetcdfLibWrapper.longnamessize, ' ');
                 l_nodesinfo[i].longnames = tmpstring.ToCharArray();
             }
@@ -1714,10 +1707,10 @@ namespace UGrid.tests
             for (int i = 0; i < l_nbranches; i++)
             {
                 string tmpstring = "";
-                tmpstring = "branchids";
+                tmpstring = "branchids" + i;
                 tmpstring = tmpstring.PadRight(IoNetcdfLibWrapper.idssize, ' ');
                 l_branchinfo[i].ids = tmpstring.ToCharArray();
-                tmpstring = "branchlongNames";
+                tmpstring = "branchlongNames" + i;
                 tmpstring = tmpstring.PadRight(IoNetcdfLibWrapper.longnamessize, ' ');
                 l_branchinfo[i].longnames = tmpstring.ToCharArray();
             }
@@ -1814,10 +1807,10 @@ namespace UGrid.tests
             for (int i = 0; i < l_nmeshpoints; i++)
             {
                 string tmpstring = "";
-                tmpstring = "meshnodeids";
+                tmpstring = "meshnodeids" + i;
                 tmpstring = tmpstring.PadRight(IoNetcdfLibWrapper.idssize, ' ');
                 meshnodeidsinfo[i].ids = tmpstring.ToCharArray();
-                tmpstring = "meshnodelongnames";
+                tmpstring = "meshnodelongnames" + i;
                 tmpstring = tmpstring.PadRight(IoNetcdfLibWrapper.longnamessize, ' ');
                 meshnodeidsinfo[i].longnames = tmpstring.ToCharArray();
             }
@@ -1891,7 +1884,8 @@ namespace UGrid.tests
 
             //13. Get 2d mesh dimensions
             var meshtwoddim = new meshgeomdim();
-            ierr = wrapperNetcdf.ionc_get_meshgeom_dim(ref targetioncid, ref mesh2d, ref meshtwoddim);
+            int l_networkid = 0;
+            ierr = wrapperNetcdf.ionc_get_meshgeom_dim(ref targetioncid, ref mesh2d, ref l_networkid, ref meshtwoddim);
             Assert.That(ierr, Is.EqualTo(0));
 
             //14. Get the 2d mesh arrays
@@ -1902,7 +1896,7 @@ namespace UGrid.tests
             meshtwod.edge_nodes = Marshal.AllocCoTaskMem(Marshal.SizeOf(typeof(int)) * meshtwoddim.numedge * 2);
             bool includeArrays = true;
             int start_index = 1;
-            ierr = wrapperNetcdf.ionc_get_meshgeom(ref targetioncid, ref mesh2d, ref meshtwod, ref start_index, ref includeArrays);
+            ierr = wrapperNetcdf.ionc_get_meshgeom(ref targetioncid, ref mesh2d, ref l_networkid, ref meshtwod, ref start_index, ref includeArrays);
             Assert.That(ierr, Is.EqualTo(0));
 
             //15. Using the existing arrays in memory (delta shell scenario), convert 1d into herman datastructure
@@ -1939,22 +1933,29 @@ namespace UGrid.tests
                 ref l_startIndex
                 );
             Assert.That(ierr, Is.EqualTo(0));
-            ierr = wrapperGridgeom.ggeo_convert(ref meshtwod, ref meshtwoddim);
+            ierr = wrapperGridgeom.ggeo_convert(ref meshtwod, ref meshtwoddim, ref startIndex);
             Assert.That(ierr, Is.EqualTo(0));
 
             //17. make the links
-            ierr = wrapperGridgeom.ggeo_make1D2Dinternalnetlinks();
+            int c_npl = 0;
+            IntPtr c_xpl = Marshal.AllocCoTaskMem(Marshal.SizeOf(typeof(double)) * 0);
+            IntPtr c_ypl = Marshal.AllocCoTaskMem(Marshal.SizeOf(typeof(double)) * 0);
+            IntPtr c_zpl = Marshal.AllocCoTaskMem(Marshal.SizeOf(typeof(double)) * 0);
+            int c_nOneDMask = 0;
+            IntPtr c_oneDmask = Marshal.AllocCoTaskMem(Marshal.SizeOf(typeof(int)) * 0);
+            ierr = wrapperGridgeom.ggeo_make1D2Dinternalnetlinks(ref c_npl, ref c_xpl, ref c_ypl, ref c_zpl, ref c_nOneDMask, ref c_oneDmask);
             Assert.That(ierr, Is.EqualTo(0));
 
             //18. get the number of links
             int n2dl1dinks = 0;
-            ierr = wrapperGridgeom.ggeo_get_links_count(ref n2dl1dinks);
+            int linkType = 3;
+            ierr = wrapperGridgeom.ggeo_get_links_count(ref n2dl1dinks, ref linkType);
             Assert.That(ierr, Is.EqualTo(0));
 
             //19. get the links: arrayfrom = 2d cell index, arrayto = 1d node index 
             IntPtr c_arrayfrom = Marshal.AllocCoTaskMem(Marshal.SizeOf(typeof(double)) * n2dl1dinks); //2d cell number
             IntPtr c_arrayto = Marshal.AllocCoTaskMem(Marshal.SizeOf(typeof(double)) * n2dl1dinks); //1d node
-            ierr = wrapperGridgeom.ggeo_get_links(ref c_arrayfrom, ref c_arrayto, ref n2dl1dinks);
+            ierr = wrapperGridgeom.ggeo_get_links(ref c_arrayfrom, ref c_arrayto, ref n2dl1dinks, ref linkType);
             Assert.That(ierr, Is.EqualTo(0));
 
             int[] rc_arrayfrom = new int[n2dl1dinks];
@@ -2010,6 +2011,124 @@ namespace UGrid.tests
               //Free links arrays
             Marshal.FreeCoTaskMem(c_arrayfrom);
             Marshal.FreeCoTaskMem(c_arrayto);
+        }
+
+        // Test: get only 1d network using get mesh geom
+        [Test]
+        [NUnit.Framework.Category("Read1dNetworkUsingGetMeshGeom")]
+        public void Load1dNetworkUsingGetMeshGeom()
+        {
+            //1.Open a netcdf file
+            string c_path = TestHelper.TestFilesDirectoryPath() + @"\write1dNetwork.nc";
+            Assert.IsTrue(File.Exists(c_path));
+            int ioncid = 0; //file variable 
+            int mode = 0; //create in read mode
+            var wrapper = new IoNetcdfLibWrapper();
+            var ierr = wrapper.ionc_open(c_path, ref mode, ref ioncid, ref iconvtype, ref convversion);
+            Assert.That(ierr, Is.EqualTo(0));
+
+            //2. Get 1d mesh dimensions
+            var networkdim = new meshgeomdim();
+            int l_meshid = 0; //set an invalid index
+            int nnumNetworks = -1;
+            ierr = wrapper.ionc_get_number_of_networks(ref ioncid, ref nnumNetworks);
+            Assert.That(ierr, Is.EqualTo(0));
+            Assert.That(nnumNetworks, Is.EqualTo(1));
+            IntPtr c_networkids = Marshal.AllocCoTaskMem(Marshal.SizeOf(typeof(double)) * nnumNetworks);
+            
+            //3. Get a valid networkid
+            ierr = wrapper.ionc_get_network_ids(ref ioncid, ref c_networkids, ref nnumNetworks);
+            Assert.That(ierr, Is.EqualTo(0));
+            int[] l_networkid = new int[nnumNetworks];
+            Marshal.Copy(c_networkids, l_networkid, 0, nnumNetworks);
+
+            //4. Get network dimensions using meshgeom
+            ierr = wrapper.ionc_get_meshgeom_dim(ref ioncid, ref l_meshid, ref l_networkid[0], ref networkdim);
+            Assert.That(ierr, Is.EqualTo(0));
+
+            //5. Allocate memory
+            var network = new meshgeom();
+            network.nnodex = Marshal.AllocCoTaskMem(Marshal.SizeOf(typeof(double)) * networkdim.nnodes);
+            network.nnodey = Marshal.AllocCoTaskMem(Marshal.SizeOf(typeof(double)) * networkdim.nnodes);
+            network.nedge_nodes = Marshal.AllocCoTaskMem(Marshal.SizeOf(typeof(int)) * networkdim.nbranches);
+            network.nbranchlengths = Marshal.AllocCoTaskMem(Marshal.SizeOf(typeof(double)) * networkdim.nbranches);
+            network.nbranchgeometrynodes = Marshal.AllocCoTaskMem(Marshal.SizeOf(typeof(int)) * networkdim.nbranches);
+            network.ngeopointx = Marshal.AllocCoTaskMem(Marshal.SizeOf(typeof(double)) * networkdim.ngeometry);
+            network.ngeopointy = Marshal.AllocCoTaskMem(Marshal.SizeOf(typeof(double)) * networkdim.ngeometry);
+            network.nbranchorder = Marshal.AllocCoTaskMem(Marshal.SizeOf(typeof(int)) * networkdim.nbranches);
+
+            var includeArrays = true;
+            int start_index = 1;
+            ierr = wrapper.ionc_get_meshgeom(ref ioncid, ref l_meshid, ref l_networkid[0], ref network, ref start_index, ref includeArrays);
+            Assert.That(ierr, Is.EqualTo(0));
+
+            //2. Define the network
+            int l_nnodes = 2;
+            int l_nbranches = 1;
+            int l_nGeometry = 25;
+            double[] l_nodesX = new double[networkdim.nnodes];
+            double[] l_nodesY = new double[networkdim.nnodes];
+            int[] l_nedge_nodes = new int[networkdim.nbranches];
+            double[] l_nbranchlengths = new double[networkdim.nbranches];
+            double[] l_ngeopointx = new double[networkdim.ngeometry];
+            double[] l_ngeopointy = new double[networkdim.ngeometry];
+
+            Marshal.Copy(network.nnodex, l_nodesX, 0, networkdim.nnodes);
+            Marshal.Copy(network.nnodey, l_nodesY, 0, networkdim.nnodes);
+            Marshal.Copy(network.nedge_nodes, l_nedge_nodes, 0, networkdim.nbranches);
+            Marshal.Copy(network.nbranchlengths, l_nbranchlengths, 0, networkdim.nbranches);
+            Marshal.Copy(network.ngeopointx, l_ngeopointx, 0, networkdim.ngeometry);
+            Marshal.Copy(network.ngeopointy, l_ngeopointy, 0, networkdim.ngeometry);
+
+        }
+
+        //open a file test
+        [Test]
+        [NUnit.Framework.Category("UGRIDTests")]
+        public void openAfile()
+        {
+            var wrapper = new IoNetcdfLibWrapper();
+
+            // Open a file 
+            string c_path = TestHelper.TestFilesDirectoryPath() + @"\Custom_Ugrid_map.nc";
+            Assert.IsTrue(File.Exists(c_path));
+            int ioncid = -1; //file id 
+            int sourcetwomode = 0; //read mode
+            int ierr = wrapper.ionc_open(c_path, ref sourcetwomode, ref ioncid, ref iconvtype,
+                ref convversion);
+            Assert.That(ierr, Is.EqualTo(0));
+            
+            // test functions on costum file 
+            int meshid = 0;
+            ierr = wrapper.ionc_get_2d_mesh_id(ref ioncid, ref meshid);
+            Assert.That(ierr, Is.EqualTo(0));
+            int nmaxfacenodes = 0;
+
+            int nnodes = -1;
+            ierr = wrapper.ionc_get_node_count(ref ioncid, ref meshid, ref nnodes);
+            Assert.That(ierr, Is.EqualTo(0));
+
+            int nedge = -1;
+            ierr = wrapper.ionc_get_edge_count(ref ioncid, ref meshid, ref nedge);
+            Assert.That(ierr, Is.EqualTo(0));
+
+            int nface = -1;
+            ierr = wrapper.ionc_get_face_count(ref ioncid, ref meshid, ref nface);
+            Assert.That(ierr, Is.EqualTo(0));
+
+            int maxfacenodes = -1;
+            ierr = wrapper.ionc_get_max_face_nodes(ref ioncid, ref meshid, ref maxfacenodes);
+            Assert.That(ierr, Is.EqualTo(0));
+
+            IntPtr c_face_nodes = Marshal.AllocCoTaskMem(Marshal.SizeOf(typeof(int)) * nface * maxfacenodes);
+
+            int fillvalue = -1;
+            int startIndex = 0;
+            ierr = wrapper.ionc_get_face_nodes(ref ioncid, ref meshid, ref c_face_nodes, ref nface, ref maxfacenodes, ref fillvalue, ref startIndex);
+            Assert.That(ierr, Is.EqualTo(0));
+
+            int[] rc_face_nodes = new int[nface * maxfacenodes];
+            Marshal.Copy(c_face_nodes, rc_face_nodes, 0, nface * maxfacenodes);
         }
     }
 }

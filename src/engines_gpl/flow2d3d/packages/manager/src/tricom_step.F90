@@ -25,7 +25,7 @@ subroutine tricom_step(olv_handle, gdp)
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: tricom_step.F90 7992 2018-01-09 10:27:35Z mourits $
+!  $Id: tricom_step.F90 8319 2018-03-08 12:53:03Z ye $
 !  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/flow2d3d/packages/manager/src/tricom_step.F90 $
 !!--description-----------------------------------------------------------------
 !
@@ -340,6 +340,7 @@ subroutine tricom_step(olv_handle, gdp)
   
     integer                                       :: ierror        ! Value is non-zero when an error is encountered
     integer                                       :: istat
+    integer                                       :: nmaxddb
     integer                                       :: iofset        ! Shift of inner part of matrix to remove strips
     integer                                       :: lunfil
     integer                            , external :: modlen
@@ -624,6 +625,9 @@ subroutine tricom_step(olv_handle, gdp)
     sleepduringwave     => gdp%gdtricom%sleepduringwave
     !  
     call timer_start(timer_simulation, gdp)
+    !
+    nmaxddb = nmax + 2*gdp%d%ddbound
+    iofset  = 2*nmaxddb
     !
     error = .false.
     ifcore(1) = 0

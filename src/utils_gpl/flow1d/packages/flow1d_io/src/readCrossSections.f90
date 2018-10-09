@@ -25,7 +25,7 @@ module m_readCrossSections
 !  Stichting Deltares. All rights reserved.
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: readCrossSections.f90 8044 2018-01-24 15:35:11Z mourits $
+!  $Id: readCrossSections.f90 61643 2018-09-06 13:04:12Z zeekant $
 !  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_gpl/flow1d/packages/flow1d_io/src/readCrossSections.f90 $
 !-------------------------------------------------------------------------------
 
@@ -33,7 +33,7 @@ module m_readCrossSections
    use m_CrossSections
    use MessageHandling
    use modelGlobalData
-   use flow1d_io_properties
+   use properties
    use m_network
    use m_GlobalParameters
    use m_hash_search
@@ -86,7 +86,7 @@ module m_readCrossSections
       binfile = CrossSectionFile(1:pos)//'cache'
       inquire(file=binfile, exist=file_exist)
       if (doReadCache .and. file_exist) then
-         open(newunit=ibin, file=binfile, status='old', form='binary', action='read', iostat=istat)
+         open(newunit=ibin, file=binfile, status='old', form='unformatted', access='stream', action='read', iostat=istat)
          if (istat /= 0) then
             call setmessage(LEVEL_FATAL, 'Error opening Cross-Section Location Cache file')
             ibin = 0
@@ -97,7 +97,7 @@ module m_readCrossSections
          return
       endif
       
-      call tree_create(trim(CrossSectionfile), md_ptr)
+      call tree_create(trim(CrossSectionfile), md_ptr, maxlenpar)
       call prop_file('ini',trim(CrossSectionfile),md_ptr,istat)
       numstr = 0
       if (associated(md_ptr%child_nodes)) then
@@ -301,7 +301,7 @@ module m_readCrossSections
       binfile = CrossSectionDefinitionFile(1:pos)//'cache'
       inquire(file=binfile, exist=file_exist)
       if (doReadCache .and. file_exist) then
-         open(newunit=ibin, file=binfile, status='old', form='binary', action='read', iostat=istat)
+         open(newunit=ibin, file=binfile, status='old', form='unformatted', access='stream', action='read', iostat=istat)
          if (istat /= 0) then
             call setmessage(LEVEL_FATAL, 'Error opening Cross-Section Definition Cache file')
             ibin = 0
@@ -313,7 +313,7 @@ module m_readCrossSections
          return
       endif
 
-      call tree_create(trim(CrossSectionDefinitionFile), md_ptr)
+      call tree_create(trim(CrossSectionDefinitionFile), md_ptr, maxlenpar)
       call prop_file('ini',trim(CrossSectionDefinitionFile),md_ptr,istat)
 
       numstr = 0
@@ -384,12 +384,7 @@ module m_readCrossSections
                totalArea  = 0.0d0
 
                pCs%frictionSectionsCount = 1
-               
-               allocate(pCs%frictionSectionID  (pCs%frictionSectionsCount))      !< Friction Section Identification
-               allocate(pCs%frictionSectionFrom(pCs%frictionSectionsCount))    !<
-               allocate(pCs%frictionSectionTo  (pCs%frictionSectionsCount))      !<
-               pCs%frictionSectionID(1) = 'Main'
-               
+                   
                ! Ground Layer
                call prop_get_integer(md_ptr%child_nodes(i)%node_ptr, '', 'groundlayerUsed', hasGroundLayer, success)
                if (success) then
@@ -427,11 +422,6 @@ module m_readCrossSections
                width(2) = maximumFlowWidth
                 
                pCs%frictionSectionsCount = 1
-               
-               allocate(pCs%frictionSectionID  (pCs%frictionSectionsCount))      !< Friction Section Identification
-               allocate(pCs%frictionSectionFrom(pCs%frictionSectionsCount))    !<
-               allocate(pCs%frictionSectionTo  (pCs%frictionSectionsCount))      !<
-               pCs%frictionSectionID(1) = 'Main'
 
                plains     = 0.0d0
                crestLevel = 0.0d0
@@ -458,33 +448,43 @@ module m_readCrossSections
                deallocate(level, width)            
             
             case(CS_CIRCLE, CS_EGG)
-               call prop_get_double(md_ptr%child_nodes(i)%node_ptr, '', 'diameter', diameter, success)
-               if (.not. success) then
-                  call SetMessage(LEVEL_ERROR, 'DIAMETER not found for CrossSection with type '//trim(typestr)//' and id: '//trim(id))
-               endif
-
-               pCs%frictionSectionsCount = 1
+               success = .true.
+               call prop_get_integer(md_ptr%child_nodes(i)%node_ptr, '', 'numLevels', numlevels, success)
                
-               allocate(pCs%frictionSectionID  (pCs%frictionSectionsCount))      !< Friction Section Identification
-               allocate(pCs%frictionSectionFrom(pCs%frictionSectionsCount))    !<
-               allocate(pCs%frictionSectionTo  (pCs%frictionSectionsCount))      !<
-               pCs%frictionSectionID(1) = 'Main'
-            
-               ! Ground Layer
-               call prop_get_integer(md_ptr%child_nodes(i)%node_ptr, '', 'groundlayerUsed', hasGroundLayer, success)
                if (success) then
-                  groundlayerUsed = (hasgroundlayer == 1)
-               else 
-                  groundlayerUsed =  .false.
-               endif
-               if (groundlayerUsed) then
-                  call prop_get_double(md_ptr%child_nodes(i)%node_ptr, '', 'groundlayer', groundlayer, success)
+                  ! also tabulated definition is available. Use this definition
+                  success = readTabulatedCS(pCS, md_ptr%child_nodes(i)%node_ptr) 
+                  pCS%crossType = CS_TABULATED
                else
-                  groundlayer = 0.0d0
+                  success = .true.
+                  ! use analytical description of circle and egg profile
+                  call prop_get_double(md_ptr%child_nodes(i)%node_ptr, '', 'diameter', diameter, success)
+                  if (.not. success) then
+                     call SetMessage(LEVEL_ERROR, 'DIAMETER not found for CrossSection with type '//trim(typestr)//' and id: '//trim(id))
+                  endif
+
+                  pCs%frictionSectionsCount = 1
+                  pCS%plains(1) = diameter
+                  pCS%plains(2) = 0.0d0
+                  pCS%plains(3) = 0.0d0
+
+                  ! Ground Layer
+                  call prop_get_integer(md_ptr%child_nodes(i)%node_ptr, '', 'groundlayerUsed', hasGroundLayer, success)
+                  if (success) then
+                     groundlayerUsed = (hasgroundlayer == 1)
+                  else 
+                     groundlayerUsed =  .false.
+                  endif
+                  if (groundlayerUsed) then
+                     call prop_get_double(md_ptr%child_nodes(i)%node_ptr, '', 'groundlayer', groundlayer, success)
+                  else
+                     groundlayer = 0.0d0
+                  endif
+                  success = .true.
+                  inext = AddCrossSectionDefinition(network%CSDefinitions, id, diameter, crossType, groundlayerUsed, groundlayer)
+      
                endif
                
-               inext = AddCrossSectionDefinition(network%CSDefinitions, id, diameter, crossType, groundlayerUsed, groundlayer)
-            
             case(CS_YZ_PROF)
                success = readYZCS(pCS, md_ptr%child_nodes(i)%node_ptr) 
                
@@ -492,8 +492,28 @@ module m_readCrossSections
                call SetMessage(LEVEL_ERROR, 'Incorrect CrossSection type for CrossSection with given type '//trim(typestr)//' and id: '//trim(id))
                success = .false.
                
-         end select
+            end select
+            
+            if (success .and. crossType /= CS_YZ_PROF) then
+               allocate(pCs%frictionSectionID  (pCs%frictionSectionsCount))      !< Friction Section Identification
+               allocate(pCs%frictionSectionFrom(pCs%frictionSectionsCount))    !<
+               allocate(pCs%frictionSectionTo  (pCs%frictionSectionsCount))      !<
+               
+               call prop_get_strings(md_ptr%child_nodes(i)%node_ptr, '', 'roughnessNames', pCs%frictionSectionsCount, pCS%frictionSectionID, success)
 
+               if (.not. success) then
+                  ! use defaults
+                  pCs%frictionSectionID(1) = 'Main'
+                  if (pCs%frictionSectionsCount >=2) then
+                     pCs%frictionSectionID(2) = 'FloodPlain1'
+                  endif
+                  if (pCs%frictionSectionsCount ==3) then
+                     pCs%frictionSectionID(3) = 'FloodPlain2'
+                  endif
+               endif
+               success = .true.
+            endif
+            
          if (success) then
             network%CSDefinitions%count = inext
          endif
@@ -525,24 +545,33 @@ module m_readCrossSections
       endif
       
       call realloc(pCS%height, numlevels)
-      call realloc(pCS%width, numlevels)
-      call realloc(pCS%TotalWidth, numlevels)
+      call realloc(pCS%flowWidth, numlevels)
+      call realloc(pCS%totalWidth, numlevels)
+      
+      call realloc(pCS%af_sub, 3, numlevels)
+      call realloc(pCS%width_sub, 3, numlevels)
+      call realloc(pCS%perim_sub, 3, numlevels)
+      call realloc(pCS%flowArea, numlevels)
+      call realloc(pCS%wetPerimeter, numlevels)
+      call realloc(pCS%totalArea, numlevels)
+      call realloc(pCS%area_min, numlevels)
+      call realloc(pCS%width_min, numlevels)   
    !
       pCS%levelsCount = numlevels
       
       pCS%height(1) = 0.0d0
       call prop_get_double(node_ptr, '', 'height', pCS%height(2), success)
-      if (success) call prop_get_double(node_ptr, '', 'width', pCS%width(1), success)
+      if (success) call prop_get_double(node_ptr, '', 'width', pCS%flowWidth(1), success)
       if (.not. success) then
             call SetMessage(LEVEL_ERROR, 'Incorrect CrossSection input for CrossSection id: '//trim(pCS%id)//'. Invalid levels/widths.')
             return
       endif
-      pCS%width(2) = pCS%width(1)
+      pCS%flowWidth(2) = pCS%flowWidth(1)
       if (closed) then
-         pCS%height(3) = pCS%height(2)+1d-5
-         pCS%width(3) = 0.0d0
+         pCS%height(3)    = pCS%height(2)+1d-5
+         pCS%flowWidth(3) = 0.0d0
       endif
-      pCS%totalWidth = PCS%width
+      pCS%totalWidth = PCS%flowWidth
       
       ! Initialize groundlayer information of the newly added cross-section
       allocate(pCS%groundlayer)
@@ -558,7 +587,7 @@ module m_readCrossSections
       
    end function readRectangularCS
    
-    logical function readTabulatedCS(pCS, node_ptr)  
+   logical function readTabulatedCS(pCS, node_ptr)  
    
       use precision_basics
       
@@ -569,6 +598,10 @@ module m_readCrossSections
       logical          :: success
       double precision :: crestLevel
       double precision :: baseLevel
+      double precision :: maxFlowWidth
+      double precision :: Main
+      double precision :: FP1
+      double precision :: FP2
       double precision :: flowArea
       double precision :: totalArea
       double precision :: wintersect
@@ -625,7 +658,6 @@ module m_readCrossSections
             pCS%summerdike%baseLevel  = baseLevel
             pCS%summerdike%flowArea   = flowArea
             pCS%summerdike%totalArea  = totalArea
-            pCS%summerdike%hysteresis = .true.
          endif
       endif
       
@@ -642,49 +674,56 @@ module m_readCrossSections
       pCS%closed = .false.
             
       pCS%plains = 0.0d0
-      call prop_get_double(node_ptr, '', 'main', pCS%plains(1), success)
-      if (.not. success .or. pCS%Plains(1) <= 0.0d0) then
-         pCS%plains(1) = width(1)
-         do i = 2, numlevels
-            pCS%plains(1) = max(pCS%plains(1), width(1))
-         enddo  
-      else
          
-         if (width(numLevels) >= ThresholdForPreismannLock) then
+      if (width(numLevels) >= ThresholdForPreismannLock) then
+      
+         maxFlowWidth = width(numlevels)
+
+         call prop_get_double(node_ptr, '', 'main', Main, success)
+         if (.not. success)  Main = 0.0d0
+         call prop_get_double(node_ptr, '', 'floodPlain1', FP1, success)
+         if (.not. success)  FP1 = 0.0d0
+         call prop_get_double(node_ptr, '', 'floodPlain2',FP2, success)
+         if (.not. success)  FP2 = 0.0d0
+
+         ! Check and Make Consistent if Needed
+         if ((Main + FP1 + FP2) < (maxFlowWidth) - 0.001d0) then
+             call SetMessage(LEVEL_ERROR, 'Sum of all Sections less than Flow Width for CrossSection Definition ID: '//trim(pCS%id))
+         elseif (FP1 <= 0.0d0 .and. FP2 > 0) then
+             call SetMessage(LEVEL_ERROR, 'Floodplain2 only allowed when Floodplain1 exists for CrossSection Definition ID: '//trim(pCS%id))
+         else
          
-            if (pCS%plains(1) > width(numLevels)) then
-               pCS%plains(1) = width(numLevels)
-            endif
-            
-            call prop_get_double(node_ptr, '', 'floodPlain1', pCS%plains(2), success)
-            if (.not. success .or. pCS%plains(2) <= 0.0d0) then
-               if (pCS%plains(1) < width(numLevels)) then
-                  pCS%plains(1) = width(numLevels)
-                  call SetMessage(LEVEL_WARN, 'Main Section Width not Consistent, set to Flow Width for CrossSection ID: '//trim(pCS%id))                  
+            ! Compensate for rounf off if needed
+            if ((Main + FP1 + FP2) < maxFlowWidth) then
+               Main = Main + 0.001d0
                endif 
+         
+            if (Main >= maxFlowWidth) then
+               Main = maxFlowWidth
+               FP1  = 0.0d0
+               FP2  = 0.0d0
+            elseif ((Main + FP1) >= maxFlowWidth) then
+               FP1 = maxFlowWidth - Main
+               FP2 = 0.0d0
             else
-               pCS%plains(3) = width(numLevels) - pCS%plains(2) - pCS%plains(1)
-               if (pCS%plains(3) <= 0.0d0) then
-                  pCS%plains(2) = width(numLevels) - pCS%plains(1)
-                  pCS%plains(3) = 0.0d0
+               FP2 = maxFlowWidth - Main - FP1
                endif
             endif                  
+            
+            pCS%plains(1) = Main
+            pCS%plains(2) = FP1
+            pCS%plains(3) = FP2
                   
          else
-            pCS%plains(1) = width(1)
-            do i = 2, numlevels
-               pCS%plains(1) = max(pCS%plains(1), width(1))
-            enddo  
+            pCS%plains(1) = maxval(width(1:numlevels))
             pCS%plains(2) = 0.0d0
             pCS%plains(3) = 0.0d0
          endif
          
-      endif
-      
-      if ( (pCS%plains(2) == 0d0) .and. (pCS%plains(3) == 0d0) ) then
-         pCs%plainslocation(1) = numlevels
-         pCs%plainslocation(2) = 0
-         pCs%plainslocation(3) = 0
+      if ( (pCS%plains(2) == 0.0d0) .and. (pCS%plains(3) == 0.0d0) ) then
+         pCs%plainsLocation(1) = numlevels
+         pCs%plainsLocation(2) = 0
+         pCs%plainsLocation(3) = 0
       else
        
          ! make sure transitions main - floodplain1 and floodplain1 - floodplain2 are always in table
@@ -704,9 +743,9 @@ module m_readCrossSections
                if (j == 1) then
                   pCs%plains(1) = width(1)
                elseif ( abs(wintersect - width(level_index_intersect-1) ) < 1d-5 ) then
-                  pCs%plainslocation(i) = level_index_intersect-1
+                  pCs%plainsLocation(i) = level_index_intersect-1
                elseif ( abs(wintersect - width(level_index_intersect) ) < 1d-5 ) then
-                  pCs%plainslocation(i) = level_index_intersect
+                  pCs%plainsLocation(i) = level_index_intersect
                else
                   ! extra level needed.
                   factor = (wintersect - width(level_index_intersect-1))/(width(level_index_intersect) - width(level_index_intersect-1))
@@ -718,26 +757,35 @@ module m_readCrossSections
                   width(level_index_intersect)      = factor * width(level_index_intersect+1)      + (1d0-factor) * width(level_index_intersect)
                   height(level_index_intersect)     = factor * height(level_index_intersect+1)     + (1d0-factor) * height(level_index_intersect)
                   totalwidth(level_index_intersect) = factor * totalwidth(level_index_intersect+1) + (1d0-factor) * totalwidth(level_index_intersect)
-                  pCs%plainslocation(i) = level_index_intersect
+                  pCs%plainsLocation(i) = level_index_intersect
                   numlevels = numlevels+1
                endif
             elseif (comparerealdouble(wintersect, width(numlevels), eps) == 0) then
-                pCs%plainslocation(i) = numlevels
+                pCs%plainsLocation(i) = numlevels
             endif
          
          enddo
-         pCs%plainslocation(3) = numlevels
+         pCs%plainsLocation(3) = numlevels
       endif
       
       
       call realloc(pCS%height, numlevels)
-      call realloc(pCS%width, numlevels)
-      call realloc(pCS%TotalWidth, numlevels)
+      call realloc(pCS%flowWidth, numlevels)
+      call realloc(pCS%totalWidth, numlevels)
 
+      call realloc(pCS%af_sub, 3, numlevels)
+      call realloc(pCS%width_sub, 3, numlevels)
+      call realloc(pCS%perim_sub, 3, numlevels)
+      call realloc(pCS%flowArea, numlevels)
+      call realloc(pCS%wetPerimeter, numlevels)
+      call realloc(pCS%totalArea, numlevels)
+      call realloc(pCS%area_min, numlevels)
+      call realloc(pCS%width_min, numlevels)
+      
       pCs%levelsCount = numlevels
-      pCS%height     = height(1:numlevels)
-      pCS%width      = width(1:numlevels)
-      pCS%TotalWidth = TotalWidth(1:numlevels)
+      pCS%height      = height(1:numlevels)
+      pCS%flowWidth   = width(1:numlevels)
+      pCS%totalWidth  = totalwidth(1:numlevels)
       
       if (pCs%plains(3) > 0.0d0) then
          pCs%frictionSectionsCount = 3
@@ -746,17 +794,9 @@ module m_readCrossSections
       else
          pCs%frictionSectionsCount = 1
       endif
-      
-      allocate(pCs%frictionSectionID  (pCs%frictionSectionsCount))      !< Friction Section Identification
-      allocate(pCs%frictionSectionFrom(pCs%frictionSectionsCount))    !<
-      allocate(pCs%frictionSectionTo  (pCs%frictionSectionsCount))      !<
-      pCs%frictionSectionID(1) = 'Main'
-      if (pCs%frictionSectionsCount >=2) then
-         pCs%frictionSectionID(2) = 'FloodPlain1'
-      endif
-      if (pCs%frictionSectionsCount ==3) then
-         pCs%frictionSectionID(3) = 'FloodPlain2'
-      endif
+            
+      ! Create Interpolation Tables
+      call createTablesForTabulatedProfile(pCs)
       
       deallocate(height)
       deallocate(width)
@@ -835,7 +875,7 @@ module m_readCrossSections
       type(t_CSDefinitionSet), intent(inout) :: defs
       integer, intent(in) :: ibin
       
-      integer :: i, j
+      integer :: i, j, k
       type(t_CSType), pointer :: pdef
 
       write(ibin) defs%count
@@ -853,10 +893,18 @@ module m_readCrossSections
          select case(pdef%crossType)
             case (CS_TABULATED) 
                write(ibin) (pdef%height(j), j = 1, pdef%levelscount)
-               write(ibin) (pdef%width(j), j = 1, pdef%levelscount)
-               write(ibin) (pdef%TotalWidth(j), j = 1, pdef%levelscount)
+               write(ibin) (pdef%flowWidth(j), j = 1, pdef%levelscount)
+               write(ibin) (pdef%totalWidth(j), j = 1, pdef%levelscount)
+               write(ibin) ((pdef%af_sub(j, k), j = 1, 3), k = 1, pdef%levelscount)
+               write(ibin) ((pdef%width_sub(j, k), j = 1, 3), k = 1, pdef%levelscount)
+               write(ibin) ((pdef%perim_sub(j, k), j = 1, 3), k = 1, pdef%levelscount)
+               write(ibin) (pdef%flowArea(j), j = 1, pdef%levelscount)
+               write(ibin) (pdef%wetPerimeter(j), j = 1, pdef%levelscount)
+               write(ibin) (pdef%totalArea(j), j = 1, pdef%levelscount)
+               write(ibin) (pdef%area_min(j), j = 1, pdef%levelscount)
+               write(ibin) (pdef%width_min(j), j = 1, pdef%levelscount)
                write(ibin) (pdef%plains(j), j = 1, 3)
-               write(ibin) (pdef%plainslocation(j), j = 1, 3)
+               write(ibin) (pdef%plainsLocation(j), j = 1, 3)
             
                write(ibin) associated(pdef%summerdike)
                if (associated(pdef%summerdike)) then
@@ -864,7 +912,6 @@ module m_readCrossSections
                   write(ibin) pdef%summerdike%baseLevel
                   write(ibin) pdef%summerdike%flowArea
                   write(ibin) pdef%summerdike%totalArea
-                  write(ibin) pdef%summerdike%hysteresis
                endif
             case (CS_YZ_PROF)
                write(ibin) (pdef%y(j), j = 1, pdef%levelscount)
@@ -895,7 +942,7 @@ module m_readCrossSections
       type(t_CSDefinitionSet), intent(inout) :: defs
       integer, intent(in) :: ibin
       
-      integer                 :: i, j
+      integer                 :: i, j, k
       logical                 :: isAssociated
       type(t_CSType), pointer :: pdef
 
@@ -916,14 +963,30 @@ module m_readCrossSections
          
          select case(pdef%crossType)
             case (CS_TABULATED) 
-               allocate(pdef%height    (pdef%levelscount))
-               allocate(pdef%width     (pdef%levelscount))
-               allocate(pdef%TotalWidth(pdef%levelscount))
+               allocate(pdef%height(pdef%levelscount))
+               allocate(pdef%flowWidth(pdef%levelscount))
+               allocate(pdef%totalWidth(pdef%levelscount))
+               allocate(pdef%af_sub(3, pdef%levelscount))
+               allocate(pdef%width_sub(3, pdef%levelscount))
+               allocate(pdef%perim_sub(3, pdef%levelscount))
+               allocate(pdef%flowArea(pdef%levelscount))
+               allocate(pdef%wetPerimeter(pdef%levelscount))
+               allocate(pdef%totalArea(pdef%levelscount))
+               allocate(pdef%area_min(pdef%levelscount))
+               allocate(pdef%width_min(pdef%levelscount))
                read(ibin) (pdef%height(j), j = 1, pdef%levelscount)
-               read(ibin) (pdef%width(j), j = 1, pdef%levelscount)
-               read(ibin) (pdef%TotalWidth(j), j = 1, pdef%levelscount)
+               read(ibin) (pdef%flowWidth(j), j = 1, pdef%levelscount)
+               read(ibin) (pdef%totalWidth(j), j = 1, pdef%levelscount)
+               read(ibin) ((pdef%af_sub(j, k), j = 1, 3), k = 1, pdef%levelscount)
+               read(ibin) ((pdef%width_sub(j, k), j = 1, 3), k = 1, pdef%levelscount)
+               read(ibin) ((pdef%perim_sub(j, k), j = 1, 3), k = 1, pdef%levelscount)
+               read(ibin) (pdef%flowArea(j), j = 1, pdef%levelscount)
+               read(ibin) (pdef%wetPerimeter(j), j = 1, pdef%levelscount)
+               read(ibin) (pdef%totalArea(j), j = 1, pdef%levelscount)
+               read(ibin) (pdef%area_min(j), j = 1, pdef%levelscount)
+               read(ibin) (pdef%width_min(j), j = 1, pdef%levelscount)
                read(ibin) (pdef%plains(j), j = 1, 3)
-               read(ibin) (pdef%plainslocation(j), j = 1, 3)
+               read(ibin) (pdef%plainsLocation(j), j = 1, 3)
                
                ! Summer Dike
                read(ibin) isAssociated
@@ -934,7 +997,6 @@ module m_readCrossSections
                   read(ibin) pdef%summerdike%baseLevel
                   read(ibin) pdef%summerdike%flowArea
                   read(ibin) pdef%summerdike%totalArea
-                  read(ibin) pdef%summerdike%hysteresis
                endif
             case (CS_YZ_PROF)
                allocate(pdef%y(pdef%levelscount))
@@ -1230,8 +1292,8 @@ module m_readCrossSections
             case (CS_TABULATED)
                write(dmpUnit, *) '#################### TABULATED #######################'
                write(dmpUnit, *) (pCSDef%height(j), j = 1, pCSDef%levelscount)
-               write(dmpUnit, *) (pCSDef%width(j), j = 1, pCSDef%levelscount)
-               write(dmpUnit, *) (pCSDef%TotalWidth(j), j = 1, pCSDef%levelscount)
+               write(dmpUnit, *) (pCSDef%flowWidth(j), j = 1, pCSDef%levelscount)
+               write(dmpUnit, *) (pCSDef%totalWidth(j), j = 1, pCSDef%levelscount)
                write(dmpUnit, *) (pCSDef%plains(j), j = 1, 3)
             
                write(dmpUnit, *) associated(pCSDef%summerdike)
@@ -1241,7 +1303,6 @@ module m_readCrossSections
                   write(dmpUnit, *) pCSDef%summerdike%baseLevel
                   write(dmpUnit, *) pCSDef%summerdike%flowArea
                   write(dmpUnit, *) pCSDef%summerdike%totalArea
-                  write(dmpUnit, *) pCSDef%summerdike%hysteresis
                endif
             case (CS_YZ_PROF)
                write(dmpUnit, *) '##################### YZ #########################'

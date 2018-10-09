@@ -27,8 +27,8 @@
 !                                                                               
 !-------------------------------------------------------------------------------
 
-! $Id: xbeach_wave_boundary_update.f90 54191 2018-01-22 18:57:53Z dam_ar $
-! $HeadURL: https://repos.deltares.nl/repos/ds/trunk/additional/unstruc/src/xbeach_wave_boundary_update.f90 $
+! $Id: xbeach_wave_boundary_update.f90 62178 2018-09-27 09:19:40Z mourits $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/dflowfm/packages/dflowfm_kernel/src/xbeach_wave_boundary_update.f90 $
 module wave_boundary_update_module
    use wave_boundary_datastore
    !

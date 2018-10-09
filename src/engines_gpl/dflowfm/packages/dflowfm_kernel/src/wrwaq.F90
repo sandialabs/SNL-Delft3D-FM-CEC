@@ -27,8 +27,8 @@
 !                                                                               
 !-------------------------------------------------------------------------------
 
-! $Id: wrwaq.F90 54191 2018-01-22 18:57:53Z dam_ar $
-! $HeadURL: https://repos.deltares.nl/repos/ds/trunk/additional/unstruc/src/wrwaq.F90 $
+! $Id: wrwaq.F90 62178 2018-09-27 09:19:40Z mourits $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/dflowfm/packages/dflowfm_kernel/src/wrwaq.F90 $
 module wrwaq
 
 !include preprocessing flags from autotools
@@ -471,6 +471,7 @@ subroutine waq_wri_hyd()
     use m_flowexternalforcings
     use m_flowgeom
     use unstruc_model
+    use time_module
 
     implicit none
 !
@@ -517,7 +518,7 @@ subroutine waq_wri_hyd()
 
 !! Time block
     read (refdat, '(i8)') itdate
-    call juldat ( itdate, julday )
+    julday = ymd2jul( itdate )
     write ( lunhyd , '(A,I8,A )' ) 'reference-time              ''',itdate,'000000'''
     call timdat( julday, tstart_user, idatum, itijd )
     write ( lunhyd , '(A,I8,I6.6,A)') 'hydrodynamic-start-time     ''',idatum,itijd,''''
@@ -777,7 +778,7 @@ subroutine waq_write_waqgeom_filepointer_ugrid(igeomfile)
     ! Aggregate mesh geometry, if needed.
     if (waqpar%aggre == 1) then
         ! Create empty meshgeom.
-        ierr = ug_new_meshgeom(aggregated_meshgeom)
+        ierr = t_ug_meshgeom_destructor(aggregated_meshgeom)
         call check_error(ierr)
 
         ! Aggregate.
@@ -843,7 +844,7 @@ function create_ugrid_geometry(meshgeom, edge_type) result(ierr)
 
 
     ! Create 2D (layered) mesh geometry that contains all 2D faces, edges and nodes.
-    ierr = ug_new_meshgeom(meshgeom)
+    ierr = t_ug_meshgeom_destructor(meshgeom)
     call check_error(ierr)
     meshgeom%meshName = 'mesh2d'
     meshgeom%dim = 2
@@ -1462,7 +1463,7 @@ subroutine waq_wri_bnd()
 !           Local variables
 !
     integer :: LL, L, Lf, n, i, istart, n1, n2
-    integer :: ibnd, isrc, kk
+    integer :: ibnd, isrc, kk, nopenbndsectnonempty
     integer :: lunbnd
     character(len=255) :: filename
     double precision :: x1, y1, x2, y2, xn, yn
@@ -1474,9 +1475,23 @@ subroutine waq_wri_bnd()
     filename = defaultFilename('bnd')
     call newfil(lunbnd, trim(filename))
 
-    write(lunbnd, '(i8)') nopenbndsect + waqpar%numsrcbnd             ! Nr of open boundary sections and sink sources.
+    ! Count how many bnd segments are truly open (# links/exchanges > 0)
+    istart = 0
+    nopenbndsectnonempty = 0
+    do i=1,nopenbndsect
+       if (nopenbndlin(i) - istart == 0) then
+          cycle
+       end if
+       istart = nopenbndlin(i)
+       nopenbndsectnonempty = nopenbndsectnonempty+1
+    end do
+
+    write(lunbnd, '(i8)') nopenbndsectnonempty + waqpar%numsrcbnd             ! Nr of open boundary sections and sink sources.
     istart = 0
     do i=1,nopenbndsect
+        if (nopenbndlin(i) - istart == 0) then
+           cycle
+        end if
         namelen = len_trim(openbndname(i))
         write(lunbnd, '(a)')  trim(openbndname(i)(1:min(namelen, waqmaxnamelen)))  ! Section name
         write(lunbnd, '(i8)') nopenbndlin(i)-istart ! Nr of lins in section
@@ -2931,7 +2946,7 @@ double precision, intent(out) :: czc     !< Chezy at flow node (taucurrent)
 !           Local variables
 !
 integer :: LL, nn                            !< Local link counters
-double precision ::  cf, cfn, cz, frcn, ar,  wa, ust, ust2, fw    !< Local intermediate variables
+double precision ::  cf, cfn, cz, frcn, ar,  wa, ust, ust2, ustw2, fw    !< Local intermediate variables
 
 taucurc = 0d0
 czc = 0d0
@@ -2952,7 +2967,7 @@ do nn = 1,nd(n)%lnx
          if (jawaveswartdelwaq <= 1) then 
             ust = ust + ustb(LL)*ar
          else
-            ust = ust + taubxu(LL)*ar
+            ust = ust+ taubxu(LL)*ar
          endif   
       endif
    endif 

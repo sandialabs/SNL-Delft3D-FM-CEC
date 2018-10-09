@@ -32,9 +32,15 @@ select case(var_name)
     type_name = "int"
   case("iglobal_s")
     type_name = "int"
+  case("hwav")
+    type_name = "double"
   case("twav")
     type_name = "double"
   case("Uorb")
+    type_name = "double"
+  case("infilt")
+    type_name = "double"
+  case("infiltcap")
     type_name = "double"
   case("shx")
     type_name = "double"
@@ -57,8 +63,6 @@ select case(var_name)
   case("qinship")
     type_name = "double"
   case("vicushp")
-    type_name = "double"
-  case("vos")
     type_name = "double"
   case("shL")
     type_name = "double"
@@ -87,6 +91,22 @@ select case(var_name)
   case("rain")
     type_name = "double"
   case("evap")
+    type_name = "double"
+  case("numlatsg")
+    type_name = "int"
+  case("qplat")
+    type_name = "double"
+  case("qqlat")
+    type_name = "double"
+  case("balat")
+    type_name = "double"
+  case("nnlat")
+    type_name = "int"
+  case("qinext")
+    type_name = "double"
+  case("qinextreal")
+    type_name = "double"
+  case("vincum")
     type_name = "double"
   case("rnveg")
     type_name = "double"
@@ -138,11 +158,15 @@ select case(var_name)
     type_name = "double"
   case("satop")
     type_name = "double"
+  case("sabot")
+    type_name = "double"
   case("tem0")
     type_name = "double"
   case("tem1")
     type_name = "double"
   case("u1")
+    type_name = "double"
+  case("u_to_umain")
     type_name = "double"
   case("q1")
     type_name = "double"
@@ -156,25 +180,17 @@ select case(var_name)
     type_name = "double"
   case("diusp")
     type_name = "double"
-  case("ndx2d")
-    type_name = "int"
   case("ndxi")
     type_name = "int"
   case("ndx1db")
-    type_name = "int"
-  case("ndx")
     type_name = "int"
   case("kfs")
     type_name = "int"
   case("kfst0")
     type_name = "int"
-  case("ba")
+  case("bare")
     type_name = "double"
   case("bl")
-    type_name = "double"
-  case("xz")
-    type_name = "double"
-  case("yz")
     type_name = "double"
   case("lnx1D")
     type_name = "int"
@@ -235,6 +251,16 @@ select case(var_name)
   case("is_maxvalsnd")
     type_name = "double"
   case("is_dtint")
+    type_name = "double"
+  case("ndx2d")
+    type_name = "int"
+  case("ndx")
+    type_name = "int"
+  case("xz")
+    type_name = "double"
+  case("yz")
+    type_name = "double"
+  case("ba")
     type_name = "double"
   case default
     type_name = ""

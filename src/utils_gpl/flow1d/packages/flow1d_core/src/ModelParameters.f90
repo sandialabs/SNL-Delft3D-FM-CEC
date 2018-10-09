@@ -25,7 +25,7 @@ module ModelParameters
 !  Stichting Deltares. All rights reserved.
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: ModelParameters.f90 8044 2018-01-24 15:35:11Z mourits $
+!  $Id: ModelParameters.f90 59739 2018-08-02 14:14:58Z zeekant $
 !  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_gpl/flow1d/packages/flow1d_core/src/ModelParameters.f90 $
 !-------------------------------------------------------------------------------
 
@@ -595,12 +595,13 @@ end subroutine LogAllParameters
       character(len=*) :: file
       
       integer                 :: ioStat
+      logical                 :: file_exist
       integer                 :: i
       integer                 :: errStat
       integer                 :: isPos
       integer                 :: help
       integer                 :: posEnd
-      character(len=Charln)      :: line
+      character(len=Charln)   :: line
       character(len=Charln)   :: category = ''
       character(len=Charln)   :: par
       character(len=Charln)   :: value
@@ -608,6 +609,9 @@ end subroutine LogAllParameters
       integer                 :: ifileunit
       
       if (file == ' ') return
+      
+      inquire(file=file, exist=file_exist)
+      if (.not. file_exist) return
     
       open (newunit=ifileunit, file = file,iostat=errStat)
       if (errStat /= 0) then

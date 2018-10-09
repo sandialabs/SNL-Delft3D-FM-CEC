@@ -25,7 +25,7 @@ subroutine rdcul(nsrc, namsrc ,mnksrc, voldis, gdp)
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: rdcul.f90 7992 2018-01-09 10:27:35Z mourits $
+!  $Id: rdcul.f90 8671 2018-05-02 07:45:05Z mourits $
 !  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/flow2d3d/packages/io/src/input/rdcul.f90 $
 !!--description-----------------------------------------------------------------
 ! Reads dimensions, allocates space for data and reads data from INI file for
@@ -36,6 +36,7 @@ subroutine rdcul(nsrc, namsrc ,mnksrc, voldis, gdp)
 !!--declarations----------------------------------------------------------------
     use precision
     use properties
+    use system_utils, only:SHARED_LIB_PREFIX, SHARED_LIB_EXTENSION
     !
     use globaldata
     !
@@ -343,11 +344,7 @@ subroutine rdcul(nsrc, namsrc ,mnksrc, voldis, gdp)
                             call prop_get(link_ptr, '*', 'CulvertLib', rec)
                             dll_name(isrc) = rec
                             if (rec /= ' ') then
-                               if (gdp%arch == 'win32' .or. gdp%arch == 'win64') then
-                                  rec(len_trim(rec)+1:) = '.dll'
-                               else
-                                  rec(len_trim(rec)+1:) = '.so'
-                               endif
+                               write(rec,'(3a)') SHARED_LIB_PREFIX, trim(rec), SHARED_LIB_EXTENSION
                                dll_name(isrc) = rec
                                istat_ptr = 0
                                istat_ptr = open_shared_library(dll_handle(isrc), dll_name(isrc))

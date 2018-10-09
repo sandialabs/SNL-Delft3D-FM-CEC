@@ -26,7 +26,7 @@ module m_Laterals
 !  Stichting Deltares. All rights reserved.
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: Laterals.F90 8044 2018-01-24 15:35:11Z mourits $
+!  $Id: Laterals.F90 8811 2018-05-17 13:10:43Z zeekant $
 !  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_gpl/flow1d/packages/flow1d_core/src/Laterals.F90 $
 !-------------------------------------------------------------------------------
 
@@ -86,7 +86,8 @@ module m_Laterals
                                                                    !> Indicates whether lateral is a fresh water source: \n
                                                                    !! - at inflow salinity concentration will be set to 0 \n
                                                                    !! - at outflow load will be set to 0.
-      logical                                      :: freshWater   
+      logical                                      :: freshWater
+      logical                                      :: pointLateral
      
       ! calculation info
       integer                                      :: pointsCount
@@ -96,6 +97,11 @@ module m_Laterals
       type(t_table), pointer                       :: qh => null()
       logical                                      :: use_internal_discharge
       logical                                      :: use_internal_salinity
+      
+      ! Results Calculated when writing HIS-File, can be used when writing NetCDF-File
+      double precision                             :: actualDischarge
+      double precision                             :: definedDischarge
+      double precision                             :: differenceDischarge
    end type  
    
    !> Set of lateral discharges

@@ -32,7 +32,7 @@ subroutine trisol(dischy    ,solver    ,icreep    ,ithisc    , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: trisol.f90 7992 2018-01-09 10:27:35Z mourits $
+!  $Id: trisol.f90 8714 2018-05-04 14:55:55Z platzek $
 !  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/flow2d3d/packages/kernel/src/main/trisol.f90 $
 !!--description-----------------------------------------------------------------
 !
@@ -1901,7 +1901,7 @@ subroutine trisol(dischy    ,solver    ,icreep    ,ithisc    , &
                        & icx       ,icy       ,lundia    ,d(dps)    ,r(s0)     , &
                        & r(umean)  ,r(vmean)  ,r(z0urou) ,r(z0vrou) ,i(kfu)    , &
                        & i(kfv)    ,zmodel    ,i(kfsmx0) ,i(kfsmn0) ,r(dzs0)   , &
-                       & gdp       )        
+                       & lstsci    ,gdp       )        
              call timer_stop(timer_fallve, gdp)
           endif
           !
@@ -2969,7 +2969,7 @@ subroutine trisol(dischy    ,solver    ,icreep    ,ithisc    , &
                        & icx       ,icy       ,lundia    ,d(dps)    ,r(s0)     , &
                        & r(umean)  ,r(vmean)  ,r(z0urou) ,r(z0vrou) ,i(kfu)    , &
                        & i(kfv)    ,zmodel    ,i(kfsmx0) ,i(kfsmn0) ,r(dzs0)   , &
-                       & gdp       )
+                       & lstsci    ,gdp       )
              call timer_stop(timer_fallve, gdp)
           endif
           !

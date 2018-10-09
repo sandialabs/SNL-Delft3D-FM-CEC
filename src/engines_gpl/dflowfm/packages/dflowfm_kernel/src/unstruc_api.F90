@@ -27,8 +27,8 @@
 !                                                                               
 !-------------------------------------------------------------------------------
 
-! $Id: unstruc_api.F90 54191 2018-01-22 18:57:53Z dam_ar $
-! $HeadURL: https://repos.deltares.nl/repos/ds/trunk/additional/unstruc/src/unstruc_api.F90 $
+! $Id: unstruc_api.F90 62178 2018-09-27 09:19:40Z mourits $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/dflowfm/packages/dflowfm_kernel/src/unstruc_api.F90 $
 module unstruc_api
  use m_flowtimes
  use m_timer
@@ -51,6 +51,7 @@ use m_monitoring_crosssections
 use unstruc_files
 use unstruc_version_module, only : unstruc_basename
 use gridoperations
+use m_samples
 
 !if (.not. allocated(xk)) then 
     !   allocate( xk (1), yk (1), zk (1) , NOD (1) , KC (1) , NMK (1) , RNOD(1)   ) 
@@ -237,6 +238,10 @@ end subroutine api_loadmodel
           call unc_write_net_flowgeom(trim(md_flowgeomfile))
        end if
        
+       if (jawind > 0 .and. jatekcD > 0) then 
+          call writeCdcoeffs()
+       endif   
+       
     end if
     if (ndx == 0) return                                ! No valid flow network was initialized
     
@@ -250,11 +255,8 @@ end subroutine api_loadmodel
 
     if (jampi == 1) then
        call updateValuesOnCrossSections_mpi(time1)
+       call reduce_particles
     endif
-  
-    if (jawind > 0 .and. jatekcd.eq.1) then             ! only if wanted
-       call writeCdcoeffs()
-    endif   
     
     call mess(LEVEL_INFO,'Writing initial output to file(s)...')
     call flow_externaloutput(time1)

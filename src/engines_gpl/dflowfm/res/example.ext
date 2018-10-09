@@ -1,5 +1,5 @@
 * Example (old-style) external forcings file
-* $Id: example.ext 51038 2017-05-26 10:03:01Z dam_ar $
+* $Id: example.ext 59016 2018-05-09 10:51:25Z dam_ar $
 * QUANTITY    : waterlevelbnd, velocitybnd, dischargebnd, tangentialvelocitybnd, normalvelocitybnd  filetype=9         method=2,3
 *             : outflowbnd, neumannbnd, qhbnd, uxuyadvectionvelocitybnd                             filetype=9         method=2,3
 *             : salinitybnd                                                                         filetype=9         method=2,3
@@ -64,6 +64,8 @@
 *         =6  : MINABS
 *         =7  : KDTREE (LIKE 1, BUT FAST AVERAGING)
 *
+* PERCENTILEMINMAX : Percentileminmax, average min or max Perc %
+* 
 * OPERAND =O  : Override at all points
 *         =+  : Add to previously specified value
 *         =*  : Multiply with previously specified value

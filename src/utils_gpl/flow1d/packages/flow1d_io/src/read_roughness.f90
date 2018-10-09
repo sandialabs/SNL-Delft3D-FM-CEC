@@ -25,7 +25,7 @@ module m_read_roughness
 !  Stichting Deltares. All rights reserved.
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: read_roughness.f90 8044 2018-01-24 15:35:11Z mourits $
+!  $Id: read_roughness.f90 61643 2018-09-06 13:04:12Z zeekant $
 !  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_gpl/flow1d/packages/flow1d_io/src/read_roughness.f90 $
 !-------------------------------------------------------------------------------
    
@@ -38,7 +38,8 @@ module m_read_roughness
    use m_readSpatialData
    use m_Roughness
    use m_spatial_data
-   use flow1d_io_properties
+   use properties
+   use  string_module
    use messagehandling
 
    implicit none
@@ -91,7 +92,7 @@ contains
       binfile = 'Roughness.cache'
       inquire(file=binfile, exist=file_exist)
       if (doReadCache .and. file_exist) then
-         open(newunit=ibin, file=binfile, status='old', form='binary', action='read', iostat=istat)
+         open(newunit=ibin, file=binfile, status='old', form='unformatted', access='stream', action='read', iostat=istat)
          if (istat /= 0) then
             call setmessage(LEVEL_FATAL, 'Error opening Roughness Cache file')
             ibin = 0
@@ -164,6 +165,7 @@ contains
          file = filestring(1:isemi-1)
          filestring = filestring(isemi+1:)
          file = trim(mapdir)//file
+         call remove_leading_spaces(trim(file))
          call read_roughnessfile(rgs, brs, spdata, file, default, def_type)
       enddo
    
@@ -206,7 +208,7 @@ contains
       integer, pointer, dimension(:)         :: fun_type
    
       ! create and fill tree
-      call tree_create(trim(inputfile), tree_ptr)
+      call tree_create(trim(inputfile), tree_ptr, maxlenpar)
       call prop_file('ini',trim(inputfile),tree_ptr,istat)
    
       ! Get section id

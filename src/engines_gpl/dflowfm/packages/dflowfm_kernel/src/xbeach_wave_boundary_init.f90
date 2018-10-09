@@ -27,6 +27,6 @@
 !                                                                               
 !-------------------------------------------------------------------------------
 
-! $Id: xbeach_wave_boundary_init.f90 42642 2015-10-21 11:34:20Z dam_ar $
-! $HeadURL: https://repos.deltares.nl/repos/ds/trunk/additional/unstruc/src/xbeach_wave_boundary_init.f90 $
+! $Id: xbeach_wave_boundary_init.f90 62178 2018-09-27 09:19:40Z mourits $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/dflowfm/packages/dflowfm_kernel/src/xbeach_wave_boundary_init.f90 $
 

@@ -112,6 +112,11 @@ Dimr::Dimr(void) {
     redirectFile                 = (char *) malloc((len+1)*sizeof(char));
     strncpy(redirectFile, (const char*)filename, len);
     redirectFile[len]            = '\0';
+#if defined(HAVE_CONFIG_H)
+    dirSeparator = "/";
+#else
+    dirSeparator = "\\";
+#endif                                            
 }
 
 
@@ -179,13 +184,11 @@ extern "C" {
             char *fileBasename = new char[MAXSTRING];
 #if defined(HAVE_CONFIG_H)
             fileBasename = strdup(basename(thisDimr->redirectFile));
-            const char *dirSeparator = "/";
 #else
             char * ext = new char[5];
             _splitpath(thisDimr->redirectFile, NULL, NULL, fileBasename, ext);
             StringCbCatA(fileBasename, MAXSTRING, ext);
             delete[] ext;
-            const char *dirSeparator = "\\";
 #endif
             if (strcmp(thisDimr->redirectFile, fileBasename) == 0)
             {
@@ -200,7 +203,7 @@ extern "C" {
                   throw Exception(true, Exception::ERR_OS, "ERROR obtaining the current working directory (init)");
                }
 
-               strcat(thisDimr->redirectFile, dirSeparator);
+               strcat(thisDimr->redirectFile, thisDimr->dirSeparator);
                strcat(thisDimr->redirectFile, filenameCopy);
                delete[] filenameCopy;
             }
@@ -249,6 +252,14 @@ extern "C" {
          thisDimr->connectLibs();
          // Init the timers before calling the dllInitialize routines!
          thisDimr->timersInit();
+
+         // Store dimr absolute path
+         thisDimr->dimrWorkingDirectory = new char[MAXSTRING];
+         if (!getcwd(thisDimr->dimrWorkingDirectory, MAXSTRING))
+         {
+            thisDimr->log->Write(FATAL, thisDimr->my_rank, "Cannot get the current working directory");
+         }
+
          //
          // Initialize the components in the first controlBlock only
          if (thisDimr->control->subBlocks[0].type == CT_PARALLEL) 
@@ -563,15 +574,6 @@ BMI_API void set_var(const char * key, const void * value) {
 
 
 } // extern "C"
-
-
-//------------------------------------------------------------------------------
-string GetLoggerFilename(dimr_logger* logger) {
-    string fileName = logger->workingDir;
-    fileName += '/';
-    fileName += logger->outputFile;
-    return fileName;
-}
 
 
 //------------------------------------------------------------------------------
@@ -923,9 +925,9 @@ void Dimr::runParallelInit (dimr_control_block * cb) {
 					// create netcdf logfiles
 					if (thisCoupler->logger != NULL)
 					{
-						// create netcdf file in workingdir
+                        // create netcdf file in workingdir
 
-                        string fileName = GetLoggerFilename(thisCoupler->logger);
+                        string fileName = thisCoupler->logger->GetLoggerFilename(thisDimr->dimrWorkingDirectory, thisDimr->dirSeparator);
 
                         // write NetCDF file
 
@@ -936,7 +938,7 @@ void Dimr::runParallelInit (dimr_control_block * cb) {
 
                         // write global attributes
 
-					    time_t now;
+                        time_t now;
                         time(&now);
                         char buf[sizeof("2017-10-10T16:57:32Z")+1];
                         strftime(buf, sizeof buf, "%Y-%m-%dT%H:%M:%SZ", gmtime(&now));
@@ -956,7 +958,7 @@ void Dimr::runParallelInit (dimr_control_block * cb) {
                         std::ostringstream title;
                         const char * version = "version";
                         char * sourceComponentVersion = new char[1024];
-					    char * targetComponentVersion = new char[1024];
+                        char * targetComponentVersion = new char[1024];
                         strcpy(sourceComponentVersion, "");
                         strcpy(targetComponentVersion, "");
                         if (thisCoupler->sourceComponent->dllGetAttribute != NULL) {
@@ -981,9 +983,11 @@ void Dimr::runParallelInit (dimr_control_block * cb) {
                         nc_put_att_text(ncid, NC_GLOBAL, "title", titlestr.size(), titlestr.c_str());
                         delete[] sourceComponentVersion;
                         delete[] targetComponentVersion;
-                        const char conventions[] = "CF-1.6";
-                        nc_put_att_text(ncid, NC_GLOBAL, "conventions", strlen(conventions), conventions);
-                        
+                        const char conventions[] = "CF-1.7";
+                        nc_put_att_text(ncid, NC_GLOBAL, "Conventions", strlen(conventions), conventions);
+                        const char feature_type[] = "timeSeries";
+                        nc_put_att_text(ncid, NC_GLOBAL, "featureType", strlen(feature_type), feature_type);
+
                         // write dimensions
 
                         nc_def_dim(ncid, "strlen", 256, &thisCoupler->logger->netcdfReferences->strlenDim);
@@ -992,12 +996,12 @@ void Dimr::runParallelInit (dimr_control_block * cb) {
                         nc_def_var(ncid, "time", NC_DOUBLE, 1, &thisCoupler->logger->netcdfReferences->timeDim, &thisCoupler->logger->netcdfReferences->timeVar);
                         const char longnametime[] = "time";
                         nc_put_att_text(ncid, thisCoupler->logger->netcdfReferences->timeVar, "long_name", sizeof(longnametime), longnametime);
-                        const char units[] = "seconds since 2017-10-09T00:00:00"; // TODO: Compute start time!!
+                        const char units[] = "seconds since 1980-01-01T00:00:00"; // TODO: Get simulation reference time from one of the kernels
                         nc_put_att_text(ncid, thisCoupler->logger->netcdfReferences->timeVar, "units", sizeof(units), units);
                         const char axis[] = "T";
                         nc_put_att_text(ncid, thisCoupler->logger->netcdfReferences->timeVar, "axis", sizeof(axis), axis);
 
-                        // write variables
+                        // write variables/parameter
 
                         thisCoupler->logger->netcdfReferences->item_values = new int[thisCoupler->numItems];
                         thisCoupler->logger->netcdfReferences->item_variables = new int[thisCoupler->numItems];
@@ -1020,13 +1024,44 @@ void Dimr::runParallelInit (dimr_control_block * cb) {
 
                             std::ostringstream itemValuesLongName;
                             const string sourceName = string(thisCoupler->items[k].sourceName);
-                            itemValuesLongName << string(thisCoupler->sourceComponentName) << ":" << sourceName
-                                << " -> " << string(thisCoupler->targetComponentName) << ":" << string(thisCoupler->items[k].targetName);
+                            itemValuesLongName << sourceName
+                                << " -> " << string(thisCoupler->items[k].targetName);
                             const string itemvaluesstr(itemValuesLongName.str());
                             nc_put_att_text(ncid, thisCoupler->logger->netcdfReferences->item_variables[k], "long_name", itemvaluesstr.size(), itemvaluesstr.c_str());
+
+                            std::ostringstream itemValuesCoordinates;
+                            itemValuesCoordinates << "station_name";
+                            const string itemValuesCoordinatesstr(itemValuesCoordinates.str());
+                            nc_put_att_text(ncid, thisCoupler->logger->netcdfReferences->item_variables[k], "coordinates", itemValuesCoordinatesstr.size(), itemValuesCoordinatesstr.c_str());
+                        }
+
+                        // write location
+                        long nStations = 1;
+                        long name_strlen = 64;
+                        int id_nStations;
+                        int id_name_strlen;
+                        int station_var;
+                        {
+                            nc_def_dim(ncid, "nStations", nStations, &id_nStations);
+                            nc_def_dim(ncid, "name_strlen", name_strlen, &id_name_strlen);
+
+                            int dim_id[2];
+                            dim_id[0] = id_nStations;
+                            dim_id[1] = id_name_strlen;
+                            nc_def_var(ncid, "station_name", NC_CHAR, 2, dim_id, &station_var);
+                            const char timeseries_id[] = "timeseries_id";
+                            nc_put_att_text(ncid, station_var, "cf_role", strlen(timeseries_id), timeseries_id);
+                            const char longName[] = "Station name";
+                            nc_put_att_text(ncid, station_var, "long_name", strlen(longName), longName);
                         }
 
                         nc_enddef(ncid);
+
+                        // Add station name
+                        std::ostringstream varName;
+                        varName << sourceComponentName << " -> " << targetComponentName;
+                        const string varNamestr(varName.str());
+                        nc_put_var_text(ncid, station_var, varNamestr.c_str());
                     }
 
                     // Het hele spul MOET NAAR DELTARES_COMMON_C !!!
@@ -1166,7 +1201,7 @@ void Dimr::runParallelUpdate (dimr_control_block * cb, double tStep) {
                             // log netcdf time variable
                             int timeIndexCounter = static_cast<int>(floor(*currentTime / tStep));
                             if (thisCoupler->logger != NULL) {
-                                string fileName = GetLoggerFilename(thisCoupler->logger);
+                                string fileName = thisCoupler->logger->GetLoggerFilename(thisDimr->dimrWorkingDirectory, thisDimr->dirSeparator); 
 
                                 int ncid = ncfiles[fileName];
                                 size_t index[] = { timeIndexCounter };
@@ -1209,7 +1244,7 @@ void Dimr::runParallelUpdate (dimr_control_block * cb, double tStep) {
 
 
                                 if (thisCoupler->logger != NULL) {
-                                    string fileName = GetLoggerFilename(thisCoupler->logger);
+                                    string fileName = thisCoupler->logger->GetLoggerFilename(thisDimr->dimrWorkingDirectory, thisDimr->dirSeparator);
 
                                     int ncid = ncfiles[fileName];
                                     size_t indices[] = { timeIndexCounter, 0 };
@@ -1333,11 +1368,13 @@ void Dimr::getAddress(
    for (int m = 0; m < nProc; m++) {
       if (my_rank == processes[m]) {
          log->Write(ALL, my_rank, "Dimr::getAddress (%s)", name);
-         if (compType == COMP_TYPE_RTC
-            || compType == COMP_TYPE_RR
-            || compType == COMP_TYPE_FLOW1D
-            || compType == COMP_TYPE_FLOW1D2D
-            || *sourceVarPtr == NULL) {
+         if ( compType == COMP_TYPE_DEFAULT_BMI ||
+              compType == COMP_TYPE_RTC ||
+              compType == COMP_TYPE_RR ||
+              compType == COMP_TYPE_FLOW1D ||
+              compType == COMP_TYPE_FLOW1D2D ||
+              compType == COMP_TYPE_FM || // NOTE: pending new feature of specifying get_var by value/by reference, we now always get the new pointer from dflowfm (needed for UNST-1713).
+              *sourceVarPtr == NULL) {
             // These components only returns a new pointer to a copy of the double value, so call it each time.
             // sourceVarPtr=NULL: getVar not yet called for this parameter, probably because "send" is being called
             //                    via the toplevel "get_var"
@@ -1458,7 +1495,7 @@ void Dimr::runParallelFinish (dimr_control_block * cb) {
 				else { //coupler
 					dimr_coupler * thisCoupler = cb->subBlocks[i].subBlocks[j].unit.coupler;
 					if (thisCoupler->logger != NULL) {
-                        string fileName = GetLoggerFilename(thisCoupler->logger);
+                        string fileName = thisCoupler->logger->GetLoggerFilename(thisDimr->dimrWorkingDirectory, thisDimr->dirSeparator);  
                         int ncid = ncfiles[fileName];
                         if (ncid >= 0) {
                             // todo: what if the computation crashes - can we read the file?
@@ -1549,11 +1586,6 @@ void Dimr::scanUnits(XmlTree * rootXml) {
 //------------------------------------------------------------------------------
 void Dimr::scanComponent(XmlTree * xmlComponent, dimr_component * newComp) {
     // Needed for path handling
-#if defined(HAVE_CONFIG_H)
-    const char *dirSeparator = "/";
-#else
-    const char *dirSeparator = "\\";
-#endif
     char *curPath = new char[MAXSTRING];
     if (!getcwd(curPath, MAXSTRING))
         throw Exception (true, Exception::ERR_OS, "ERROR obtaining the current working directory (scan)");
@@ -1593,8 +1625,10 @@ void Dimr::scanComponent(XmlTree * xmlComponent, dimr_component * newComp) {
     } else if (strstr(libNameLowercase, "dimr_testcomponent") != NULL){
        newComp->type = COMP_TYPE_TEST;
     }
-    else {
-        throw Exception (true, Exception::ERR_INVALID_INPUT, "Name of library, \"%s\", is not recognized", newComp->library);
+    else 
+    {
+       newComp->type = COMP_TYPE_DEFAULT_BMI;
+       log->Write(ALL, my_rank, "INFO: \"<process>\" Type for component \"%s\" is set to default value 0", newComp->name);
     }
     delete [] libNameLowercase;
 
@@ -1888,7 +1922,7 @@ void Dimr::connectLibs (void) {
         componentsList.components[i].libHandle = dllhandle;
         #define GETPROCADDRESS dlsym
         #define GetLastError dlerror
-        #define Sleep sleep
+        #define Sleep(msec) sleep((int)msec/1000)
 #else
         SetLastError(0); /* clear error code */
         HINSTANCE dllhandle = LoadLibrary (LPCSTR(lib));
@@ -1954,14 +1988,15 @@ void Dimr::connectLibs (void) {
 //          throw Exception (true,  Exception::ERR_METHOD_NOT_IMPLEMENTED, "Cannot find function \"%s\" in library \"%s\". Return code: %d", BmiGetAttributeEntryPoint, lib, GetLastError());
 //        }
 
-		if (   componentsList.components[i].type == COMP_TYPE_FM
-            || componentsList.components[i].type == COMP_TYPE_RTC 
-            || componentsList.components[i].type == COMP_TYPE_RR 
-            || componentsList.components[i].type == COMP_TYPE_FLOW1D 
-            || componentsList.components[i].type == COMP_TYPE_FLOW1D2D
-            || componentsList.components[i].type == COMP_TYPE_DELWAQ
-            || componentsList.components[i].type == COMP_TYPE_TEST
-            || componentsList.components[i].type == COMP_TYPE_WANDA) {
+		if ( componentsList.components[i].type == COMP_TYPE_DEFAULT_BMI ||
+           componentsList.components[i].type == COMP_TYPE_FM ||
+           componentsList.components[i].type == COMP_TYPE_RTC ||
+           componentsList.components[i].type == COMP_TYPE_RR ||
+           componentsList.components[i].type == COMP_TYPE_FLOW1D ||
+           componentsList.components[i].type == COMP_TYPE_FLOW1D2D ||
+           componentsList.components[i].type == COMP_TYPE_DELWAQ ||
+           componentsList.components[i].type == COMP_TYPE_TEST ||
+           componentsList.components[i].type == COMP_TYPE_WANDA) {
             // RTC-Tools: setVar is used
             componentsList.components[i].dllSetVar = (BMI_SETVAR) GETPROCADDRESS (dllhandle, BmiSetVarEntryPoint);
             if (componentsList.components[i].dllSetVar == NULL) {
@@ -2173,4 +2208,3 @@ void Dimr::char_to_ints(char * line, int ** iarr, int * count) {
         np++;
     }
 }
-

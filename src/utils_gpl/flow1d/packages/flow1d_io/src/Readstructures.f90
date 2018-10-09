@@ -25,11 +25,12 @@ module m_readstructures
 !  Stichting Deltares. All rights reserved.
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: Readstructures.f90 8044 2018-01-24 15:35:11Z mourits $
+!  $Id: Readstructures.f90 61837 2018-09-13 09:13:59Z noort $
 !  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_gpl/flow1d/packages/flow1d_io/src/Readstructures.f90 $
 !-------------------------------------------------------------------------------
 
    use MessageHandling
+   use string_module
    use m_network
    use m_CrossSections
    use m_structure
@@ -43,8 +44,9 @@ module m_readstructures
    use m_Orifice
    use m_General_Structure
    use m_ExtraResistance
+   use m_Dambreak
 
-   use flow1d_io_properties
+   use properties
    use m_hash_list
    use m_hash_search
    use m_tables
@@ -57,6 +59,8 @@ module m_readstructures
    public readStructures
    public read_structure_cache
    public write_structure_cache
+   public readPump
+   public readDambreak
 
    contains
 
@@ -72,18 +76,21 @@ module m_readstructures
       integer                                                :: istat
       integer                                                :: numstr
       integer                                                :: i
+      character(len=IdLen)                                   :: str_buf
 
       character(len=IdLen)                                   :: typestr
       character(len=IdLen)                                   :: structureID
-      character(len=IdLen)                                   :: structureName
       character(len=IdLen)                                   :: branchID
       
       double precision                                       :: Chainage
       integer                                                :: branchIdx
-      integer                                                :: iCompound
       logical                                                :: isPillarBridge
       logical                                                :: isInvertedSiphon
 
+      integer                                                :: iCompound
+      character(len=IdLen)                                   :: compoundName
+      character(len=IdLen), allocatable, dimension(:)        :: compoundNames
+      
       integer                                                :: iStrucType
       integer                                                :: istru
       type(t_branch), pointer                                :: pbr
@@ -97,7 +104,7 @@ module m_readstructures
       binfile = structureFile(1:pos)//'cache'
       inquire(file=binfile, exist=file_exist)
       if (doReadCache .and. file_exist) then
-         open(newunit=ibin, file=binfile, status='old', form='binary', action='read', iostat=istat)
+         open(newunit=ibin, file=binfile, status='old', form='unformatted', access='stream', action='read', iostat=istat)
          if (istat /= 0) then
             call setmessage(LEVEL_FATAL, 'Error opening Structure Cache file')
             ibin = 0
@@ -108,7 +115,7 @@ module m_readstructures
          return
       endif
 
-      call tree_create(trim(structurefile), md_ptr)
+      call tree_create(trim(structurefile), md_ptr, maxlenpar)
       call prop_file('ini',trim(structurefile),md_ptr,istat)
       
       numstr = 0
@@ -133,9 +140,26 @@ module m_readstructures
             call prop_get_integer(md_ptr%child_nodes(i)%node_ptr, 'structure', 'compound', iCompound, success)
             if (.not. success) iCompound = 0
             
-            structureName = ' '
-            call prop_get_string(md_ptr%child_nodes(i)%node_ptr, 'structure', 'name', structureName, success)
-
+            if (iCompound > 0) then
+            
+               call prop_get_string(md_ptr%child_nodes(i)%node_ptr, 'structure', 'compoundName', compoundName, success)
+               if (success .and. len_trim(compoundName) > 0) then
+                  if (.not. allocated(compoundNames)) then
+                     allocate(compoundNames(numstr))
+                     compoundNames = ' '
+                  endif
+                  if (len_trim(compoundNames(iCompound)) <= 0) then
+                     compoundNames(iCompound) = compoundName
+                  endif
+               else
+                  write(str_buf, *) iCompound
+                  call remove_leading_spaces(str_buf)
+                  compoundName = 'Cmp'//trim(str_buf)
+               endif
+            else
+               compoundName = ' '
+            endif
+            
             branchIdx = hashsearch(network%brs%hashlist, branchID)
             
             pbr => network%brs%branch(branchIdx)
@@ -177,7 +201,7 @@ module m_readstructures
                case ('pump')
                   iStrucType = ST_PUMP
                
-               case ('orifice')
+               case ('orifice', 'gate')
                   iStrucType = ST_ORIFICE
                
                case ('generalstructure')
@@ -191,7 +215,7 @@ module m_readstructures
 
             end select
             
-            istru = Addstructure(network%sts, network%brs, branchIdx, Chainage, iCompound, structureId, iStrucType)
+            istru = Addstructure(network%sts, network%brs, branchIdx, Chainage, iCompound, compoundName, structureId, iStrucType)
                
             select case (iStrucType)
                
@@ -239,6 +263,29 @@ module m_readstructures
 
       end do
       
+      ! Handle the Structure and Compound Names
+      if (allocated(compoundNames)) then
+      
+         do i = 1, network%sts%Count
+            if (network%sts%struct(i)%compound > 0) then
+               if (len_trim(compoundNames(network%sts%struct(i)%compound)) > 0) then
+                  network%sts%struct(i)%compoundName = compoundNames(network%sts%struct(i)%compound)
+               endif
+            endif
+         enddo
+         
+         deallocate(compoundNames)
+
+      else
+      
+         ! Copy ID'S to Names
+         do i = 1, network%sts%Count
+            network%sts%struct(i)%st_name = network%sts%struct(i)%id
+         enddo
+      
+      endif
+         
+      
       call fill_hashtable(network%sts)
       
       if (.not. allocated(network%sts%restartData) .and. (network%sts%count > 0)) then
@@ -273,6 +320,7 @@ module m_readstructures
          pstr => network%sts%struct(i)
          
          read(ibin) pstr%id
+         read(ibin) pstr%st_name
          read(ibin) pstr%st_type
          read(ibin) pstr%ibran
          read(ibin) pstr%left_calc_point
@@ -282,6 +330,7 @@ module m_readstructures
          read(ibin) pstr%y
          read(ibin) pstr%distance
          read(ibin) pstr%compound
+         read(ibin) pstr%compoundName
          
          select case(pstr%st_type)
             case(ST_WEIR)
@@ -343,7 +392,7 @@ module m_readstructures
                pstr%pump%ds_level          = 0.0d0
                pstr%pump%stage_capacity    = 0.0d0
             
-            case(ST_CULVERT)
+            case(ST_CULVERT, ST_SIPHON, ST_INV_SIPHON)
                allocate(pstr%culvert)
                read(ibin) pstr%culvert%culvertType
                read(ibin) pstr%culvert%leftlevel
@@ -500,6 +549,7 @@ module m_readstructures
          pstr => sts%struct(i)
          
          write(ibin) pstr%id
+         write(ibin) pstr%st_name
          write(ibin) pstr%st_type
          write(ibin) pstr%ibran
          write(ibin) pstr%left_calc_point
@@ -509,6 +559,7 @@ module m_readstructures
          write(ibin) pstr%y
          write(ibin) pstr%distance
          write(ibin) pstr%compound
+         write(ibin) pstr%compoundName
          
          select case(pstr%st_type)
             case(ST_WEIR)
@@ -546,7 +597,7 @@ module m_readstructures
             
                call write_table_cache(ibin, pstr%pump%reducfact)
             
-            case(ST_CULVERT)
+            case(ST_CULVERT, ST_SIPHON, ST_INV_SIPHON)
                write(ibin) pstr%culvert%culvertType
                write(ibin) pstr%culvert%leftlevel
                write(ibin) pstr%culvert%rightlevel
@@ -1116,6 +1167,61 @@ module m_readstructures
       
    end subroutine readBridge
    
+   subroutine readDambreak(dambr, md_ptr, success)
+
+      type(t_dambreak), pointer, intent(inout) :: dambr      
+      type(tree_data), pointer, intent(in)     :: md_ptr
+      logical, intent(inout)                   :: success
+
+      allocate(dambr)
+
+      call prop_get_double(md_ptr, 'structure', 'start_location_x',  dambr%start_location_x, success)
+      if (.not. success) return
+
+      call prop_get_double(md_ptr, 'structure', 'start_location_y',  dambr%start_location_y, success)
+      if (.not. success) return
+
+      call prop_get_integer(md_ptr, 'structure', 'algorithm', dambr%algorithm, success)
+      if (.not. success) return
+
+      call prop_get_double(md_ptr, 'structure', 'crestlevelini', dambr%crestlevelini, success)
+      if (.not. success) return
+         
+      if (dambr%algorithm == 2) then
+         
+         call prop_get_double(md_ptr, 'structure', 'breachwidthini', dambr%breachwidthini, success)
+         if (.not. success) return
+
+         call prop_get_double(md_ptr, 'structure', 'crestlevelmin', dambr%crestlevelmin, success)
+         if (.not. success) return
+
+         call prop_get_double(md_ptr, 'structure', 'timetobreachtomaximumdepth', dambr%timetobreachtomaximumdepth, success)
+         if (.not. success) return
+
+         call prop_get_double(md_ptr, 'structure', 'f1', dambr%f1, success)
+         if (.not. success) return
+
+         call prop_get_double(md_ptr, 'structure', 'f2', dambr%f2, success)
+         if (.not. success) return
+
+         call prop_get_double(md_ptr, 'structure', 'ucrit', dambr%ucrit, success)
+         if (.not. success) return
+      
+      endif
+      
+      ! get the name of the tim file 
+      if (dambr%algorithm == 3) then
+         call prop_get_string(md_ptr, 'structure', 'breachwidthandlevel', dambr%breachwidthandlevel, success)
+         if (.not. success) return         
+      endif
+
+      call prop_get_double(md_ptr, 'structure', 't0', dambr%t0, success)
+      if (.not. success) return
+      
+      call setCoefficents(dambr)
+      
+   end subroutine
+
    subroutine readPump(pump, md_ptr, success)
    
       type(t_pump), pointer, intent(inout)     :: pump
@@ -1132,7 +1238,10 @@ module m_readstructures
 
       call prop_get_integer(md_ptr, 'structure', 'direction', pump%direction, success)
       if (success) call prop_get_integer(md_ptr, 'structure', 'nrstages', pump%nrstages, success)
-      if (.not. success) return
+      if (.not. success) then
+         pump%nrstages = 1
+         success = .true.
+      endif
       
       if (pump%nrstages < 1) then
          call setMessage(LEVEL_FATAL, "Error Reading Pump: No Stages Defined")
@@ -1147,11 +1256,17 @@ module m_readstructures
       if (istat == 0) allocate(pump%ds_trigger(pump%nrstages), stat=istat)
 
       
-      call prop_get_doubles(md_ptr, 'structure', 'capacity', pump%capacity, pump%nrstages, success)      
-      if (success) call prop_get_doubles(md_ptr, 'structure', 'startlevelsuctionside', pump%ss_onlevel, pump%nrstages, success)      
-      if (success) call prop_get_doubles(md_ptr, 'structure', 'stoplevelsuctionside', pump%ss_offlevel, pump%nrstages, success)      
-      if (success) call prop_get_doubles(md_ptr, 'structure', 'startleveldeliveryside', pump%ds_onlevel, pump%nrstages, success)      
-      if (success) call prop_get_doubles(md_ptr, 'structure', 'stopleveldeliveryside', pump%ds_offlevel, pump%nrstages, success)
+      call prop_get_doubles(md_ptr, 'structure', 'capacity', pump%capacity, pump%nrstages, success)     
+      if (iabs(pump%direction) == 1 .or. iabs(pump%direction) == 3) then
+         if (success) call prop_get_doubles(md_ptr, 'structure', 'startlevelsuctionside', pump%ss_onlevel, pump%nrstages, success)      
+         if (success) call prop_get_doubles(md_ptr, 'structure', 'stoplevelsuctionside', pump%ss_offlevel, pump%nrstages, success)      
+      endif
+      
+      if (iabs(pump%direction) == 2 .or. iabs(pump%direction) == 3) then
+         if (success) call prop_get_doubles(md_ptr, 'structure', 'startleveldeliveryside', pump%ds_onlevel, pump%nrstages, success)      
+         if (success) call prop_get_doubles(md_ptr, 'structure', 'stopleveldeliveryside', pump%ds_offlevel, pump%nrstages, success)
+      endif
+      
       if (.not. success) return
 
       pump%ss_trigger = .true.
@@ -1174,6 +1289,7 @@ module m_readstructures
       if (.not. success .and. tabsize == 1) then
          head(1)   = 0.0d0
          redfac(1) = 1.0d0
+         success = .true.
       elseif (.not. success) then
          call SetMessage(LEVEL_FATAL, 'Error Reading Pump: No Proper Reduction Table')
       endif
@@ -1208,22 +1324,50 @@ module m_readstructures
       type(t_orifice), pointer, intent(inout)     :: orifice
       type(tree_data), pointer, intent(in)        :: md_ptr
       logical, intent(inout)                      :: success 
+      
+      double precision :: area, height
    
       allocate(orifice)
       
       call prop_get_double(md_ptr, 'structure', 'crestlevel', orifice%crestlevel, success)
-      if (success) call prop_get_double(md_ptr, 'structure', 'crestwidth', orifice%crestwidth, success)
+      if (success) then
+         call prop_get_double(md_ptr, 'structure', 'crestwidth', orifice%crestwidth, success)
+         if (success) call prop_get_double(md_ptr, 'structure', 'openlevel', orifice%openlevel, success)
+      else
+         success = .true.
+         orifice%crestlevel = 0d0
+         area = 0d0
+         call prop_get_double(md_ptr, 'structure', 'bottomlevel', orifice%crestlevel, success)
+         call prop_get_double(md_ptr, 'structure', 'area',         area, success)
+         height = sqrt(area)
+         orifice%crestwidth = height
+         orifice%openlevel = orifice%crestlevel+height
+      endif
+      
       if (success) call prop_get_integer(md_ptr, 'structure', 'allowedflowdir', orifice%allowedflowdir, success)
 
       if (success) call prop_get_double(md_ptr, 'structure', 'contractioncoeff', orifice%contrcoeff, success)
       if (success) call prop_get_double(md_ptr, 'structure', 'latcontrcoeff', orifice%latcontrcoeff, success)
-      if (success) call prop_get_double(md_ptr, 'structure', 'openlevel', orifice%openlevel, success)
 
-      if (success) call prop_get_integer(md_ptr, 'structure', 'uselimitflowpos', orifice%uselimitflowpos, success)
-      if (success) call prop_get_double(md_ptr, 'structure', 'limitflowpos', orifice%limitflowpos, success)
-
-      if (success) call prop_get_integer(md_ptr, 'structure', 'uselimitflowneg', orifice%uselimitflowneg, success)
-      if (success) call prop_get_double(md_ptr, 'structure', 'limitflowneg', orifice%limitflowneg, success)
+      if (success) then
+         call prop_get_logical(md_ptr, 'structure', 'uselimitflowpos', orifice%uselimitflowpos, success)
+         if (success) then
+            call prop_get_double(md_ptr, 'structure', 'limitflowpos', orifice%limitflowpos, success)
+         else
+            orifice%uselimitflowpos = .false.
+            success = .true.
+         endif
+      endif
+      
+      if (success) then
+         call prop_get_logical(md_ptr, 'structure', 'uselimitflowneg', orifice%uselimitflowneg, success)
+         if (success) then
+            call prop_get_double(md_ptr, 'structure', 'limitflowneg', orifice%limitflowneg, success)
+         else
+            orifice%uselimitflowneg = .false.
+            success = .true.
+         endif
+      endif
    
    end subroutine readOrifice
    

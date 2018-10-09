@@ -62,13 +62,15 @@ namespace General.tests
             FileInfo fileInfo = new FileInfo(AppDomain.CurrentDomain.BaseDirectory);
             string path = fileInfo.Directory.Parent.Parent.Parent.Parent.Parent.Parent.Parent.FullName;
             bool is64bit = Environment.Is64BitProcess;
-            string prefix = @"\win32";
             // If 64-bit process, load 64-bit DLL otherwise load the 32 bit dll 
             if (is64bit)
             {
-                prefix = @"\x64";
+                path = path + @"\third_party_open\" + libName + @"\netCDF 4.6.1\bin";
             }
-            path = path + @"\third_party_open\" + libName + @"\lib" + prefix + @"\" + NativeLibrary.mode + @"\ifort12";
+            else
+            {
+                path = path + @"\third_party_open\" + libName + @"\netCDF 4.6.1-32\bin";
+            }
             var envpath = Environment.GetEnvironmentVariable("PATH");
             if (envpath != null && envpath.Contains(path)) return;
 

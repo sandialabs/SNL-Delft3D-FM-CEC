@@ -27,8 +27,8 @@
 !                                                                               
 !-------------------------------------------------------------------------------
 
-! $Id: xbeach_filefunctions.F90 51598 2017-07-11 07:28:16Z zeekant $
-! $HeadURL: https://repos.deltares.nl/repos/ds/trunk/additional/unstruc/src/xbeach_filefunctions.F90 $
+! $Id: xbeach_filefunctions.F90 62193 2018-09-27 10:13:21Z dam_ar $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/dflowfm/packages/dflowfm_kernel/src/xbeach_filefunctions.F90 $
 module m_xbeach_filefunctions
 !! Contains logging functions and file administration functions
 !! Merge of logging_module and filefunctions_module
@@ -273,7 +273,7 @@ subroutine start_logfiles(error)
  
        call writelog('ls','','**********************************************************')
        call writelog('ls','','                                                          ')
-       call writelog('ls','','Simulation started: YYYYMMDD    hh:mm:ss     time zone (UTC)')
+       call writelog('ls','','Simulation started: yyyymmdd    hh:mm:ss     time zone (UTC)')
        call writelog('ls','','                    '//date //'  '//time(1:2)//':'//time(3:4)//':'//time(5:6)//'     '//zone)
        call writelog('ls','','                                                          ')
 #ifdef HAVE_CONFIG_H

@@ -25,7 +25,7 @@ module m_readSpatialData
 !  Stichting Deltares. All rights reserved.
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: readspatialdata.f90 8044 2018-01-24 15:35:11Z mourits $
+!  $Id: readspatialdata.f90 59715 2018-08-01 11:34:47Z dam_ar $
 !  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_gpl/flow1d/packages/flow1d_io/src/readspatialdata.f90 $
 !-------------------------------------------------------------------------------
    
@@ -34,7 +34,7 @@ module m_readSpatialData
    use m_spatial_data
    use m_tables
    use m_branch
-   use flow1d_io_properties
+   use properties
    use m_hash_search
    use m_read_table
 
@@ -90,7 +90,7 @@ contains
          pspData%quantity = -1
       endif
 
-      call tree_create(trim(inputfile), md_ptr)
+      call tree_create(trim(inputfile), md_ptr, maxlenpar)
       call prop_file('ini',trim(inputfile),md_ptr,istat)
       ! look for global value in spatial data file. If available use this value for 
       ! default, otherwise use default value as global value
@@ -174,6 +174,7 @@ contains
                call prop_get_doubles(md_ptr%child_nodes(i)%node_ptr, '', 'values', rough, numLevs, success)
                if (success) then
                   call settable(tbls(ind)%p, 0, levels(1:numLevs,ibr), rough, numlevs)
+                  pspData%valuesOnLocation(ind) = rough(1)  ! fill with roughness from roughness table - to be updated later with waterlevel and discharge dependent rouhgness
                else
                   call SetMessage(LEVEL_ERROR, 'Inconsistent input found. On branch '//trim(branchid)//' key value and values is missing.')
                endif

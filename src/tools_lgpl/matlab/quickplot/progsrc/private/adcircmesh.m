@@ -1,6 +1,6 @@
 function S = adcircmesh(cmd,FileName)
 %ADCIRCMESH Read an Adcirc fort.14 mesh topology file.
-%   MESH = ADCIRCMESH('open',FILENAME) reads an Adcird fort.14 mesh
+%   MESH = ADCIRCMESH('open',FILENAME) reads an Adcirc fort.14 mesh
 %   topology file and returns a structure containing all mesh information.
 %   The returned structure contains fields
 %    * NodeCoor: NNODES x 3 array with XYZ coordinates of NNODES mesh
@@ -40,7 +40,7 @@ function S = adcircmesh(cmd,FileName)
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
 %   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/private/adcircmesh.m $
-%   $Id: adcircmesh.m 7992 2018-01-09 10:27:35Z mourits $
+%   $Id: adcircmesh.m 8791 2018-05-16 10:50:08Z jagers $
 
 switch cmd
     case {'open','read'}

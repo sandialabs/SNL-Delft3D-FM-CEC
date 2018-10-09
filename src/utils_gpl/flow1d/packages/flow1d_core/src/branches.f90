@@ -26,7 +26,7 @@ module m_branch
 !  Stichting Deltares. All rights reserved.
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: branches.f90 8044 2018-01-24 15:35:11Z mourits $
+!  $Id: branches.f90 9176 2018-07-04 12:41:01Z zeekant $
 !  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_gpl/flow1d/packages/flow1d_core/src/branches.f90 $
 !-------------------------------------------------------------------------------
 
@@ -71,7 +71,10 @@ module m_branch
       integer                        :: orderNumber             !< order number to interpolate cross sections over branches
 
       integer                        :: brType                  !< channel type of 1D channnel
-      integer                        :: iTrench                 !< Trench Index, 0 = No Trench 
+      integer                        :: iTrench                 !< Trench Index, 0 = No Trench
+      
+      integer                        :: flapGate = 0            !< 0 = None, 1 = Only Positive Flow, 2 = Only Negative Flow
+                                                                !< Not implemeted in Readers yet
 
       integer                        :: nextBranch(2)           !< neighbouring branch with same ordernumber at start or end of branch
       integer                        :: nodeIndex(2)            !< indexes of Begin Node and End Node
@@ -96,6 +99,8 @@ module m_branch
 
       integer, allocatable           :: lin(:)                  !< link numbers for links in this channel, allocated and filled by admin_network
       integer, allocatable           :: grd(:)                  !< gridpoint numbers for links in this channel, allocated and filled by admin_network
+      integer, allocatable           :: grd_buf(:)              !< dflowfm gridpoint numbers for links in this channel, allocated and filled by admin_network
+                                                                !< used to keep dflowfm grd-values
    
    end type t_branch
 
@@ -144,6 +149,7 @@ module m_branch
             if (allocated(brs%branch(i)%yu))                deallocate(brs%branch(i)%yu)
             if (allocated(brs%branch(i)%lin))               deallocate(brs%branch(i)%lin)
             if (allocated(brs%branch(i)%grd))               deallocate(brs%branch(i)%grd)
+            if (allocated(brs%branch(i)%grd_buf))           deallocate(brs%branch(i)%grd_buf)
          enddo   
          deallocate(brs%branch)
       endif
@@ -233,7 +239,30 @@ module m_branch
        endif
        
    end subroutine
+   
+   integer function getLinkNumber(brs, ibranch, dist)
+       type(t_branchSet)               :: brs       !< Current branche set
+       integer, intent(in)             :: ibranch   !< Current branch
+       double precision, intent(inout) :: dist      !< Distance along current branch
 
+       integer                         :: i
+       double precision                :: dist_in_b
+       type(t_branch), pointer         :: pbran
+       
+       pbran => brs%branch(ibranch)
+       
+       dist_in_b= 0.0
+       dist = max(0.2, min(dist, pbran%length-0.2)) !< JanM: Waarom is de afstand afgeknot en bestaat er een minSectionLength
+       do i = 2, pbran%gridPointsCount
+           if (pbran%gridPointsOffsets(i) > dist) then !found
+              getLinkNumber = pbran%lin(i-1)
+              return
+           endif
+       enddo
+       
+       getlinknumber = -1
+   end function getLinkNumber
+   
    !> Get calculation point and/or segment number closest to given distance along branch
    integer function getCalcPoint(brs, ibranch, dist) 
        type(t_branchSet)              :: brs           !< Current branche set
@@ -321,6 +350,7 @@ module m_branch
       
       do ibr= 1, brs%count
          pbr => brs%branch(ibr)
+         if (allocated(pbr%lin)) deallocate(pbr%lin) 
          allocate(pbr%lin(pbr%uPointsCount))
          do i = 1, pbr%uPointsCount
             nlink = nlink + 1
@@ -328,7 +358,10 @@ module m_branch
          enddo
          
          !TODO: change this part in order to remove double gridpoint counting:
+         if (allocated(pbr%grd)) deallocate(pbr%grd) 
+         if (allocated(pbr%grd_buf)) deallocate(pbr%grd_buf) 
          allocate(pbr%grd(pbr%gridPointsCount))
+         allocate(pbr%grd_buf(pbr%gridPointsCount))
          ngrid = pbr%Points(1) - 1
          if (pbr%FromNode%gridNumber == -1) then
             pbr%FromNode%gridNumber = ngrid + 1

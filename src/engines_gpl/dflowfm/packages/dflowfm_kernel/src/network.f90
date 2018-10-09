@@ -27,8 +27,8 @@
 !                                                                               
 !-------------------------------------------------------------------------------
 
-! $Id: network.f90 54191 2018-01-22 18:57:53Z dam_ar $
-! $HeadURL: https://repos.deltares.nl/repos/ds/trunk/additional/unstruc/src/network.f90 $
+! $Id: network.f90 62186 2018-09-27 10:00:09Z noort $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/dflowfm/packages/dflowfm_kernel/src/network.f90 $
 
 module m_netw
 
@@ -52,6 +52,7 @@ subroutine loadNetwork(filename, istat, jadoorladen)
     character(*), intent(in)  :: filename !< Name of file to be read (in current directory or with full path).
     integer,      intent(out) :: istat    !< Return status (0=success)
     integer,      intent(in)  :: jadoorladen
+    character(len=255) :: data_file_1d
 
 
     ! double precision, allocatable, save :: zkold(:)
@@ -68,6 +69,9 @@ subroutine loadNetwork(filename, istat, jadoorladen)
         return
     end if
 
+    ! This if is needed as long routine load_network_from_flow1d is present for alternative
+    ! 1D-Network reading from INI-file (for Willem Ottevanger)
+
     IF (JADOORLADEN == 0) THEN
         K0 = 0
         L0 = 0
@@ -78,16 +82,6 @@ subroutine loadNetwork(filename, istat, jadoorladen)
 
     ! New NetCDF net file
     call unc_read_net(filename, K0, L0, NUMKN, NUMLN, istat)
-
-
-    !if (.not. allocated(zkold) ) then
-    !   allocate (zkold(numkn))
-    !   zkold = zk
-    !else
-    !   do k = 1,numkn
-    !      zk(k) = zk(k) - zkold(k)
-    !   enddo
-    !endif
 
     if (istat == 0) then
         NUMK = K0 + NUMKN
@@ -398,22 +392,52 @@ implicit none
 
 contains
 
-subroutine load_network_from_flow1d(filename)
+subroutine load_network_from_flow1d(filenames, found_1d_network)
    use m_flow1d_reader
+   use m_flowgeom
    use m_globalParameters
    use m_cross_helper
-
-   character(len=*), intent(inout) :: filename !< Name of a *.md1d file to read from.
+   use unstruc_messages
+   use messagehandling
+   type(t_filenames), intent(inout) :: filenames !< Name of 1d files to read from.
+   logical, intent(out)            :: found_1d_network
 
    type(t_branch), pointer :: pbr
    type(t_node), pointer :: pnod
    integer :: istat, minp, ifil, inod, ibr, ngrd, k, L, k1, k2
+   type (t_structure), pointer :: pstru
+   integer :: nstru, i
    double precision, dimension(2) :: tempbob
-   character(len=255) :: oned_outputdir
+   character(len=255) :: filename
+
+   ! This routine is still used for Morphology model with network in INI-File (Willem Ottevanger)
+   
+   filename = filenames%onednetwork
+   
+   ! Check on Empty File Name
+   if (len_trim(filename) <= 0) then
+      found_1d_network = .false.
+      return
+   endif
 
    ! MessageHandling has already been set up via initMessaging() earlier.
-   call read_1d_model(filename, network, oned_outputdir)
+   threshold_abort = LEVEL_FATAL
+   call read_1d_mdu(filenames, network, found_1d_network)
+   if (.not. found_1d_network) then 
+      network%numk = 0
+      network%numl = 0
+      network%loaded = .false.
+      return
+   else
+       network%loaded = .true.
+   endif
+   
    call admin_network(network, numk, numl)
+
+   call read_1d_attributes(filenames, network)
+   
+   call initialize_1dadmin(network, network%gridpointsCount)
+
    numk = 0
    numl = 0
    do inod = 1, network%nds%Count
@@ -450,9 +474,15 @@ subroutine load_network_from_flow1d(filename)
           
    enddo
        
+   network%numk = numk
+   network%numl = numl
+   
    ! fill bed levels from values based on links
-   do L = 1, numl
+   do L = 1, network%numl
       tempbob = getbobs(network, L)
+      if (tempbob(1) > 0.5d0* huge(1d0)) tempbob(1) = dmiss
+      if (tempbob(2) > 0.5d0* huge(1d0)) tempbob(2) = dmiss
+      
       k1 = kn(1,L)
       k2 = kn(2,L)
       if (zk(k1) == dmiss) then
@@ -461,10 +491,10 @@ subroutine load_network_from_flow1d(filename)
       if (zk(k2) == dmiss) then
          zk(k2) = tempbob(2)
       endif
-      zk(k1) = max(zk(k1),tempbob(1))
-      zk(k2) = max(zk(k2),tempbob(2))           
+      zk(k1) = min(zk(k1),tempbob(1))
+      zk(k2) = min(zk(k2),tempbob(2))           
    enddo
-
+   
    ! TODO: Once dflowfm's own 1D and the flow1d code are aligned, the following switch should probably disappear.
    jainterpolatezk1D = 0
 

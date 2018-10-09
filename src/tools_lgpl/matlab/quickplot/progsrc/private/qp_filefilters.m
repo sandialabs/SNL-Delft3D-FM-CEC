@@ -37,7 +37,7 @@ function filtertbl = qp_filefilters(filters)
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
 %   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/private/qp_filefilters.m $
-%   $Id: qp_filefilters.m 7992 2018-01-09 10:27:35Z mourits $
+%   $Id: qp_filefilters.m 8791 2018-05-16 10:50:08Z jagers $
 
 filtertbl={...
     '*.dat;*.ada;*.hda'                                    'Delft3D Output Files'              'nefis'              0
@@ -46,6 +46,7 @@ filtertbl={...
     '*.mesh'                                               'Mike Flexible Mesh Files'          'mikemesh'           0
     '*.14;*.gr3'                                           'Adcirc Mesh Files'                 'adcircmesh'         0
     '*.shy'                                                'SHYFEM Mesh Files'                 'SHYFEM mesh'        0
+    '*_grd.dat'                                            'SMS Mesh Files'                    'smsmesh'            0
     '*.mesh;*.node;*.ele;*.n;*.e'                          'EasyMesh and Triangle Mesh Files'  'nodelemesh'         0
     '*.gem'                                                'GeoSystems Mesh Files'             'geomesh'            0
     '*.bct;*.bcc;*.bcb;*.bc'                               'Delft3D-FLOW Bound. Cond. Files'   'bct'                0

@@ -89,6 +89,9 @@ if [ ! -d $D3D_HOME ]; then
 fi
 export D3D_HOME
  
+if [ -z "$scriptfile" ]; then
+    export scriptfile=$D3D_HOME/bin/mormerge.tcl
+fi
 if [ ! -f $scriptfile ]; then
     echo "ERROR: scriptfile $scriptfile does not exist"
     print_usage_info
@@ -101,10 +104,10 @@ echo "    Working directory: $workdir"
 echo 
 
 bindir=$D3D_HOME/bin
-libdir=$D3D_HOME/libdir
+libdir=$D3D_HOME/lib
 
     # Run
-export LD_LIBRARY_PATH=$bindir:$libdir:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=$libdir:$LD_LIBRARY_PATH
 
 
     echo "executing:"
@@ -117,3 +120,8 @@ export LD_LIBRARY_PATH=$bindir:$libdir:$LD_LIBRARY_PATH
     # Wait until all child processes are finished
 wait
 
+    # Nefis files don't get write permission for the group bit
+    # Add it explicitly, only when stderr = 0
+if [ $? -eq 0 ]; then
+    chmod -R g+rw *.dat *.def &>/dev/null || true
+fi

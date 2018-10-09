@@ -30,13 +30,15 @@
 !  Stichting Deltares. All rights reserved.
 !
 !-------------------------------------------------------------------------------
-!  $Id: wrwaqpnt.F90 7992 2018-01-09 10:27:35Z mourits $
+!  $Id: wrwaqpnt.F90 61494 2018-08-29 12:58:00Z jeuke_ml $
 !  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/flow2d3d/packages/io/src/output/wrwaqpnt.F90 $
 !!--description-----------------------------------------------------------------
 ! NONE
 !!--pseudo code and references--------------------------------------------------
 ! NONE
 !!--declarations----------------------------------------------------------------
+      use dfparall
+!
       implicit none
 !                          parameters
       integer(4) nmax                      !!  dimension  first index in 2d arrays
@@ -157,27 +159,39 @@
       if ( flaggr .eq. 'active only' ) aggre = 0         ! active cells only
       inquire ( file=flaggr, EXIST=filex )
       if ( filex ) then                          ! the dido aggregation file
-         aggre = 1
-         open ( newunit = lunaggr , file=flaggr )
-         read ( lunaggr , * , iostat=istat) n, m, k, i, j
-         if ( istat /= 0) then
-            write ( message , '(3A)' ) &
-     &       '*** ERROR: unable to read dimensions in aggregation file ''', &
-     &       trim(flaggr), '''. Coupling done without aggregation !'
-            write( *      , '(A)' ) trim(message)
-            write( lundia , '(A)' ) trim(message)
-            aggre = -1
-            close ( lunaggr )
-         endif
-         if ( m .ne. mmax .or. n .ne. nmax ) then
-            write ( message , '(A,I6,A,I6,A,I6,A,I6,A)' )                &
-     &       '*** ERROR: dimensions in aggregation file: (',             &
-     &       m,',',n,') don''t match dimensions of problem: (',          &
-     &       mmax,',',nmax,') coupling done without aggregation !'
-            write( *      , '(A)' ) trim(message)
-            write( lundia , '(A)' ) trim(message)
-            aggre = -1
-            close ( lunaggr )
+         if ( parll ) then
+               write ( message , '(3A)' ) &
+     &          '*** WARNING: no aggregation allowed in parallel mode. Ignoring ''', &
+     &          trim(flaggr), '''. Coupling done with active only!'
+               write( *      , '(A)' ) trim(message)
+               write( lundia , '(A)' ) trim(message)
+               aggre = 0
+               flaggr = 'active only'
+         else
+            aggre = 1
+            open ( newunit = lunaggr , file=flaggr )
+            read ( lunaggr , * , iostat=istat) n, m, k, i, j
+            if ( istat /= 0) then
+               write ( message , '(3A)' ) &
+     &          '*** WARNING: unable to read dimensions in aggregation file ''', &
+     &          trim(flaggr), '''. Coupling done with active only!'
+               write( *      , '(A)' ) trim(message)
+               write( lundia , '(A)' ) trim(message)
+               aggre = 0
+               flaggr = 'active only'
+               close ( lunaggr )
+            endif
+            if ( m .ne. mmax .or. n .ne. nmax ) then
+               write ( message , '(A,I6,A,I6,A,I6,A,I6,A)' )                &
+     &          '*** WARNING: dimensions in aggregation file: (',             &
+     &          m,',',n,') don''t match dimensions of model grid: (',          &
+     &          mmax,',',nmax,') coupling done with active only!'
+               write( *      , '(A)' ) trim(message)
+               write( lundia , '(A)' ) trim(message)
+               aggre = 0
+               flaggr = 'active only'
+               close ( lunaggr )
+            endif         
          endif
       endif
 !            the making of the pointers themself

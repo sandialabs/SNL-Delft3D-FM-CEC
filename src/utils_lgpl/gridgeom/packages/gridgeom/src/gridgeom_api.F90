@@ -25,7 +25,7 @@
 !                                                                               
 !-------------------------------------------------------------------------------
 
-! $Id: gridgeom_api.F90 8020 2018-01-18 13:58:43Z carniato $
+! $Id: gridgeom_api.F90 62268 2018-10-05 13:02:59Z carniato $
 ! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_lgpl/gridgeom/packages/gridgeom/src/gridgeom_api.F90 $
 
 !> \file
@@ -73,7 +73,7 @@ function ggeo_get_xy_coordinates_dll(c_branchids, c_branchoffsets, c_geopointsX,
    
 end function ggeo_get_xy_coordinates_dll
 
-function ggeo_convert_dll(c_meshgeom, c_meshgeomdim) result(ierr) bind(C, name="ggeo_convert")
+function ggeo_convert_dll(c_meshgeom, c_meshgeomdim, start_index) result(ierr) bind(C, name="ggeo_convert")
 !DEC$ ATTRIBUTES DLLEXPORT :: ggeo_convert_dll
 
    use gridoperations
@@ -83,54 +83,191 @@ function ggeo_convert_dll(c_meshgeom, c_meshgeomdim) result(ierr) bind(C, name="
    type(c_t_ug_meshgeom), intent(in)      :: c_meshgeom
    type(c_t_ug_meshgeomdim), intent(in)   :: c_meshgeomdim
    type(t_ug_meshgeom)                    :: meshgeom
+   integer, intent(in)                    :: start_index
    integer                                :: ierr
    
    ierr = convert_cptr_to_meshgeom(c_meshgeom, c_meshgeomdim, meshgeom)
-   ierr = ggeo_convert(meshgeom)
+   ierr = ggeo_initialize()
+   ierr = ggeo_convert(meshgeom, start_index)
    
 end function ggeo_convert_dll
 
-function ggeo_make1D2Dinternalnetlinks_dll(c_jsferic, c_jasfer3D, c_jglobe) result(ierr) bind(C, name="ggeo_make1D2Dinternalnetlinks")
+function ggeo_make1D2Dinternalnetlinks_dll(c_nin, c_xpl, c_ypl, c_zpl, c_nOneDMask, c_oneDmask, c_jsferic, c_jasfer3D, c_jglobe) result(ierr) bind(C, name="ggeo_make1D2Dinternalnetlinks")
 !DEC$ ATTRIBUTES DLLEXPORT :: ggeo_make1D2Dinternalnetlinks_dll
    
    use gridgeom
    
-   integer                      :: ierr  
+   integer, intent(in)          :: c_nin
+   type(c_ptr), intent(in)      :: c_xpl
+   type(c_ptr), intent(in)      :: c_ypl
+   type(c_ptr), intent(in)      :: c_zpl
+   integer, intent(in)          :: c_nOneDMask
+   type(c_ptr), intent(in)      :: c_oneDmask  
    integer, intent(in)          :: c_jsferic
    integer, intent(in)          :: c_jasfer3D
    integer, intent(in)          :: c_jglobe
+   integer                      :: ierr  
+   double precision, pointer    :: xplLinks(:), yplLinks(:), zplLinks(:)   
+   integer, pointer             :: oneDmask(:) 
 
-   ierr = ggeo_make1D2Dinternalnetlinks(c_jsferic, c_jasfer3D, c_jglobe)
+   call c_f_pointer(c_xpl, xplLinks, (/c_nin/))
+   call c_f_pointer(c_ypl, yplLinks, (/c_nin/))
+   call c_f_pointer(c_zpl, zplLinks, (/c_nin/))
+   call c_f_pointer(c_oneDmask, oneDmask, (/c_nOneDMask/))
+   
+   ierr = ggeo_make1D2Dinternalnetlinks(xplLinks, yplLinks, zplLinks, oneDmask, c_jsferic, c_jasfer3D, c_jglobe)
    
 end function ggeo_make1D2Dinternalnetlinks_dll
+!> Make 1d-2d roofs connections
+!!
+!! c_nin       :: size of the array containing the polygon's coordinates
+!! c_xin       :: x coordinate of the polygon's points  
+!! c_yin       :: y coordinate of the polygon's points
+!! c_zpl       :: z coordinate of the polygon's points
+!! c_nOneDMask :: size of the 1d mask for mesh 1d
+!! c_oneDmask  :: mask for 1d mesh points (1 = potential connection, 0 = do not connect) 
+!! c_jsferic   :: 2d sferic flag (1 = spheric / 0 = cartesian)
+!! c_jasfer3D  :: 3d sferic flag (1 = spheric / 0 = cartesian)
+!! c_jglobe    :: to be detailed
+function ggeo_make1D2Droofgutterpipes_dll(c_nin, c_xpl, c_ypl, c_zpl, c_nOneDMask, c_oneDmask, c_jsferic, c_jasfer3D, c_jglobe) result(ierr) bind(C, name="ggeo_make1D2Droofgutterpipes")
+!DEC$ ATTRIBUTES DLLEXPORT :: ggeo_make1D2Droofgutterpipes_dll
+   
+   use gridgeom
+   
+   integer, intent(in)          :: c_nin, c_nOneDMask
+   type(c_ptr), intent(in)      :: c_xpl
+   type(c_ptr), intent(in)      :: c_ypl
+   type(c_ptr), intent(in)      :: c_zpl
+   type(c_ptr), intent(in)      :: c_oneDmask   
+   integer, intent(in)          :: c_jsferic
+   integer, intent(in)          :: c_jasfer3D
+   integer, intent(in)          :: c_jglobe
+   integer                      :: ierr  
+   double precision, pointer    :: xplRoofs(:), yplRoofs(:), zplRoofs(:)   
+   integer, pointer             :: oneDmask(:) 
 
+   call c_f_pointer(c_xpl, xplRoofs, (/c_nin/))
+   call c_f_pointer(c_ypl, yplRoofs, (/c_nin/))
+   call c_f_pointer(c_zpl, zplRoofs, (/c_nin/))
+   call c_f_pointer(c_oneDmask, oneDmask, (/c_nOneDMask/))
 
-function ggeo_get_links_count_dll(nlinks) result(ierr) bind(C, name="ggeo_get_links_count")
+   ierr = ggeo_make1D2Droofgutterpipes(xplRoofs, yplRoofs, zplRoofs, oneDmask, c_jsferic, c_jasfer3D, c_jglobe)
+   
+end function ggeo_make1D2Droofgutterpipes_dll
+!> Make 1d-2d gullies connections
+!!
+!! c_nin       :: size of the array containing the coordinates of the gullies
+!! c_xin       :: x coordinate of the gullies  
+!! c_yin       :: y coordinate of the gullies
+!! c_nOneDMask :: size of the 1d mask for mesh 1d
+!! c_oneDmask  :: mask for 1d mesh points (1 = potential connection, 0 = do not connect) 
+!! c_jsferic   :: 2d sferic flag (1 = spheric / 0 = cartesian)
+!! c_jasfer3D  :: 3d sferic flag (1 = advacent spheric algorithm / 0 = default spheric algorithm )
+!! c_jglobe    :: to be detailed
+function ggeo_make1D2Dstreetinletpipes_dll(c_nin, c_xin, c_yin, c_nOneDMask, c_oneDmask, c_jsferic, c_jasfer3D, c_jglobe) result(ierr) bind(C, name="ggeo_make1D2Dstreetinletpipes")
+!DEC$ ATTRIBUTES DLLEXPORT :: ggeo_make1D2Dstreetinletpipes_dll
+
+   use gridgeom
+   
+   integer, intent(in)          :: c_nin, c_nOneDMask
+   type(c_ptr), intent(in)      :: c_xin
+   type(c_ptr), intent(in)      :: c_yin
+   type(c_ptr), intent(in)      :: c_oneDmask   
+   integer, intent(in)          :: c_jsferic
+   integer, intent(in)          :: c_jasfer3D
+   integer, intent(in)          :: c_jglobe
+   integer                      :: ierr  
+   double precision, pointer    :: xsStreetInletPipes(:), ysStreetInletPipes(:)
+   integer, pointer             :: oneDmask(:) 
+
+   call c_f_pointer(c_xin, xsStreetInletPipes, (/c_nin/))
+   call c_f_pointer(c_yin, ysStreetInletPipes, (/c_nin/))
+   call c_f_pointer(c_oneDmask, oneDmask, (/c_nOneDMask/))
+
+   ierr = ggeo_make1D2Dstreetinletpipes(xsStreetInletPipes, ysStreetInletPipes, oneDmask, c_jsferic, c_jasfer3D, c_jglobe)
+
+end function ggeo_make1D2Dstreetinletpipes_dll
+
+!> Make 1d-2d internal connections. With this function multiple 2d cells can be connected to 1d mesh points. all the cell crossing the 1d links will be connected to the closest 1d point.
+!> Please note that the gridgeom library has to be initialized before this function can be called.
+!!
+!! c_jsferic   :: 2d sferic flag (1 = spheric / 0 = cartesian)
+!! c_jasfer3D  :: 3d sferic flag (1 = advanced spheric algorithm, 0 = default spheric algorithm )
+!! c_nOneDMask :: size of the 1d mask for mesh 1d
+!! c_oneDmask  :: mask for 1d mesh points (1 = potential connection, 0 = do not connect) 
+function ggeo_make1D2Dembeddedlinks_dll(c_jsferic, c_jasfer3D, c_nOneDMask, c_oneDmask) result(ierr) bind(C, name="ggeo_make1D2Dembeddedlinks")
+!DEC$ ATTRIBUTES DLLEXPORT :: ggeo_make1D2Dembeddedlinks_dll
+
+   use gridgeom
+   use gridoperations
+   
+   integer, intent(in)     :: c_jsferic
+   integer, intent(in)     :: c_jasfer3D
+   integer, intent(in)     :: c_nOneDMask
+   type(c_ptr), intent(in) :: c_oneDmask  
+   integer, pointer        :: oneDmask(:) 
+   integer                 :: ierr  
+   
+   call c_f_pointer(c_oneDmask, oneDmask, (/c_nOneDMask/))
+   
+   ierr = ggeo_make1D2Dembeddedlinks(c_jsferic, c_jasfer3D, oneDmask)
+   
+end function ggeo_make1D2Dembeddedlinks_dll
+
+!> Make 1d-2d river connections connections. With this function multiple 2d boundary cells can be connected to 1d mesh points. 
+!> Please note that the gridgeom library has to be initialized before this function can be called.
+!!
+!! c_jsferic      :: 2d sferic flag (1 = spheric / 0 = cartesian)
+!! c_jasfer3D     :: 3d sferic flag (1 = advanced spheric algorithm, 0 = default spheric algorithm )
+!! c_searchRadius :: the search radius for making links
+!! c_nOneDMask    :: size of the 1d mask for mesh points
+!! c_oneDmask     :: mask for 1d mesh points (1 = potential connection, 0 = do not connect) 
+function ggeo_make1D2DRiverLinks_dll(c_jsferic, c_jasfer3D, c_searchRadius, c_nOneDMask, c_oneDMask) result(ierr) bind(C, name="ggeo_make1D2DRiverLinks")
+!DEC$ ATTRIBUTES DLLEXPORT :: ggeo_make1D2DRiverLinks_dll
+
+   use gridgeom
+   use gridoperations
+   
+   integer, intent(in)           :: c_jsferic
+   integer, intent(in)           :: c_jasfer3D
+   double precision, intent(in)  :: c_searchRadius
+   integer, intent(in)           :: c_nOneDMask   
+   type(c_ptr), intent(in)       :: c_oneDmask  
+   integer, pointer              :: oneDmask(:) 
+   integer                       :: ierr  
+   
+   call c_f_pointer(c_oneDmask, oneDmask, (/c_nOneDMask/))
+   
+   ierr = ggeo_make1D2DRiverLinks(c_jsferic, c_jasfer3D, c_searchRadius, oneDMask)
+   
+end function ggeo_make1D2DRiverLinks_dll
+
+function ggeo_get_links_count_dll(nlinks, linkType) result(ierr) bind(C, name="ggeo_get_links_count")
 !DEC$ ATTRIBUTES DLLEXPORT :: ggeo_get_links_count_dll
    
    use gridoperations
    
-   integer(kind=c_int), intent(inout):: nlinks
+   integer(kind=c_int), intent(inout):: nlinks, linkType
    integer :: ierr
    
-   ierr =  ggeo_get_links_count(nlinks)
+   ierr =  ggeo_get_links_count(nlinks, linkType)
    
 end function ggeo_get_links_count_dll
 
 
-function ggeo_get_links_dll(c_arrayfrom, c_arrayto, nlinks) result(ierr) bind(C, name="ggeo_get_links")
+function ggeo_get_links_dll(c_arrayfrom, c_arrayto, nlinks, linkType) result(ierr) bind(C, name="ggeo_get_links")
 !DEC$ ATTRIBUTES DLLEXPORT :: ggeo_get_links_dll
    use gridoperations
    
    type(c_ptr), intent(in)                  :: c_arrayfrom, c_arrayto
-   integer(kind=c_int), intent(in)          :: nlinks
+   integer(kind=c_int), intent(in)          :: nlinks, linkType
    integer, pointer                         :: arrayfrom(:), arrayto(:)
    integer                                  :: ierr
    
    call c_f_pointer(c_arrayfrom, arrayfrom, (/ nlinks /))
    call c_f_pointer(c_arrayto, arrayto, (/ nlinks /))
    
-   ierr = ggeo_get_links(arrayfrom, arrayto)
+   ierr = ggeo_get_links(arrayfrom, arrayto, linkType)
    
 end function ggeo_get_links_dll
 
@@ -157,35 +294,57 @@ function ggeo_convert_1d_arrays_dll(c_nodex, c_nodey, c_branchoffset, c_branchle
    call c_f_pointer(c_branchlength, branchlength, (/ nBranches /))
    call c_f_pointer(c_sourceNodeId, sourceNodeId, (/ nBranches /))
    call c_f_pointer(c_targetNodeId, targetNodeId, (/ nBranches /))
-      
+   
+   !ggeo_convert_1d_arrays gives back 1d based arrays
    ierr =  ggeo_convert_1d_arrays(nodex, nodey, branchoffset, branchlength, branchid, sourcenodeid, targetnodeid, meshgeom, startIndex)
     
-   ierr = ggeo_convert(meshgeom)
+   !1d based arrays are provided
+   ierr = ggeo_convert(meshgeom, 1)
 
 end function ggeo_convert_1d_arrays_dll
 
-function ggeo_create_edge_nodes_dll(c_branchoffset, c_branchlength, c_branchids, c_sourceNodeId, c_targetNodeId, c_edgenodes, nBranches, nNodes, nEdgeNodes, startIndex) result(ierr) bind(C, name="ggeo_create_edge_nodes")
+function ggeo_count_edge_nodes_dll(c_branchoffset, c_branchlength, c_branchids, c_nedge_nodes, nBranches, nNodes, nEdgeNodes, startIndex) result(ierr) bind(C, name="ggeo_count_edge_nodes")
+!DEC$ ATTRIBUTES DLLEXPORT :: ggeo_count_edge_nodes_dll
+
+   use gridoperations
+   
+   type(c_ptr), intent(in)   :: c_branchoffset, c_branchids, c_nedge_nodes, c_branchlength    
+   integer, intent(in)       :: nBranches, nNodes, startIndex
+   double precision, pointer :: branchoffset(:), branchlength(:)
+   integer, pointer          :: branchids(:), nedge_nodes(:,:)
+   integer, intent(inout)    :: nEdgeNodes
+   integer                   :: ierr
+
+   
+   call c_f_pointer(c_branchoffset, branchoffset, (/ nNodes /))
+   call c_f_pointer(c_branchlength, branchlength, (/ nBranches /))
+   call c_f_pointer(c_branchids, branchids, (/ nNodes /))
+   call c_f_pointer(c_nedge_nodes, nedge_nodes, (/ 2, nBranches /))
+
+   ierr = ggeo_count_or_create_edge_nodes(branchids, branchoffset, nedge_nodes(1,:), nedge_nodes(2,:), branchlength, startIndex, nEdgeNodes)
+
+end function ggeo_count_edge_nodes_dll
+
+
+function ggeo_create_edge_nodes_dll(c_branchoffset, c_branchlength, c_branchids, c_nedge_nodes, c_edgenodes, nBranches, nNodes, nEdgeNodes, startIndex) result(ierr) bind(C, name="ggeo_create_edge_nodes")
 !DEC$ ATTRIBUTES DLLEXPORT :: ggeo_create_edge_nodes_dll
 
    use gridoperations
    
-   type(c_ptr), intent(in)   :: c_branchoffset, c_branchids, c_edgenodes, c_sourceNodeId, c_targetNodeId, c_branchlength    
-   integer, intent(in)       :: nBranches, nNodes, nEdgeNodes, startIndex
+   type(c_ptr), intent(in)   :: c_branchoffset, c_branchids, c_edgenodes, c_nedge_nodes, c_branchlength    
+   integer, intent(in)       :: nBranches, nNodes, startIndex
    double precision, pointer :: branchoffset(:), branchlength(:)
-   integer, pointer          :: branchids(:), edgenodes(:,:), sourceNodeId(:), targetNodeId(:) 
+   integer, pointer          :: branchids(:), edgenodes(:,:), nedge_nodes(:,:)
    integer                   :: ierr
-
-   
+   integer, intent(inout)    :: nEdgeNodes
 
    call c_f_pointer(c_branchlength, branchlength, (/ nBranches /))
-   
    call c_f_pointer(c_branchids, branchids, (/ nNodes /))
-   call c_f_pointer(c_sourceNodeId, sourceNodeId, (/ nBranches /))
-   call c_f_pointer(c_targetNodeId, targetNodeId, (/ nBranches /))
+   call c_f_pointer(c_nedge_nodes, nedge_nodes, (/ 2, nBranches /))
    call c_f_pointer(c_edgenodes, edgenodes, (/ 2, nEdgeNodes /))
    call c_f_pointer(c_branchoffset, branchoffset, (/ nNodes /))
-   
-   ierr = ggeo_create_edge_nodes(branchids, branchoffset, sourcenodeid, targetnodeid, edgenodes, branchlength, startIndex)
+
+   ierr = ggeo_count_or_create_edge_nodes(branchids, branchoffset, nedge_nodes(1,:), nedge_nodes(2,:), branchlength, startIndex, nEdgeNodes, edgenodes)
 
 end function ggeo_create_edge_nodes_dll
 
@@ -198,5 +357,100 @@ function ggeo_deallocate_dll() result(ierr) bind(C, name="ggeo_deallocate")
    ierr = ggeo_deallocate()
 
 end function ggeo_deallocate_dll
+
+function ggeo_find_cells_dll(c_meshDimIn, c_meshIn, c_meshDimOut, c_meshOut, startIndex) result(ierr) bind(C, name="ggeo_find_cells")
+!DEC$ ATTRIBUTES DLLEXPORT :: ggeo_find_cells_dll
+   use gridoperations   
+   use m_cell_geometry
+   use meshdata
+   use network_data
+   use m_missing
+   use m_alloc
+
+   type(c_t_ug_meshgeomdim), intent(in)       :: c_meshDimIn     !< input mesh dimensions, externally allocated
+   type(c_t_ug_meshgeom), intent(in)          :: c_meshIn        !< input mesh, externally allocated 
+   type(c_t_ug_meshgeomdim), intent(inout)    :: c_meshDimOut    !< input mesh dimensions, intenally allocated
+   type(c_t_ug_meshgeom), intent(inout)       :: c_meshOut       !< input mesh, intenally allocated 
+   integer(c_int), intent(in)                 :: startIndex      !< the start_index index of the arrays
+   !locals
+   type(t_ug_meshgeom)                        :: meshgeomIn       !< fortran meshgeom
+   type(t_ug_meshgeom)                        :: meshgeomOut       !< fortran meshgeom
+   integer, pointer                           :: face_nodes(:,:)  !< Face-to-node mapping array.
+   double precision, pointer                  :: facex(:)
+   double precision, pointer                  :: facey(:)
+   integer                                    :: ierr, n, nn, maxNumNodes
+   
+   ierr = 0
+   
+   ! destroy any previous state of the library
+   ierr = network_data_destructor()   
+   ! initialize local meshgeomIn
+   ierr = t_ug_meshgeom_destructor(meshgeomIn) 
+   ierr = t_ug_meshgeom_destructor(meshgeomOut) 
+   !convert c to fortran pointers
+   ierr = convert_cptr_to_meshgeom(c_meshIn, c_meshDimIn, meshgeomIn)
+   !set library state
+   ierr = ggeo_initialize() 
+   ierr = ggeo_convert(meshgeomIn, startIndex)
+   
+   !find net cells
+   call findcells(0)   
+
+   call reallocP(meshgeomOut%facex, nump, keepExisting = .false., fill = -999d0)
+   call reallocP(meshgeomOut%facey, nump, keepExisting = .false., fill = -999d0)
+   
+   if (meshgeomIn%dim.eq.2) then
+      !get the max number of nodes for each face
+      maxNumNodes = 0
+      do n = 1, nump
+         maxNumNodes = max(maxNumNodes, size(netcell(n)%nod))
+      enddo
+      allocate(meshgeomOut%face_nodes(maxNumNodes, nump))
+      do n = 1, nump
+         !fill face nodes
+         meshgeomOut%face_nodes(:,n) = imiss;
+         nn = size(netcell(n)%nod)
+         meshgeomOut%face_nodes(1:nn,n) = netcell(n)%nod(1:nn)
+         !fill cell centers
+         meshgeomOut%facex(n) = xz(n)
+         meshgeomOut%facey(n) = yz(n)
+      end do
+   endif
+   
+   !convert back to the start index
+   if (startIndex == 0) then
+      where(meshgeomOut%face_nodes.ne.imiss) meshgeomOut%face_nodes = meshgeomOut%face_nodes - 1;
+   endif
+   
+   !assign c pointers to fortran pointers (memory will be deleted later)
+   c_meshOut%face_nodes         = c_loc(meshgeomOut%face_nodes(1,1));
+   c_meshOut%facex              = c_loc(meshgeomOut%facex(1));
+   c_meshOut%facey              = c_loc(meshgeomOut%facey(1));
+   c_meshDimOut%numface         = nump          
+   c_meshDimOut%maxnumfacenodes = maxNumNodes    
+   
+end function ggeo_find_cells_dll
+
+!> Destroys the memory allocated by fortran 
+function ggeo_meshgeom_destructor_dll(c_meshDim, c_mesh) result(ierr) bind(C, name="ggeo_meshgeom_destructor")
+!DEC$ ATTRIBUTES DLLEXPORT :: ggeo_meshgeom_destructor_dll
+   use meshdata
+   
+   type(c_t_ug_meshgeomdim), intent(in)    :: c_meshDim     !< input mesh dimensions, externally allocated
+   type(c_t_ug_meshgeom), intent(in)       :: c_mesh    !< input mesh dimensions, intenally allocated
+   type(t_ug_meshgeom)                     :: meshgeom
+   integer                                 :: ierr
+
+   ierr = - 1
+   !initialize 
+   ierr = t_ug_meshgeom_destructor(meshgeom) 
+   !convert
+   ierr = convert_cptr_to_meshgeom(c_mesh, c_meshDim, meshgeom)
+   !destory
+   ierr = t_ug_meshgeom_destructor(meshgeom) 
+   
+
+end function ggeo_meshgeom_destructor_dll
+
 
 end module gridgeom_api

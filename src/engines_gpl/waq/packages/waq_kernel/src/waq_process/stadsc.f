@@ -63,7 +63,7 @@
      +         IP6   , IP7   , IP8   , IP9   , IP10  ,
      +         IN1   , IN2   , IN3   , IN4   , IN5   ,
      +         IN6   , IN7   , IN8   , IN9   , IN10
-      INTEGER  IKMRK , IKMRK1, IKMRK2, ISEG  , IQ    , IFROM , ITO
+      INTEGER  ISEG
       INTEGER  IACTION
       INTEGER  ATTRIB
       REAL     TSTART, TSTOP , TIME  , DELT  , TCOUNT
@@ -121,7 +121,7 @@
 !        otherwise this is the last one
 !
       IACTION = 0
-      IF ( TIME >= TSTART-0.5*DELT ) THEN
+      IF ( TIME >= TSTART-0.5*DELT .AND. TIME <= TSTOP+0.5*DELT) THEN
          IACTION = 2
          IF ( TIME <= TSTART+0.5*DELT ) THEN
             DO ISEG=1,NOSEG
@@ -162,6 +162,9 @@
             PMSA(IP6) = TCOUNT
 !
             IF ( TCOUNT .EQ. 1.0 ) THEN
+               PMSA(IP7)  = PMSA(IP1)
+               PMSA(IP8)  = PMSA(IP1)
+            ELSE
                PMSA(IP7)  = MAX( PMSA(IP7), PMSA(IP1) )
                PMSA(IP8)  = MIN( PMSA(IP8), PMSA(IP1) )
             ENDIF
