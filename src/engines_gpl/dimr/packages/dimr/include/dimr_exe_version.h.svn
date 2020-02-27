@@ -20,7 +20,7 @@
 #define modname_company "Deltares"
 #define modname_company_url "http://www.deltares.nl"
 
-#define modname_sourcecode_url "@(#) $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/dimr/packages/dimr/include/dimr_exe_version.h.svn $"
+#define modname_sourcecode_url "@(#) $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/dimr/packages/dimr/include/dimr_exe_version.h.svn $"
 
 /*=================================================== DO NOT MAKE CHANGES BELOW THIS LINE ===================================================================== */
 

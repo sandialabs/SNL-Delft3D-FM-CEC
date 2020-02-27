@@ -1,6 +1,6 @@
 !----- LGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
+!  Copyright (C)  Stichting Deltares, 2011-2020.                                
 !                                                                               
 !  This library is free software; you can redistribute it and/or                
 !  modify it under the terms of the GNU Lesser General Public                   
@@ -24,8 +24,8 @@
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: read_src.f90 9136 2018-06-27 14:11:03Z jeuke_ml $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_lgpl/io_hyd/packages/io_hyd/src/read_src.f90 $
+!  $Id: read_src.f90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/io_hyd/packages/io_hyd/src/read_src.f90 $
 
       subroutine read_src(file_src, nolay, wasteload_coll, wasteload_data, time_in_seconds)
 
@@ -200,6 +200,7 @@
 
       wasteload_data%subject         = SUBJECT_WASTE
       wasteload_data%functype        = FUNCTYPE_BLOCK
+      wasteload_data%igrid          =  1
       wasteload_data%extern          = .FALSE.
       wasteload_data%iorder          = ORDER_PARAM_LOC
       wasteload_data%param_pointered = .FALSE.

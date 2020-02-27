@@ -1,7 +1,7 @@
 subroutine readldb(x,y,nopol,nop,fin)
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
+!  Copyright (C)  Stichting Deltares, 2011-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -25,8 +25,8 @@ subroutine readldb(x,y,nopol,nop,fin)
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: readldb.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_gpl/lint/packages/lint_f/src/readldb.f90 $
+!  $Id: readldb.f90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_gpl/lint/packages/lint_f/src/readldb.f90 $
 !!--description-----------------------------------------------------------------
 ! Read TEKAL file with landboundary data, just first two columns are read
 ! Seperator could be a new TEKA block or

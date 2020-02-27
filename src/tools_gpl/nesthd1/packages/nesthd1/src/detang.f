@@ -2,7 +2,7 @@
      *                   mmax  , nmax  , maxbnd, nobnd         )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
+!  Copyright (C)  Stichting Deltares, 2011-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -26,8 +26,8 @@
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: detang.f 8114 2018-02-06 15:21:51Z kaaij $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_gpl/nesthd1/packages/nesthd1/src/detang.f $
+!  $Id: detang.f 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_gpl/nesthd1/packages/nesthd1/src/detang.f $
 !***********************************************************************
 ! Deltares                         marine and coastal management
 !

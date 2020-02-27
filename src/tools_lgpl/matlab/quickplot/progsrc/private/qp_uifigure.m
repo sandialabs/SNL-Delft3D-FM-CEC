@@ -12,7 +12,7 @@ function H=qp_uifigure(Name,closecom,tag,pos,callbackfcn)
 
 %----- LGPL --------------------------------------------------------------------
 %                                                                               
-%   Copyright (C) 2011-2018 Stichting Deltares.                                     
+%   Copyright (C) 2011-2020 Stichting Deltares.                                     
 %                                                                               
 %   This library is free software; you can redistribute it and/or                
 %   modify it under the terms of the GNU Lesser General Public                   
@@ -37,8 +37,8 @@ function H=qp_uifigure(Name,closecom,tag,pos,callbackfcn)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/private/qp_uifigure.m $
-%   $Id: qp_uifigure.m 8849 2018-05-25 12:44:53Z jagers $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/private/qp_uifigure.m $
+%   $Id: qp_uifigure.m 65778 2020-01-14 14:07:42Z mourits $
 
 Inactive=qp_settings('UIInActiveColor');%[0.5 0.5 1];%
 %
@@ -77,9 +77,19 @@ H = figure('Visible','off', ...
     'NumberTitle','off', ...
     'Resize','off', ...
     'Position',pos, ...
+    'KeyPressFcn',@keypress, ...
     'Handlevisibility','off', ...
     'Tag',tag);
 setappdata(H,'WL_UserInterface',1)
 if matlabversionnumber >= 7
     set(H,'WindowStyle','normal','DockControls','off')
+end
+
+function keypress(handle,event)
+if isequal(event.Key,'s')
+    if isequal(event.Modifier,{'control'})
+        d3d_qp('move_onscreen',handle)
+    elseif isequal(event.Modifier,{'control','alt'})
+        d3d_qp('move_onscreen')
+    end
 end

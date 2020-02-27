@@ -13,7 +13,7 @@ subroutine wrimap(lundia      ,error     ,filename  ,selmap    ,simdat    , &
                   & ntruvto   ,ntruvgl   ,order_tra ,ipartition,gdp       )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
+!  Copyright (C)  Stichting Deltares, 2011-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -37,8 +37,8 @@ subroutine wrimap(lundia      ,error     ,filename  ,selmap    ,simdat    , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: wrimap.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/flow2d3d/packages/io/src/output/wrimap.f90 $
+!  $Id: wrimap.f90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/io/src/output/wrimap.f90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: Writes the initial group 2 ('map-const') to
@@ -492,12 +492,12 @@ subroutine wrimap(lundia      ,error     ,filename  ,selmap    ,simdat    , &
           !ierror = nf90_def_var(fds, 'projected_coordinate_system', nf90_int, idvar_coordmap); call nc_check_err(lundia, ierror, "def_var coordinate mapping", filename)
           !if (sferic) then
           !    epsg       = 4326
-          !    epsgstring = 'EPGS:4326'
+          !    epsgstring = 'EPSG:4326'
           !    ierror = nf90_put_att(fds, idvar_coordmap, 'name',                        'WGS84'             ); call nc_check_err(lundia, ierror, "coordinate mapping put_att", filename)
           !    ierror = nf90_put_att(fds, idvar_coordmap, 'grid_mapping_name',           'latitude_longitude'); call nc_check_err(lundia, ierror, "coordinate mapping put_att", filename)
           !else
           !    epsg       = 28992
-          !    epsgstring = 'EPGS:28992'
+          !    epsgstring = 'EPSG:28992'
           !    ierror = nf90_put_att(fds, idvar_coordmap, 'name',                        'Unknown projected' ); call nc_check_err(lundia, ierror, "coordinate mapping put_att", filename)
           !    ierror = nf90_put_att(fds, idvar_coordmap, 'grid_mapping_name',           'Unknown projected' ); call nc_check_err(lundia, ierror, "coordinate mapping put_att", filename)
           !endif

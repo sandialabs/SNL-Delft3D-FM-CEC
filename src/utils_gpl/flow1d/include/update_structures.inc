@@ -1,7 +1,7 @@
 
   subroutine update_weirs(structures, weirs)
     ! convert structures to weirs (fortran to c conversion)
-    use m_structure
+    use m_1d_structures
     use MessageHandling
     use m_weir
 
@@ -24,7 +24,7 @@
 
     do istruct=1,structures%Count
        structure => structures%struct(istruct)
-       if ( structure%st_type .eq. ST_WEIR ) then
+       if ( structure%type .eq. ST_WEIR ) then
           fortranweir => structure%weir
           nweirs = nweirs + 1
        end if
@@ -48,17 +48,15 @@
     iweir = 0
     do istruct=1,structures%Count
        structure => structures%struct(istruct)
-       if ( structure%st_type .eq. ST_WEIR ) then
+       if ( structure%type .eq. ST_WEIR ) then
           fortranweir => structure%weir
           iweir = iweir + 1
           c_weir%id = string_to_char_array(structure%id)
-          c_weir%x = structure%x
-          c_weir%y = structure%y
+          c_weir%x = structure%xCoordinates(1)
+          c_weir%y = structure%yCoordinates(1)
           c_weir%branchid = structure%ibran
-          c_weir%chainage = structure%distance
-          c_weir%left_calc_point = structure%left_calc_point
-          c_weir%right_calc_point = structure%right_calc_point
-          c_weir%link_number = structure%link_number
+          c_weir%chainage = structure%chainage
+          c_weir%link_number = structure%linknumbers(1)
           c_weir%crest_level = fortranweir%crestlevel
           c_weir%crest_width = fortranweir%crestwidth
           c_weir%discharge_coeff = fortranweir%dischargecoeff
@@ -74,7 +72,7 @@
   end subroutine update_weirs
   subroutine update_orifices(structures, orifices)
     ! convert structures to orifices (fortran to c conversion)
-    use m_structure
+    use m_1d_structures
     use MessageHandling
     use m_orifice
 
@@ -97,7 +95,7 @@
 
     do istruct=1,structures%Count
        structure => structures%struct(istruct)
-       if ( structure%st_type .eq. ST_ORIFICE ) then
+       if ( structure%type .eq. ST_ORIFICE ) then
           fortranorifice => structure%orifice
           norifices = norifices + 1
        end if
@@ -121,17 +119,15 @@
     iorifice = 0
     do istruct=1,structures%Count
        structure => structures%struct(istruct)
-       if ( structure%st_type .eq. ST_ORIFICE ) then
+       if ( structure%type .eq. ST_ORIFICE ) then
           fortranorifice => structure%orifice
           iorifice = iorifice + 1
           c_orifice%id = string_to_char_array(structure%id)
-          c_orifice%x = structure%x
-          c_orifice%y = structure%y
+          c_orifice%x = structure%xCoordinates(1)
+          c_orifice%y = structure%yCoordinates(1)
           c_orifice%branchid = structure%ibran
-          c_orifice%chainage = structure%distance
-          c_orifice%left_calc_point = structure%left_calc_point
-          c_orifice%right_calc_point = structure%right_calc_point
-          c_orifice%link_number = structure%link_number
+          c_orifice%chainage = structure%chainage
+          c_orifice%link_number = structure%linknumbers(1)
           c_orifice%crest_level = fortranorifice%crestlevel
           c_orifice%crest_width = fortranorifice%crestwidth
           c_orifice%open_level = fortranorifice%openlevel
@@ -150,7 +146,7 @@
   end subroutine update_orifices
   subroutine update_pumps(structures, pumps)
     ! convert structures to pumps (fortran to c conversion)
-    use m_structure
+    use m_1d_structures
     use MessageHandling
     use m_pump
 
@@ -173,7 +169,7 @@
 
     do istruct=1,structures%Count
        structure => structures%struct(istruct)
-       if ( structure%st_type .eq. ST_PUMP ) then
+       if ( structure%type .eq. ST_PUMP ) then
           fortranpump => structure%pump
           npumps = npumps + 1
        end if
@@ -197,21 +193,18 @@
     ipump = 0
     do istruct=1,structures%Count
        structure => structures%struct(istruct)
-       if ( structure%st_type .eq. ST_PUMP ) then
+       if ( structure%type .eq. ST_PUMP ) then
           fortranpump => structure%pump
           ipump = ipump + 1
           c_pump%id = string_to_char_array(structure%id)
-          c_pump%x = structure%x
-          c_pump%y = structure%y
+          c_pump%x = structure%xCoordinates(1)
+          c_pump%y = structure%yCoordinates(1)
           c_pump%branchid = structure%ibran
-          c_pump%chainage = structure%distance
-          c_pump%left_calc_point = structure%left_calc_point
-          c_pump%right_calc_point = structure%right_calc_point
-          c_pump%link_number = structure%link_number
+          c_pump%chainage = structure%chainage
+          c_pump%link_number = structure%linknumbers(1)
           c_pump%start_level_suction_side = fortranpump%ss_onlevel(1)
           c_pump%stop_level_suction_side = fortranpump%ss_offlevel(1)
           c_pump%capacity = fortranpump%capacity(1)
-          c_pump%oldcapacity = fortranpump%oldcapacity
           c_pump%reduction_factor = fortranpump%reduction_factor
           c_pump%actual_stage = fortranpump%actual_stage
           c_pump%is_active = fortranpump%is_active
@@ -225,7 +218,7 @@
   end subroutine update_pumps
   subroutine update_culverts(structures, culverts)
     ! convert structures to culverts (fortran to c conversion)
-    use m_structure
+    use m_1d_structures
     use MessageHandling
     use m_culvert
 
@@ -248,7 +241,7 @@
 
     do istruct=1,structures%Count
        structure => structures%struct(istruct)
-       if ( structure%st_type .eq. ST_CULVERT ) then
+       if ( structure%type .eq. ST_CULVERT ) then
           fortranculvert => structure%culvert
           nculverts = nculverts + 1
        end if
@@ -272,24 +265,22 @@
     iculvert = 0
     do istruct=1,structures%Count
        structure => structures%struct(istruct)
-       if ( structure%st_type .eq. ST_CULVERT ) then
+       if ( structure%type .eq. ST_CULVERT ) then
           fortranculvert => structure%culvert
           iculvert = iculvert + 1
           c_culvert%id = string_to_char_array(structure%id)
-          c_culvert%x = structure%x
-          c_culvert%y = structure%y
+          c_culvert%x = structure%xCoordinates(1)
+          c_culvert%y = structure%yCoordinates(1)
           c_culvert%branchid = structure%ibran
-          c_culvert%chainage = structure%distance
-          c_culvert%left_calc_point = structure%left_calc_point
-          c_culvert%right_calc_point = structure%right_calc_point
-          c_culvert%link_number = structure%link_number
+          c_culvert%chainage = structure%chainage
+          c_culvert%link_number = structure%linknumbers(1)
           c_culvert%left_level = fortranculvert%leftlevel
           c_culvert%right_level = fortranculvert%rightlevel
           c_culvert%allowed_flow_dir = fortranculvert%allowedflowdir
           c_culvert%crosssection_id = fortranculvert%crosssectionnr
           c_culvert%length = fortranculvert%length
           c_culvert%valve_inuse = fortranculvert%has_valve
-          c_culvert%valve_opening = fortranculvert%inivalveopen
+          c_culvert%valve_opening = fortranculvert%valveOpening
           culverts(iculvert) = c_culvert
        end if
     end do

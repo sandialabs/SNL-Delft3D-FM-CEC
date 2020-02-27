@@ -15,7 +15,7 @@ subroutine eqtran(sig       ,thick     ,kmax      ,ws        ,ltur      , &
 
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
+!  Copyright (C)  Stichting Deltares, 2011-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -39,8 +39,8 @@ subroutine eqtran(sig       ,thick     ,kmax      ,ws        ,ltur      , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: eqtran.f90 9180 2018-07-05 13:06:56Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_gpl/morphology/packages/morphology_kernel/src/eqtran.f90 $
+!  $Id: eqtran.f90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_gpl/morphology/packages/morphology_kernel/src/eqtran.f90 $
 !!--description-----------------------------------------------------------------
 !
 !

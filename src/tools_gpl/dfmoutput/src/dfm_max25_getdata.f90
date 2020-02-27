@@ -1,6 +1,6 @@
 !----- AGPL --------------------------------------------------------------------
 !
-!  Copyright (C)  Stichting Deltares, 2017-2018.
+!  Copyright (C)  Stichting Deltares, 2017-2020.
 !
 !  This file is part of Delft3D (D-Flow Flexible Mesh component).
 !
@@ -27,8 +27,8 @@
 !
 !-------------------------------------------------------------------------------
 
-! $Id: dfm_max25_getdata.f90 61858 2018-09-17 12:47:07Z spee $
-! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_gpl/dfmoutput/src/dfm_max25_getdata.f90 $
+! $Id: dfm_max25_getdata.f90 65778 2020-01-14 14:07:42Z mourits $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_gpl/dfmoutput/src/dfm_max25_getdata.f90 $
 
 !> DFM_MAX25_GETDATA - Subroutine to provide max25 filters to dfmoutput.
 !!

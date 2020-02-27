@@ -18,7 +18,7 @@ function varargout=waquafil(FI,domain,field,cmd,varargin)
 
 %----- LGPL --------------------------------------------------------------------
 %                                                                               
-%   Copyright (C) 2011-2018 Stichting Deltares.                                     
+%   Copyright (C) 2011-2020 Stichting Deltares.                                     
 %                                                                               
 %   This library is free software; you can redistribute it and/or                
 %   modify it under the terms of the GNU Lesser General Public                   
@@ -43,8 +43,8 @@ function varargout=waquafil(FI,domain,field,cmd,varargin)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/private/waquafil.m $
-%   $Id: waquafil.m 62253 2018-10-04 20:24:53Z jagers $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/private/waquafil.m $
+%   $Id: waquafil.m 65778 2020-01-14 14:07:42Z mourits $
 
 %========================= GENERAL CODE =======================================
 
@@ -486,6 +486,7 @@ DataProps={'depth grid'               ''       [0 0 1 1 0]  0        0      0   
     'wind'                            'm/s'    [1 0 1 1 0]  1        0      2     'z'   'z'       ''     ''      'wind'      ''         'FORCINGS_SVWP_WINDU'
     'pressure'                        'Pa'     [1 0 1 1 0]  1        0      1     'z'   'z'       ''     ''      'press'     ''         'SOLUTION_PRESS'
     'pressure'                        'Pa'     [1 0 1 1 0]  1        0      1     'z'   'z'       ''     ''      'press'     ''         'FORCINGS_SVWP_PRESSURE'
+    'Charnock parameter'              '-'      [1 0 1 1 0]  1        0      1     'z'   'z'       ''     ''      'charnock'  ''         'SOLUTION_CHARNOCK'
     '-------'                         ''       [0 0 0 0 0]  0        0      0     ''    ''        ''     ''      ''          ''         ''
     'wave height'                     'm'      [1 0 1 1 0]  1        0      1     'z'   'z'       ''     ''      'hrms'      ''         'COEFF_FLOW_WAVES'
     'wave vector'                     'm'      [1 0 1 1 0]  1        0      2     'z'   'z'       ''     ''      'wvec'      ''         'COEFF_FLOW_WAVES'
@@ -646,6 +647,11 @@ for j=1:length(Out1)
             case {'weir crest level', 'weir sill level (low M/N)', 'weir sill level (high M/N)'}
                 % remove old style weirs if new style is present
                 if ~strcmp(OutIn.Char,'MESH_WEIRS')  && any(strcmp('MESH_WEIRS',chars))
+                    OutIn=[];
+                end
+            case {'weir flow condition', 'weir unit discharge', 'weir overflow depth', 'weir velocity', 'weir head loss'}
+                % remove time varying weir quantities if the weir location information is missing
+                if ~any(strcmp('MESH_WEIRS',chars))
                     OutIn=[];
                 end
             case {'wind','pressure'}

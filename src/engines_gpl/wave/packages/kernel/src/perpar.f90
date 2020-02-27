@@ -1,7 +1,7 @@
 subroutine perpar(gamma0, factor, ier)
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
+!  Copyright (C)  Stichting Deltares, 2011-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -25,8 +25,8 @@ subroutine perpar(gamma0, factor, ier)
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: perpar.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/wave/packages/kernel/src/perpar.f90 $
+!  $Id: perpar.f90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/wave/packages/kernel/src/perpar.f90 $
 !!--description-----------------------------------------------------------------
 !
 ! This routine as used in Delft3D-WAVE is based on subroutine PERPAR in 

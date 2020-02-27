@@ -14,7 +14,7 @@ function S = adcircmesh(cmd,FileName)
 
 %----- LGPL --------------------------------------------------------------------
 %                                                                               
-%   Copyright (C) 2011-2018 Stichting Deltares.                                     
+%   Copyright (C) 2011-2020 Stichting Deltares.                                     
 %                                                                               
 %   This library is free software; you can redistribute it and/or                
 %   modify it under the terms of the GNU Lesser General Public                   
@@ -39,8 +39,8 @@ function S = adcircmesh(cmd,FileName)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/private/adcircmesh.m $
-%   $Id: adcircmesh.m 8791 2018-05-16 10:50:08Z jagers $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/private/adcircmesh.m $
+%   $Id: adcircmesh.m 65778 2020-01-14 14:07:42Z mourits $
 
 switch cmd
     case {'open','read'}

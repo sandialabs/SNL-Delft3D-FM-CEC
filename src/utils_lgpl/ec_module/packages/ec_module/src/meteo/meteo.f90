@@ -1,7 +1,7 @@
 module meteo
 !----- LGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
+!  Copyright (C)  Stichting Deltares, 2011-2020.                                
 !                                                                               
 !  This library is free software; you can redistribute it and/or                
 !  modify it under the terms of the GNU Lesser General Public                   
@@ -25,8 +25,8 @@ module meteo
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: meteo.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_lgpl/ec_module/packages/ec_module/src/meteo/meteo.f90 $
+!  $Id: meteo.f90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/ec_module/packages/ec_module/src/meteo/meteo.f90 $
 !!--description-----------------------------------------------------------------
 !
 ! Read time series in five possible formats:
@@ -178,7 +178,6 @@ function addmeteoitem(runid, inputfile, gridsferic, mmax, nmax) result(success)
     integer                      :: nxr
     integer                      :: minp
     logical                      :: meteogridsferic    ! type of meteo grid sferic (.true.) or cartesian (.false.)?
-    logical, external            :: openexistingfile_meteo
     logical, external            :: readmeteoheader
     logical, external            :: checkmeteoheader
     type(tmeteo)    , pointer    :: meteo
@@ -199,7 +198,8 @@ function addmeteoitem(runid, inputfile, gridsferic, mmax, nmax) result(success)
     !
     ! Open meteofile
     !
-    success = openexistingfile_meteo(minp, inputfile)
+    meteoitem%filetype = 0
+    success = openexistingfile_meteo(minp, inputfile, meteoitem%filetype)
     if (.not. success) return
     !
     meteoitem%filename = inputfile

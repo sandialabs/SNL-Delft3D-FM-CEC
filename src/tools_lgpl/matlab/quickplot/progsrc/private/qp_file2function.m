@@ -3,7 +3,7 @@ function Fcn=qp_file2function(Info)
 
 %----- LGPL --------------------------------------------------------------------
 %                                                                               
-%   Copyright (C) 2011-2018 Stichting Deltares.                                     
+%   Copyright (C) 2011-2020 Stichting Deltares.                                     
 %                                                                               
 %   This library is free software; you can redistribute it and/or                
 %   modify it under the terms of the GNU Lesser General Public                   
@@ -28,8 +28,8 @@ function Fcn=qp_file2function(Info)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/private/qp_file2function.m $
-%   $Id: qp_file2function.m 8791 2018-05-16 10:50:08Z jagers $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/private/qp_file2function.m $
+%   $Id: qp_file2function.m 65778 2020-01-14 14:07:42Z mourits $
 
 persistent MissingFileTypes
 %
@@ -72,8 +72,9 @@ F={'Delft3D-com'                'd3d_comfil'
     'asciiwind'                  'asciiwindfil'
     'PCraster'                   'pcrasterfil'
     'SIMONA SDS FILE'            'waquafil'
-    'mikeCTDT'                   'mikezerofil'
-    'mikeDFS'                    'mikezerofil'
+    'MikeCTDT'                   'mikezerofil'
+    'MikeDFS'                    'mikezerofil'
+    'MikeXFS'                    'mikezerofil'
     'FLS-inc'                    'flsfil'
     'FLS-bin'                    'flsfil'
     'FLS-his'                    'flsfil'

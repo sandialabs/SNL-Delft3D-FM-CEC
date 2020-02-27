@@ -1,6 +1,6 @@
 //---- LGPL --------------------------------------------------------------------
 //
-// Copyright (C)  Stichting Deltares, 2011-2018.
+// Copyright (C)  Stichting Deltares, 2011-2020.
 //
 // This library is free software; you can redistribute it and/or
 // modify it under the terms of the GNU Lesser General Public
@@ -24,8 +24,8 @@
 // Stichting Deltares. All rights reserved.
 //
 //------------------------------------------------------------------------------
-// $Id: util_mf.h 7992 2018-01-09 10:27:35Z mourits $
-// $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_lgpl/deltares_common/packages/deltares_common_c/include/util_mf.h $
+// $Id: util_mf.h 65778 2020-01-14 14:07:42Z mourits $
+// $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/deltares_common/packages/deltares_common_c/include/util_mf.h $
 /*------------------------------------------------------------------------------
 //  Delft3D - C Utilities
 //  Global definitions
@@ -74,6 +74,7 @@
 #   define CUTIL_MF_REWIND  FC_FUNC(cutil_mf_rewind,CUTIL_MF_REWIND)
 #   define CUTIL_MF_BACKSPACE  FC_FUNC(cutil_mf_backspace,CUTIL_MF_BACKSPACE)
 #   define CUTIL_MF_READ  FC_FUNC(cutil_mf_read,CUTIL_MF_READ)
+#   define CUTIL_MF_GETPOS  FC_FUNC(cutil_mf_getpos,CUTIL_MF_GETPOS)
 #   define CUTIL_MF_EOF  FC_FUNC(cutil_mf_eof,CUTIL_MF_EOF)
 #   define CUTIL_CMP_DOUBLE  FC_FUNC(cutil_cmp_double,CUTIL_CMP_DOUBLE)
 #   define CUTIL_CMP_SINGLE  FC_FUNC(cutil_cmp_float,CUTIL_CMP_SINGLE)
@@ -93,6 +94,7 @@
 #   define CUTIL_MF_REWIND  CUTIL_MF_REWIND
 #   define CUTIL_MF_BACKSPACE  CUTIL_MF_BACKSPACE
 #   define CUTIL_MF_READ  CUTIL_MF_READ
+#   define CUTIL_MF_GETPOS CUTIL_MF_GETPOS
 #   define CUTIL_MF_EOF  CUTIL_MF_EOF
 #   define CUTIL_CMP_DOUBLE  CUTIL_CMP_DOUBLE
 #   define CUTIL_CMP_SINGLE  CUTIL_CMP_SINGLE

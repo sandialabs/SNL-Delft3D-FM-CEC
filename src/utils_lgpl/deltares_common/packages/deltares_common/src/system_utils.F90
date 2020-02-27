@@ -1,7 +1,7 @@
 module system_utils
 !----- LGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
+!  Copyright (C)  Stichting Deltares, 2011-2020.                                
 !                                                                               
 !  This library is free software; you can redistribute it and/or                
 !  modify it under the terms of the GNU Lesser General Public                   
@@ -25,8 +25,8 @@ module system_utils
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: system_utils.F90 9194 2018-07-10 07:48:09Z jeuke_ml $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_lgpl/deltares_common/packages/deltares_common/src/system_utils.F90 $
+!  $Id: system_utils.F90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/deltares_common/packages/deltares_common/src/system_utils.F90 $
 !-------------------------------------------------------------------------------
 !
 !   Support for low level system routines
@@ -277,6 +277,22 @@ function makedir(dirname) result(istat)
     ! call execute_command_line(command)
       
     return
-end function
+   end function
 
+!> Return .true. if path is an absolute pathname.
+!! On Unix, that means it begins with a slash, on Windows that it begins
+!! with a (back)slash after chopping off a potential drive letter.
+logical function is_abs(path)
+   character(len=*), intent(in   ) :: path !< Input path
+
+   integer :: idrive ! last char position of possible drive letter start, e.g. 'D:'
+#ifdef HAVE_CONFIG_H
+   is_abs = (path(1:1) == FILESEP)
+#else
+   idrive = index(path, ':') ! Find piece after drive letter:. When not found, still check from index 1, because it might start with / for Windows UNC paths \\share\etc.
+   is_abs = (path(idrive+1:idrive+1) == FILESEP .or. path(idrive+1:idrive+1) == '/') ! On Windows, also allow forward lash.
+#endif
+
+end function is_abs
+   
 end module system_utils

@@ -4,7 +4,7 @@ subroutine chkdis(lundia    ,error     ,nsrc      ,zmodel    ,nmax      , &
                 & s1        ,xz        ,yz        ,gdp       )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
+!  Copyright (C)  Stichting Deltares, 2011-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -28,8 +28,8 @@ subroutine chkdis(lundia    ,error     ,nsrc      ,zmodel    ,nmax      , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: chkdis.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/flow2d3d/packages/kernel/src/inichk/chkdis.f90 $
+!  $Id: chkdis.f90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/kernel/src/inichk/chkdis.f90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: - Checks the location of the following points (if

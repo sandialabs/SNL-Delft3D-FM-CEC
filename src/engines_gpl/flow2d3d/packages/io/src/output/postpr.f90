@@ -6,7 +6,7 @@ subroutine postpr(lundia    ,lunprt    ,error     ,versio    ,comfil    , &
                 & itrstc    ,ktemp     ,halftime  ,gdp       )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
+!  Copyright (C)  Stichting Deltares, 2011-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -30,8 +30,8 @@ subroutine postpr(lundia    ,lunprt    ,error     ,versio    ,comfil    , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: postpr.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/flow2d3d/packages/io/src/output/postpr.f90 $
+!  $Id: postpr.f90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/io/src/output/postpr.f90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: - Checks whether the current time step requires an
@@ -752,9 +752,9 @@ subroutine postpr(lundia    ,lunprt    ,error     ,versio    ,comfil    , &
                     & nsrc      ,i(mnksrc) ,lstsci    ,lsal      ,ltem      , &
                     & lsecfl    ,i(kfu)    ,i(kfv)    ,i(ibuff)  ,r(s1)     , &
                     & r(u1)     ,r(v1)     ,r(qu)     ,r(qv)     ,r(taubmx) , &
-                    & r(r1)     ,r(dicuv)  ,r(dicww)  ,r(discum) ,r(rbuff)  , &
-                    & r(windu)  ,r(windv)  ,r(dzu1)   ,r(dzv1)   ,kmaxz     , &
-                    & r(hu)     ,r(hv)     ,r(thick)  ,gdp       )
+                    & r(r1)     ,r(dicuv)  ,r(dicww)  ,r(discum) ,r(windu)  , &
+                    & r(windv)  ,r(dzu1)   ,r(dzv1)   ,kmaxz     ,r(hu)     , &
+                    & r(hv)     ,r(thick)  ,gdp       )
           ! when parallel, dfsync is needed to make sure all the com files (from each domain) are completed.
           call dfsync (gdp) 
           if (couplemod .and. coupleact) then

@@ -3,7 +3,7 @@ function [hNewVec,Error,FileInfo,PlotState]=qp_plot(PlotState)
 
 %----- LGPL --------------------------------------------------------------------
 %                                                                               
-%   Copyright (C) 2011-2018 Stichting Deltares.                                     
+%   Copyright (C) 2011-2020 Stichting Deltares.                                     
 %                                                                               
 %   This library is free software; you can redistribute it and/or                
 %   modify it under the terms of the GNU Lesser General Public                   
@@ -28,8 +28,8 @@ function [hNewVec,Error,FileInfo,PlotState]=qp_plot(PlotState)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/private/qp_plot.m $
-%   $Id: qp_plot.m 8252 2018-02-28 21:39:29Z jagers $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/private/qp_plot.m $
+%   $Id: qp_plot.m 65866 2020-01-26 20:25:09Z jagers $
 
 T_=1; ST_=2; M_=3; N_=4; K_=5;
 
@@ -64,7 +64,7 @@ if isfield(PlotState,'FI')
             [Chk,data,FileInfo]=qp_getdata(FileInfo,Domain,Props,'griddefdata',SubField{:},SubSelected{:});
         else
             switch Ops.presentationtype
-                case {'patches','patches with lines','patch centred vector','polygons'}%,'edge'}
+                case {'patches','patches with lines','patch centred vector','polygons'}%,'edges'} %--> edges needed for slice through patches
                     [Chk,data,FileInfo]=qp_getdata(FileInfo,Domain,Props,'gridcelldata',SubField{:},SubSelected{:});
                     DataInCell=1;
                 otherwise
@@ -238,36 +238,120 @@ end
 
 FirstFrame=isempty(hOldVec);
 
+if isfield(Ops,'plotcoordinate')
+    % TODO: take into account the EdgeGeometry length ...
+    switch Ops.plotcoordinate
+        case {'path distance','reverse path distance'}
+            if isfield(data,'EdgeNodeConnect')
+                iNode = data.EdgeNodeConnect([1 size(data.EdgeNodeConnect,1)+(1:size(data.EdgeNodeConnect,1))]);
+                data.X = data.X(iNode);
+                data.Y = data.Y(iNode);
+                x = data.X;
+                y = data.Y;
+            elseif isfield(data,'Y')
+                if size(data.X,2)==2 && size(data.X,1)>2
+                    % The following lines are not valid for geographic coordinates!
+                    data.X = (data.X(:,1,:) + data.X(:,2,:))/2;
+                    data.Y = (data.Y(:,1,:) + data.Y(:,2,:))/2;
+                elseif size(data.X,1)==2 && size(data.X,2)>2
+                    % The following lines are not valid for geographic coordinates!
+                    data.X = (data.X(1,:,:) + data.X(2,:,:))/2;
+                    data.Y = (data.Y(1,:,:) + data.Y(2,:,:))/2;
+                end
+                x = data.X(:,:,1);
+                y = data.Y(:,:,1);
+            else
+                if size(data.X,2)==2 && size(data.X,1)>2
+                    data.X = (data.X(:,1,:) + data.X(:,2,:))/2;
+                elseif size(data.X,1)==2 && size(data.X,2)>2
+                    data.X = (data.X(1,:,:) + data.X(2,:,:))/2;
+                end
+                x = data.X(:,:,1);
+                y = 0*x;
+            end
+            if strcmp(Ops.plotcoordinate,'reverse path distance')
+                x = rot90(x,2);
+                y = rot90(y,2);
+            end
+            if isfield(data,'XUnits') && strcmp(data.XUnits,'deg')
+                s = pathdistance(x,y,'geographic');
+                data.XUnits = 'm';
+            else
+                s = pathdistance(x,y);
+            end
+            %if ~isequal(size(data.X),size(data.Val)) && ~isfield(data,'dX_tangential')
+            %    ds = s(min(find(s>0)))/2;
+            %    if ~isempty(ds)
+            %        s = s-ds;
+            %    end
+            %end
+            if strcmp(Ops.plotcoordinate,'reverse path distance')
+                s = rot90(s,2);
+            end
+            s = reshape(repmat(s,[1 1 size(data.X,3)]),size(data.X));
+        case 'x coordinate'
+            s = data.X;
+        case 'y coordinate'
+            s = data.Y;
+        case 'time'
+            s = repmat(data.Time,[1 size(data.X,3)]);
+    end
+    data.X = squeeze(s);
+    flds = {'Z','Val','XComp','YComp','ZComp'};
+    for i = 1:length(flds)
+        fld = flds{i};
+        if isfield(data,fld)
+            data.(fld) = squeeze(data.(fld));
+        end
+    end
+    if isfield(data,'Y')
+        data = rmfield(data,'Y');
+        if isfield(data,'YUnits')
+            data = rmfield(data,'YUnits');
+        end
+    end
+end
+
 if strcmp(Ops.presentationtype,'vector') || ...
         strcmp(Ops.presentationtype,'markers') || ...
         strcmp(Ops.presentationtype,'values')
     % data = geom2pnt(data);
-    if isfield(data,'ValLocation')
-        for i = length(data):-1:1
-            if isfield(data,'SEG')
-                data(i).EdgeNodeConnect = data(i).SEG;
-                data(i).X = data(i).XY(:,1);
-                data(i).Y = data(i).XY(:,2);
-            end
-            if strcmp(data(i).ValLocation,'EDGE')
+    for i = length(data):-1:1
+        if isfield(data,'ValLocation')
+            LOC = data(i).ValLocation;
+        else
+            LOC = 'NODE';
+        end
+        if isfield(data,'SEG')
+            data(i).EdgeNodeConnect = data(i).SEG;
+        end
+        if isfield(data,'XY')
+            data(i).X = data(i).XY(:,1);
+            data(i).Y = data(i).XY(:,2);
+        end
+        switch LOC
+            case 'EDGE'
                 if isfield(data,'Geom') && strcmp(data(i).Geom,'sQUAD')
                     data(i).EdgeNodeConnect = [1:length(data(i).X)-1;2:length(data(i).X)]';
                 end
-                data(i).X = mean(data(i).X(data(i).EdgeNodeConnect),2);
-                data(i).Y = mean(data(i).Y(data(i).EdgeNodeConnect),2);
-            elseif strcmp(data(i).ValLocation,'FACE')
+                data(i).X = mean(shaped_subsref(data(i).X,data(i).EdgeNodeConnect),2);
+                if isfield(data,'Y')
+                    data(i).Y = mean(shaped_subsref(data(i).Y,data(i).EdgeNodeConnect),2);
+                end
+            case 'FACE'
                 missing = isnan(data(i).FaceNodeConnect);
                 nNodes = size(missing,2)-sum(missing,2);
                 data(i).FaceNodeConnect(missing) = 1;
                 data(i).X = data(i).X(data(i).FaceNodeConnect);
                 data(i).X(missing) = 0;
                 data(i).X = sum(data(i).X,2)./nNodes;
-                data(i).Y = data(i).Y(data(i).FaceNodeConnect);
-                data(i).Y(missing) = 0;
-                data(i).Y = sum(data(i).Y,2)./nNodes;
-            end
-            data(i).Geom = 'sSEG';
+                if isfield(data,'Y')
+                    data(i).Y = data(i).Y(data(i).FaceNodeConnect);
+                    data(i).Y(missing) = 0;
+                    data(i).Y = sum(data(i).Y,2)./nNodes;
+                end
         end
+        data(i).Geom = 'sSEG';
     end
     for c = {'FaceNodeConnect','EdgeNodeConnect','ValLocation','SEG','XY'}
         s = c{1};
@@ -286,9 +370,9 @@ if NVal==0.6 || NVal==0.9
     % 0.9 = coloured thindam
     NVal=0.5;
 elseif  NVal==1.9 
-    if isequal(Ops.presentationtype,'edge') || ...
-             isequal(Ops.presentationtype,'edge m') || ...
-              isequal(Ops.presentationtype,'edge n') || ...
+    if isequal(Ops.presentationtype,'edges') || ...
+             isequal(Ops.presentationtype,'edges m') || ...
+              isequal(Ops.presentationtype,'edges n') || ...
               isequal(Ops.presentationtype,'values')
         % 1.9 = coloured thindam or vector perpendicular to thindam
         NVal=0.5;
@@ -373,7 +457,7 @@ for d=1:length(data)
     end
 end
 npnt=0;
-if isfield(data,'Val') && ~iscell(data(1).Val) && ~VectorPlot
+if isfield(data,'Val') && isnumeric(data(1).Val) && ~VectorPlot
     for d=length(data):-1:1
         if isfield(data,'X')
             szX=size(data(d).X);
@@ -846,9 +930,8 @@ if isfield(Ops,'plotcoordinate') && ~isempty(Ops.plotcoordinate)
                 diststr = 'x coordinate';
             end
         case 'y coordinate'
-            if ~isfield(data,'Y')
-                error('No Y data to plot against.')
-            elseif isfield(data,'XUnits') && isequal(data(1).XUnits,'deg')
+            % data.Y has been moved to data.X while processing Ops.plotcoordinate
+            if isfield(data,'XUnits') && isequal(data(1).XUnits,'deg')
                 diststr = 'latitude';
             else
                 diststr = 'y coordinate';
@@ -864,7 +947,7 @@ end
 
 if NVal==4
     switch Ops.presentationtype
-        case {'markers','tracks'}
+        case {'markers','edges','tracks'}
             NVal = 0;
     end
 end
@@ -930,7 +1013,7 @@ else
                 [hNew{d},Thresholds,Param,Parent]=qp_plot_pnt(plotargs{:});
             case {'POLYL','POLYG'}
                 [hNew{d},Thresholds,Param]=qp_plot_polyl(plotargs{:});
-            case {'UGRID-NODE','UGRID-FACE','UGRID-EDGE'}
+            case {'UGRID1D_NETWORK-NODE','UGRID1D_NETWORK-EDGE','UGRID1D-NODE','UGRID1D-EDGE','UGRID2D-NODE','UGRID2D-EDGE','UGRID2D-FACE'}
                 [hNew{d},Thresholds,Param]=qp_plot_ugrid(plotargs{:});
             otherwise
                 [hNew{d},Thresholds,Param,Parent]=qp_plot_default(plotargs{:});
@@ -1162,3 +1245,10 @@ for i=1:length(hNewVec)
     %set(a,'CameraViewAngle',get(a,'CameraViewAngle'))
 end
 setappdata(hNewVec(1),'Level',Level)
+
+
+function y = shaped_subsref(x,ind)
+% x(ind) returns an array of the same shape as ind unless both x and ind
+% are vectors. In that case x(ind) is a similar (row or column) vector as
+% x. This function reshapes it to the shape of ind.
+y = reshape(x(ind),size(ind));

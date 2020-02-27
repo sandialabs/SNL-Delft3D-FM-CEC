@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2018.
+!!  Copyright (C)  Stichting Deltares, 2012-2020.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -75,6 +75,7 @@
       use filtyp_mod   !   for PARTicle tracking
       use fileinfo     !   a filename array in PART
       use alloc_mod
+      use dlwq0t_data
       use timers       !   performance timers
 
       implicit none
@@ -443,6 +444,10 @@
             ierr = ierr + 1
       end select
 
+!     Copy timers data to dlwqt0_data
+      dlwq0t_itstrt = itstrt
+      dlwq0t_itstop = itstop
+
 !     Read monitoring area's
 
    20 nodump = 0
@@ -596,7 +601,8 @@
  2140 format ( /' ERROR: Absolute timer does not fit in timer format :',A,/
      &          ' Is your T0 setting in block #1 correct?'/,
      &          ' Allowed difference with T0 is usually ca. 68 years.' )
- 2150 format ( /' ERROR: String is not a valid absolute timer :',A)
+ 2150 format ( /' ERROR: String is not recognised as a keyword and',
+     &          ' it is not a valid absolute timer :',A)
  2155 format (  ' ERROR: Start time (',I10,') absolute timer is less than zero',
      &          ' or auxiliary timer is set before T0.'/
      &          '        This is not supported!' )

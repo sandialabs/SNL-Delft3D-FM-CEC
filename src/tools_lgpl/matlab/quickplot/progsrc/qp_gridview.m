@@ -45,7 +45,7 @@ function [out,out2]=qp_gridview(cmd,varargin)
 
 %----- LGPL --------------------------------------------------------------------
 %                                                                               
-%   Copyright (C) 2011-2018 Stichting Deltares.                                     
+%   Copyright (C) 2011-2020 Stichting Deltares.                                     
 %                                                                               
 %   This library is free software; you can redistribute it and/or                
 %   modify it under the terms of the GNU Lesser General Public                   
@@ -70,8 +70,8 @@ function [out,out2]=qp_gridview(cmd,varargin)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/qp_gridview.m $
-%   $Id: qp_gridview.m 8167 2018-02-15 12:27:14Z jagers $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/qp_gridview.m $
+%   $Id: qp_gridview.m 65778 2020-01-14 14:07:42Z mourits $
 
 if nargin==0
     cmd='initialize';
@@ -440,9 +440,12 @@ switch cmd
         else
             points = GRID.Selected.Range(1:NFixed,:);
             DistanceState = getappdata(G,'DistanceState');
-            if DistanceState.distfromlast(i) ==0
+            if DistanceState.distfromlast(i) == 0
                 DistanceState = determine_frompoint(DistanceState,i);
                 setappdata(G,'DistanceState',DistanceState)
+                if DistanceState.distfromlast(i) ==0
+                    i = trackpnt(gcbf,DistanceState.distfromlast~=0);
+                end
             end
             frompoint = DistanceState.frompoint;
             ilast = points(end);
@@ -1226,39 +1229,46 @@ switch selection.Type
                             'xdata',X(:), ...
                             'ydata',Y(:))
                     case 'EDGE'
-                        % determine Edge-Face relationship (code copy)
-                        Faces = GRID.FaceNodeConnect;
-                        missing = isnan(Faces);
-                        NEdges = sum(~missing(:));
-                        Edges = zeros(3,NEdges);
-                        ie = 0;
-                        for j = 1:size(Faces,2)
-                            for i = 1:size(Faces,1)
-                                if ~isnan(Faces(i,j))
-                                    ie = ie+1;
-                                    Edges(1,ie) = Faces(i,j);
-                                    if j==size(Faces,2) || isnan(Faces(i,j+1))
-                                        Edges(2,ie) = Faces(i,1);
-                                    else
-                                        Edges(2,ie) = Faces(i,j+1);
+                        if isfield(GRID,'FaceNodeConnect')
+                            % determine Edge-Face relationship (code copy)
+                            Faces = GRID.FaceNodeConnect;
+                            missing = isnan(Faces);
+                            NEdges = sum(~missing(:));
+                            Edges = zeros(3,NEdges);
+                            ie = 0;
+                            for j = 1:size(Faces,2)
+                                for i = 1:size(Faces,1)
+                                    if ~isnan(Faces(i,j))
+                                        ie = ie+1;
+                                        Edges(1,ie) = Faces(i,j);
+                                        if j==size(Faces,2) || isnan(Faces(i,j+1))
+                                            Edges(2,ie) = Faces(i,1);
+                                        else
+                                            Edges(2,ie) = Faces(i,j+1);
+                                        end
+                                        Edges(3,ie) = i;
                                     end
-                                    Edges(3,ie) = i;
                                 end
                             end
+                            Edges(1:2,:) = sort(Edges(1:2,:));
+                            Edges = Edges';
+                            % determine for which Faces all Edges have been selected
+                            EdgeSel = sort(GRID.EdgeNodeConnect(Range{1},:),2);
+                            yEdges = ismember(Edges(:,1:2),EdgeSel,'rows');
+                            NEdgesIncluded = accumarray(Edges(:,3),double(yEdges));
+                            NEdgesTotal    = sum(~missing,2);
+                            lface = NEdgesIncluded==NEdgesTotal;
+                            CNECT = GRID.FaceNodeConnect(lface,:);
+                            % determine which Edges are not part of the selected faces
+                            FacesIncluded  = find(lface);
+                            ledge = ismember(Edges(:,3),FacesIncluded);
+                            Edges = EdgeSel(~ismember(EdgeSel,Edges(ledge,1:2),'rows'),:)';
+                        else
+                            % no faces, so faces are empty and all edges
+                            % should be drawn
+                            CNECT = [];
+                            Edges = GRID.EdgeNodeConnect(Range{1},:);
                         end
-                        Edges(1:2,:) = sort(Edges(1:2,:));
-                        Edges = Edges';
-                        % determine for which Faces all Edges have been selected
-                        EdgeSel = sort(GRID.EdgeNodeConnect(Range{1},:),2);
-                        yEdges = ismember(Edges(:,1:2),EdgeSel,'rows');
-                        NEdgesIncluded = accumarray(Edges(:,3),double(yEdges));
-                        NEdgesTotal    = sum(~missing,2);
-                        lface = NEdgesIncluded==NEdgesTotal;
-                        CNECT = GRID.FaceNodeConnect(lface,:);
-                        % determine which Edges are not part of the selected faces
-                        FacesIncluded  = find(lface);
-                        ledge = ismember(Edges(:,3),FacesIncluded);
-                        Edges = EdgeSel(~ismember(EdgeSel,Edges(ledge,1:2),'rows'),:)';
                         X = GRID.X(Edges);
                         Y = GRID.Y(Edges);
                         X(3,:) = NaN;
@@ -1476,6 +1486,13 @@ if isfield(GRID,'FaceNodeConnect') || isfield(GRID,'EdgeNodeConnect') % unstruct
     end
     xy = eConnect(:,[1 2 2])';
     xy = xy(:);
+    xy_wrong = min(xy);
+    if xy_wrong>=1
+        xy_wrong = max(xy);
+    end
+    if xy_wrong<1 || xy_wrong>length(GRID.X)
+        error('Invalid node index found in edge_node_connectivity table. Value (%i) outside range 1:%i.',xy_wrong,length(GRID.X))
+    end
     X = GRID.X(xy);
     Y = GRID.Y(xy);
     X(3:3:end) = NaN;
@@ -1536,7 +1553,9 @@ else
     set(findall(F,'tag','gridviewrange'),'enable','off')
     set(findall(F,'tag','gridviewpiecewise'),'enable','off')
     set(findall(F,'tag','gridviewlineseg'),'enable','off')
-    %set(findall(F,'tag','gridviewline'),'enable','off')
+    if ~strcmp(GRID.ValLocation,'FACE')
+        set(findall(F,'tag','gridviewline'),'enable','off')
+    end
     if strcmp(GRID.Type,'network') || ...
             ~isfield(GRID,'FaceNodeConnect') || ...
             isempty(GRID.FaceNodeConnect)
@@ -1567,6 +1586,9 @@ set(XY,'string',sprintf(['x,y: ',xf,',',yf],pnt))
 
 function [i,j] = trackpnt(F,idx)
 % idx is optional subset
+if nargin>1 && islogical(idx)
+    idx = find(idx);
+end
 G = findobj(F,'tag','GRID');
 GRID = get(G,'userdata');
 pnt = get(get(G,'parent'),'currentpoint');
@@ -1574,11 +1596,20 @@ pnt = pnt(1,1:2);
 switch GRID.ValLocation
     case 'NODE'
         if isfield(GRID,'X') % ugrid and sgrid
-            dist = (pnt(1)-GRID.X).^2+(pnt(2)-GRID.Y).^2;
+            X = GRID.X;
+            Y = GRID.Y;
+            if nargin>1
+                X = X(idx);
+                Y = Y(idx);
+            end
+            dist = (pnt(1)-X).^2+(pnt(2)-Y).^2;
             mdist = min(dist(:));
             [i,j] = find(dist==mdist);
             i = i(1);
             j = j(1);
+            if nargin>1
+                i = idx(i);
+            end
         else
             i = 1;
             j = 1;

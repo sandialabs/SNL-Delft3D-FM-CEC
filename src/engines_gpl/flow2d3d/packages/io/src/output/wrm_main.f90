@@ -2,7 +2,7 @@ subroutine wrm_main(lundia    ,error     ,selmap    ,grdang    ,dtsec     , &
                   & itmapc    ,runtxt    ,trifil    ,wrifou    ,gdp       )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
+!  Copyright (C)  Stichting Deltares, 2011-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -26,8 +26,8 @@ subroutine wrm_main(lundia    ,error     ,selmap    ,grdang    ,dtsec     , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: wrm_main.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/flow2d3d/packages/io/src/output/wrm_main.f90 $
+!  $Id: wrm_main.f90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/io/src/output/wrm_main.f90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: Main routine for writing the FLOW HIS file.
@@ -159,6 +159,7 @@ subroutine wrm_main(lundia    ,error     ,selmap    ,grdang    ,dtsec     , &
     real(fp)                             , pointer :: dt
     real(fp)                             , pointer :: tunit
     real(fp)                             , pointer :: tzone
+    logical                              , pointer :: dredge
     logical                              , pointer :: lfbedfrm
     logical                              , pointer :: roller
     logical                              , pointer :: sferic
@@ -346,6 +347,7 @@ subroutine wrm_main(lundia    ,error     ,selmap    ,grdang    ,dtsec     , &
     dt                  => gdp%gdexttim%dt
     tunit               => gdp%gdexttim%tunit
     tzone               => gdp%gdexttim%tzone
+    dredge              => gdp%gdprocs%dredge
     lfbedfrm            => gdp%gdbedformpar%lfbedfrm
     roller              => gdp%gdprocs%roller
     sferic              => gdp%gdtricom%sferic
@@ -526,7 +528,7 @@ subroutine wrm_main(lundia    ,error     ,selmap    ,grdang    ,dtsec     , &
        elseif (filetype == FTYPE_NETCDF) then
           if (first .and. irequest == REQUESTTYPE_DEFINE) then              
              write(lundia,*) 'Creating new '//trim(filename)
-             ierror = nf90_create(filename, or(nf90_clobber,nf90_64bit_offset), fds); call nc_check_err(lundia, ierror, "creating file", filename)
+             ierror = nf90_create(filename, gdp%gdpostpr%nc_mode, fds); call nc_check_err(lundia, ierror, "creating file", filename)
              !
              ! global attributes
              !
@@ -560,6 +562,13 @@ subroutine wrm_main(lundia    ,error     ,selmap    ,grdang    ,dtsec     , &
                     & nf        ,nl        ,nostatto  ,nostatgl  ,order_sta , &
                     & ntruvto   ,ntruvgl   ,order_tra ,ipartition,gdp       )
           if (error) goto 9999
+          !
+          if (dredge .and. gdp%gdflwpar%flwoutput%dredge_map) then
+             call wrimapdad(lundia    ,error     ,filename  ,irequest  , &
+                          & fds       ,iarrc     ,mf        ,ml        , &
+                          & nf        ,nl        ,gdp       )
+             if (error) goto 9999
+          endif
        endif
        !
        ! data per time step

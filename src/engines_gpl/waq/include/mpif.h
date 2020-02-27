@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2018.
+!!  Copyright (C)  Stichting Deltares, 2012-2020.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -31,7 +31,7 @@
 !
 ! =============================================================================
 !
-!     $URL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/waq/include/mpif.h $
+!     $URL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/waq/include/mpif.h $
 !     $Revision: 822 $, $Date: 2007-03-14 19:07:11 +0100 (Wed, 14 Mar 2007) $
 !
 !     Version 1.1    Date 12-07-2006  beheer: add MPI_ARGV_NULL and

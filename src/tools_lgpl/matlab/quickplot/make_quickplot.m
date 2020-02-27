@@ -7,7 +7,7 @@ function make_quickplot(basedir,varargin)
 
 %----- LGPL --------------------------------------------------------------------
 %
-%   Copyright (C) 2011-2018 Stichting Deltares.
+%   Copyright (C) 2011-2020 Stichting Deltares.
 %
 %   This library is free software; you can redistribute it and/or
 %   modify it under the terms of the GNU Lesser General Public
@@ -32,8 +32,8 @@ function make_quickplot(basedir,varargin)
 %
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/make_quickplot.m $
-%   $Id: make_quickplot.m 7992 2018-01-09 10:27:35Z mourits $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/make_quickplot.m $
+%   $Id: make_quickplot.m 65778 2020-01-14 14:07:42Z mourits $
 
 curdir=pwd;
 addpath(curdir)
@@ -46,24 +46,23 @@ end
 if nargin>0
     cd(basedir);
 end
+err=[];
 try
-    err=localmake(varargin{:});
-catch
-    err=lasterr;
+    localmake(varargin{:});
+catch err
 end
 if nargin>0
     cd(curdir);
 end
 rmpath(curdir)
 if ~isempty(err)
-    error(err)
+    rethrow(err)
 end
 
 
-function err=localmake(qpversion,T)
-err='';
+function localmake(qpversion,T)
 if ~exist('progsrc','dir')
-    err='Cannot locate source'; return
+    error('Cannot locate source folder "progsrc".')
 end
 sourcedir=[pwd,filesep,'progsrc'];
 disp('Copying files ...')
@@ -74,9 +73,8 @@ else
 end
 if ~exist([pwd,filesep,qpdir])
     [success,message] = mkdir(qpdir);
-    if ~success,
-        err=message;
-        return
+    if ~success
+        error(message)
     end
 end
 cd(qpdir);
@@ -108,8 +106,13 @@ fstrrep('d3d_qp.m','<VERSION>',qpversion)
 fstrrep('d3d_qp.m','<CREATIONDATE>',TStr)
 fstrrep('wl_identification.c','<VERSION>',qpversion)
 fstrrep('wl_identification.c','<CREATIONDATE>',TStr)
+if ~d3d_qp('version',qpversion,TStr)
+    error('Unable to write correct d3d_qp.version file.')
+end
 g = which('-all','gscript');
-copyfile(g{1},'.')
+if ~isempty(g)
+    copyfile(g{1},'.')
+end
 make_exe
 if ispc
    movefile('d3d_qp.exe','d3d_qp.exec');

@@ -3,7 +3,7 @@ function outdata = qp_plotmanager(cmd,UD,logfile,logtype,cmdargs)
 
 %----- LGPL --------------------------------------------------------------------
 %
-%   Copyright (C) 2011-2018 Stichting Deltares.
+%   Copyright (C) 2011-2020 Stichting Deltares.
 %
 %   This library is free software; you can redistribute it and/or
 %   modify it under the terms of the GNU Lesser General Public
@@ -28,8 +28,8 @@ function outdata = qp_plotmanager(cmd,UD,logfile,logtype,cmdargs)
 %
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/private/qp_plotmanager.m $
-%   $Id: qp_plotmanager.m 7992 2018-01-09 10:27:35Z mourits $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/private/qp_plotmanager.m $
+%   $Id: qp_plotmanager.m 65778 2020-01-14 14:07:42Z mourits $
 
 mfig = findobj(allchild(0),'flat','tag','Delft3D-QUICKPLOT');
 UD=getappdata(mfig,'QPHandles');
@@ -680,6 +680,17 @@ switch cmd
                                         k=UserDatas{itloc}.PlotState.Selected{K_};
                                         if isequal(k,0)
                                             extrastr{itloc}='All K';
+                                        elseif iscell(k)
+                                            switch k{1}
+                                                case 'z'
+                                                    extrastr{itloc} = sprintf('at Z=%g',k{2});
+                                                case 'dz_below_max'
+                                                    extrastr{itloc} = sprintf('at %g below surface',k{2});
+                                                case 'dz_above_min'
+                                                    extrastr{itloc} = sprintf('at %g above bed',k{2});
+                                                case 'depth_frac'
+                                                    extrastr{itloc} = sprintf('at %g%% of depth',k{2}*100);
+                                            end
                                         elseif ~isempty(k)
                                             extrastr{itloc}=['K=' vec2str(k,'nobrackets')];
                                         end
@@ -854,7 +865,7 @@ switch cmd
                     case {'moveitemdown','moveitemtoback'}
                         ItVal2 = ItVal+1;
                 end
-                if ItVal2>length(ItTags)
+                if ItVal2>length(ItTags) || ItVal2<1
                     break
                 end
                 %

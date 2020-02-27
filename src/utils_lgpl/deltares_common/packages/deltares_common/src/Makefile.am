@@ -44,6 +44,8 @@ libDeltaresCommon_la_SOURCES = \
 	deltares_common_version.F90 \
 	distance.f90 \
 	time_module.f90 \
+	time_class.f90 \
+	time_module_tests.f90 \
 	handles.f90 \
 	tables.f90 \
 	table_handles.f90 \
@@ -59,7 +61,8 @@ libDeltaresCommon_la_SOURCES = \
 	multi_file_io.f90 \
 	hash_search.f90 \
 	wavenr.f90 \
-	sorting_algorithms.f90
+	sorting_algorithms.f90 \
+	m_tablematrices.f90
 
 # For source distributions: the tar.gz will contain the correct version numbers in the generated *version.F90
 # So, just before packaging the .tar.gz dist, disable version number REgeneration parts of this Makefile.am.

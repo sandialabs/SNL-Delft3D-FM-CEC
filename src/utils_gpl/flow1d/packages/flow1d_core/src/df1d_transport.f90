@@ -1,7 +1,7 @@
 module m_df1d_transport
 !----- AGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2017-2018.                                
+!  Copyright (C)  Stichting Deltares, 2017-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify              
 !  it under the terms of the GNU Affero General Public License as               
@@ -25,8 +25,8 @@ module m_df1d_transport
 !  Stichting Deltares. All rights reserved.
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: df1d_transport.f90 8044 2018-01-24 15:35:11Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_gpl/flow1d/packages/flow1d_core/src/df1d_transport.f90 $
+!  $Id: df1d_transport.f90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_gpl/flow1d/packages/flow1d_core/src/df1d_transport.f90 $
 !-------------------------------------------------------------------------------
 
    use messagehandling
@@ -90,7 +90,7 @@ module m_df1d_transport
       
       integer :: i
       
-      if (trans%mouthSize > 0) then
+      if (associated(trans%mp)) then
          deallocate(trans%mp)
          trans%mp => null()
          trans%mouthSize  = 0
@@ -106,7 +106,7 @@ module m_df1d_transport
          if (allocated(trans%co(i)%sbdscr)) deallocate(trans%co(i)%sbdscr)
       enddo
       
-      if (trans%constSize > 0) deallocate(trans%co)
+      if (associated(trans%co)) deallocate(trans%co)
       trans%co => null()
       
       trans%constSize = 0

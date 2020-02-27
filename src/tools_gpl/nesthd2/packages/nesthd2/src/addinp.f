@@ -4,7 +4,7 @@
       implicit none
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
+!  Copyright (C)  Stichting Deltares, 2011-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -28,8 +28,8 @@
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: addinp.f 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_gpl/nesthd2/packages/nesthd2/src/addinp.f $
+!  $Id: addinp.f 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_gpl/nesthd2/packages/nesthd2/src/addinp.f $
 !**********************************************************************
 ! subroutine         : addinp
 ! version            : v1.3
@@ -123,9 +123,9 @@
 
       if (atlone) then
          write (*,'(/,'' Type of profile:'')')
-         write (*,'(  ''  1) Uniform (2Dh)'')')
-         write (*,'(  ''  2) Linear       '')')
-         write (*,'(  ''  3) 3D          :'',$)')
+         write (*,'(  ''  1) Uniform (2DH) '')')
+         write (*,'(  ''  2) Linear        '')')
+         write (*,'(  ''  3) 3D          : '',$)')
          read  (*,*) itypc
       endif
 

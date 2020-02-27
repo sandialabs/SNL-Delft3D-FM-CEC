@@ -1,6 +1,6 @@
 //---- LGPL --------------------------------------------------------------------
 //
-// Copyright (C)  Stichting Deltares, 2011-2018.
+// Copyright (C)  Stichting Deltares, 2011-2020.
 //
 // This library is free software; you can redistribute it and/or
 // modify it under the terms of the GNU Lesser General Public
@@ -34,11 +34,47 @@
 //------------------------------------------------------------------------------
 
 
-#include "log.h"
+#pragma once
 
+// The following definition is needed since VisualStudio2015 before including <pthread.h>:
+#define HAVE_STRUCT_TIMESPEC
+
+#if HAVE_CONFIG_H
+#   include "config.h"
+#endif
+
+
+#include <assert.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <limits.h>
+#include <pthread.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include "clock.h"
+#include <ctime>
+#if HAVE_CONFIG_H
+#   include <sys/wait.h>
+#   include <unistd.h>
+// #else
+// #   include <sys/syscall.h>.
+#endif
+
+#include <cstddef>
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <mpi.h>
+#include <map>
+#include "dimr_control_block.h"
+#include "dimr_components.h" 
+#include "dimr_coupler.h"
+#include "dimr_couplers.h"
+
 
 
 #if defined (WIN32)
@@ -188,7 +224,7 @@ void Log::SetWriteCallBack( WriteCallback writeCallback ) {
 }
 
 
-void Log::SetExternalLogger( Logger logger ) {
+void Log::SetExternalLogger( BMILogger logger ) {
 	this->externalLogger = logger;
 	this->Write(INFO, 0, "External logger is set");
 }

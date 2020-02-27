@@ -1,7 +1,7 @@
 module M_friction                                 !< friction parameters, (more to follow)
 !----- AGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2017-2018.                                
+!  Copyright (C)  Stichting Deltares, 2017-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify              
 !  it under the terms of the GNU Affero General Public License as               
@@ -25,8 +25,8 @@ module M_friction                                 !< friction parameters, (more 
 !  Stichting Deltares. All rights reserved.
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: Roughness.f90 8775 2018-05-15 12:53:23Z noort $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_gpl/flow1d/packages/flow1d_core/src/Roughness.f90 $
+!  $Id: Roughness.f90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_gpl/flow1d/packages/flow1d_core/src/Roughness.f90 $
 !-------------------------------------------------------------------------------
 
  integer                         :: mxengpar      !< dimension of engpar
@@ -43,6 +43,7 @@ module m_Roughness
    use m_alloc
    use m_branch
    use m_tables
+   use m_tablematrices
    use m_spatial_data
    use m_hash_search
    
@@ -53,9 +54,19 @@ module m_Roughness
    public realloc
    public dealloc
    public GetChezy
-   public getFrictionValue
    public flengrpr
+   public setVonkar
+   public frictiontype_v1_to_new
+   public getFrictionParameters
+   public frictionTypeStringToInteger
+   public functionTypeStringToInteger
+
    
+   double precision :: vonkar      = 0.41        !< von Karman constant ()
+   double precision :: ag          = 9.81d0     !< gravity acceleration
+   double precision :: sag                      !< = sqrt(ag)  
+   double precision :: ee                       !< natural e ()
+
 !   public setCrossSectionIncrement
 !   
    interface realloc
@@ -72,64 +83,76 @@ module m_Roughness
       module procedure flengrprDouble
    end interface 
    
+   !> roughness definition
+   
    !> Roughness definition
-   type, public :: t_Roughness
+   type, public :: t_Roughness                           !< Derived type for roughness data 
    
       character(len=idLen)              :: id            !< section id/name
        
-      integer                           :: iSection = 0  !> Section Type
+                                                         !> Section Type
                                                          !! 1 = Main
                                                          !! 2 = Floodplain1
                                                          !! 3 = Floodplan2
                                                          !! Any other = Other section (Default 0)
+      integer                           :: iSection = 0
+      type(t_tablematrix), pointer      :: table(:)          !< table for space and parameter dependent roughness
+      logical                           :: useGlobalFriction !< Flag indicates to use frictionValue and frictionType or to use the table
+      double precision                  :: frictionValue     !< Global friction Value
+      integer                           :: frictionType      !< Global friction Type
+      integer, pointer                  :: rgh_type_pos(:)   !< Roughness type for positive flow direction at a branch
+      integer, pointer                  :: fun_type_pos(:)   !< Roughness parameter value for positive flow direction at a branch     
 
-      ! branch oriented data
-      integer, pointer                  :: rgh_type_pos(:)   !< Size = network%brs%count        
-      integer, pointer                  :: fun_type_pos(:)           
-      integer, pointer                  :: rgh_type_neg(:)
-      integer, pointer                  :: fun_type_neg(:)
+      ! All fields below: branch oriented data (roughness v1, obsolete for v2)
+      integer, pointer                  :: rgh_type_neg(:)   !< Roughness type for negative flow direction at a branch
+      integer, pointer                  :: fun_type_neg(:)   !< Roughness parameter value for negative flow direction at a branch
 
-      integer                           :: spd_pos_idx    ! Index to Spatial Data
-      integer                           :: spd_neg_idx    ! Index to Spatial Data
+      integer                           :: spd_pos_idx       !< Index to Spatial Data for positive flow direction parameter values
+      integer                           :: spd_neg_idx       !< Index to Spatial Data for negative flow direction parameter values
       
    end type
    
-   type, public :: t_RoughnessSet
-      integer                                           :: Size = 0
-      integer                                           :: growsBy = 2000
-      integer                                           :: Count= 0
-      type(t_Roughness), pointer, dimension(:)          :: rough
-      type(t_tableSet)                                  :: tables
-      type(t_hashlist)                                  :: hashlist
+   type, public :: t_RoughnessSet                                           !< Roughness set for roughness sections
+      integer                                           :: version =-1      !< Version number for roughness input
+      integer                                           :: Size = 0         !< Current size
+      integer                                           :: growsBy = 2000   !< Increment for growing array
+      integer                                           :: Count= 0         !< Number of elements in array
+      type(t_Roughness), pointer, dimension(:)          :: rough            !< Array containing roughness sections
+      type(t_tableSet)                                  :: tables           !< Array with tables for flow or water level dependend parameter values
+      type(t_hashlist)                                  :: hashlist         !< hashlist for fast searching.
    end type t_RoughnessSet
 
-   integer, parameter, public                           :: R_FunctionConstant = 0
-   integer, parameter, public                           :: R_FunctionDischarge = 1
-   integer, parameter, public                           :: R_FunctionLevel = 2
-   integer, parameter, public                           :: R_Chezy = 1
-   integer, parameter, public                           :: R_Manning = 4
-   integer, parameter, public                           :: R_Nikuradse = 5
-   integer, parameter, public                           :: R_Strickler = 6
-   integer, parameter, public                           :: R_WhiteColebrook = 7
-   integer, parameter, public                           :: R_BosBijkerk = 9
-   double precision, parameter, public                  :: sixth = 1.d0/6.d0
-   double precision, parameter, public                  :: third = 1.d0/3.d0
-   double precision, parameter, public                  :: chlim = 0.001d0
+   integer, parameter, public                           :: R_FunctionConstant = 0      !< Constant type roughness function
+   integer, parameter, public                           :: R_FunctionDischarge = 1     !< Discharge dependend roughness 
+   integer, parameter, public                           :: R_FunctionLevel = 2         !< Water level dependend roughness
+   integer, parameter, public                           :: R_Chezy = 0                 !< Chezy type roughness
+   integer, parameter, public                           :: R_Manning = 1               !< Manning  roughness formula
+   integer, parameter, public                           :: R_Nikuradse = 7             !< Nikuradse roughness formula
+   integer, parameter, public                           :: R_Strickler = 8             !< Strickler roughness formula
+   integer, parameter, public                           :: R_WhiteColebrook = 3        !< White Colebrook roughness formula
+   integer, parameter, public                           :: R_BosBijkerk = 9            !< Bos en Bijkerk roughness formula 
+   double precision, parameter, public                  :: sixth = 1.d0/6.d0           !< 1/6
+   double precision, parameter, public                  :: third = 1.d0/3.d0           !< 1/3
+   double precision, parameter, public                  :: chlim = 0.001d0             !< Lowest Chezy value
 
 contains
    
+subroutine setVonkar(vonkarIn)
+   double precision, intent(in) :: vonkarIn
+   
+   vonkar = vonkarIn
+end subroutine setVonkar
+
+   
+!> Reallocate roughness array, while keeping the original values in place   
 subroutine reallocRoughness(rgs)
    ! Modules
    
    implicit none
 
    ! Input/output parameters
-   type(t_RoughnessSet)           :: rgs
+   type(t_RoughnessSet), intent(inout)           :: rgs    !< roughness set
    
-   ! Local variables
-
-   ! Program code
-
    ! Local variables
    type(t_Roughness), pointer, dimension(:)    :: oldrough
    
@@ -139,6 +162,11 @@ subroutine reallocRoughness(rgs)
       allocate(oldrough(rgs%Size))
       oldrough=rgs%rough
       deallocate(rgs%rough)
+   else
+      ! set some parameters (not the correct location)
+      ee = exp(1d0)
+      sag = sqrt(ag)
+      rgs%version = -1
    endif
    
    if (rgs%growsBy <=0) then
@@ -155,13 +183,14 @@ subroutine reallocRoughness(rgs)
 
 end subroutine reallocRoughness
    
+!> Deallocate roughness set   
 subroutine deallocRoughness(rgs)
    ! Modules
    
    implicit none
 
    ! Input/output parameters
-   type(t_RoughnessSet)    :: rgs
+   type(t_RoughnessSet), intent(inout)    :: rgs          !< roughness set
    
    ! Local variables
    integer                 :: i
@@ -195,201 +224,138 @@ subroutine deallocRoughness(rgs)
 
 end subroutine deallocRoughness
 
-double precision function getFrictionValue(rgs, spData, ibranch, section, igrid, h, q, u, r, d)
-!!--copyright-------------------------------------------------------------------
-! Copyright (c) 2003, Deltares. All rights reserved.
-!!--disclaimer------------------------------------------------------------------
-! This code is part of the Delft3D software system. Deltares has
-! developed c.q. manufactured this code to its best ability and according to the
-! state of the art. Nevertheless, there is no express or implied warranty as to
-! this software whether tangible or intangible. In particular, there is no
-! express or implied warranty as to the fitness for a particular purpose of this
-! software, whether tangible or intangible. The intellectual property rights
-! related to this software code remain with Deltares at all times.
-! For details on the licensing agreement, we refer to the Delft3D software
-! license and any modifications to this license, if applicable. These documents
-! are available upon request.
-!!--version information---------------------------------------------------------
-! $Author$
-! $Date$
-! $Revision$
-!!--description-----------------------------------------------------------------
-! NONE
-!!--pseudo code and references--------------------------------------------------
-! NONE
-!!--declarations----------------------------------------------------------------
-    !=======================================================================
-    !                       Deltares
-    !                One-Two Dimensional Modelling System
-    !                           S O B E K
-    !
-    ! Subsystem:          Flow Module
-    !
-    ! Programmer:
-    !
-    ! Function:           getFrictionValue, replacement of old FLCHZT (FLow CHeZy Friction coeff)
-    !
-    ! Module description: Chezy coefficient is computed for a certain gridpoint
-    !
-    !
-    !
-    !     update information
-    !     person                    date
-    !     Kuipers                   5-9-2001
-    !     Van Putten                11-8-2011
-    !
-    !     Use stored table counters
-    !
-    !
-    !
-    !
-    !     Declaration of Parameters:
-    !
+! Function getFrictionValue is moved from Roughness.f90 to CorssSections.f90 to avoid circular references
 
-    implicit none
-!
-! Global variables
-!
-    type(t_RoughnessSet), intent(in)        :: rgs
-    type(t_spatial_dataSet), intent(in)     :: spData
-    integer, intent(in)                     :: igrid       !< gridpoint index
-    integer, intent(in)                     :: ibranch     !< branch index
-    integer, intent(in)                     :: section     !< section index (0=main, 1=Flood plane 1, 2=Flood plane 2)
-    double precision, intent(in)            :: d           !< water depth
-    double precision, intent(in)            :: h           !< water level
-    double precision, intent(in)            :: q           !< discharge
-    double precision, intent(in)            :: r           !< hydraulic radius
-    double precision, intent(in)            :: u           !< velocity
-!
-!
-! Local variables
-!
-    integer                         :: isec1
-    double precision                :: cpar
-    double precision                :: dep
-    double precision                :: rad
-    type(t_Roughness), pointer      :: rgh 
-    type(t_spatial_data), pointer   :: values
-    integer, dimension(:), pointer  :: rgh_type
-    integer, dimension(:), pointer  :: fun_type
+integer function frictiontype_v1_to_new(frictionType)
+   integer, intent(in) :: frictionType
+   
+   select case(frictionTYpe)
+   case(1)
+      ! Chezy
+      frictiontype_v1_to_new = R_Chezy
+   case (4) 
+      ! Manning-formula
+      frictiontype_v1_to_new = R_Manning
+   case (5) 
+      !           Strickler-1 formula
+      frictiontype_v1_to_new = R_Nikuradse
+   case (6) 
+      !           Strickler-2 formula
+      frictiontype_v1_to_new = R_Strickler
+   case (7) 
+      !           Nikuradze-formula == White Colebrook Waqua style
+      frictiontype_v1_to_new = R_WhiteColebrook
+   case (8)
+      !        Engelund-like roughness predictor
+      frictiontype_v1_to_new = 10
+   case (9) 
+      !           Bos Bijkerk formula
+      frictiontype_v1_to_new = R_BosBijkerk
+   end select
+   
+end function frictiontype_v1_to_new
 
-    !     Explanation:
-    !     -----------
-    !
-    !     1. Each Chezy formula, apart from Engelund bed friction, is defined
-    !        by 1 constant parameter. This constant is stored in bfricp.
-    !        An exception is the Engelund bed friction defined by 10 parameters.
-    !     2. For the Engelund bed friction the specific parameters are stored
-    !        in the array engpar.
-    !
-    !
-    !     Prevention against zero hydraulic radius and depth
-    !
-    rad = max(r, 1.d-6)
-    dep = max(d, 1.d-6)
-    !
-    isec1 = section
-    !
-    !     Formulation = .not. Engelund
-    !
-    
-    rgh => rgs%rough(isec1)
-    
-    if (q > 0d0 .or. .not. associated(rgh%rgh_type_neg)) then
-       values    => spData%quant(rgh%spd_pos_idx)
-       rgh_type  => rgh%rgh_type_pos 
-       fun_type  => rgh%fun_type_pos 
-    else 
-       values    => spData%quant(rgh%spd_neg_idx)
-       rgh_type  => rgh%rgh_type_neg 
-       fun_type  => rgh%fun_type_neg 
-    endif   
-    !        Positive flow
-    !
-    !        Roughness function of discharge depending on flow direction
-    !
-    if (fun_type(ibranch) == R_FunctionDischarge) then
-       cpar = interpolate(values%tables%tb(values%tblIndex(igrid))%table,  abs(q))
-    !
-    !        Roughness function of water level depending on flow direction
-    !
-    elseif (fun_type(ibranch) == R_FunctionLevel) then
-       cpar = interpolate(values%tables%tb(values%tblIndex(igrid))%table,  h)
-    !
-    !        Roughness constant depending on flow direction
-    !
-    else
-       cpar = values%values(igrid)
-    endif
+   
+   !> Converts a friction type as text string into the integer parameter constant.
+   !! E.g. R_Manning, etc. If input string is invalid, -1 is returned.
+   subroutine frictionTypeStringToInteger(sfricType, ifricType)
+      use string_module, only:str_lower
+      implicit none
+      character(len=*), intent(in   ) :: sfricType !< Friction type string.
+      integer,          intent(  out) :: ifricType !< Friction type integer. When string is invalid, -1 is returned.
+      
+      call str_lower(sfricType)
+      select case (trim(sfricType))
+         case ('chezy')
+            ifricType = R_Chezy
+         case ('manning')
+            ifricType = R_Manning
+         case ('walllawnikuradse')
+            ifricType = 2 ! TODO: JN: White-Colebrook $k_n$ (m) -- Delft3D style not available yet, no PARAMETER.
+         case ('whitecolebrook')
+            ifricType = R_WhiteColebrook
+         case ('stricklernikuradse')
+            ifricType = R_Nikuradse
+         case ('strickler')
+            ifricType = R_Strickler
+         case ('debosbijkerk')
+            ifricType = R_BosBijkerk
+         case default
+            ifricType = -1
+      end select
+      return
+   
+   end subroutine frictionTypeStringToInteger
+   
+   !> Converts a (friction) function type as text string into the integer parameter constant.
+   !! E.g. R_FunctionConstant, etc. If input string is invalid, -1 is returned.
+   subroutine functionTypeStringToInteger(sfuncType, ifuncType)
+      use string_module, only:str_lower
+      implicit none
+      character(len=*), intent(in   ) :: sfuncType !< Function type string.
+      integer,          intent(  out) :: ifuncType !< Function type integer. When string is invalid, -1 is returned.
+      
+      call str_lower(sfuncType)
+      select case (trim(sfuncType))
+         case ('constant')
+            ifuncType = R_FunctionConstant
+         case ('absdischarge')
+            ifuncType = R_FunctionDischarge
+         case ('waterlevel')
+            ifuncType = R_FunctionLevel
+         case default
+            ifuncType = -1
+      end select
+      return
+   
+   end subroutine functionTypeStringToInteger
 
-    getFrictionValue = GetChezy(rgh_type(ibranch), cpar, rad, dep, u)
-end function getFrictionValue
-
+!> Get the Chezy value for a given friction type and parameter value
 double precision function GetChezy(frictType, cpar, rad, dep, u)
 
    implicit none
-   double precision, intent(in)   :: dep                     !< water depth
-   !double precision, intent(in)   :: h                     !< water level
-   !double precision, intent(in)   :: q                     !< discharge
-   double precision, intent(in)   :: rad                     !< hydraulic radius
-   double precision, intent(in)   :: cpar
+   double precision, intent(in)   :: dep                   !< water depth
+   double precision, intent(in)   :: rad                   !< hydraulic radius
+   double precision, intent(in)   :: cpar                  !< parameter value
    double precision, intent(in)   :: u                     !< velocity
-   integer, intent(in)            :: frictType             !< friction type
-
-!
+   integer,          intent(in)   :: frictType             !< friction type (e.g., R_Manning, etc.)
    !
    !     Declaration of Parameters:
    !
-   !
-
+   double precision        :: rad0
+   double precision        :: z0
+   double precision        :: sqcf
+   
+   rad0 = max(rad,1d-4)
+   
    select case(frictType)
-   case (7) 
-      !
-      !           Nikuradze-formula
-      !           [Doc. S-FO-001.5KV  Eq. 3-1]
-      !
-      GetChezy = 18.0d0*log10(12.d0*rad/cpar)
-   !
-   case (4) 
-      !
-      !           Manning-formula
-      !           [Doc. S-FO-001.5KV  Eq. 3-2]
-      !
-      GetChezy = rad**sixth/cpar
-   !
-   case (5) 
-      !
-      !           Strickler-1 formula
-      !           [Doc. S-FO-001.5KV  Eq. 3-3]
-      !
-      GetChezy = 25.0d0*(rad/cpar)**sixth
-   !
-   case (6) 
-      !
-      !           Strickler-2 formula
-      !           [Doc. S-FO-001.5KV  Eq. 3-4]
-      !
-      GetChezy = cpar*rad**sixth
-   !
-   case (9) 
-      !
-      !           Bos Bijkerk formula
-      !           [See Technical Reference - for DLG]
-      !
-      GetChezy = cpar*dep**third*rad**sixth
-   !
-   case (8)
-      !
-      !        Engelund-like roughness predictor
-      !        [Doc. S-FO-001.5KV  Eq. 3-5]
-      !
-      !                      d90
-      call flengrpr(cpar, u, rad, GetChezy)
-   case default
-      !
-      !           Chezy value (kode 0 or 1)
-      !
+   case(0)
+      !           Chezy value
       GetChezy = cpar
+   case (1) 
+      !           Manning-formula
+      GetChezy = rad0**sixth/cpar
+   case (2) 
+     !            White Colebrook Delft3D
+     z0        = min( cpar / 30d0 , rad0*0.3d0)
+     sqcf      = vonkar/log( rad0/(ee*z0) )
+     getChezy  = sag/sqcf
+   case (3) 
+      !           White Colebrook WAQUA / Nikuradse-formula
+      GetChezy = 18.0d0*log10(12.d0*rad0/cpar)
+   case (7) 
+      !           Strickler-1 formula
+      GetChezy = 25.0d0*(rad0/cpar)**sixth
+   case (8) 
+      !           Strickler-2 formula
+      GetChezy = cpar*rad0**sixth
+   case (9) 
+      !           Bos Bijkerk formula
+      GetChezy = cpar*dep**third*rad0**sixth
+   case (10)
+      !        Engelund-like roughness predictor
+      call flengrpr(cpar, u, rad0, GetChezy)
+   case default
    end select
    !
    !
@@ -403,24 +369,8 @@ double precision function GetChezy(frictType, cpar, rad, dep, u)
 
 end function GetChezy
 
+!> Get the Chezy value, using the Engelund roughness predictor
 subroutine flengrprDouble(d90, u, hrad, chezy)
-!!--copyright-------------------------------------------------------------------
-! Copyright (c) 2003, Deltares. All rights reserved.
-!!--disclaimer------------------------------------------------------------------
-! This code is part of the Delft3D software system. Deltares has
-! developed c.q. manufactured this code to its best ability and according to the
-! state of the art. Nevertheless, there is no express or implied warranty as to
-! this software whether tangible or intangible. In particular, there is no
-! express or implied warranty as to the fitness for a particular purpose of this
-! software, whether tangible or intangible. The intellectual property rights
-! related to this software code remain with Deltares at all times.
-! For details on the licensing agreement, we refer to the Delft3D software
-! license and any modifications to this license, if applicable. These documents
-! are available upon request.
-!!--version information---------------------------------------------------------
-! $Author$
-! $Date$
-! $Revision$
 !!--description-----------------------------------------------------------------
 ! NONE
 !!--pseudo code and references--------------------------------------------------
@@ -431,10 +381,10 @@ subroutine flengrprDouble(d90, u, hrad, chezy)
 !
 ! Global variables
 !
-    double precision, intent(out)              :: chezy
-    double precision, intent(in)               :: d90
-    double precision, intent(in)               :: hrad
-    double precision, intent(in)               :: u
+    double precision, intent(out)              :: chezy   !< Roughness value
+    double precision, intent(in)               :: d90     !< d90 parameter value
+    double precision, intent(in)               :: hrad    !< hydraulic radius
+    double precision, intent(in)               :: u       !< flow velocity
 !
 !
 ! Local variables
@@ -588,11 +538,12 @@ subroutine flengrprDouble(d90, u, hrad, chezy)
     endif
 end subroutine flengrprDouble
 
+!> Get the Chezy value, using the Engelund roughness predictor
 subroutine flengrprReal(d90, u, hrad, chezy)
-   real, intent(in) :: d90
-   real, intent(in) :: u
-   real, intent(in) :: hrad
-   real, intent(out) :: chezy
+   real, intent(in) :: d90          !< Roughness value
+   real, intent(in) :: u            !< d90 parameter value
+   real, intent(in) :: hrad         !< hydraulic radius
+   real, intent(out) :: chezy       !< flow velocity
    
    double precision C
    
@@ -600,5 +551,97 @@ subroutine flengrprReal(d90, u, hrad, chezy)
    
    chezy = C
 end subroutine flengrprReal
+
+subroutine getFrictionParameters(rgh, direction, ibranch, chainage, c_type, c_par)
+
+use m_tables
+use m_tablematrices
+!!--description-----------------------------------------------------------------
+! NONE
+!!--pseudo code and references--------------------------------------------------
+! NONE
+!!--declarations----------------------------------------------------------------
+    !=======================================================================
+    !                       Deltares
+    !                One-Two Dimensional Modelling System
+    !                           S O B E K
+    !
+    ! Subsystem:          Flow Module
+    !
+    ! Programmer:
+    !
+    ! Function:           getFrictionValue, replacement of old FLCHZT (FLow CHeZy Friction coeff)
+    !
+    ! Module description: Chezy coefficient is computed for a certain gridpoint
+    !
+    !
+    !
+    !     update information
+    !     person                    date
+    !     Kuipers                   5-9-2001
+    !     Van Putten                11-8-2011
+    !
+    !     Use stored table counters
+    !
+    !
+    !
+    !
+    !     Declaration of Parameters:
+    !
+
+    implicit none
+!
+! Global variables
+!
+    type(t_Roughness), intent(in   )   :: rgh         !< Roughness data
+    integer,           intent(in   )   :: ibranch     !< branch index
+    double precision,  intent(in   )   :: chainage    !< chainage (location on branch)
+    double precision,  intent(in   )   :: direction   !< flow direction > 0 positive direction, < 0 negative direction
+    integer,           intent(  out)   :: c_type      !< friction type
+    double precision,  intent(  out)   :: c_par       !< friction parameter value
+    
+!
+!
+! Local variables
+!
+    integer                         :: isec, i
+    double precision                :: dep
+    double precision                :: ys
+    double precision                :: rad
+    type(t_spatial_data), pointer   :: values
+    integer, dimension(:), pointer  :: rgh_type
+    integer, dimension(:), pointer  :: fun_type
+
+    !     Explanation:
+    !     -----------
+    !
+    !     1. Each Chezy formula, apart from Engelund bed friction, is defined
+    !        by 1 constant parameter. This constant is stored in bfricp.
+    !        An exception is the Engelund bed friction defined by 10 parameters.
+    !     2. For the Engelund bed friction the specific parameters are stored
+    !        in the array engpar.
+    !
+    !
+    !     Prevention against zero hydraulic radius and depth
+    !
+    
+   if (rgh%useGlobalFriction)then
+      c_par = rgh%frictionValue
+      c_type = rgh%frictionType
+   else
+      rgh_type  => rgh%rgh_type_pos 
+      fun_type  => rgh%fun_type_pos 
+      if (rgh_type(ibranch) ==-1)  then
+         c_par = rgh%frictionValue
+         c_type = rgh%frictionType
+      else
+         ys = 0d0
+             
+         c_par = interpolate(rgh%table(ibranch), chainage, ys)
+         c_type = rgh_type(ibranch)
+      endif
+   endif
+
+end subroutine getFrictionParameters
 
 end module m_Roughness

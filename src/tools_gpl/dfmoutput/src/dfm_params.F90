@@ -1,6 +1,6 @@
 !----- AGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2017-2018.                                
+!  Copyright (C)  Stichting Deltares, 2017-2020.                                
 !                                                                               
 !  This file is part of Delft3D (D-Flow Flexible Mesh component).               
 !                                                                               
@@ -27,8 +27,8 @@
 !                                                                               
 !-------------------------------------------------------------------------------
 
-! $Id: dfm_params.F90 61489 2018-08-29 11:44:45Z mourits $
-! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_gpl/dfmoutput/src/dfm_params.F90 $
+! $Id: dfm_params.F90 65778 2020-01-14 14:07:42Z mourits $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_gpl/dfmoutput/src/dfm_params.F90 $
 
 module dfm_params
 implicit none

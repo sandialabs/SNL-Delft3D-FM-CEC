@@ -33,7 +33,7 @@
  *
  *------------------------------------------------------------------------------
  * $Id: lexan.ll 2711 2013-07-19 09:41:06Z jagers $
- * $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_lgpl/delftonline/src/dolcli/lexan.ll $
+ * $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/delftonline/src/dolcli/lexan.ll $
 */
 
 %option noyywrap

@@ -28,7 +28,7 @@
 !-------------------------------------------------------------------------------
 
 ! $Id: unstruc_version.F90.svn 58948 2018-05-08 08:16:31Z dam_ar $
-! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/dflowfm/packages/dflowfm_kernel/src/unstruc_version.F90.svn $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/dflowfm/packages/dflowfm_kernel/src/unstruc_version.F90.svn $
 module unstruc_version_module
 implicit none
 
@@ -45,7 +45,7 @@ implicit none
     character(*),  public, parameter :: unstruc_version      = unstruc_major//'.'//unstruc_minor//'.'//unstruc_revision//'.'//unstruc_build_number
     character(*),  public, parameter :: unstruc_version_full = 'Deltares, '//unstruc_program//' Version '//unstruc_version//', '//__DATE__//', '//__TIME__
     character(*),  public, parameter :: unstruc_version_id   = '@(#)'//unstruc_version_full
-    character(*),  public, parameter :: unstruc_source_code  = '@(#) $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/dflowfm/packages/dflowfm_kernel/src/unstruc_version.F90.svn $'//char(0)
+    character(*),  public, parameter :: unstruc_source_code  = '@(#) $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/dflowfm/packages/dflowfm_kernel/src/unstruc_version.F90.svn $'//char(0)
 
 contains
     

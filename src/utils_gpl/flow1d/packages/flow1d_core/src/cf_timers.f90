@@ -1,7 +1,7 @@
 module cf_timers
 !----- AGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2017-2018.                                
+!  Copyright (C)  Stichting Deltares, 2017-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify              
 !  it under the terms of the GNU Affero General Public License as               
@@ -25,8 +25,8 @@ module cf_timers
 !  Stichting Deltares. All rights reserved.
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: cf_timers.f90 8044 2018-01-24 15:35:11Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_gpl/flow1d/packages/flow1d_core/src/cf_timers.f90 $
+!  $Id: cf_timers.f90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_gpl/flow1d/packages/flow1d_core/src/cf_timers.f90 $
 !-------------------------------------------------------------------------------
 
       implicit none
@@ -395,8 +395,8 @@ subroutine timdump ( fileunit )
       write (fileunit, '(a,98(i5))' ) '        called    in seconds      %     in seconds       %', &
                                  ( i, i=2,maxlvl)
 
-      cpfact = 100.0d00/cptime(1)
-      wcfact = 100.0d00/wctime(1)
+      cpfact = 100.0d00/max(1d0,cptime(1))
+      wcfact = 100.0d00/max(1d0,wctime(1))
       do i = 1, nohandl
          if ( level(i) == -1 ) cycle
          write (forchr(34:), '(i5,''x,f8.2,'',i6,''x,a40)'')' ) (level(i)-1)*5+2,(maxlvl-level(i))*5+1

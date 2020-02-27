@@ -1,6 +1,6 @@
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
+!  Copyright (C)  Stichting Deltares, 2011-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -24,8 +24,8 @@
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: read_hyd_init.f90 8473 2018-03-29 15:15:45Z jeuke_ml $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_lgpl/io_hyd/packages/io_hyd/src/read_hyd_init.f90 $
+!  $Id: read_hyd_init.f90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/io_hyd/packages/io_hyd/src/read_hyd_init.f90 $
 
       subroutine read_hyd_init(hyd)
 
@@ -78,6 +78,10 @@
       hyd%noseg = hyd%nosegl*hyd%nolay
       hyd%noq   = hyd%noq1 + hyd%noq2 + hyd%noq3
 
+      allocate(hyd%depth(hyd%noseg),stat=ierr_alloc)
+      if ( ierr_alloc .ne. 0 ) goto 970
+      hyd%depth = 0.0
+
       if(hyd%geometry .eq. HYD_GEOM_CURVI) then
          ! allocate and read cco file
    
@@ -89,7 +93,8 @@
       elseif (hyd%geometry .eq. HYD_GEOM_UNSTRUC) then
          ! read the waqgeom and bnd-file
 
-         success = read_waqgeom_file(hyd%file_geo%name, hyd%meta, hyd%crs, hyd%waqgeom, hyd%edge_type, hyd%conv_type, hyd%conv_version)
+         success = read_waqgeom_file(hyd%file_geo%name, hyd%meta, hyd%crs, hyd%waqgeom, hyd%edge_type, &
+                                     hyd%idomain, hyd%iglobal, hyd%conv_type, hyd%conv_version)
 
          if(.not.success) then
             if (hyd%conv_type == IONC_CONV_UGRID .and. hyd%conv_version<1.0) then
@@ -132,9 +137,6 @@
          call read_hsrf(hyd%file_hsrf, hyd%noseg, hyd%surf )
       endif
 
-      allocate(hyd%depth(hyd%noseg),stat=ierr_alloc)
-      if ( ierr_alloc .ne. 0 ) goto 970
-      hyd%depth = 0.0
       if ( hyd%file_dps%name .ne. ' ' ) then
          call read_srf(hyd%file_dps, hyd%mmax, hyd%nmax, hyd%nosegl, hyd%depth )
       endif

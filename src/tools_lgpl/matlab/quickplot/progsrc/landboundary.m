@@ -42,7 +42,7 @@ function varargout=landboundary(cmd,varargin)
 
 %----- LGPL --------------------------------------------------------------------
 %                                                                               
-%   Copyright (C) 2011-2018 Stichting Deltares.                                     
+%   Copyright (C) 2011-2020 Stichting Deltares.                                     
 %                                                                               
 %   This library is free software; you can redistribute it and/or                
 %   modify it under the terms of the GNU Lesser General Public                   
@@ -67,8 +67,8 @@ function varargout=landboundary(cmd,varargin)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/landboundary.m $
-%   $Id: landboundary.m 8167 2018-02-15 12:27:14Z jagers $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/landboundary.m $
+%   $Id: landboundary.m 65778 2020-01-14 14:07:42Z mourits $
 
 if nargout>0
     varargout=cell(1,nargout);

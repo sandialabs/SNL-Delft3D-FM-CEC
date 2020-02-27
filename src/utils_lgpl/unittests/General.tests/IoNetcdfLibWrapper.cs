@@ -254,6 +254,12 @@ namespace General.tests
         [DllImport(LibDetails.LIB_DLL_NAME, EntryPoint = "ionc_inq_varids", CallingConvention = CallingConvention.Cdecl)]
         private static extern int ionc_inq_varids_dll(ref int ioncid, ref int meshId, ref int location, ref IntPtr ptr, ref int nVar);
 
+        [DllImport(LibDetails.LIB_DLL_NAME, EntryPoint = "ionc_def_var", CallingConvention = CallingConvention.Cdecl)]
+        private static extern int ionc_def_var_dll(ref int ioncid, ref int meshId, ref int varId, ref int type, ref int locType, string varName, string standardName, string longName, string unit, ref double fillValue);
+
+        [DllImport(LibDetails.LIB_DLL_NAME, EntryPoint = "ionc_inq_varid", CallingConvention = CallingConvention.Cdecl)]
+        private static extern int ionc_inq_varid_dll(ref int ioncid, ref int meshId, string varName, ref int varId);
+
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         public delegate void IO_NetCDF_Message_Callback(int level, [MarshalAs(UnmanagedType.LPStr)]string message);
 
@@ -272,6 +278,11 @@ namespace General.tests
         [DllImport(LibDetails.LIB_DLL_NAME, EntryPoint = "ionc_put_node_coordinates", CallingConvention = CallingConvention.Cdecl)]
         private static extern int ionc_put_node_coordinates_dll(ref int ioncid, ref int meshid, ref IntPtr c_xvalues_ptr, ref IntPtr c_yvalues_ptr, ref int nNode);
 
+        [DllImport(LibDetails.LIB_DLL_NAME, EntryPoint = "ionc_inq_varid_by_standard_name",
+            CallingConvention = CallingConvention.Cdecl)]
+        private static extern int ionc_inq_varid_by_standard_name_dll(ref int ioncid, ref int meshId, ref int location,
+            string standardName, ref int varId);
+
         #endregion
         #region UGRID 1D Specifics
 
@@ -280,6 +291,7 @@ namespace General.tests
         /// </summary>
         public const int idssize = 40;
         public const int longnamessize = 80;
+        public const int namesize = 255;
         [StructLayout(LayoutKind.Sequential)]
         public struct interop_charinfo
         {
@@ -390,6 +402,9 @@ namespace General.tests
         [DllImport(LibDetails.LIB_DLL_NAME, EntryPoint = "ionc_create_1d_mesh", CallingConvention = CallingConvention.Cdecl)]
         private static extern int ionc_create_1d_mesh_dll([In] ref int ioncid, [In] string networkname, [In, Out] ref int meshid, string meshname, [In] ref int nmeshpoints);
 
+        [DllImport(LibDetails.LIB_DLL_NAME, EntryPoint = "ionc_create_1d_mesh_v1", CallingConvention = CallingConvention.Cdecl)]
+        private static extern int ionc_create_1d_mesh_v1_dll([In] ref int ioncid, [In] string networkname, [In, Out] ref int meshid, string meshname, [In] ref int nmeshpoints,[In] ref int nedges, [In] ref int writexy);
+
         /// <summary>
         /// Writes the mesh coordinates points 
         /// </summary>
@@ -402,6 +417,15 @@ namespace General.tests
         /// <returns></returns>
         [DllImport(LibDetails.LIB_DLL_NAME, EntryPoint = "ionc_put_1d_mesh_discretisation_points", CallingConvention = CallingConvention.Cdecl)]
         private static extern int ionc_put_1d_mesh_discretisation_points_dll([In] ref int ioncid, [In] ref int meshid, [In] ref IntPtr c_branchidx, [In] ref IntPtr c_offset, interop_charinfo[] nodeinfo, [In] ref int nmeshpoints, [In] ref int startIndex);
+
+
+        [DllImport(LibDetails.LIB_DLL_NAME, EntryPoint = "ionc_put_1d_mesh_discretisation_points_v1", CallingConvention = CallingConvention.Cdecl)]
+        private static extern int ionc_put_1d_mesh_discretisation_points_v1_dll([In] ref int ioncid, [In] ref int meshid, [In] ref IntPtr c_branchidx, [In] ref IntPtr c_offset, interop_charinfo[] nodeinfo, [In] ref int nmeshpoints, [In] ref int startIndex, [In] ref IntPtr c_coordx, [In] ref IntPtr c_coordy);
+
+
+        [DllImport(LibDetails.LIB_DLL_NAME, EntryPoint = "ionc_put_1d_mesh_discretisation_points_v2", CallingConvention = CallingConvention.Cdecl)]
+        private static extern int ionc_put_1d_mesh_discretisation_points_v2_dll([In] ref int ioncid, [In] ref int meshid, [In] ref IntPtr c_branchidx, [In] ref IntPtr c_offset, [In] ref IntPtr c_ids, [In] ref IntPtr c_long_names, [In] ref int nmeshpoints, [In] ref int startIndex, [In] ref IntPtr c_coordx, [In] ref IntPtr c_coordy);
+
 
         /// <summary>
         /// Get the number of network nodes
@@ -638,6 +662,21 @@ namespace General.tests
         [DllImport(LibDetails.LIB_DLL_NAME, EntryPoint = "ionc_get_meshgeom", CallingConvention = CallingConvention.Cdecl)]
         public static extern int ionc_get_meshgeom_dll([In] ref int ioncid, [In] ref int meshid, [In] ref int networkid, [In, Out] ref meshgeom meshgeom, [In] ref int start_index, [In] ref bool includeArrays);
 
+
+        /// <summary>
+        /// Get meshgeom without start_index and includeArrays parameters
+        /// </summary>
+        /// <param name="ioncid"> The input file id</param>
+        /// <param name="meshid"> The input meshid</param>
+        /// <param name="networkid">The input network id. If set to -1 no network arrays will be returned </param>
+        /// <param name="meshgeom"> The output structure containing the pointers to the arrays</param>
+        /// <param name="meshgeomdim">The output structure containing the arrays dimensions</param>
+        /// <returns></returns>
+
+        [DllImport(LibDetails.LIB_DLL_NAME, EntryPoint = "ionc_get_meshgeom_v1", CallingConvention = CallingConvention.Cdecl)]
+        public static extern int ionc_get_meshgeom_v1_dll([In] ref int ioncid, [In] ref int meshid, [In] ref int networkid, [In, Out] ref meshgeom meshgeom);
+        
+
         [DllImport(LibDetails.LIB_DLL_NAME, EntryPoint = "ionc_get_meshgeom_dim", CallingConvention = CallingConvention.Cdecl)]
         public static extern int ionc_get_meshgeom_dim_dll([In] ref int ioncid, [In] ref int meshid, [In] ref int networkid, [In, Out] ref meshgeomdim meshgeomdim);
 
@@ -649,6 +688,34 @@ namespace General.tests
 
         [DllImport(LibDetails.LIB_DLL_NAME, EntryPoint = "ionc_get_var_chars", CallingConvention = CallingConvention.Cdecl)]
         public static extern int ionc_get_var_chars_dll([In] ref int ioncid, [In] ref int meshid, [MarshalAs(UnmanagedType.LPStr)][In, Out] StringBuilder varname, [In, Out] interop_charinfo[] values, [In] ref int nvalues);
+
+        [DllImport(LibDetails.LIB_DLL_NAME, EntryPoint = "ionc_put_meshgeom", CallingConvention = CallingConvention.Cdecl)]
+        public static extern int ionc_put_meshgeom_dll([In] ref int ioncid, [In,Out] ref int meshid, [In, Out] ref int networkid, [In] ref meshgeom meshgeom, [In] ref meshgeomdim meshgeomdim, [In] string c_meshname, [In] string c_networkName, [In] ref int start_index);
+
+
+        /// <summary>
+        /// Put meshgeom without start_index and network name parameters
+        /// </summary>
+        /// <param name="ioncid"> The input file id</param>
+        /// <param name="meshid"> The returned meshid</param>
+        /// <param name="networkid">The returned network id. If set to -1 no network will be written </param>
+        /// <param name="meshgeom"> The input structure containing the arrays to write</param>
+        /// <param name="meshgeomdim">The input structure containing the dimensions of the arrays</param>
+        /// <returns></returns>
+        [DllImport(LibDetails.LIB_DLL_NAME, EntryPoint = "ionc_put_meshgeom_v1", CallingConvention = CallingConvention.Cdecl)]
+        public static extern int ionc_put_meshgeom_v1_dll([In] ref int ioncid, [In, Out] ref int meshid, [In, Out] ref int networkid, [In] ref meshgeom meshgeom, [In] ref meshgeomdim meshgeomdim);
+
+        /// <summary>
+        /// Put a network to file
+        /// </summary>
+        /// <param name="ioncid"></param>
+        /// <param name="networkid"></param>
+        /// <param name="networkgeom"></param>
+        /// <param name="networkgeomdim"></param>
+        /// <returns></returns>
+        [DllImport(LibDetails.LIB_DLL_NAME, EntryPoint = "ionc_put_network", CallingConvention = CallingConvention.Cdecl)]
+        public static extern int ionc_put_network_dll([In] ref int ioncid, [In, Out] ref int networkid, [In] ref meshgeom networkgeom, [In] ref meshgeomdim networkgeomdim);
+
 
         #region Implementation of LibWrapper
 
@@ -820,10 +887,28 @@ namespace General.tests
             return ionc_create_1d_mesh_dll(ref ioncid, networkname, ref meshid, meshname, ref nmeshpoints);
         }
 
+        public int ionc_create_1d_mesh_v1(ref int ioncid, string networkname, ref int meshid, string meshname, ref int nmeshpoints, ref int nedges, ref int writexy)
+        {
+            return ionc_create_1d_mesh_v1_dll(ref ioncid, networkname, ref meshid, meshname, ref nmeshpoints, ref nedges, ref writexy);
+        }
+
         public int ionc_put_1d_mesh_discretisation_points(ref int ioncid, ref int networkid, ref IntPtr c_branchidx,
             ref IntPtr c_offset, interop_charinfo[]  nodeinfo, ref int nmeshpoints, ref int startIndex)
         {
             return ionc_put_1d_mesh_discretisation_points_dll(ref ioncid, ref networkid, ref c_branchidx, ref c_offset, nodeinfo, ref nmeshpoints, ref startIndex);
+        }
+
+        public int ionc_put_1d_mesh_discretisation_points_v1(ref int ioncid, ref int networkid, ref IntPtr c_branchidx,
+            ref IntPtr c_offset, interop_charinfo[] nodeinfo, ref int nmeshpoints, ref int startIndex, ref IntPtr c_coordx, ref IntPtr c_coordy)
+        {
+            return ionc_put_1d_mesh_discretisation_points_v1_dll(ref ioncid, ref networkid, ref c_branchidx, ref c_offset, nodeinfo, ref nmeshpoints, ref startIndex, ref c_coordx, ref c_coordy);
+        }
+
+
+        public virtual int ionc_put_1d_mesh_discretisation_points_v2(ref int ioncid, ref int networkid, ref IntPtr c_branchidx,
+            ref IntPtr c_offset, ref IntPtr nodeids, ref IntPtr nodelongnames, ref int nmeshpoints, ref int startIndex, ref IntPtr c_coordx, ref IntPtr c_coordy)
+        {
+            return  ionc_put_1d_mesh_discretisation_points_v2_dll(ref ioncid, ref networkid, ref c_branchidx, ref c_offset, ref nodeids,  ref nodelongnames,ref nmeshpoints, ref startIndex, ref c_coordx, ref c_coordy);
         }
 
         public int ionc_get_1d_network_nodes_count(ref int ioncid, ref int networkid, ref int nNodes)
@@ -964,6 +1049,16 @@ namespace General.tests
             return ionc_get_meshgeom_dll(ref ioncid, ref meshid, ref networkid, ref meshgeom, ref start_index, ref includeArrays);
         }
 
+        public int ionc_get_meshgeom(ref int ioncid, ref int meshid, ref int networkid, ref meshgeom meshgeom)
+        {
+            return ionc_get_meshgeom_v1_dll(ref ioncid, ref meshid, ref networkid, ref meshgeom);
+        }
+
+        public int ionc_put_network(ref int ioncid, ref int networkid, ref meshgeom networkgeom, ref meshgeomdim networkgeomdim)
+        {
+            return ionc_put_network_dll(ref  ioncid, ref networkid, ref  networkgeom, ref networkgeomdim);
+        }
+
         public int ionc_get_meshgeom_dim(ref int ioncid, ref int meshid, ref int networkid, ref meshgeomdim meshgeomdim)
         {
             return ionc_get_meshgeom_dim_dll(ref  ioncid, ref  meshid, ref networkid, ref meshgeomdim);
@@ -983,6 +1078,33 @@ namespace General.tests
         {
             return ionc_get_var_chars_dll(ref ioncid, ref meshid, varname, values, ref nvalues);
         }
-   
+
+        public int ionc_put_meshgeom(ref int ioncid, ref int meshid, ref int networkid, ref meshgeom meshgeom, ref meshgeomdim meshgeomdim, string c_meshname, string c_networkName, ref int start_index)
+        {
+            return ionc_put_meshgeom_dll(ref ioncid, ref  meshid, ref  networkid, ref  meshgeom, ref  meshgeomdim,  c_meshname,  c_networkName, ref  start_index);
+        }
+
+        public int ionc_put_meshgeom(ref int ioncid, ref int meshid, ref int networkid, ref meshgeom meshgeom, ref meshgeomdim meshgeomdim)
+        {
+            return ionc_put_meshgeom_v1_dll(ref ioncid, ref meshid, ref networkid, ref meshgeom, ref meshgeomdim);
+        }
+
+        public int ionc_inq_varid_by_standard_name(ref int ioncid, ref int meshId, ref int location, string standardName, ref int varId)
+        {
+            return ionc_inq_varid_by_standard_name_dll(ref ioncid, ref meshId, ref location, standardName, ref varId);
+        }
+        public virtual int InqueryVariableId(int ioncId, int meshId, string varName, ref int varId)
+        {
+            return ionc_inq_varid_dll(ref ioncId, ref meshId, varName, ref varId);
+        }
+        public virtual int DefineVariable(int ioncId, int meshId, int varId, int type, int locationType, string varName, string standardName, string longName, string unit, double fillValue)
+        {
+            return ionc_def_var_dll(ref ioncId, ref meshId, ref varId, ref type, ref locationType, varName, standardName,
+             longName, unit, ref fillValue);
+        }
+        public virtual int PutVariable(int ioncId, int meshId, int locationType, string varname, IntPtr valuesPtr, int numberOfValues)
+        {
+            return ionc_put_var_dll(ref ioncId, ref meshId, ref locationType, varname, ref valuesPtr, ref numberOfValues);
+        }
     }
 }

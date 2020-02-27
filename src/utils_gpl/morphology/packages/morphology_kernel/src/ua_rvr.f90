@@ -2,7 +2,7 @@ subroutine ua_rvr(facas,    facsk,    sws,    h,    hrms, &
                &  rlabda, uorb, ua)
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
+!  Copyright (C)  Stichting Deltares, 2011-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -26,8 +26,8 @@ subroutine ua_rvr(facas,    facsk,    sws,    h,    hrms, &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: ua_rvr.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_gpl/morphology/packages/morphology_kernel/src/ua_rvr.f90 $
+!  $Id: ua_rvr.f90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_gpl/morphology/packages/morphology_kernel/src/ua_rvr.f90 $
 !!--description-----------------------------------------------------------------
 ! computes velocity asymmetry due to waves according to
 ! Ruessink et al. 2009 JGR

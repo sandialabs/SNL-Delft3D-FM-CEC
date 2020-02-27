@@ -3,7 +3,7 @@ function qp_updatefieldprop(UD)
 
 %----- LGPL --------------------------------------------------------------------
 %                                                                               
-%   Copyright (C) 2011-2018 Stichting Deltares.                                     
+%   Copyright (C) 2011-2020 Stichting Deltares.                                     
 %                                                                               
 %   This library is free software; you can redistribute it and/or                
 %   modify it under the terms of the GNU Lesser General Public                   
@@ -28,8 +28,8 @@ function qp_updatefieldprop(UD)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/private/qp_updatefieldprop.m $
-%   $Id: qp_updatefieldprop.m 62256 2018-10-04 20:53:05Z jagers $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/private/qp_updatefieldprop.m $
+%   $Id: qp_updatefieldprop.m 65778 2020-01-14 14:07:42Z mourits $
 
 MW=UD.MainWin;
 Inactive=UD.Inactive;
@@ -125,7 +125,14 @@ if isfield(Props,'UseGrid') && ~isempty(Props(fld).UseGrid) && Props(fld).UseGri
     % Gridview information: update grid view when shown
     %
     if strcmp(get(UD.GridView.Fig,'visible'),'on')
-        qp_gridviewhelper(UD,Info,DomainNr,Props,fld)
+        try
+            qp_gridviewhelper(UD,Info,DomainNr,Props,fld)
+        catch err
+            qp_gridview('setgrid',UD.GridView.Fig,[])
+            set(UD.GridView.Fig,'userdata',[])
+            d3d_qp hidegridview
+            rethrow(err)
+        end
     end
 else
     %
@@ -324,7 +331,7 @@ else
     % no m,n
     set(MW.HSelType,'enable','off','string',{'M range and N range'},'value',1,'backgroundcolor',Inactive)
 end
-if 1%~DimFlag(K_)
+if ~DimFlag(K_)
     set(MW.VSelType,'enable','off','backgroundcolor',Inactive)
 end
 if strcmp(get(MW.HSelType,'enable'),'off')
@@ -658,22 +665,27 @@ set(MW.TList,'enable','off','max',2,'value',[],'string','','backgroundcolor',UD.
 % Station controls ...
 %
 set(MW.S,'enable','off')
-set(MW.AllS,'enable','off','visible','off')
-set(MW.EditS,'enable','off','string','','backgroundcolor',UD.Inactive,'visible','off')
-set(MW.MaxS,'enable','off','string','-','visible','off')
+set(MW.AllS,'enable','off')
+set(MW.EditS,'enable','off','string','','backgroundcolor',UD.Inactive)
+set(MW.MaxS,'enable','off','string','-')
 set(MW.StList,'enable','off','value',1,'string',' ','backgroundcolor',UD.Inactive)
 %
 % MNK/XYZ selection controls ...
 %
-set(MW.HSelType,'enable','off','backgroundcolor',UD.Inactive)
+set(MW.HSelType,'enable','off','backgroundcolor',UD.Inactive')
 set(MW.VSelType,'enable','off','backgroundcolor',UD.Inactive)
 %
 % MN/XY controls ...
 %
 set(MW.MN,'enable','off')
 set(MW.EditMN,'enable','off','backgroundcolor',UD.Inactive)
+set(MW.MNrev,'enable','off')
+set(MW.MN2XY,'enable','off')
+set(MW.MN2M,'enable','off')
 set(MW.XY,'enable','off')
 set(MW.EditXY,'enable','off','backgroundcolor',UD.Inactive)
+set(MW.LoadXY,'enable','off')
+set(MW.SaveXY,'enable','off')
 %
 % M controls ...
 %
@@ -695,6 +707,11 @@ set(MW.K,'enable','off')
 set(MW.AllK,'enable','off')
 set(MW.EditK,'enable','off','string','','backgroundcolor',UD.Inactive)
 set(MW.MaxK,'enable','off','string','-')
+%
+% Z controls ...
+%
+set(MW.Z,'enable','off')
+set(MW.EditZ,'enable','off','string','','backgroundcolor',UD.Inactive)
 %
 % Plot buttons ...
 %

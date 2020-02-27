@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2018.
+!!  Copyright (C)  Stichting Deltares, 2012-2020.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -46,6 +46,8 @@
       use partmem        ! for the interface with Delpar (Tau and VertDisp)
       use timers         ! performance timers
       implicit none
+
+      include 'omp_lib.h'
 
 !     declaration of arguments
 
@@ -213,6 +215,8 @@
             nothrd = nint(dlwqdata%values(inothr,1,1))
             write(lunut,2310)
             write(lunut,2320) nothrd
+            if ( nothrd .gt. 0 ) call omp_set_num_threads( nothrd )
+            nothrd = omp_get_max_threads()
          else
             nothrd = 1
          endif

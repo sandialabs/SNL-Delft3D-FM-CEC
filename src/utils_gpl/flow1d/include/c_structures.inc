@@ -4,8 +4,6 @@
      real(c_double) :: y
      integer(c_int) :: branchid
      real(c_double) :: chainage
-     integer(c_int) :: left_calc_point
-     integer(c_int) :: right_calc_point
      integer(c_int) :: link_number
      real(c_double) :: crest_level
      real(c_double) :: crest_width
@@ -19,8 +17,6 @@
      real(c_double) :: y
      integer(c_int) :: branchid
      real(c_double) :: chainage
-     integer(c_int) :: left_calc_point
-     integer(c_int) :: right_calc_point
      integer(c_int) :: link_number
      real(c_double) :: crest_level
      real(c_double) :: crest_width
@@ -37,13 +33,10 @@
      real(c_double) :: y
      integer(c_int) :: branchid
      real(c_double) :: chainage
-     integer(c_int) :: left_calc_point
-     integer(c_int) :: right_calc_point
      integer(c_int) :: link_number
      real(c_double) :: start_level_suction_side
      real(c_double) :: stop_level_suction_side
      real(c_double) :: capacity
-     real(c_double) :: oldcapacity
      real(c_double) :: reduction_factor
      integer(c_int) :: actual_stage
      logical(c_bool) :: is_active
@@ -54,8 +47,6 @@
      real(c_double) :: y
      integer(c_int) :: branchid
      real(c_double) :: chainage
-     integer(c_int) :: left_calc_point
-     integer(c_int) :: right_calc_point
      integer(c_int) :: link_number
      real(c_double) :: left_level
      real(c_double) :: right_level

@@ -1,7 +1,7 @@
 module m_Orifice
 !----- AGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2017-2018.                                
+!  Copyright (C)  Stichting Deltares, 2017-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify              
 !  it under the terms of the GNU Affero General Public License as               
@@ -25,8 +25,8 @@ module m_Orifice
 !  Stichting Deltares. All rights reserved.
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: Orifice.f90 59590 2018-07-16 14:11:25Z zeekant $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_gpl/flow1d/packages/flow1d_core/src/Orifice.f90 $
+!  $Id: Orifice.f90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_gpl/flow1d/packages/flow1d_core/src/Orifice.f90 $
 !-------------------------------------------------------------------------------
 
    implicit none
@@ -50,23 +50,6 @@ contains
 
 subroutine ComputeOrifice(orifice, fum, rum, aum, dadsm, kfum, s1m1, s1m2, qm, q0m,   &
                  & u1m, u0m, dxm, dt, state)
-!!--copyright-------------------------------------------------------------------
-! Copyright (c) 2003, Deltares. All rights reserved.
-!!--disclaimer------------------------------------------------------------------
-! This code is part of the Delft3D software system. Deltares has
-! developed c.q. manufactured this code to its best ability and according to the
-! state of the art. Nevertheless, there is no express or implied warranty as to
-! this software whether tangible or intangible. In particular, there is no
-! express or implied warranty as to the fitness for a particular purpose of this
-! software, whether tangible or intangible. The intellectual property rights
-! related to this software code remain with Deltares at all times.
-! For details on the licensing agreement, we refer to the Delft3D software
-! license and any modifications to this license, if applicable. These documents
-! are available upon request.
-!!--version information---------------------------------------------------------
-! $Author$
-! $Date$
-! $Revision$
 !!--description-----------------------------------------------------------------
 ! NONE
 !!--pseudo code and references--------------------------------------------------
@@ -177,22 +160,21 @@ subroutine ComputeOrifice(orifice, fum, rum, aum, dadsm, kfum, s1m1, s1m2, qm, q
     ! ARS 7367, 7966 wrong value of dynstruc set here
     !     dynstruc=1.0  dynstruc is set by ini-file
 
-    rhsc = 0.0
+    rhsc = 0.0d0
 
     !     made similar condition as in wtcrsu
-    if (2./3.*(smax - scr)<sop - scr) then
+    if (2.0d0/3.0d0*(smax - scr)<sop - scr) then
        !        weir flow; 2/3 ( h_1 - z_s) < d_g = s_op - z_s
-       if (smax - scr<=1.5*(smin - scr)) then
+       if ((smax - scr) <= 1.5d0 * (smin - scr)) then
           !          submerged weir flow;  h_1 - z_s <= 3/2 (h_2 - z_s)
           state = 2
-          cu = cmu**2*2.0d0*gravity/(StructureDynamicsFactor*dxm)
+          cu = cmu**2 * 2.0d0 * gravity/(StructureDynamicsFactor * dxm)
           !          ARS 4681 improved wetted area computation
           !          ARS 3479 wetted area orifice limited to opening
-          aum = min(max(smax - u0m**2/(2.0d0*gravity) - scr, 2.0d0/3.0d0*(smax - scr))*swi,   &
-              & scf*(sop - scr)*swi)
-          uweir = cmu*dsqrt(gravity*2.0d0*(smax - smin))
-          fr = dabs(uweir)/(StructureDynamicsFactor*dxm)
-          rhsc = 0.0
+          aum = max(smax - u0m * u0m / (2.0d0*gravity) - scr, 2.0d0/3.0d0*(smax - scr)) * swi
+          uweir = cmu*dsqrt(gravity * 2.0d0 * (smax - smin))
+          fr = dabs(uweir) / (StructureDynamicsFactor * dxm)
+          rhsc = 0.0d0
           dadsm = swi
        else
           !          free weir flow;  h_1 - z_s > 3/2 (h_2 - z_s)
@@ -234,7 +216,7 @@ subroutine ComputeOrifice(orifice, fum, rum, aum, dadsm, kfum, s1m1, s1m2, qm, q
     endif
     dxdt = 1.0/dt
     
-    call furu_iter(fum, rum, s1m2, s1m1, u1m, u0m, q0m, aum, fr, cu, rhsc, dxdt)
+    call furu_iter(fum, rum, s1m2, s1m1, u1m, q0m, aum, fr, cu, rhsc, dxdt, 0d0, 0d0, 0d0, 0d0)
 
     qtm = aum*u1m
     !

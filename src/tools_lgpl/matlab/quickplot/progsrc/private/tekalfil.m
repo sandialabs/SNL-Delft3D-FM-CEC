@@ -18,7 +18,7 @@ function varargout=tekalfil(FI,domain,field,cmd,varargin)
 
 %----- LGPL --------------------------------------------------------------------
 %                                                                               
-%   Copyright (C) 2011-2018 Stichting Deltares.                                     
+%   Copyright (C) 2011-2020 Stichting Deltares.                                     
 %                                                                               
 %   This library is free software; you can redistribute it and/or                
 %   modify it under the terms of the GNU Lesser General Public                   
@@ -43,8 +43,8 @@ function varargout=tekalfil(FI,domain,field,cmd,varargin)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/private/tekalfil.m $
-%   $Id: tekalfil.m 7992 2018-01-09 10:27:35Z mourits $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/private/tekalfil.m $
+%   $Id: tekalfil.m 65778 2020-01-14 14:07:42Z mourits $
 
 %========================= GENERAL CODE =======================================
 
@@ -217,7 +217,28 @@ switch FI.FileType
             end
             Data = cat(1,Data{:});
         elseif isfield(FI,'combinelines') && FI.combinelines % LDB
-            Data=tekal('read',FI,0);
+            switch Props.Name
+                case 'lines'
+                    Data=tekal('read',FI,idx{M_});
+                    already_selected = 1;
+                case 'labels'
+                    Data=tekal('read',FI,idx{M_});
+                    if iscell(Data)
+                        for i = 1:numel(Data)
+                            d = Data{i};
+                            j = find(d(:,1)~=999.999 | d(:,2)~=999.999);
+                            Data{i} = d(j(1),:);
+                        end
+                        Data=cat(1,Data{:});
+                    else
+                        j = find(Data(:,1)~=999.999 | Data(:,2)~=999.999);
+                        Data = Data(j(1),:);
+                    end
+                    val1 = {FI.Field(idx{M_}).Name};
+                    already_selected = 1;
+                otherwise
+                    Data=tekal('read',FI,0);
+            end
             if iscell(Data) % if there is more than one block
                 for i=1:length(Data)-1
                     Data{i}(end+1,:)=NaN;
@@ -238,7 +259,15 @@ switch FI.FileType
             end
         end
         if strcmp(Props.Geom,'POLYL')
-            Data(Data(:,1)==999.999 & Data(:,2)==999.999,:)=NaN;
+            if iscell(Data)
+                for i = 1:numel(Data)
+                    d = Data{i};
+                    d(d(:,1)==999.999 & d(:,2)==999.999,:) = NaN;
+                    Data{i} = d;
+                end
+            else
+                Data(Data(:,1)==999.999 & Data(:,2)==999.999,:)=NaN;
+            end
         end
     case 'AutoCAD DXF'
         Data=FI.Lines(1:2,:)';
@@ -576,17 +605,21 @@ switch FI.FileType
         elseif isfield(FI,'combinelines') && FI.combinelines
             if FI.Field(1).Size(2)==3 % pliz-file
                 DataProps={'line'              'POLYL' 'xy'    [0 0 1 0 0]   0           0       0       0       1          []      {}
+                           'lines'             'POLYL' 'xy'    [0 0 1 0 0]   0           0       0       0       1          []      {}
+                           'labels'            'PNT'   'xy'    [0 0 1 0 0]   0           4       0       0       1          []      {}
                            'column 3'          'POLYL' 'xy'    [0 0 1 0 0]   0           1       0       0       0          []      {}  };
                 if ~isempty(FI.Field(1).ColLabels{3})
-                    DataProps{2,1} = FI.Field(1).ColLabels{3};
+                    DataProps{4,1} = FI.Field(1).ColLabels{3};
                 else
                     [p,f,e]=fileparts(FI.FileName);
                     if strcmpi(e,'.pliz')
-                        DataProps{2,1} = 'elevation';
+                        DataProps{4,1} = 'elevation';
                     end
                 end
             else
-                DataProps={'line'              'POLYL' 'xy'    [0 0 1 0 0]   0           0       0       0       1          []      {}  };
+                DataProps={'line'              'POLYL' 'xy'    [0 0 1 0 0]   0           0       0       0       1          []      {}
+                           'lines'             'POLYL' 'xy'    [0 0 1 0 0]   0           0       0       0       1          []      {}
+                           'labels'            'PNT'   'xy'    [0 0 1 0 0]   0           4       0       0       1          []      {}  };
             end
         else
             [p,f,e]=fileparts(FI.FileName);
@@ -596,6 +629,7 @@ switch FI.FileType
                         switch length(FI.Field(i).Size)
                             case 2 % 1D
                                 Col1 = lower(FI.Field(i).ColLabels{1});
+                                Col2 = '';
                                 if length(FI.Field(i).ColLabels)>=2
                                     Col2 = lower(FI.Field(i).ColLabels{2});
                                     if isequal(Col1,'date') && isequal(Col2,'time')
@@ -604,6 +638,12 @@ switch FI.FileType
                                         Col1='date and time';
                                     elseif isequal(Col1,'yyyymmdd') && isequal(Col2,'hhmmss')
                                         Col1='date and time';
+                                    end
+                                end
+                                if strncmpi(Col1,'x coord',7) || strncmpi(Col1,'x-coord',7)
+                                    Col1 = 'x-coordinate';
+                                    if strncmpi(Col2,'y coord',7) || strncmpi(Col2,'y-coord',7)
+                                        Col1 = 'x- and y-coordinate';
                                     end
                                 end
                                 if strncmpi(Col1,'z coord',7) || strncmpi(Col1,'z-coord',7)
@@ -630,6 +670,10 @@ switch FI.FileType
                                         DataProps(end+1,:)=DP;
                                     case {'z-coordinate'}
                                         DP={'field X'    'PNT+' 'z'  [0 5 0 0 1]  0          1       i       0       0          []      {}  };
+                                        DP{1}=sprintf('%s',FI.Field(i).Name);
+                                        DataProps(end+1,:)=DP;
+                                    case {'x- and y-coordinate'}
+                                        DP={'field X'    'PNT' 'xy'  [0 5 1 0 0]  0          1       i       0       0          []      {}  };
                                         DP{1}=sprintf('%s',FI.Field(i).Name);
                                         DataProps(end+1,:)=DP;
                                     otherwise
@@ -911,8 +955,13 @@ switch FI.FileType
         if isfield(FI,'plotonpoly')
             sz(M_)=FI.Field.Size(1);
         elseif isfield(FI,'combinelines') && FI.combinelines
-            szi=cat(1,FI.Field.Size);
-            sz(M_)=sum(szi(:,1))+length(FI.Field)-1;
+            switch Props.Name
+                case {'lines','labels'}
+                    sz(M_) = length(FI.Field);
+                otherwise
+                    szi=cat(1,FI.Field.Size);
+                    sz(M_)=sum(szi(:,1))+length(FI.Field)-1;
+            end
         elseif strcmp(FI.Field(blck).DataTp,'annotation')
             if Props.DimFlag(ST_)
                 sz(ST_)=FI.Field(blck).Size(1);

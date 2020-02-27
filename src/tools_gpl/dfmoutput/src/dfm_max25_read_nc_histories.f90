@@ -1,6 +1,6 @@
 !----- AGPL --------------------------------------------------------------------
 !
-!  Copyright (C)  Stichting Deltares, 2017-2018.
+!  Copyright (C)  Stichting Deltares, 2017-2020.
 !
 !  This file is part of Delft3D (D-Flow Flexible Mesh component).
 !
@@ -27,12 +27,13 @@
 !
 !-------------------------------------------------------------------------------
 
-! $Id: dfm_max25_read_nc_histories.f90 61890 2018-09-21 16:17:00Z spee $
-! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_gpl/dfmoutput/src/dfm_max25_read_nc_histories.f90 $
+! $Id: dfm_max25_read_nc_histories.f90 65778 2020-01-14 14:07:42Z mourits $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_gpl/dfmoutput/src/dfm_max25_read_nc_histories.f90 $
 
 !> READ_NC_HISTORIES - Subroutine to read the histories from a NetCDF file
 
 module read_nc_histories
+   use precision
    use netcdf
    use dfm_params
    implicit none
@@ -42,6 +43,11 @@ module read_nc_histories
    private
 
    public :: read_meta_data, read_data, close_nc_his_file, read_station_names
+
+   interface read_data
+      module procedure read_data_r4
+      module procedure read_data_r8
+   end interface read_data
 
    contains
 
@@ -70,7 +76,7 @@ module read_nc_histories
    end function read_meta_data
 
    !> read data from an already opened NetCDF file
-   function read_data(histories, name) result(status)
+   function read_data_r4(histories, name) result(status)
       real, allocatable, intent(out) :: histories(:,:)  !< output array
       character(len=*), intent(in)   :: name            !< variabele name on NetCDF file
       integer                        :: status          !< function result: 0=OK
@@ -103,7 +109,43 @@ module read_nc_histories
             enddo
          enddo
       endif
-   end function read_data
+   end function read_data_r4
+
+   !> read data from an already opened NetCDF file, double precision
+   function read_data_r8(histories, name) result(status)
+      real(kind=hp), allocatable, intent(out) :: histories(:,:)  !< output array
+      character(len=*), intent(in)            :: name            !< variabele name on NetCDF file
+      integer                                 :: status          !< function result: 0=OK
+
+      integer                    :: varid
+      integer                    :: nVar
+      integer                    :: t, s
+      character(len=80)          :: namei
+      real(kind=hp), allocatable :: buffer(:)
+
+      status = nf90_inquire(ncid, nVariables = nVar)
+      do varid = 1, nVar
+         status = nf90_inquire_variable(ncid, varId, namei)
+         if (name == namei) exit
+      enddo
+
+      if (varid > nVar) then
+         write(*,*) 'varname ', trim(name), ' not found.'
+         stop -1
+      endif
+
+      if (status == nf90_noerr) then
+         allocate(buffer(nStations), histories(nTimes, nStations), stat=status)
+         if (status /= 0) call allocate_error('read_data', 'histories', nStations * (1 + nTimes))
+         do t = 1, nTimes
+            status = nf90_get_var(ncid, varId, buffer, start=[1,t], count=[nstations,1])
+            if (status /= nf90_noerr) exit
+            do s = 1, nStations
+               histories(t, s) = buffer(s)
+            enddo
+         enddo
+      endif
+   end function read_data_r8
 
    !> read station names from an already opened NetCDF file
    function read_station_names(stations, stations_varname) result(status)

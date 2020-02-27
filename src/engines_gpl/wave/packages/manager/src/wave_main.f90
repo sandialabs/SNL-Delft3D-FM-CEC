@@ -1,7 +1,7 @@
 module wave_main
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
+!  Copyright (C)  Stichting Deltares, 2011-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -25,8 +25,8 @@ module wave_main
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: wave_main.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/wave/packages/manager/src/wave_main.f90 $
+!  $Id: wave_main.f90 65790 2020-01-15 13:52:06Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/wave/packages/manager/src/wave_main.f90 $
 !!--description-----------------------------------------------------------------
 ! NONE
 !!--pseudo code and references--------------------------------------------------
@@ -106,8 +106,6 @@ function wave_main_init(mode_in, mdw_file) result(retval)
    ! NEW_FPE_FLAGS = FPE_M_TRAP_OVF + FPE_M_TRAP_DIV0 + FPE_M_TRAP_INV
    ! OLD_FPE_FLAGS = FOR_SET_FPE (NEW_FPE_FLAGS)
    !
-   call small(mdw_file,len(mdw_file))
-
    call checklicense(success)
    if ( .not. success ) then
       write(*,'(a)') '*** ERROR: No authorization'
@@ -171,11 +169,6 @@ function wave_main_init(mode_in, mdw_file) result(retval)
       write(*,'(a)') '*** ERROR: Reference date not set'
       write(*,'(a)') '           Use Delft3D-WAVE-GUI version 4.90.00 or higher to create the mdw-file.'
       call wavestop(1, '*** ERROR: Reference date not set')
-   else
-      if (wavedata%time%refdate < 19000000 .or. wavedata%time%refdate > 22000000) then
-         write(*,'(a,i8)') '*** ERROR: Unrealistic reference date ',wavedata%time%refdate
-         call wavestop(1, '*** ERROR: Unrealistic reference date ')
-      endif
    endif
    !
    ! Read wave grids and flow grids; make grid-maps
@@ -317,9 +310,9 @@ function wave_main_step(stepsize) result(retval)
          ! Update wave and wind conditions
          !
          if (swan_run%flowgridfile == ' ') then
-            call settimtscale(wavedata%time, timtscale, swan_run%modsim, swan_run%deltcom)
+            call settimtscale(wavedata%time, timtscale, swan_run%modsim, swan_run%nonstat_interval)
          else
-            call settimsec(wavedata%time, wavedata%time%timsec + real(stepsize,sp), swan_run%modsim, swan_run%deltcom)
+            call settimsec(wavedata%time, wavedata%time%timsec + real(stepsize,sp), swan_run%modsim, swan_run%nonstat_interval)
          endif
          !
          ! Run n_swan nested SWAN runs
@@ -383,7 +376,7 @@ function wave_main_step(stepsize) result(retval)
                ! Set the current time to "step_end_time" (to be sure it has the correct value)
                ! and exit the do-loop
                !
-               call settimmin(wavedata%time, real(tend,sp), swan_run%modsim, swan_run%deltcom)
+               call settimmin(wavedata%time, real(tend,sp), swan_run%modsim, swan_run%nonstat_interval)
                exit
             endif
          enddo

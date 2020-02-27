@@ -1,6 +1,6 @@
 !----- AGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2017-2018.                                
+!  Copyright (C)  Stichting Deltares, 2017-2020.                                
 !                                                                               
 !  This file is part of Delft3D (D-Flow Flexible Mesh component).               
 !                                                                               
@@ -27,8 +27,8 @@
 !                                                                               
 !-------------------------------------------------------------------------------
 
-! $Id: unstruc_startup.f90 62178 2018-09-27 09:19:40Z mourits $
-! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/dflowfm/packages/dflowfm_kernel/src/unstruc_startup.f90 $
+! $Id: unstruc_startup.f90 65778 2020-01-14 14:07:42Z mourits $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/dflowfm/packages/dflowfm_kernel/src/unstruc_startup.f90 $
 
 module unstruc_startup
 !! Separates some startup/initialization procedures from the main program in net.f90
@@ -256,7 +256,7 @@ subroutine initGUI(INTINIT)
     double precision :: y0
     double precision :: ysc
     double precision :: tsize
-    integer, dimension(4,20) :: rgbvalues
+    integer, dimension(4,50) :: rgbvalues
     logical :: jawel
 
     character(len=76)  :: filnam
@@ -498,8 +498,28 @@ subroutine initGUI(INTINIT)
     rgbvalues(1:4,10) = (/ 204,  255,  255,  150 /)  ! NCOLSP = SPLINES
     rgbvalues(1:4,11) = (/ 205,  255,  255,  150 /)  ! NCOLNN = NET NODES (in case they differ from splines)
 
+    ! Initialise more standard colors.
+    ! Used most colors from the HTML 4.01 specification, see http://www.w3.org/TR/REC-html40/types.html#h-6.5
+    ! and added some basic colors.
+    !call IGRPALETTERGB(ncolgray, 128, 128, 128) ! gray is already set by default (background color).
+    i = 11
+    i=i+1; rgbvalues(1:4, i) = (/ ncolblack, 0, 0, 0 /)
+    i=i+1; rgbvalues(1:4, i) = (/ ncolwhite, 255, 255, 255 /)
+    i=i+1; rgbvalues(1:4, i) = (/ ncolred, 255, 0, 0 /)
+    i=i+1; rgbvalues(1:4, i) = (/ ncolyellow, 255, 255, 0 /)
+    i=i+1; rgbvalues(1:4, i) = (/ ncolgreen, 0, 255, 0 /) !< lime
+    i=i+1; rgbvalues(1:4, i) = (/ ncolcyan, 0, 255, 255 /) !< aqua
+    i=i+1; rgbvalues(1:4, i) = (/ ncolblue, 0, 0, 255 /)
+    i=i+1; rgbvalues(1:4, i) = (/ ncolmagenta, 255, 0, 255 /) !< fuchsia
+    i=i+1; rgbvalues(1:4, i) = (/ ncolmaroon, 128, 0, 0 /)
+    i=i+1; rgbvalues(1:4, i) = (/ ncoldarkgreen, 0, 128, 0 /) !< green
+    i=i+1; rgbvalues(1:4, i) = (/ ncolteal, 0, 128, 128 /)
+    i=i+1; rgbvalues(1:4, i) = (/ ncolpink, 255, 0, 128 /)
+    i=i+1; rgbvalues(1:4, i) = (/ ncolorange, 255, 128, 0 /)
+    i=i+1; rgbvalues(1:4, i) = (/ ncollavender, 128, 128, 255 /)
+    i=i+1; rgbvalues(1:4, i) = (/ ncolbrown, 128, 64, 0 /)
     K=1
-    ! First load default colours
+    ! First load default colours into Interacter colors:
     do
         if (rgbvalues(1,k) == 0) then
             exit

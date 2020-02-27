@@ -1,7 +1,7 @@
 subroutine rdcul(nsrc, namsrc ,mnksrc, voldis, gdp)
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
+!  Copyright (C)  Stichting Deltares, 2011-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -25,8 +25,8 @@ subroutine rdcul(nsrc, namsrc ,mnksrc, voldis, gdp)
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: rdcul.f90 8671 2018-05-02 07:45:05Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/flow2d3d/packages/io/src/input/rdcul.f90 $
+!  $Id: rdcul.f90 65813 2020-01-17 16:46:56Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/io/src/input/rdcul.f90 $
 !!--description-----------------------------------------------------------------
 ! Reads dimensions, allocates space for data and reads data from INI file for
 ! culverts.
@@ -344,7 +344,7 @@ subroutine rdcul(nsrc, namsrc ,mnksrc, voldis, gdp)
                             call prop_get(link_ptr, '*', 'CulvertLib', rec)
                             dll_name(isrc) = rec
                             if (rec /= ' ') then
-                               write(rec,'(3a)') SHARED_LIB_PREFIX, trim(rec), SHARED_LIB_EXTENSION
+                               write(rec,'(3a)') SHARED_LIB_PREFIX, trim(dll_name(isrc)), SHARED_LIB_EXTENSION
                                dll_name(isrc) = rec
                                istat_ptr = 0
                                istat_ptr = open_shared_library(dll_handle(isrc), dll_name(isrc))

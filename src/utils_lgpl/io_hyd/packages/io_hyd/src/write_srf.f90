@@ -1,6 +1,6 @@
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
+!  Copyright (C)  Stichting Deltares, 2011-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -24,8 +24,8 @@
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: write_srf.f90 8348 2018-03-13 16:29:37Z jeuke_ml $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_lgpl/io_hyd/packages/io_hyd/src/write_srf.f90 $
+!  $Id: write_srf.f90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/io_hyd/packages/io_hyd/src/write_srf.f90 $
 
       subroutine write_srf ( file_srf, mmax  , nmax  , nosegl, surf  )
 !

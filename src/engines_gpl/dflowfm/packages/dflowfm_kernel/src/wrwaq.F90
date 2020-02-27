@@ -1,6 +1,6 @@
 !----- AGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2017-2018.                                
+!  Copyright (C)  Stichting Deltares, 2017-2020.                                
 !                                                                               
 !  This file is part of Delft3D (D-Flow Flexible Mesh component).               
 !                                                                               
@@ -27,8 +27,8 @@
 !                                                                               
 !-------------------------------------------------------------------------------
 
-! $Id: wrwaq.F90 62178 2018-09-27 09:19:40Z mourits $
-! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/dflowfm/packages/dflowfm_kernel/src/wrwaq.F90 $
+! $Id: wrwaq.F90 65778 2020-01-14 14:07:42Z mourits $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/dflowfm/packages/dflowfm_kernel/src/wrwaq.F90 $
 module wrwaq
 
 !include preprocessing flags from autotools
@@ -39,22 +39,6 @@ module wrwaq
   use unstruc_files
   
   implicit none
-!!--copyright-------------------------------------------------------------------
-! Copyright (c) 2007, Deltares. All rights reserved.
-!!--disclaimer------------------------------------------------------------------
-! This code is part of the Delft3D software system. Deltares has
-! developed c.q. manufactured this code to its best ability and according to the
-! state of the art. Nevertheless, there is no express or implied warranty as to
-! this software whether tangible or intangible. In particular, there is no
-! express or implied warranty as to the fitness for a particular purpose of this
-! software, whether tangible or intangible. The intellectual property rights
-! related to this software code remain with Deltares at all times.
-! For details on the licensing agreement, we refer to the Delft3D software
-! license and any modifications to this license, if applicable. These documents
-! are available upon request.
-!!--description-----------------------------------------------------------------
-! This module contains the routines for writing WAQ input files
-!!--declarations----------------------------------------------------------------
       
       contains
 
@@ -359,74 +343,57 @@ module waq
 
     logical, parameter :: waq_format_ascii = .false. !< For debugging: .true. produces ascii files. .false. the binary files used for DELWAQ input.
 type gd_waqpar
-!    !
-!    ! doubles
-!    !
-!    !
-!    ! reals
-!    !
-!    real(fp) :: mtimstep  !  maximum explicit time step for whole simulation
-!    !
-!    ! integers
-!    !
-    integer  :: aggre     !  0: no aggregation (=active cells only in FM), 1: aggregation according to content of flaggr
-    integer  :: aggrel    !  0: no layer aggregation, 1: layer aggregation
-!    integer  :: itwqff    !  start time for writing binary waq files
-!    integer  :: itwqfi    !  time step for writing binary waq files
-!    integer  :: itwqfl    !  end time for writing binary waq files
-!    integer  :: itim      !  last writen time
-    integer  :: lunvol    !  file unit number to an output file
-    integer  :: lunare    !  file unit number to an output file
-    integer  :: lunflo    !  file unit number to an output file
-    integer  :: lunsal    !  file unit number to an output file
-    integer  :: luntem    !  file unit number to an output file
-    integer  :: lunvdf    !  file unit number to an output file
-    integer  :: luntau    !  file unit number to an output file
-    integer  :: noseg     !  number of WAQ segments
-    integer  :: nosegl    !  number of WAQ segments per layer
-    integer  :: noq       !  total number of WAQ exchanges
-    integer  :: noql      !  number of horizontal WAQ exchanges per layer
-    integer  :: noq12     !  number of horizontal WAQ exchanges (excluding sink/sources)
-    integer  :: noq12s    !  number of horizontal WAQ exchanges (including sink/sources)
-    integer  :: numsrc    !  number of sinks/sources
-    integer  :: numsrcbnd !  number of sinks/sources that are boundary conditions
-    integer  :: numsrcwaq !  number of adition sources/sinks exchanges in waq (based on posible combinations)
-    integer  :: kmxnx     ! maximum number of active layers
-    integer  :: kmxnxa    ! maximum number of aggregated layers
-    integer  :: ndkxi     ! nr of internal flowcells (3D)
-    !
-    ! pointers
-    !
-!    integer , dimension(:)  , pointer :: iwlk      ! walkings
-    integer ,          allocatable :: ilaggr(:)     ! layer aggregation pointer
-    integer ,          allocatable :: ilaggrhyd(:)  ! layer aggregation table for hyd-file
-    integer ,          allocatable :: isaggr(:)     ! segment aggregation pointer
-    integer ,          allocatable :: iapnt (:)     ! flow-to-waq pointer (mapping of flow cells to waq cells)
-    integer ,          allocatable :: iqaggr(:)     ! exchange aggregation pointer
-    integer ,          allocatable :: iqwaggr(:)    ! exchange aggregation pointer for the vertical
-    integer ,          allocatable :: ifrmto(:,:)   ! from-to pointer table
-    integer ,          allocatable :: ifrmtosrc(:,:) ! from-to pointer table for sources
-
-    integer ,          allocatable :: ifsmin(:)     ! first active layer (counting from the top) (z-model)
-    integer ,          allocatable :: ifsmax(:)     ! maximum active layer (counting from the top) (z-model)
-    integer ,          allocatable :: nosega(:)     ! no of segments aggregated into WAQ segments
-    integer ,          allocatable :: kmk1(:)       ! First WAQ segment features at start of calculation (1 is active 0 is not)
-    integer ,          allocatable :: kmk2(:)       ! Second WAQ segment features at start of calculation (1 surface, 3 bottom, 0 both, 2 neither)
-     double precision, allocatable :: horsurf(:)    ! horizontal surfaces of segments
-     double precision, allocatable :: vol(:)        ! WAQ (aggregated) volumes
-     double precision, allocatable :: sal(:)        ! WAQ (aggregated) salinity
-     double precision, allocatable :: tem(:)        ! WAQ (aggregated) temperature
-     double precision, allocatable :: tau(:)        ! WAQ (aggregated) taus
-     double precision, allocatable :: vdf(:)        ! WAQ (aggregated) vertical diffusion
+    integer                        :: aggre         !  0: no aggregation (=active cells only in FM), 1: aggregation according to content of flhoraggr
+    integer                        :: aggrel        !  0: no layer aggregation, 1: layer aggregation
+    integer                        :: lunvol        !  file unit number to an output file
+    integer                        :: lunvel        !  file unit number to an output file
+    integer                        :: lunare        !  file unit number to an output file
+    integer                        :: lunflo        !  file unit number to an output file
+    integer                        :: lunsal        !  file unit number to an output file
+    integer                        :: luntem        !  file unit number to an output file
+    integer                        :: lunvdf        !  file unit number to an output file
+    integer                        :: luntau        !  file unit number to an output file
+    integer                        :: noseg         !  number of WAQ segments
+    integer                        :: nosegl        !  number of WAQ segments per layer
+    integer                        :: noq           !  total number of WAQ exchanges
+    integer                        :: noql          !  number of horizontal WAQ exchanges per layer
+    integer                        :: noq12         !  number of horizontal WAQ exchanges (excluding sink/sources)
+    integer                        :: noq12s        !  number of horizontal WAQ exchanges (including sink/sources)
+    integer                        :: numsrc        !  number of sinks/sources
+    integer                        :: numsrcbnd     !  number of sinks/sources that are boundary conditions
+    integer                        :: numsrcwaq     !  number of adition sources/sinks exchanges in waq (based on posible combinations)
+    integer                        :: kmxnx         ! maximum number of active layers
+    integer                        :: kmxnxa        ! maximum number of aggregated layers
+    integer                        :: ndkxi         ! nr of internal flowcells (3D)
+    integer,           allocatable :: ilaggr(:)     ! layer aggregation pointer
+    integer,           allocatable :: ilaggrhyd(:)  ! layer aggregation table for hyd-file
+    integer,           allocatable :: isaggr(:)     ! segment aggregation pointer
+    integer,           allocatable :: iapnt (:)     ! flow-to-waq pointer (mapping of flow cells to waq cells)
+    integer,           allocatable :: iqaggr(:)     ! exchange aggregation pointer
+    integer,           allocatable :: iqwaggr(:)    ! exchange aggregation pointer for the vertical
+    integer,           allocatable :: ifrmto(:,:)   ! from-to pointer table
+    integer,           allocatable :: ifrmtosrc(:,:) ! from-to pointer table for sources
+    integer,           allocatable :: ifsmin(:)     ! first active layer (counting from the top) (z-model)
+    integer,           allocatable :: ifsmax(:)     ! maximum active layer (counting from the top) (z-model)
+    integer,           allocatable :: nosega(:)     ! no of segments aggregated into WAQ segments
+    integer,           allocatable :: kmk1(:)       ! First WAQ segment features at start of calculation (1 is active 0 is not)
+    integer,           allocatable :: kmk2(:)       ! Second WAQ segment features at start of calculation (1 surface, 3 bottom, 0 both, 2 neither)
+    double precision,  allocatable :: horsurf(:)    ! horizontal surfaces of segments
+    double precision,  allocatable :: vol(:)        ! WAQ (aggregated) volumes
+    double precision,  allocatable :: vel(:)        ! WAQ (aggregated) velocities
+    double precision,  allocatable :: sal(:)        ! WAQ (aggregated) salinity
+    double precision,  allocatable :: tem(:)        ! WAQ (aggregated) temperature
+    double precision,  allocatable :: tau(:)        ! WAQ (aggregated) taus
+    double precision,  allocatable :: vdf(:)        ! WAQ (aggregated) vertical diffusion
     double precision,  allocatable :: qag(:)        ! WAQ (aggregated) flux
     double precision,  allocatable :: area(:)       ! WAQ (aggregated) exchange areas
-!    !
-!    ! characters
-!    !
-    character(256) :: flaggr !  Name of input aggregation file
+    character(256) :: flhoraggr  !  Name of input aggregation file
+    character(256) :: flvertaggr !  Name of input aggregation file
 end type gd_waqpar
 
-type(gd_waqpar) :: waqpar
+type(gd_waqpar) :: waqpar        ! all waq data
+logical         :: horaggr       ! horizontal aggregation is on
+logical         :: vertaggr      ! vertical aggregation is on
 
 !-- Start subroutines -------------
 contains
@@ -438,6 +405,7 @@ subroutine reset_waq()
     implicit none
     
     call close_and_reset(waqpar%lunvol)
+    call close_and_reset(waqpar%lunvel)
     call close_and_reset(waqpar%lunsal)
     call close_and_reset(waqpar%luntem)
     call close_and_reset(waqpar%lunare)
@@ -550,10 +518,15 @@ subroutine waq_wri_hyd()
     end if
 
     write ( lunhyd , '(A,A    )' ) 'hydrodynamic-file           ', ''''//trim(md_ident)//''''
-    if ( waqpar%aggre <= 0 ) then
-        write ( lunhyd , '(A,A    )' ) 'aggregation-file            ', 'none'
+    if ( horaggr ) then
+        write ( lunhyd , '(A,A    )' ) 'aggregation-file            ', ''''//trim(waqpar%flhoraggr)//''''
     else
-        write ( lunhyd , '(A,A    )' ) 'aggregation-file            ', ''''//trim(waqpar%flaggr)//''''
+        write ( lunhyd , '(A,A    )' ) 'aggregation-file            ', 'none'
+    endif
+    if ( vertaggr ) then
+        write ( lunhyd , '(A,A    )' ) 'vertical-aggregation-file   ', ''''//trim(waqpar%flvertaggr)//''''
+    else
+        write ( lunhyd , '(A,A    )' ) 'vertical-aggregation-file   ', 'none'
     endif
 
 ! Grid and boundary conditions    
@@ -569,6 +542,7 @@ subroutine waq_wri_hyd()
     write (lunhyd, '(a,a)') 'volumes-file                ', ''''//trim(defaultFilename('vol', prefixWithDirectory=.false.))//''''
     write (lunhyd, '(a,a)') 'areas-file                  ', ''''//trim(defaultFilename('are', prefixWithDirectory=.false.))//''''
     write (lunhyd, '(a,a)') 'flows-file                  ', ''''//trim(defaultFilename('flo', prefixWithDirectory=.false.))//''''
+    write (lunhyd, '(a,a)') 'velocities-file             ', ''''//trim(defaultFilename('vel', prefixWithDirectory=.false.))//''''
     write (lunhyd, '(a,a)') 'pointers-file               ', ''''//trim(defaultFilename('poi', prefixWithDirectory=.false.))//''''
     write (lunhyd, '(a,a)') 'lengths-file                ', ''''//trim(defaultFilename('len', prefixWithDirectory=.false.))//''''
  
@@ -692,8 +666,7 @@ end subroutine waq_wri_hyd
 subroutine waq_wri_geom()
     use unstruc_netcdf
     use unstruc_files
-    use unstruc_model, only: md_ident, md_unc_conv
-    use m_flowtimes, only: rundat2
+    use unstruc_model, only: md_unc_conv
     implicit none
 !
 !           Local variables
@@ -702,14 +675,14 @@ subroutine waq_wri_geom()
 !
 !! executable statements -------------------------------------------------------
 !
-    filename = trim('DFM_DELWAQ_'//trim(md_ident)//trim(rundat2)//defaultFilename('waqgeom', prefixWithDirectory=.false.))
+    filename = defaultFilename('waqgeom')
 
     if (md_unc_conv == UNC_CONV_UGRID) then
         ! Write UGRID format file (this supports aggregation of mesh geometry).
         call waq_write_waqgeom_ugrid(filename)
     else
         ! Write old CF format file (this does not support aggregation of mesh geometry).
-        call unc_write_net_flowgeom(filename) ! TODO: AvD: this overall mixing up of DFM_DELWAQ_ and rundat2 is a mess, centralize this!
+        call unc_write_net_flowgeom(filename)
     end if
 
     ! add segment aggregation table to this file! label with delwaq_role = "segment_aggregation_table" and a "segdim"
@@ -747,7 +720,7 @@ end subroutine waq_write_waqgeom_ugrid
 subroutine waq_write_waqgeom_filepointer_ugrid(igeomfile)
     use io_ugrid
     use m_flowgeom, only: ndxi
-    use unstruc_netcdf, only: check_error, ug_meta_fm
+    use unstruc_netcdf, only: crs, check_error, ug_meta_fm
     use m_partitioninfo, only: jampi, idomain, iglobal_s
     use m_alloc
 
@@ -759,7 +732,6 @@ subroutine waq_write_waqgeom_filepointer_ugrid(igeomfile)
     type(t_ug_meshgeom)                :: meshgeom, aggregated_meshgeom !< Mesh geometry to be written to the NetCDF file.
     type(t_ug_mesh)                    :: meshids  !< Set of NetCDF-ids for all mesh geometry variables.
     type(t_ug_network)                 :: networkids !< Set of NetCDF-ids for all network variables
-    type(t_crs)                        :: crs
     integer, dimension(:), allocatable :: edge_type, aggregated_edge_type !< Edge type array to be written to the NetCDF file.
     integer                            :: ierr     !< Result status (UG_NOERR==NF90_NOERR if successful).
     logical                            :: success  !< Helper variable.
@@ -779,6 +751,8 @@ subroutine waq_write_waqgeom_filepointer_ugrid(igeomfile)
     if (waqpar%aggre == 1) then
         ! Create empty meshgeom.
         ierr = t_ug_meshgeom_destructor(aggregated_meshgeom)
+        aggregated_meshgeom%meshName = 'mesh2d'
+        aggregated_meshgeom%start_index = 1
         call check_error(ierr)
 
         ! Aggregate.
@@ -847,6 +821,7 @@ function create_ugrid_geometry(meshgeom, edge_type) result(ierr)
     ierr = t_ug_meshgeom_destructor(meshgeom)
     call check_error(ierr)
     meshgeom%meshName = 'mesh2d'
+    meshgeom%start_index = 1
     meshgeom%dim = 2
 
 
@@ -1609,7 +1584,7 @@ end subroutine waq_wri_model_files
 
 
 !> Writes all necessary time-dependent couple files for DelWAQ.
-!! (.are, .flo, .vol)
+!! (.are, .flo, .vol, .vel)
 !!
 !! Note: flow-related files (.are and .flo) are not written for first
 !! time. Thereafter, accumulated flux is associated with previous
@@ -1648,6 +1623,9 @@ subroutine waq_wri_couple_files(time)
     call waq_wri_vol(itim, defaultFilename('vol'), waqpar%lunvol)
     ! TODO: AvD: add a 'mode' 0/1/2 similar to Delft3D, so that we can write some quantities
     ! at *start* of *next* timestep instead of currently at the *end* of *current* timestep.
+
+    ! Flow velocity file (Flow element center velocity magnitude)
+    call waq_wri_vel(itim, defaultFilename('vel'), waqpar%lunvel)
 
     ! Salinty file (salinity of computational cells)
     if (jasal > 0) then
@@ -1715,40 +1693,53 @@ end subroutine waq_wri_couple_files
 !! Currently, default: one-to-one.
 subroutine waq_prepare_aggr()
     use m_flowgeom
-    use m_partitioninfo, only: jampi
+    use m_partitioninfo
+    use unstruc_model
     use m_flow
     use m_flowexternalforcings
     use m_alloc
     implicit none
     
-    integer :: i, kb, ktx, vaglay
+    integer :: i, kb, kt, ktx, vaglay
+    integer, dimension(1) :: kmxnr
     integer :: lunvag, istat, ierr
-    logical :: test_aggr, test_layeraggr
 
     call realloc(waqpar%iapnt,  ndx, keepExisting=.false., fill=0)
     call realloc(waqpar%isaggr, ndkx, keepExisting=.false., fill=0)
     call realloc(waqpar%iqaggr, lnkx, keepExisting=.false., fill=0)
     call realloc(waqpar%iqwaggr, ndkx, keepExisting=.false., fill=0)
 
-! Is there a DIDO aggregation? Otherwise set default aggregation
-    inquire (file = "waqtest.dwq", exist = test_aggr)! no interface supported yet
-    if (test_aggr .and. jampi.eq.0 ) then ! Change to true to test DIDO aggregation
+! Is there a DIDO aggregation, and no MPI? Otherwise set default aggregation
+    if (md_waqhoraggr.ne.' ') then
+        waqpar%flhoraggr = md_waqhoraggr
+        inquire (file = waqpar%flhoraggr, exist = horaggr)! no interface supported yet
+        if (.not.horaggr) then
+             call mess(LEVEL_ERROR, 'Horizontal aggregation of WAQ output was specified, but file was not found:', trim(md_waqhoraggr))
+        end if
+    else
+        horaggr=.false.
+    endif
+    
+    if (horaggr .and. jampi.ne.0 ) then
+        call mess(LEVEL_WARN, 'Horizontal aggregation of WAQ output was specified, but is not (yet) supported in MPI simulations! Aggregation is ignored.')
+        horaggr=.false.
+    end if
+
+    if (horaggr) then
+        call mess(LEVEL_INFO, 'Using horizontal aggregation of hydrodynamics for WAQ from: ', trim(md_waqhoraggr))
+        ! read the horizontal aggregation
         waqpar%aggre = 1
-        waqpar%flaggr = "waqtest.dwq"
-        call waq_read_dwq(ndxi, ndx, waqpar%iapnt, waqpar%flaggr)
+        call waq_read_dwq(ndxi, ndx, waqpar%iapnt, waqpar%flhoraggr)
         waqpar%nosegl = maxval(waqpar%iapnt)
     else
-        if (test_aggr .and. jampi.ne.0 ) then
-            call mess(LEVEL_WARN, 'Horizontal aggregation of WAQ output was found (waqtest.dwq), but is not supported in MPI simulations! Aggregation is ignored.')
-        end if
-! no aggregation, create default one to one aggregation
+        ! no aggregation, create default one to one aggregation
         waqpar%aggre = 0
-        waqpar%flaggr = " "
+        waqpar%flhoraggr = " "
         do i = 1, ndxi
             waqpar%iapnt(i) = i
         end do
         waqpar%nosegl = ndxi
-! add pointer for boundary nodes    
+        ! add pointer for boundary nodes    
         do i = ndxi+1,ndx
             waqpar%iapnt(i) = -(i-ndxi)
         enddo
@@ -1762,29 +1753,43 @@ subroutine waq_prepare_aggr()
         waqpar%kmxnx = maxval(kmxn)
     end if
 
+    ! Determine maximum number of layers in all domains (for z-layers)
+    if (jampi.eq.1) then
+       kmxnr(1) = waqpar%kmxnx
+       call reduce_int_max(1, kmxnr)
+       waqpar%kmxnx = kmxnr(1)
+    end if
+    
     call realloc(waqpar%ilaggrhyd, waqpar%kmxnx, keepExisting=.false., fill=1)
     call realloc(waqpar%ilaggr, waqpar%kmxnx, keepExisting=.false., fill=0)
     waqpar%aggrel = 0
     waqpar%kmxnxa = waqpar%kmxnx
 
-    ! Is there a layer aggregation file?
-    inquire (file = "waqtest.vag", exist = test_layeraggr)! no interface supported yet
-    if (test_layeraggr) then
-        call mess(LEVEL_INFO, 'Try to read vertical aggregation file for DELWAQ.')
-        call oldfil(lunvag, "waqtest.vag")
+    ! Is there a vertical aggregation specified?
+    if (md_waqvertaggr.ne.' ') then
+        waqpar%flvertaggr = md_waqvertaggr
+        inquire (file = waqpar%flvertaggr, exist = vertaggr)! no interface supported yet
+        if (.not.vertaggr) then
+             call mess(LEVEL_ERROR, 'Vertical aggregation of WAQ output was specified, but file was not found:', trim(md_waqvertaggr))
+        end if
+        call mess(LEVEL_INFO, 'Using vertical aggregation of hydrodynamics for WAQ from: ', trim(md_waqvertaggr))
+    else
+        vertaggr=.false.
+    endif
+
+    if (vertaggr) then
+        call oldfil(lunvag, waqpar%flvertaggr)
         read (lunvag, *, iostat=istat) vaglay
         if (vaglay == -1) then
             call mess(LEVEL_INFO, 'Found -1 as number of layers in waqtest.vag. Will aggregate DELWAQ output to 2D.')
             waqpar%kmxnxa = 1
             waqpar%ilaggrhyd(1) = waqpar%kmxnx
         elseif (vaglay /= waqpar%kmxnx) then
-            call mess(LEVEL_WARN, 'Mismatch in number of layers in DELWAQ vag layer aggregation file in '''//trim("waqtest.vag")//'''.')
-            call mess(LEVEL_WARN, 'no layer aggregation applied.')
+            call mess(LEVEL_ERROR, 'Mismatch in number of layers in DELWAQ vertical aggregation file: ', trim(md_waqvertaggr))
         else
             read (lunvag, *, iostat=istat) waqpar%ilaggr(1:vaglay)
             if ( istat /= 0) then
-                call mess(LEVEL_WARN, 'unable to read the layer aggregation pointer in '''//trim("waqtest.vag")//'''.')
-                call mess(LEVEL_WARN, 'no layer aggregation applied.')
+                call mess(LEVEL_ERROR, 'Error reading the vertical aggregation pointer in: ', trim(md_waqvertaggr))
             else
                 ! Check validity of the layer aggregation and create waqpar%ilaggrhyd
                 ierr = 0
@@ -1805,9 +1810,7 @@ subroutine waq_prepare_aggr()
                 endif
                 if (ierr == 1) then
                     ! No correct layer aggregation, default: no layer aggragation
-                    call mess(LEVEL_WARN, 'layer aggregation is incorrect. no layer aggregation applied.')
-                    waqpar%ilaggrhyd = 1
-                    waqpar%kmxnxa = waqpar%kmxnx
+                    call mess(LEVEL_ERROR, 'Incorrect vertical aggregation pointer in: ', trim(md_waqvertaggr))
                 else
                     waqpar%aggrel = 1
                 end if
@@ -1832,6 +1835,7 @@ subroutine waq_prepare_aggr()
     waqpar%noseg = waqpar%nosegl * waqpar%kmxnxa
     call realloc(waqpar%nosega, waqpar%noseg, keepExisting=.false., fill=0)
     call realloc(waqpar%vol, waqpar%noseg, keepExisting=.false., fill=0d0)
+    call realloc(waqpar%vel, waqpar%noseg, keepExisting=.false., fill=0d0)
     call realloc(waqpar%sal, waqpar%noseg, keepExisting=.false., fill=0d0)
     call realloc(waqpar%tem, waqpar%noseg, keepExisting=.false., fill=0d0)
     call realloc(waqpar%tau, waqpar%noseg, keepExisting=.false., fill=0d0)
@@ -1839,7 +1843,7 @@ subroutine waq_prepare_aggr()
     call realloc(waqpar%kmk1, waqpar%noseg, keepExisting=.false., fill=0)
     call realloc(waqpar%kmk2, waqpar%noseg, keepExisting=.false., fill=0)
         
-    call getkbotktopmax(ndxi,kb,ktx)
+    call getkbotktopmax(ndxi,kb,kt,ktx)
     waqpar%ndkxi = ktx ! Maximum internal 3D node
 
     call waq_make_aggr_seg()
@@ -1879,7 +1883,7 @@ subroutine waq_make_aggr_seg()
     integer, parameter   :: kmkmiddle = 2  !< Segment is an intermediate layer at this node
     integer, parameter   :: kmkbot = 3     !< Segment is at the highest layer at this node
     
-    integer :: k, kk, kb, ktx, iseg
+    integer :: k, kk, kb, kt, ktx, iseg
 
 !   clear segment aggregation pointer
     waqpar%isaggr = 0
@@ -1898,7 +1902,7 @@ subroutine waq_make_aggr_seg()
 !   3D    
     if (waqpar%kmxnxa > 1) then
         do k = 1, ndxi
-            call getkbotktopmax(k,kb,ktx)
+            call getkbotktopmax(k,kb,kt,ktx)
             do kk = ktx, kb, -1
                 iseg = waqpar%iapnt(k) + (waqpar%ilaggr(ktx - kk + 1) - 1) * waqpar%nosegl
                 waqpar%isaggr(kk) = iseg
@@ -1917,7 +1921,7 @@ subroutine waq_make_aggr_seg()
 
 !       also aggregate boundary nodes in 3D!
         do k = ndxi + 1, ndx
-            call getkbotktopmax(k,kb,ktx)
+            call getkbotktopmax(k,kb,kt,ktx)
             do kk = ktx, kb, -1
                 waqpar%isaggr(kk) = -((k - ndxi) + (waqpar%ilaggr(ktx - kk + 1) - 1) * (ndx - ndxi))
             enddo
@@ -1937,8 +1941,8 @@ subroutine waq_make_aggr_lnk()
     implicit none
     
     integer :: dseg, dbnd, isrc
-    integer :: L, LL, Lb, Ltx, ip, ip1, ip2, ip3, ip4, iq
-    integer :: k, kk, kb, ktx
+    integer :: L, LL, Lb, Lbb, Ltx, ip, ipa, ip1, ip2, ip3, ip4, iq
+    integer :: k, kk, kb, kt, ktx
     
 ! first 2D
     waqpar%noq12  = 0
@@ -1998,25 +2002,37 @@ subroutine waq_make_aggr_lnk()
 ! In 3D copy aggregated 2D exchanges to all layers
         do L=1,lnx
             call getLbotLtopmax(L,Lb,Ltx)
+            ip = waqpar%iqaggr(L)
+            ipa = abs(ip)
+            if (ip.eq.0) cycle
             do LL = Ltx, Lb, -1
-                ip = waqpar%iqaggr(L)
-                if (ip == 0) then
-                    waqpar%iqaggr(LL) = 0
-                else
-                    waqpar%iqaggr(LL) = ip + sign((waqpar%ilaggr(Ltx - LL + 1) - 1) * waqpar%noq12,ip)
-                    iq = abs(waqpar%iqaggr(LL))
-                    dseg = (waqpar%ilaggr(Ltx - LL + 1) - 1) * waqpar%nosegl
-                    dbnd = (waqpar%ilaggr(Ltx - LL + 1) - 1) * (ndx - ndxi + waqpar%numsrcbnd)  ! current number of external links in FM, account for sinks sources here too!
-                    if (waqpar%ifrmto(1,iq) == 0) then
-                        if (waqpar%ifrmto(1,ip) > 0) waqpar%ifrmto(1,iq) = waqpar%ifrmto(1,ip) + dseg
-                        if (waqpar%ifrmto(1,ip) < 0) waqpar%ifrmto(1,iq) = waqpar%ifrmto(1,ip) - dbnd
-                        if (waqpar%ifrmto(2,ip) > 0) waqpar%ifrmto(2,iq) = waqpar%ifrmto(2,ip) + dseg
-                        if (waqpar%ifrmto(2,ip) < 0) waqpar%ifrmto(2,iq) = waqpar%ifrmto(2,ip) - dbnd
-                        if (waqpar%ifrmto(3,ip) > 0) waqpar%ifrmto(3,iq) = waqpar%ifrmto(3,ip) + dseg
-                        if (waqpar%ifrmto(4,ip) > 0) waqpar%ifrmto(4,iq) = waqpar%ifrmto(4,ip) + dseg
-                    end if
+                waqpar%iqaggr(LL) = ip + sign((waqpar%ilaggr(Ltx - LL + 1) - 1) * waqpar%noq12,ip)
+                iq = abs(waqpar%iqaggr(LL))
+                dseg = (waqpar%ilaggr(Ltx - LL + 1) - 1) * waqpar%nosegl
+                dbnd = (waqpar%ilaggr(Ltx - LL + 1) - 1) * (ndx - ndxi + waqpar%numsrcbnd)  ! current number of external links in FM, account for sinks sources here too!
+                if (waqpar%ifrmto(1,iq) == 0) then
+                    if (waqpar%ifrmto(1,ipa) > 0) waqpar%ifrmto(1,iq) = waqpar%ifrmto(1,ipa) + dseg
+                    if (waqpar%ifrmto(1,ipa) < 0) waqpar%ifrmto(1,iq) = waqpar%ifrmto(1,ipa) - dbnd
+                    if (waqpar%ifrmto(2,ipa) > 0) waqpar%ifrmto(2,iq) = waqpar%ifrmto(2,ipa) + dseg
+                    if (waqpar%ifrmto(2,ipa) < 0) waqpar%ifrmto(2,iq) = waqpar%ifrmto(2,ipa) - dbnd
+                    if (waqpar%ifrmto(3,ipa) > 0) waqpar%ifrmto(3,iq) = waqpar%ifrmto(3,ipa) + dseg
+                    if (waqpar%ifrmto(4,ipa) > 0) waqpar%ifrmto(4,iq) = waqpar%ifrmto(4,ipa) + dseg
                 end if
             end do
+            Lbb = Ltx - waqpar%kmxnxa + 1
+            if (Lbb.lt.Lb) then
+!              add extra (dummy) exchanges for boundaries below the bed to trick delwaq
+               do LL = Lb-1, Lbb, -1
+                    if (waqpar%ifrmto(1,ipa) < 0.or.waqpar%ifrmto(2,ipa) < 0) then
+                        iq = ip + sign((waqpar%ilaggr(Ltx - LL + 1) - 1) * waqpar%noq12,ip)
+                        dbnd = (waqpar%ilaggr(Ltx - LL + 1) - 1) * (ndx - ndxi + waqpar%numsrcbnd)  ! current number of external links in FM, account for sinks sources here too!
+                        if (waqpar%ifrmto(1,iq) == 0) then
+                            if (waqpar%ifrmto(1,ipa) < 0) waqpar%ifrmto(1,iq) = waqpar%ifrmto(1,ipa) - dbnd
+                            if (waqpar%ifrmto(2,ipa) < 0) waqpar%ifrmto(2,iq) = waqpar%ifrmto(2,ipa) - dbnd
+                        end if
+                    endif
+                end do
+            endif           
         end do
         waqpar%noq12 = waqpar%noq12 * waqpar%kmxnxa
         waqpar%noq = waqpar%noq12
@@ -2046,7 +2062,7 @@ subroutine waq_make_aggr_lnk()
         end do
         waqpar%noq = waqpar%noq + waqpar%nosegl * (waqpar%kmxnxa - 1)
         do k = 1, ndxi
-            call getkbotktopmax(k,kb,ktx)
+            call getkbotktopmax(k,kb,kt,ktx)
             do kk = ktx - 1, kb, -1
                 if(waqpar%ilaggr(ktx - kk + 1) /= waqpar%ilaggr(ktx - kk)) then
                     waqpar%iqwaggr(kk) = waqpar%noq12s + waqpar%iapnt(k) + (waqpar%ilaggr(ktx - kk) - 1) * waqpar%nosegl
@@ -2104,6 +2120,7 @@ subroutine waq_prepare_src()
     enddo
     call realloc (waqpar%ifrmtosrc, (/ 2,waqpar%numsrcwaq /), keepexisting=.true., fill=0 )
     call realloc (qsrcwaq, waqpar%numsrcwaq , keepexisting=.true., fill=0.0D0 )
+    call realloc (qsrcwaq0, waqpar%numsrcwaq , keepexisting=.true., fill=0.0D0 )
     nbnd = ndx - ndxi + waqpar%numsrcbnd   ! total number of boudaries
     ibnd = ndx - ndxi                      ! starting number for sink source boundaries
 
@@ -2326,15 +2343,13 @@ subroutine waq_wri_vol(itim, filenamevol, lunvol)
 !
 !           Local variables
 !
-    integer :: i, k, kb, ktx, kk, k1, k2, LL, L, lb, ltx, Lt, num = 0, jacheck = 0
+    integer :: i, k, kb, kt, ktx, kk, k1, k2, LL, L, lb, ltx, Lt, num = 0, jacheck = 0
     
     double precision, save, allocatable :: dv(:), dv1(:)
     double precision                    :: errvol, qwq
 !    
 !! executable statements -------------------------------------------------------
 !
-    ! waqpar%vol = 0d0
-
     if (waqpar%aggre == 0 .and. waqpar%kmxnxa == 1) then
         do i = 1, ndxi
             waqpar%vol(i) = vol1(i)
@@ -2349,12 +2364,11 @@ subroutine waq_wri_vol(itim, filenamevol, lunvol)
           if (num > 0) then 
              dv = 0d0
              do k = 1, ndxi
-                call getkbotktopmax(k,kb,ktx)
+                call getkbotktopmax(k,kb,kt,ktx)
                 do kk = kb, ktx
                    dv(kk) = vol1(kk) - waqpar%vol(waqpar%isaggr(kk)) 
                 end do
              enddo
-             waqpar%vol = 0d0
           
              dv1 = 0d0
              do L = 1, lnx
@@ -2367,7 +2381,7 @@ subroutine waq_wri_vol(itim, filenamevol, lunvol)
              end do
           
              do k = 1, ndxi
-                call getkbotktopmax(k,kb,ktx)
+                call getkbotktopmax(k,kb,kt,ktx)
                 do kk = kb, ktx - 1
                 !if (waqpar%iqwaggr(kk)>0) then
                    dv1(kk+1) = dv1(kk+1) + qwwaq(kk) 
@@ -2377,7 +2391,7 @@ subroutine waq_wri_vol(itim, filenamevol, lunvol)
              end do
           
              do k = 1, ndxi
-                call getkbotktopmax(k,kb,ktx)
+                call getkbotktopmax(k,kb,kt,ktx)
                 do kk = kb, ktx
                    errvol = dv(kk) - dv1(kk)  
                    if (errvol > 1d-6) then
@@ -2389,17 +2403,18 @@ subroutine waq_wri_vol(itim, filenamevol, lunvol)
           num = 1
         endif 
         
+        waqpar%vol = 0d0
         do k = 1, ndxi
-            call getkbotktopmax(k,kb,ktx)
+            call getkbotktopmax(k,kb,kt,ktx)
             do kk = kb, ktx
                 waqpar%vol(waqpar%isaggr(kk)) = vol1(kk)
             end do
         end do
    
     else
-           
+        waqpar%vol = 0d0
         do k = 1, ndxi
-            call getkbotktopmax(k,kb,ktx)
+            call getkbotktopmax(k,kb,kt,ktx)
             do kk = kb, ktx
                 waqpar%vol(waqpar%isaggr(kk)) = waqpar%vol(waqpar%isaggr(kk)) + vol1(kk)
             end do
@@ -2408,13 +2423,68 @@ subroutine waq_wri_vol(itim, filenamevol, lunvol)
 
     ! Call the waq-vol file writer
      call wrwaqbin(itim, waqpar%vol, waqpar%noseg, filenamevol, waq_format_ascii, lunvol)   
-
-     
 end subroutine waq_wri_vol
 !
 !------------------------------------------------------------------------------
 
 
+!> Write WAQ vel file.
+!! (contains flow element center velocity magnitude)
+subroutine waq_wri_vel(itim, filenamevel, lunvel)
+    use m_flowgeom
+    use m_flow
+    use wrwaq
+    implicit none
+!
+!           Global variables
+!
+    integer,          intent(in)    :: itim     !< time (seconds) since simulation start
+    character(len=*), intent(in)    :: filenamevel !< Output filename for vel (only used when lunvel < 0).
+    integer,          intent(inout) :: lunvel   !< File pointer for output vel-file (opened upon first call).
+!
+!           Local variables
+!
+    integer :: i, k, kb, kt, ktx, kk
+!
+!! executable statements -------------------------------------------------------
+!
+    waqpar%vel = 0d0
+
+    ! Update velocity magnitudes (only available on request)
+    call getucxucyeulmag(ndkx, workx, worky, ucmag, 1, 1)
+ 
+    if (waqpar%aggre == 0 .and. waqpar%kmxnxa == 1) then
+        do i = 1, ndxi
+            waqpar%vel(i) = ucmag(i)
+        end do
+    else if (waqpar%aggre == 0 .and. waqpar%aggrel == 0) then
+        do k = 1, ndxi
+            call getkbotktopmax(k,kb,kt,ktx)
+            do kk = kb, ktx
+                waqpar%vel(waqpar%isaggr(kk)) = ucmag(kk)
+            end do
+        end do
+    else
+        ! vels are aggregated horizontal surface weighted
+        do k = 1, ndxi
+            call getkbotktopmax(k,kb,kt,ktx)
+            do kk = kb, ktx
+                waqpar%vel(waqpar%isaggr(kk)) = waqpar%vel(waqpar%isaggr(kk)) + ucmag(kk) * max(ba(k), 0d0)
+            end do
+        end do
+        do i = 1, waqpar%noseg
+            if (waqpar%horsurf(i) > 1d-25) then
+               waqpar%vel(i) = waqpar%vel(i) / waqpar%horsurf(i)
+            endif
+        end do
+    end if            
+            
+    ! Call the waq-vol file writer for vel
+    call wrwaqbin(itim, waqpar%vel, waqpar%noseg, filenamevel, waq_format_ascii, lunvel)
+
+end subroutine waq_wri_vel
+!
+!------------------------------------------------------------------------------
 
 
 !> Write WAQ sal file.
@@ -2433,7 +2503,7 @@ subroutine waq_wri_sal(itim, filenamesal, lunsal)
 !
 !           Local variables
 !
-    integer :: i, k, kb, ktx, kk
+    integer :: i, k, kb, kt, ktx, kk
 !
 !! executable statements -------------------------------------------------------
 !
@@ -2446,7 +2516,7 @@ subroutine waq_wri_sal(itim, filenamesal, lunsal)
         end do
     else if (waqpar%aggre == 0 .and. waqpar%aggrel == 0) then
         do k = 1, ndxi
-            call getkbotktopmax(k,kb,ktx)
+            call getkbotktopmax(k,kb,kt,ktx)
             do kk = kb, ktx
                 if ( vol1(kk) > 1d-25 ) then
                     waqpar%sal(waqpar%isaggr(kk)) = sa1(kk)
@@ -2456,7 +2526,7 @@ subroutine waq_wri_sal(itim, filenamesal, lunsal)
     else
         ! Salinity is aggregated volume weighted
         do k = 1, ndxi
-            call getkbotktopmax(k,kb,ktx)
+            call getkbotktopmax(k,kb,kt,ktx)
             do kk = kb, ktx
                 if ( vol1(kk) > 1d-25 ) then
                     waqpar%sal(waqpar%isaggr(kk)) = waqpar%sal(waqpar%isaggr(kk)) + sa1(kk) * vol1(kk)
@@ -2496,7 +2566,7 @@ subroutine waq_wri_tem(itim, filenametem, luntem)
 !
 !           Local variables
 !
-    integer :: i, k, kb, ktx, kk
+    integer :: i, k, kb, kt, ktx, kk
 !
 !! executable statements -------------------------------------------------------
 !
@@ -2509,7 +2579,7 @@ subroutine waq_wri_tem(itim, filenametem, luntem)
         end do
     else if (waqpar%aggre == 0 .and. waqpar%aggrel == 0) then
         do k = 1, ndxi
-            call getkbotktopmax(k,kb,ktx)
+            call getkbotktopmax(k,kb,kt,ktx)
             do kk = kb, ktx
                 if ( vol1(kk) > 1d-25 ) then
                     waqpar%tem(waqpar%isaggr(kk)) = constituents(itemp,kk)
@@ -2519,7 +2589,7 @@ subroutine waq_wri_tem(itim, filenametem, luntem)
     else
         ! Temperature is aggregated volume weighted
         do k = 1, ndxi
-            call getkbotktopmax(k,kb,ktx)
+            call getkbotktopmax(k,kb,kt,ktx)
             do kk = kb, ktx
                 if ( vol1(kk) > 1d-25 ) then
                     waqpar%tem(waqpar%isaggr(kk)) = waqpar%tem(waqpar%isaggr(kk)) + constituents(itemp,kk) * vol1(kk)
@@ -2558,7 +2628,7 @@ subroutine waq_wri_tau(itim, filenametau, luntau)
 !
 !           Local variables
 !
-    integer :: i, k, kb, ktx, kk
+    integer :: i, k, kb, kt, ktx, kk
 !
 !! executable statements -------------------------------------------------------
 !
@@ -2570,7 +2640,7 @@ subroutine waq_wri_tau(itim, filenametau, luntau)
         end do
     else if (waqpar%aggre == 0 .and. waqpar%aggrel == 0) then
         do k = 1, ndxi
-            call getkbotktopmax(k,kb,ktx)
+            call getkbotktopmax(k,kb,kt,ktx)
             do kk = kb, ktx
                 waqpar%tau(waqpar%isaggr(kk)) = taus(k)
             end do
@@ -2615,7 +2685,7 @@ subroutine waq_wri_vdf(itim, filenamevdf, lunvdf)
     integer,          intent(inout) :: lunvdf   !< File pointer for output tau-file (opened upon first call).
 !           Local variables
 !
-    integer :: i, k, kb, ktx, kk
+    integer :: i, k, kb, kt, ktx, kk
     double precision                :: vdfmin   ! help variable for WAQ minimum vertical diffusion for aggregated layers in this column
     double precision                :: volsum   ! help variable for WAQ summed volume for aggregated layers in this column
 !
@@ -2624,7 +2694,7 @@ subroutine waq_wri_vdf(itim, filenamevdf, lunvdf)
     waqpar%vdf = 0d0
     if (waqpar%aggre == 0 .and. waqpar%aggrel == 0) then
         do k = 1, ndxi
-            call getkbotktopmax(k,kb,ktx)
+            call getkbotktopmax(k,kb,kt,ktx)
             do kk = kb+1, ktx
                 if ( vol1(kk) > 1d-25 ) then
                     waqpar%vdf(waqpar%isaggr(kk)) = vicwws(kk-1)
@@ -2633,7 +2703,7 @@ subroutine waq_wri_vdf(itim, filenamevdf, lunvdf)
         end do
     else
         do k = 1, ndxi
-            call getkbotktopmax(k,kb,ktx)
+            call getkbotktopmax(k,kb,kt,ktx)
             vdfmin = 0.0
             volsum = vol1(kb)
             do kk = kb+1, ktx
@@ -2752,7 +2822,7 @@ subroutine waq_wri_flo(itim, ti_waq, filename, lun)
 !
     integer :: isrc
     integer :: i, L, LL, Lb, Ltx, ip
-    integer :: k, kk, kb, ktx
+    integer :: k, kk, kb, kt, ktx
 !
 !! executable statements -------------------------------------------------------
 !
@@ -2799,7 +2869,7 @@ subroutine waq_wri_flo(itim, ti_waq, filename, lun)
     if (waqpar%kmxnxa > 1) then
         if (waqpar%aggre == 0 .and. waqpar%aggrel == 0) then
             do k = 1, ndxi
-                call getkbotktopmax(k,kb,ktx)
+                call getkbotktopmax(k,kb,kt,ktx)
                 do kk = kb, ktx - 1
                     if (waqpar%iqwaggr(kk)>0) then
                         waqpar%qag(waqpar%iqwaggr(kk)) = - qwwaq(kk) / dble(ti_waq)
@@ -2808,7 +2878,7 @@ subroutine waq_wri_flo(itim, ti_waq, filename, lun)
             end do
         else
             do k = 1, ndxi
-                call getkbotktopmax(k,kb,ktx)
+                call getkbotktopmax(k,kb,kt,ktx)
                 do kk = kb, ktx
                     if (waqpar%iqwaggr(kk)>0) then
                         waqpar%qag(waqpar%iqwaggr(kk)) = waqpar%qag(waqpar%iqwaggr(kk)) - qwwaq(kk) / dble(ti_waq)
@@ -2853,22 +2923,22 @@ subroutine waq_read_dwq(ndxi, ndx, iapnt, filename)
     else    
         call oldfil(lundwq, trim(filename)) ! when the file does not exist the program stops(!)
         if ( lundwq == 0 ) then
-            call mess(LEVEL_WARN, 'unable to open aggregation file '''//trim(filename)//'''.')
+            call mess(LEVEL_WARN, 'Unable to open the horizontal aggregation file.')
             aggregate = .false.
         else
             read (lundwq, *, iostat=istat) headervals
             if ( istat /= 0) then
-                call mess(LEVEL_WARN, 'unable to read dimensions in aggregation file '''//trim(filename)//'''.')
+                call mess(LEVEL_WARN, 'Unable to read dimensions in the horizontal aggregation file.')
                 aggregate = .false.
             else
                 if (headervals(3) /= ndxi) then
-                    call mess(LEVEL_WARN, 'mmax*nmax in dwqfile '''//trim(filename)//''' does not match ndxi: ', headervals(3), ndxi)
+                    call mess(LEVEL_WARN, 'The dimension of the the horizontal aggregation file (1) do not match the number of cells (2): ', headervals(3), ndxi)
                     aggregate = .false.
                 else
 ! read the aggregation array
                     read  ( lundwq , *, iostat=istat) iapnt(1:ndxi)
                     if ( istat /= 0) then
-                        call mess(LEVEL_WARN, 'unable to read aggregation pointer in '''//trim(filename)//'''.')
+                        call mess(LEVEL_WARN, 'Error reading the horizontal aggregation pointer.')
                         aggregate = .false.
                     end if
                 end if
@@ -2879,10 +2949,7 @@ subroutine waq_read_dwq(ndxi, ndx, iapnt, filename)
     
     if (.not. aggregate) then
 ! if no aggregation could be read correctly, create default one to one aggregation
-        call mess(LEVEL_WARN, 'no aggregation will be used '''//trim(filename)//'''.')
-        do i = 1, ndxi
-            iapnt(i) = i
-        end do
+        call mess(LEVEL_ERROR, 'There was a problem with the aggregation file: '''//trim(filename)//'''.')
     end if
 
 ! add pointer for boundary nodes    
@@ -2933,69 +3000,10 @@ enddo
 end subroutine gettaus
 
 subroutine gettau(n,taucurc,czc)
-use m_flowgeom
-use m_flow
-use m_waves
-
- 
-implicit none
-integer, intent(in)   :: n               !< Flow node number
-double precision, intent(out) :: taucurc !< Bed shear stress from current or current plus wave 
-double precision, intent(out) :: czc     !< Chezy at flow node (taucurrent)
-!
-!           Local variables
-!
-integer :: LL, nn                            !< Local link counters
-double precision ::  cf, cfn, cz, frcn, ar,  wa, ust, ust2, ustw2, fw    !< Local intermediate variables
-
-taucurc = 0d0
-czc = 0d0
-cfn = 0d0
-wa  = 0d0
-ust = 0d0
-
-do nn = 1,nd(n)%lnx 
-   LL = abs( nd(n)%ln(nn) )
-   frcn = frcu(LL) 
-   if (frcn > 0 .and. hu(LL) > 0) then 
-      call getcz(hu(LL), frcn, ifrcutp(LL), cz,LL)
-      cf  = ag/(cz*cz)
-      ar  = au(LL)*dx(LL)
-      wa  = wa + ar       ! area  weigthed
-      cfn = cfn + cf*ar
-      if (kmx > 0) then
-         if (jawaveswartdelwaq <= 1) then 
-            ust = ust + ustb(LL)*ar
-         else
-            ust = ust+ taubxu(LL)*ar
-         endif   
-      endif
-   endif 
-enddo
-if (wa > 0) then 
-   cfn = cfn / wa 
-   ust = ust / wa 
-endif
-if (cfn > 0) then 
-   czc = sqrt(ag/cfn)
-endif
-
-ust2 = 0d0
-if (kmx == 0) then
-    ust2 = cfn*(ucx(n)*ucx(n) + ucy(n)*ucy(n))
-else  
-    ust2 = ust*ust
-endif
-
-if (jawaveswartdelwaq == 0) then 
-   taucurc = rhomean*ust2
-else if (jawaveSwartDelwaq == 1) then  
-   call Swart(Twav(n), uorb(n), z0wav, fw)
-   taucurc = rhomean* (ust2 + 0.5d0*fw*uorb(n)*uorb(n) )         ! Swart
-else if (jawaveSwartDelwaq == 2) then 
-   taucurc = ust                                                 ! area averaged taubxu
-endif
-
+integer          :: n
+double precision :: taucurc,czc,ustw2
+call gettau2(n,taucurc,czc,ustw2)
 end subroutine gettau
 
- 
+
+

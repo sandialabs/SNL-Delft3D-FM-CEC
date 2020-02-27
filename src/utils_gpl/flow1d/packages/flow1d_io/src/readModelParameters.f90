@@ -1,7 +1,7 @@
 module m_readModelParameters
 !----- AGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2017-2018.                                
+!  Copyright (C)  Stichting Deltares, 2017-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify              
 !  it under the terms of the GNU Affero General Public License as               
@@ -25,8 +25,8 @@ module m_readModelParameters
 !  Stichting Deltares. All rights reserved.
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: readModelParameters.f90 62168 2018-09-26 09:02:37Z zeekant $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_gpl/flow1d/packages/flow1d_io/src/readModelParameters.f90 $
+!  $Id: readModelParameters.f90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_gpl/flow1d/packages/flow1d_io/src/readModelParameters.f90 $
 !-------------------------------------------------------------------------------
 
    use MessageHandling
@@ -34,7 +34,6 @@ module m_readModelParameters
    use ModelParameters
    use properties
    use string_module
-   use m_boundaryConditions
 
    implicit none
 
@@ -64,6 +63,12 @@ module m_readModelParameters
       
       call ReadSobekSimIni(sobekSimIniFile)
       
+      ! Retrieve Minimum Distance between Grid Points
+      call prop_get_double(md_ptr, 'NumericalParameters', 'MinimumLength', Value, success)
+      if (success) then
+         minSectionLength = Value
+      endif
+      
       ! Read Interpolation Type for Obsevation Points
       call prop_get_string(md_ptr, 'Observations', 'interpolationType', obsIntPolType, success)
       if (.not. success) then
@@ -71,13 +76,12 @@ module m_readModelParameters
       endif
       
       ! Read Salt Switch
-      call prop_get_integer(md_ptr, 'salinity', 'SaltComputation', iValue, success)
+      call prop_get_integer(md_ptr, 'Salinity', 'SaltComputation', iValue, success)
       if (success .and. (iValue .ne. 0)) then
          transportPars%do_salt = .true.
          transportPars%salt_index = 1
          transportPars%constituents_count = 1
          call AddOrReplaceParameter('Salinity', 'SaltComputation', 'true', .true.)
-         transportPars%co_h(transportPars%salt_index)%boundary_index = S_BOUN
       else
          transportPars%do_salt = .false.
          transportPars%salt_index = -1
@@ -92,7 +96,6 @@ module m_readModelParameters
          call AddOrReplaceParameter('TransportComputation', 'Temperature', 'true', .true.)
          transportPars%constituents_count = transportPars%constituents_count + 1
          transportPars%temp_index = transportPars%constituents_count 
-         transportPars%co_h(transportPars%temp_index)%boundary_index = T_BOUN
          call default_heatfluxes()
          value = 15d0
          call prop_get_double(md_ptr, 'Temperature', 'BackgroundTemperature', value, success)
@@ -127,7 +130,7 @@ module m_readModelParameters
       
       dens_comp = 'eckart_modified'
       call prop_get_string(md_ptr, 'TransportComputation', 'Density', dens_comp, success)
-      call lowercase(dens_comp, 999)
+      call str_lower(dens_comp, 999)
       select case (trim(dens_comp))
       case ('eckart_modified', 'eckhart_modified')
          transportPars%density = DENS_ECKART_MODIFIED
@@ -150,7 +153,7 @@ module m_readModelParameters
          
       heat_model = 'transport'
       call prop_get_string(md_ptr, 'TransportComputation', 'HeatTransferModel', heat_model, success)
-      call lowercase(heat_model, 999)
+      call str_lower(heat_model, 999)
       select case (trim(heat_model))
       case ('transport')
          tempPars%heat_model = HEAT_TRANSPORT
@@ -429,7 +432,7 @@ module m_readModelParameters
 
          read (startTime, '(I4,1X,I2,1X,I2,1X,I2,1X,I2,1X,I2)') iYear, iMonth, iDay, iHour, iMinute, iSecond
          julDate = julian(iYear, iMonth, iDay, iHour, iMinute, iSecond)
-         RestartTime = nint(max((juldate - modelTimeStepData%julianStart)*86400,0d0))
+         RestartTime = nint((juldate - modelTimeStepData%julianStart)*86400)
          modelTimeStepData%nextRestarttimestep =restartTime/modelTimeStepData%timeStep
          
          read (stopTime, '(I4,1X,I2,1X,I2,1X,I2,1X,I2,1X,I2)') iYear, iMonth, iDay, iHour, iMinute, iSecond
@@ -441,24 +444,39 @@ module m_readModelParameters
             call SetMessage(LEVEL_FATAL, 'Error Reading Date Time Data: Output Time Step must be multiple of Time Step')
          endif
          modelTimeStepData%restartInterval = nint(timeStep/modelTimeStepData%timeStep)
+         
+         if (modelTimeStepData%nextRestarttimestep < 0) then
+            modelTimeStepData%nextRestarttimestep = modelTimeStepData%nextRestarttimestep - &
+                                   (modelTimeStepData%nextRestarttimestep/modelTimeStepData%restartInterval)*modelTimeStepData%restartInterval
+            if (modelTimeStepData%nextRestarttimestep < 0) then
+               modelTimeStepData%nextRestarttimestep = modelTimeStepData%nextRestarttimestep + modelTimeStepData%restartInterval
+            endif
+         endif
+         
       elseif (.not. success) then
          
          ! TODO remove this part in due time, for now it stays compatibility reasons:
          modelTimeStepData%nextRestarttimestep = nint((modelTimeStepData%julianEnd - modelTimeStepData%julianStart) * 86400)
 
-         call prop_get_logical(md_ptr, 'SimulationOptions', 'WriteRestart', modelTimeStepData%writeRestart, success) 
+         call prop_get_logical(md_ptr, 'SimulationOptions', 'WriteRestart', modelTimeStepData%writeRestart, success)
+         
+         if (success) then
+            call SetMessage(LEVEL_WARN, 'Keyword WriteRestart under SimulationOptions has been depreciated, better use WriteRestart under Restart')
+         endif
 
       endif
       
-      success = .true.
       modelTimeStepData%restartFile =  '  '
       modelTimeStepData%useRestart = .false.
-      call prop_get_logical(md_ptr, 'restart', 'UseRestart',   modelTimeStepData%useRestart,   success) 
-      if (success) call prop_get_string (md_ptr, 'restart', 'restartfile', modelTimeStepData%restartFile, success)   
-      
-      if (.not. success) then
+      call prop_get_logical(md_ptr, 'Restart', 'UseRestart',   modelTimeStepData%useRestart,   success) 
+      if (success) then 
+         call prop_get_string (md_ptr, 'Restart', 'restartfile', modelTimeStepData%restartFile, success)   
+      else
          ! TODO remove this part in due time, for now it stays compatibility reasons:
-         call prop_get_logical(md_ptr, 'SimulationOptions', 'UseRestart',   modelTimeStepData%useRestart,   success) 
+         call prop_get_logical(md_ptr, 'SimulationOptions', 'UseRestart',   modelTimeStepData%useRestart, success) 
+         if (success) then
+            call SetMessage(LEVEL_WARN, 'Keyword UseRestart under SimulationOptions has been depreciated, better use UseRestart under Restart')
+         endif
       endif
       
       
@@ -622,7 +640,7 @@ module m_readModelParameters
       call AddOrReplaceParameter(category, 'MaxTimeStep', '0', .true.)  ! TODO: Default must be corrected when Time Chapter is available
       call AddOrReplaceParameter(category, 'MinimumSurfaceatStreet', '0.1', .true.)
       call AddOrReplaceParameter(category, 'MinimumSurfaceinNode', '0.1', .true.)
-      call AddOrReplaceParameter(category, 'MinumumLength', '1.0', .true.)
+      call AddOrReplaceParameter(category, 'MinimumLength', '1.0', .true.)
       call AddOrReplaceParameter(category, 'RelaxationFactor', '1.0', .true.)
       call AddOrReplaceParameter(category, 'Rho', '1000', .true.)
       call AddOrReplaceParameter(category, 'StructureInertiaDampingFactor', '1.0', .true.)
@@ -712,7 +730,7 @@ module m_readModelParameters
       call AddOrReplaceParameter(category, 'StantonNumber', '0.0013', .true.)
 
       category = 'Observations'
-      call AddOrReplaceParameter(category, 'interpolationType', 'nearest', .true.)
+      call AddOrReplaceParameter(category, 'interpolationType', 'OBS_NEAREST', .true.)
    
    end subroutine setModelParameterDefaults
 

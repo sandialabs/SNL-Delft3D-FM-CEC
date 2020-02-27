@@ -8,7 +8,7 @@ function [G,GridFileName]=get_matching_grid(MapSeg,pn,filterspec)
 
 %----- LGPL --------------------------------------------------------------------
 %
-%   Copyright (C) 2011-2018 Stichting Deltares.
+%   Copyright (C) 2011-2020 Stichting Deltares.
 %
 %   This library is free software; you can redistribute it and/or
 %   modify it under the terms of the GNU Lesser General Public
@@ -33,8 +33,8 @@ function [G,GridFileName]=get_matching_grid(MapSeg,pn,filterspec)
 %
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/private/get_matching_grid.m $
-%   $Id: get_matching_grid.m 8468 2018-03-29 08:54:39Z jagers $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/private/get_matching_grid.m $
+%   $Id: get_matching_grid.m 65778 2020-01-14 14:07:42Z mourits $
 
 GridSeg=-1;
 PerLayer=0;
@@ -237,11 +237,11 @@ while 1
                         C = cell(0,4);
                         for i=1:length(G.Dataset)
                             if strcmp(G.Dataset(i).Type,'ugrid_mesh')
-                                nNodeDim = G.Dataset(i).Mesh{4};
+                                nNodeDim = G.Dataset(i).Mesh{5};
                                 nNodes = G.Dimension(ustrcmpi(nNodeDim,{G.Dimension.Name})).Length;
                                 GridsChecked{end+1} = sprintf('UGRID mesh "%s", number of nodes = %i',G.Dataset(i).Name,nNodes);
-                                if length(G.Dataset(i).Mesh)>=6
-                                    nFaceDim = G.Dataset(i).Mesh{6};
+                                if length(G.Dataset(i).Mesh)>=7
+                                    nFaceDim = G.Dataset(i).Mesh{7};
                                     nFaces = G.Dimension(ustrcmpi(nFaceDim,{G.Dimension.Name})).Length;
                                     GridsChecked{end+1} = sprintf('UGRID mesh "%s", number of faces = %i',G.Dataset(i).Name,nFaces);
                                 else

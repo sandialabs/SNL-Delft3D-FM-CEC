@@ -600,7 +600,7 @@ subroutine fm_calksc()
     use sediment_basics_module, only: dsand, dgravel, dsilt
     use m_sferic,               only: pi
     use m_physcoef,             only: ag, frcuni, ifrctypuni
-    use m_flowtimes,            only: dts, dt_max, dt_trach
+    use m_flowtimes,            only: dts, dt_max
     use m_flow,                 only: kmx, s1, u1, u0, hs, z0urou, ucx, ucy, frcu, ifrcutp, hu
     use m_flowgeom,             only: ndx, kfs, bl, ndxi, lnx, wcl, ln
     use m_flowparameters,       only: v2dwbl, jatrt, epshs, jawave
@@ -637,7 +637,7 @@ subroutine fm_calksc()
 
     real(fp), parameter                            :: rwe = 1.65
     
-    integer                                        :: nm, k, kb, kt, itimtt, ierr, k1, k2, L
+    integer                                        :: nm, k, kb, kt, ierr, k1, k2, L
     integer                                        :: kmaxx
     real(fp)                                       :: par1, par2, par3, par4, par5, par6
     real(fp)                                       :: relaxr, relaxmr, relaxd
@@ -722,11 +722,9 @@ subroutine fm_calksc()
        par5 = kdpar(5)*60d0    ! relaxation time scale mega-ripples (minutes to sec)
        par6 = kdpar(6)*60d0    ! relaxation time scale dunes (minutes to sec)
        !
-       itimtt = nint(dt_trach/dt_max)    ! value in seconds, to check, according to modules dt_trach in sec
-       !
-       relaxr  = exp(- dt_max * itimtt / max(1.0e-20_fp, par4))
-       relaxmr = exp(- dt_max * itimtt / max(1.0e-20_fp, par5))
-       relaxd  = exp(- dt_max * itimtt / max(1.0e-20_fp, par6))
+       relaxr  = exp(- dt_max / max(1.0e-20_fp, par4))
+       relaxmr = exp(- dt_max / max(1.0e-20_fp, par5))
+       relaxd  = exp(- dt_max / max(1.0e-20_fp, par6))
        !
        do k = 1, ndx
           if (kfs(k)>0) then
@@ -1064,7 +1062,8 @@ subroutine fm_advecbedform(thevar, uadv, qadv, bedform_sour, bedform_sink, limit
    end do
 
 !  compute horizontal fluxes, explicit part
-   call comp_fluxhor3D(1, limityp, Ndx, Lnx, uadv, qadv, wu, bfsqi, ba, kbot, Lbot, Ltop,  kmxn, kmxL, thevar, difsedubf, sigdifibf, dumL, dumd, 1, jabfupdate, jabfhorupdate, nbfdeltasteps, (/ 1 /), fluxhorbf, dumx, dumy)
+   call comp_dxiAu()
+   call comp_fluxhor3D(1, limityp, Ndx, Lnx, uadv, qadv, wu, bfsqi, ba, kbot, Lbot, Ltop,  kmxn, kmxL, thevar, difsedubf, sigdifibf, dumL, dumd, 1, jabfupdate, jabfhorupdate, nbfdeltasteps, (/ 1 /), fluxhorbf, dumx, dumy, 1, dxiAu)
    call comp_sumhorflux(1, 0, Lnkx, Ndkx, Lbot, Ltop, fluxhorbf, bfsumhorflux)
    call solve_2D(1, Ndx, Lnx, ba, kbot, ktop, Lbot, Ltop, bfsumhorflux, fluxverbf, const_sourbf, const_sinkbf, 1, jabfupdate, nbfdeltasteps, thevar, rhsbf)
    ierror = 0

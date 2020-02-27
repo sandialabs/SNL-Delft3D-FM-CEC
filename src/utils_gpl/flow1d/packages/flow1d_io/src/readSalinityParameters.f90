@@ -1,7 +1,7 @@
 module m_readSalinityParameters
 !----- AGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2017-2018.                                
+!  Copyright (C)  Stichting Deltares, 2017-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify              
 !  it under the terms of the GNU Affero General Public License as               
@@ -25,8 +25,8 @@ module m_readSalinityParameters
 !  Stichting Deltares. All rights reserved.
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: readSalinityParameters.f90 8130 2018-02-09 16:34:49Z dam_ar $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_gpl/flow1d/packages/flow1d_io/src/readSalinityParameters.f90 $
+!  $Id: readSalinityParameters.f90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_gpl/flow1d/packages/flow1d_io/src/readSalinityParameters.f90 $
 !-------------------------------------------------------------------------------
 
    use MessageHandling
@@ -140,7 +140,6 @@ module m_readSalinityParameters
          mp%tp = transportPars%tidal_period
          
          nbr = network%brs%count
-         allocate(network%trans%mp(2,nbr))
          pmp => network%trans%mp
          do i = 1, 2
             do ibr = 1, nbr

@@ -3,7 +3,7 @@ function [hNew,Thresholds,Param]=qp_plot_polyl(hNew,Parent,Param,data,Ops,Props)
 
 %----- LGPL --------------------------------------------------------------------
 %                                                                               
-%   Copyright (C) 2011-2018 Stichting Deltares.                                     
+%   Copyright (C) 2011-2020 Stichting Deltares.                                     
 %                                                                               
 %   This library is free software; you can redistribute it and/or                
 %   modify it under the terms of the GNU Lesser General Public                   
@@ -28,8 +28,8 @@ function [hNew,Thresholds,Param]=qp_plot_polyl(hNew,Parent,Param,data,Ops,Props)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/private/qp_plot_polyl.m $
-%   $Id: qp_plot_polyl.m 8315 2018-03-08 11:37:55Z jagers $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/private/qp_plot_polyl.m $
+%   $Id: qp_plot_polyl.m 65778 2020-01-14 14:07:42Z mourits $
 
 T_=1; ST_=2; M_=3; N_=4; K_=5;
 
@@ -139,7 +139,7 @@ switch NVal
             set(Parent,'layer','top')
         end
         qp_title(Parent,TStr,'quantity',Quant,'unit',Units,'time',TStr)
-    case 1
+    case {1,5,6}
         switch Ops.presentationtype
             case {'values'}
                 hNew=gentextfld(hNew,Ops,Parent,data.Val,data.XY(:,1),data.XY(:,2));

@@ -1,7 +1,7 @@
 module geometry_module
 !----- LGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
+!  Copyright (C)  Stichting Deltares, 2011-2020.                                
 !                                                                               
 !  This library is free software; you can redistribute it and/or                
 !  modify it under the terms of the GNU Lesser General Public                   
@@ -25,8 +25,8 @@ module geometry_module
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: geometry_module.f90 61509 2018-09-03 13:06:23Z dam_ar $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_lgpl/deltares_common/packages/deltares_common/src/geometry_module.f90 $
+!  $Id: geometry_module.f90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/deltares_common/packages/deltares_common/src/geometry_module.f90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: - Various geometrical routines
@@ -90,6 +90,8 @@ module geometry_module
    public :: circumcenter3       ! line 18851
    public :: comp_breach_point
    
+   integer, public :: ipolyfound
+
    interface clockwise
       module procedure clockwise_sp
       module procedure clockwise_hp
@@ -98,15 +100,15 @@ module geometry_module
    contains
 
    !> projects a point to a polyline and finds the closest link
-   subroutine comp_breach_point(start_location_x, start_location_y, xp, yp, np, xl, yl, Lstart, x_breach, y_breach, jsferic, jasfer3D, dmiss)
+   subroutine comp_breach_point(startLocationX, startLocationY, xp, yp, np, xl, yl, Lstart, x_breach, y_breach, jsferic, jasfer3D, dmiss)
 
    implicit none
 
    !input
    integer, intent(in)                       :: np, jsferic, jasfer3D
    integer, intent(inout)                    :: Lstart
-   double precision, intent(in)              :: start_location_x, start_location_y, dmiss
-   double precision, allocatable, intent(in) :: xp(:), yp(:), xl(:), yl(:)
+   double precision, intent(in)              :: startLocationX, startLocationY, dmiss
+   double precision, allocatable, intent(in) :: xp(:), yp(:), xl(:,:), yl(:,:)
    double precision, intent(inout)           :: x_breach, y_breach
    
    !locals
@@ -120,7 +122,7 @@ module geometry_module
    yn = dmiss
    dis = huge(dmiss)
    do k  = 1, np - 1
-      call dlinedis(start_location_x, start_location_y, xp(k), yp(k), xp(k + 1), yp(k + 1), ja, distemp, xntempa, yntempa, jsferic, jasfer3D, dmiss)
+      call dlinedis(startLocationX, startLocationY, xp(k), yp(k), xp(k + 1), yp(k + 1), ja, distemp, xntempa, yntempa, jsferic, jasfer3D, dmiss)
       if (distemp <= dis ) then
          xn  = xntempa
          yn  = yntempa
@@ -130,9 +132,9 @@ module geometry_module
 
    ! Assign the flow links and the starting link of the breach
    dis = huge(dmiss)      
-   do k = 1, size(xl) - 1
+   do k = 1, size(xl, 1)
       ! compute the mid point of the segment
-      call half(xl(k), yl(k), xl(k+1), yl(k+1), xc, yc, jsferic, jasfer3D)
+      call half(xl(k,1), yl(k,1), xl(k,2), yl(k,2), xc, yc, jsferic, jasfer3D)
       ! calculate the distance with projected start of the breach
       distemp = dbdistance(xn, yn, xc, yc, jsferic, jasfer3D, dmiss)
       ! identify the closest link to the projected point
@@ -919,6 +921,12 @@ module geometry_module
             endif
          ENDIF
       end do   ! do ipoly=1,Npoly
+
+      if (in == 1) then ! and, even more handy: 
+         ipolyfound = ipoly 
+      else
+         ipolyfound = 0
+      endif
 
       return
       end subroutine dbpinpol_optinside_perpol

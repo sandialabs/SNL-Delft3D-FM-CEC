@@ -35,7 +35,7 @@ subroutine crewav(filnam   ,itide    ,hrms     ,tp       ,dir      , &
                 & mmax     ,nmax     ,swflux   ,wavetime )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
+!  Copyright (C)  Stichting Deltares, 2011-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -59,8 +59,8 @@ subroutine crewav(filnam   ,itide    ,hrms     ,tp       ,dir      , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: put_wave_fields.f90 59766 2018-08-07 12:38:45Z j.reyns $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/wave/packages/io/src/put_wave_fields.f90 $
+!  $Id: put_wave_fields.f90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/wave/packages/io/src/put_wave_fields.f90 $
 !!--description-----------------------------------------------------------------
 ! NONE
 !!--pseudo code and references--------------------------------------------------
@@ -455,7 +455,7 @@ subroutine crewav_netcdf(fg       ,itide    ,hrms     ,tp       ,dir      , &
                        & mmax     ,nmax     ,swflux   ,wavedata ,netcdf_sp)
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
+!  Copyright (C)  Stichting Deltares, 2011-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -479,8 +479,8 @@ subroutine crewav_netcdf(fg       ,itide    ,hrms     ,tp       ,dir      , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: put_wave_fields.f90 59766 2018-08-07 12:38:45Z j.reyns $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/wave/packages/io/src/put_wave_fields.f90 $
+!  $Id: put_wave_fields.f90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/wave/packages/io/src/put_wave_fields.f90 $
 !!--description-----------------------------------------------------------------
 ! NONE
 !!--pseudo code and references--------------------------------------------------

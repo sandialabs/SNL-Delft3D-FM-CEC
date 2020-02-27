@@ -1,6 +1,6 @@
 !----- LGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
+!  Copyright (C)  Stichting Deltares, 2011-2020.                                
 !                                                                               
 !  This library is free software; you can redistribute it and/or                
 !  modify it under the terms of the GNU Lesser General Public                   
@@ -23,8 +23,8 @@
 !  are registered trademarks of Stichting Deltares, and remain the property of  
 !  Stichting Deltares. All rights reserved.                                     
 
-!  $Id: ec_connection.f90 62276 2018-10-08 11:15:49Z pijl $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_lgpl/ec_module/packages/ec_module/src/ec_connection.f90 $
+!  $Id: ec_connection.f90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/ec_module/packages/ec_module/src/ec_connection.f90 $
 
 !> This module contains all the methods for the datatype tEcConnection.
 !! @author arjen.markus@deltares.nl
@@ -246,7 +246,11 @@ module m_ec_connection
          !
          connectionPtr => ecSupportFindConnection(instancePtr, connectionId)
          if ( associated(connectionPtr) ) then
-            success = ecConverterUpdateWeightFactors(instancePtr, connectionPtr)
+            if ( associated(connectionPtr%sourceItemsPtr(1)%ptr%elementSetPtr ) ) then 
+               success = ecConverterUpdateWeightFactors(instancePtr, connectionPtr)
+            else
+               success = .True. 
+            end if
          end if
       end function ecConnectionSetIndexWeights
       

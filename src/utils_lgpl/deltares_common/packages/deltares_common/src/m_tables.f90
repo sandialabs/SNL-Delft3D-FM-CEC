@@ -1,7 +1,7 @@
 module m_tables
 !----- LGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
+!  Copyright (C)  Stichting Deltares, 2011-2020.                                
 !                                                                               
 !  This library is free software; you can redistribute it and/or                
 !  modify it under the terms of the GNU Lesser General Public                   
@@ -25,8 +25,8 @@ module m_tables
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: m_tables.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_lgpl/deltares_common/packages/deltares_common/src/m_tables.f90 $
+!  $Id: m_tables.f90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/deltares_common/packages/deltares_common/src/m_tables.f90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: - Various table manipulation routines.
@@ -470,16 +470,16 @@ contains
        !     For discrete interpolation add small number to find proper
        !     table point if xs=table%x(i)
        !
-       Integrate = 0
+       Integrate = 0d0
        if ( xs <= table%x(1) ) then
-          Integrate = 0
+          Integrate = 0d0
           return
        endif
        itel = 1
        if (mod(table%interpoltype,10)==0) then
           ! interpolate values
           do while (itel < length .and. xs > table%x(min(itel+1, length)) )
-             Integrate = Integrate + 0.5*(table%y(itel)+table%y(itel+1)) * (table%x(itel+1)-table%x(itel))
+             Integrate = Integrate + 0.5d0*(table%y(itel)+table%y(itel+1)) * (table%x(itel+1)-table%x(itel))
              itel = itel+1
           enddo
           if (itel ==length) then
@@ -487,7 +487,7 @@ contains
           else
              fak = (xs - table%x(itel))/(table%x (itel+1)-table%x(itel))
              ys = table%y(itel) + fak*(table%y(itel+1)-table%y(itel))
-             Integrate = Integrate + 0.5*(table%y(itel)+ys)*(xs - table%x(itel))
+             Integrate = Integrate + 0.5d0*(table%y(itel)+ys)*(xs - table%x(itel))
           endif
        else
           ! use block function

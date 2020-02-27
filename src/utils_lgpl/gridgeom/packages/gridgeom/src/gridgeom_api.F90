@@ -1,6 +1,6 @@
 !----- LGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
+!  Copyright (C)  Stichting Deltares, 2011-2020.                                
 !                                                                               
 !  This library is free software; you can redistribute it and/or                
 !  modify it under the terms of the GNU Lesser General Public                   
@@ -25,8 +25,8 @@
 !                                                                               
 !-------------------------------------------------------------------------------
 
-! $Id: gridgeom_api.F90 62268 2018-10-05 13:02:59Z carniato $
-! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_lgpl/gridgeom/packages/gridgeom/src/gridgeom_api.F90 $
+! $Id: gridgeom_api.F90 65967 2020-02-11 11:06:09Z carniato $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/gridgeom/packages/gridgeom/src/gridgeom_api.F90 $
 
 !> \file
 !! Basic API for gridgeom routines.
@@ -92,7 +92,7 @@ function ggeo_convert_dll(c_meshgeom, c_meshgeomdim, start_index) result(ierr) b
    
 end function ggeo_convert_dll
 
-function ggeo_make1D2Dinternalnetlinks_dll(c_nin, c_xpl, c_ypl, c_zpl, c_nOneDMask, c_oneDmask, c_jsferic, c_jasfer3D, c_jglobe) result(ierr) bind(C, name="ggeo_make1D2Dinternalnetlinks")
+function ggeo_make1D2Dinternalnetlinks_dll(c_nin, c_xpl, c_ypl, c_zpl, c_nOneDMask, c_oneDmask, c_inNet, c_jsferic, c_jasfer3D, c_jglobe) result(ierr) bind(C, name="ggeo_make1D2Dinternalnetlinks")
 !DEC$ ATTRIBUTES DLLEXPORT :: ggeo_make1D2Dinternalnetlinks_dll
    
    use gridgeom
@@ -103,6 +103,7 @@ function ggeo_make1D2Dinternalnetlinks_dll(c_nin, c_xpl, c_ypl, c_zpl, c_nOneDMa
    type(c_ptr), intent(in)      :: c_zpl
    integer, intent(in)          :: c_nOneDMask
    type(c_ptr), intent(in)      :: c_oneDmask  
+   integer, intent(in)          :: c_inNet
    integer, intent(in)          :: c_jsferic
    integer, intent(in)          :: c_jasfer3D
    integer, intent(in)          :: c_jglobe
@@ -115,7 +116,7 @@ function ggeo_make1D2Dinternalnetlinks_dll(c_nin, c_xpl, c_ypl, c_zpl, c_nOneDMa
    call c_f_pointer(c_zpl, zplLinks, (/c_nin/))
    call c_f_pointer(c_oneDmask, oneDmask, (/c_nOneDMask/))
    
-   ierr = ggeo_make1D2Dinternalnetlinks(xplLinks, yplLinks, zplLinks, oneDmask, c_jsferic, c_jasfer3D, c_jglobe)
+   ierr = ggeo_make1D2Dinternalnetlinks(xplLinks, yplLinks, zplLinks, oneDmask, c_inNet, c_jsferic, c_jasfer3D, c_jglobe)
    
 end function ggeo_make1D2Dinternalnetlinks_dll
 !> Make 1d-2d roofs connections
@@ -217,28 +218,49 @@ end function ggeo_make1D2Dembeddedlinks_dll
 !> Make 1d-2d river connections connections. With this function multiple 2d boundary cells can be connected to 1d mesh points. 
 !> Please note that the gridgeom library has to be initialized before this function can be called.
 !!
-!! c_jsferic      :: 2d sferic flag (1 = spheric / 0 = cartesian)
-!! c_jasfer3D     :: 3d sferic flag (1 = advanced spheric algorithm, 0 = default spheric algorithm )
-!! c_searchRadius :: the search radius for making links
-!! c_nOneDMask    :: size of the 1d mask for mesh points
-!! c_oneDmask     :: mask for 1d mesh points (1 = potential connection, 0 = do not connect) 
-function ggeo_make1D2DRiverLinks_dll(c_jsferic, c_jasfer3D, c_searchRadius, c_nOneDMask, c_oneDMask) result(ierr) bind(C, name="ggeo_make1D2DRiverLinks")
+!! c_npl       :: size of the array containing the polygon's coordinates
+!! c_xpl       :: x coordinate of the polygon's points  
+!! c_ypl       :: y coordinate of the polygon's points
+!! c_zpl       :: z coordinate of the polygon's points
+!! c_nOneDMask :: size of the 1d mask for mesh 1d
+!! c_oneDmask  :: mask for 1d mesh points (1 = potential connection, 0 = do not connect) 
+!! c_jsferic   :: 2d sferic flag (1 = spheric / 0 = cartesian)
+!! c_jasfer3D  :: 3d sferic flag (1 = spheric / 0 = cartesian)
+!! c_jglobe    :: to be detailed
+function ggeo_make1D2DRiverLinks_dll(c_npl, c_xpl, c_ypl, c_zpl, c_nOneDMask, c_oneDmask, c_jsferic, c_jasfer3D, c_searchRadius) result(ierr) bind(C, name="ggeo_make1D2DRiverLinks")
 !DEC$ ATTRIBUTES DLLEXPORT :: ggeo_make1D2DRiverLinks_dll
 
    use gridgeom
    use gridoperations
-   
+
+   integer, intent(in)           :: c_npl, c_nOneDMask
+   type(c_ptr), intent(in)       :: c_xpl
+   type(c_ptr), intent(in)       :: c_ypl
+   type(c_ptr), intent(in)       :: c_zpl
+   type(c_ptr), intent(in)       :: c_oneDmask
    integer, intent(in)           :: c_jsferic
    integer, intent(in)           :: c_jasfer3D
    double precision, intent(in)  :: c_searchRadius
-   integer, intent(in)           :: c_nOneDMask   
-   type(c_ptr), intent(in)       :: c_oneDmask  
+   
+   double precision, pointer     :: xpl(:), ypl(:), zpl(:)   
    integer, pointer              :: oneDmask(:) 
    integer                       :: ierr  
    
-   call c_f_pointer(c_oneDmask, oneDmask, (/c_nOneDMask/))
+   if(c_npl > 0) then
+      call c_f_pointer(c_xpl, xpl, (/c_npl/))
+      call c_f_pointer(c_ypl, ypl, (/c_npl/))
+      call c_f_pointer(c_zpl, zpl, (/c_npl/))
+   endif
    
-   ierr = ggeo_make1D2DRiverLinks(c_jsferic, c_jasfer3D, c_searchRadius, oneDMask)
+   if (c_nOneDMask > 0) then
+      call c_f_pointer(c_oneDmask, oneDmask, (/c_nOneDMask/))
+   endif
+   
+   if (associated(xpl).and.associated(oneDMask)) then
+      ierr = ggeo_make1D2DRiverLinks(c_jsferic, c_jasfer3D, c_searchRadius, xpl, ypl, zpl, oneDMask)
+   else
+      ierr = ggeo_make1D2DRiverLinks(c_jsferic, c_jasfer3D, c_searchRadius)
+   endif
    
 end function ggeo_make1D2DRiverLinks_dll
 
@@ -255,11 +277,12 @@ function ggeo_get_links_count_dll(nlinks, linkType) result(ierr) bind(C, name="g
 end function ggeo_get_links_count_dll
 
 
-function ggeo_get_links_dll(c_arrayfrom, c_arrayto, nlinks, linkType) result(ierr) bind(C, name="ggeo_get_links")
+function ggeo_get_links_dll(c_arrayfrom, c_arrayto, nlinks, linkType, startIndex) result(ierr) bind(C, name="ggeo_get_links")
 !DEC$ ATTRIBUTES DLLEXPORT :: ggeo_get_links_dll
    use gridoperations
    
    type(c_ptr), intent(in)                  :: c_arrayfrom, c_arrayto
+   integer(kind=c_int), intent(in)          :: startIndex
    integer(kind=c_int), intent(in)          :: nlinks, linkType
    integer, pointer                         :: arrayfrom(:), arrayto(:)
    integer                                  :: ierr
@@ -267,7 +290,7 @@ function ggeo_get_links_dll(c_arrayfrom, c_arrayto, nlinks, linkType) result(ier
    call c_f_pointer(c_arrayfrom, arrayfrom, (/ nlinks /))
    call c_f_pointer(c_arrayto, arrayto, (/ nlinks /))
    
-   ierr = ggeo_get_links(arrayfrom, arrayto, linkType)
+   ierr = ggeo_get_links(arrayfrom, arrayto, linkType, startIndex)
    
 end function ggeo_get_links_dll
 
@@ -358,7 +381,55 @@ function ggeo_deallocate_dll() result(ierr) bind(C, name="ggeo_deallocate")
 
 end function ggeo_deallocate_dll
 
-function ggeo_find_cells_dll(c_meshDimIn, c_meshIn, c_meshDimOut, c_meshOut, startIndex) result(ierr) bind(C, name="ggeo_find_cells")
+
+function ggeo_count_cells_dll(c_meshDimIn, c_meshIn, c_meshDimOut) result(ierr) bind(C, name="ggeo_count_cells")
+!DEC$ ATTRIBUTES DLLEXPORT :: ggeo_count_cells_dll
+
+   use gridoperations   
+   use m_cell_geometry
+   use meshdata
+   use network_data
+   use m_missing
+   use m_alloc
+
+   type(c_t_ug_meshgeomdim), intent(in)       :: c_meshDimIn       !< input mesh dimensions, externally allocated
+   type(c_t_ug_meshgeom), intent(in)          :: c_meshIn          !< input mesh, externally allocated 
+   type(c_t_ug_meshgeomdim), intent(inout)    :: c_meshDimOut       !< input mesh dimensions
+   !locals
+   type(t_ug_meshgeom)                        :: meshgeomIn        !< fortran meshgeom
+   integer                                    :: ierr, n, nn, maxNumNodes
+   
+   ierr = 0
+
+
+   ierr = 0
+   
+   ! destroy any previous state of the library
+   ierr = network_data_destructor()   
+   ! initialize local meshgeomIn
+   ierr = t_ug_meshgeom_destructor(meshgeomIn)  
+   !convert c to fortran pointers
+   ierr = convert_cptr_to_meshgeom(c_meshIn, c_meshDimIn, meshgeomIn)
+   !set library state
+   ierr = ggeo_deallocate()
+   ierr = ggeo_initialize() 
+   ierr = ggeo_convert(meshgeomIn, c_meshIn%start_index)
+   
+   !find net cells
+   call findcells(0)  
+   
+   !inquire dimension for outside allocation
+   maxNumNodes = 0
+   do n = 1, nump
+      maxNumNodes = max(maxNumNodes, size(netcell(n)%nod))
+   enddo
+   c_meshDimOut%numface         = nump
+   c_meshDimOut%maxnumfacenodes = maxNumNodes
+
+end function ggeo_count_cells_dll
+
+
+function ggeo_find_cells_dll(c_meshDimIn, c_meshInOut) result(ierr) bind(C, name="ggeo_find_cells")
 !DEC$ ATTRIBUTES DLLEXPORT :: ggeo_find_cells_dll
    use gridoperations   
    use m_cell_geometry
@@ -367,67 +438,45 @@ function ggeo_find_cells_dll(c_meshDimIn, c_meshIn, c_meshDimOut, c_meshOut, sta
    use m_missing
    use m_alloc
 
-   type(c_t_ug_meshgeomdim), intent(in)       :: c_meshDimIn     !< input mesh dimensions, externally allocated
-   type(c_t_ug_meshgeom), intent(in)          :: c_meshIn        !< input mesh, externally allocated 
-   type(c_t_ug_meshgeomdim), intent(inout)    :: c_meshDimOut    !< input mesh dimensions, intenally allocated
-   type(c_t_ug_meshgeom), intent(inout)       :: c_meshOut       !< input mesh, intenally allocated 
-   integer(c_int), intent(in)                 :: startIndex      !< the start_index index of the arrays
+   type(c_t_ug_meshgeomdim), intent(in)       :: c_meshDimIn       !< input mesh dimensions, externally allocated
+   type(c_t_ug_meshgeom), intent(inout)       :: c_meshInOut          !< input mesh, externally allocated 
    !locals
-   type(t_ug_meshgeom)                        :: meshgeomIn       !< fortran meshgeom
-   type(t_ug_meshgeom)                        :: meshgeomOut       !< fortran meshgeom
-   integer, pointer                           :: face_nodes(:,:)  !< Face-to-node mapping array.
-   double precision, pointer                  :: facex(:)
-   double precision, pointer                  :: facey(:)
-   integer                                    :: ierr, n, nn, maxNumNodes
+   type(t_ug_meshgeom)                        :: meshgeomInOut         !< fortran meshgeom
+   integer                                    :: ierr, n, nn
    
    ierr = 0
    
    ! destroy any previous state of the library
    ierr = network_data_destructor()   
-   ! initialize local meshgeomIn
-   ierr = t_ug_meshgeom_destructor(meshgeomIn) 
-   ierr = t_ug_meshgeom_destructor(meshgeomOut) 
+   ! initialize local meshgeomInOut
+   ierr = t_ug_meshgeom_destructor(meshgeomInOut) 
    !convert c to fortran pointers
-   ierr = convert_cptr_to_meshgeom(c_meshIn, c_meshDimIn, meshgeomIn)
+   ierr = convert_cptr_to_meshgeom(c_meshInOut, c_meshDimIn, meshgeomInOut)
    !set library state
+   ierr = ggeo_deallocate()
    ierr = ggeo_initialize() 
-   ierr = ggeo_convert(meshgeomIn, startIndex)
+   ierr = ggeo_convert(meshgeomInOut, meshgeomInOut%start_index)
    
    !find net cells
    call findcells(0)   
-
-   call reallocP(meshgeomOut%facex, nump, keepExisting = .false., fill = -999d0)
-   call reallocP(meshgeomOut%facey, nump, keepExisting = .false., fill = -999d0)
-   
-   if (meshgeomIn%dim.eq.2) then
-      !get the max number of nodes for each face
-      maxNumNodes = 0
-      do n = 1, nump
-         maxNumNodes = max(maxNumNodes, size(netcell(n)%nod))
-      enddo
-      allocate(meshgeomOut%face_nodes(maxNumNodes, nump))
+    
+   if (meshgeomInOut%dim.eq.2) then
       do n = 1, nump
          !fill face nodes
-         meshgeomOut%face_nodes(:,n) = imiss;
+         meshgeomInOut%face_nodes(:,n) = imiss;
          nn = size(netcell(n)%nod)
-         meshgeomOut%face_nodes(1:nn,n) = netcell(n)%nod(1:nn)
+         meshgeomInOut%face_nodes(1:nn,n) = netcell(n)%nod(1:nn)
          !fill cell centers
-         meshgeomOut%facex(n) = xz(n)
-         meshgeomOut%facey(n) = yz(n)
+         meshgeomInOut%facex(n) = xz(n)
+         meshgeomInOut%facey(n) = yz(n)
       end do
    endif
    
    !convert back to the start index
-   if (startIndex == 0) then
-      where(meshgeomOut%face_nodes.ne.imiss) meshgeomOut%face_nodes = meshgeomOut%face_nodes - 1;
+   if (meshgeomInOut%start_index == 0) then
+      where(meshgeomInOut%face_nodes.ne.imiss) meshgeomInOut%face_nodes = meshgeomInOut%face_nodes - 1;
    endif
-   
-   !assign c pointers to fortran pointers (memory will be deleted later)
-   c_meshOut%face_nodes         = c_loc(meshgeomOut%face_nodes(1,1));
-   c_meshOut%facex              = c_loc(meshgeomOut%facex(1));
-   c_meshOut%facey              = c_loc(meshgeomOut%facey(1));
-   c_meshDimOut%numface         = nump          
-   c_meshDimOut%maxnumfacenodes = maxNumNodes    
+ 
    
 end function ggeo_find_cells_dll
 

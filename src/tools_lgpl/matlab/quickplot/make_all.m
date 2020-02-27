@@ -8,7 +8,7 @@ function make_all
 
 %----- LGPL --------------------------------------------------------------------
 %
-%   Copyright (C) 2011-2018 Stichting Deltares.
+%   Copyright (C) 2011-2020 Stichting Deltares.
 %
 %   This library is free software; you can redistribute it and/or
 %   modify it under the terms of the GNU Lesser General Public
@@ -33,8 +33,8 @@ function make_all
 %
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/make_all.m $
-%   $Id: make_all.m 7992 2018-01-09 10:27:35Z mourits $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/make_all.m $
+%   $Id: make_all.m 65778 2020-01-14 14:07:42Z mourits $
 
 if ~license('checkout','compiler')
     error('Compiler license currently not available.')

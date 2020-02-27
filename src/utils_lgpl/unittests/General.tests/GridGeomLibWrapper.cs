@@ -86,17 +86,25 @@ namespace General.tests
         public static extern int ggeo_make1D2Dembeddedlinks_dll(ref int c_jsferic, ref int c_jasfer3D, [In] ref int c_nOneDMask, [In] ref IntPtr c_oneDmask);
 
 
-
         /// <summary>
-        /// Make 1D2D embedded river links
-        /// </summary>
-        /// <param name="c_jsferic"></param>
+        /// Makes lateral 1d2d links. 1d-2d river connections connections.With this function multiple 2d boundary cells can be connected to 1d mesh points. 
+        ///Please note that the gridgeom library has to be initialized before this function can be called.
+        /// </summeray>
+        /// <param name="c_npl">The number of polygon nodes.</param>
+        /// <param name="c_xpl">The x coordinates of the polygon nodes.</param>
+        /// <param name="c_ypl">The y coordinates of the polygon nodes.</param>
+        /// <param name="c_zpl">The z coordinates of the polygon nodes.</param>
+        /// <param name="c_nOneDMask">The size of the 1d mask, should be equal to the number of 1d computational nodes</param>
+        /// <param name="c_oneDmask">The size of the 1d mask.</param>
+        /// <param name="c_jsferic">Cartisian (0) or spheric (1)</param>
         /// <param name="c_jasfer3D"></param>
-        /// <param name="c_nOneDMask"></param>
-        /// <param name="c_oneDmask"></param>
+        /// <param name="c_searchRadius">The radius where to search for boundary cells from the 1d poind</param>
         /// <returns></returns>
-        [DllImport(LibDetails.LIB_DLL_NAME, EntryPoint = "ggeo_make1D2DRiverLinks", CallingConvention = CallingConvention.Cdecl)]
-        public static extern int ggeo_make1D2DRiverLinks_dll(ref int c_jsferic, ref int c_jasfer3D, ref double c_searchRadius, [In] ref int c_nOneDMask, [In] ref IntPtr c_oneDmask);
+        [DllImport(LibDetails.LIB_DLL_NAME, EntryPoint = "ggeo_make1D2DRiverLinks",
+            CallingConvention = CallingConvention.Cdecl)]
+        public static extern int ggeo_make1D2DRiverLinks_dll(ref int c_npl, [In] ref IntPtr c_xpl, [In] ref IntPtr c_ypl, [In] ref IntPtr c_zpl, ref int c_nOneDmask, [In] ref IntPtr c_OneDmask,
+            ref int c_jsferic, ref int c_jasfer3D, ref double c_searchRadius);
+
 
         /// <summary>
         /// Use 1d array to fill kn matrix
@@ -129,7 +137,7 @@ namespace General.tests
         /// <param name="linkType">The link type</param>
         /// <returns></returns>
         [DllImport(LibDetails.LIB_DLL_NAME, EntryPoint = "ggeo_get_links", CallingConvention = CallingConvention.Cdecl)]
-        public static extern int ggeo_get_links_dll([In, Out] ref IntPtr arrayfrom, [In, Out] ref IntPtr arrayto, [In] ref int nlinks, [In] ref int linkType);
+        public static extern int ggeo_get_links_dll([In, Out] ref IntPtr arrayfrom, [In, Out] ref IntPtr arrayto, [In] ref int nlinks, [In] ref int linkType, [In] ref int startIndex);
 
         /// <summary>
         /// This function fills the memory pointed by c_edgenodes
@@ -188,6 +196,17 @@ namespace General.tests
             CallingConvention = CallingConvention.Cdecl)]
         public static extern int ggeo_deallocate_dll();
 
+
+        /// <summary>
+        /// Count the number of cells of a given mesh (defined by meshDimIn, meshIn) and returns the results in meshDimOut
+        /// </summary>
+        /// <param name="meshDimIn"> client defined dimensions</param>
+        /// <param name="meshIn"> client allocated <see cref="MeshGeometry"/> structure </param>
+        /// <param name="meshDimOut"> server defined dimension</param>
+        /// <returns></returns>
+        [DllImport(LibDetails.LIB_DLL_NAME, EntryPoint = "ggeo_count_cells", CallingConvention = CallingConvention.Cdecl)]
+        public static extern int ggeo_count_cells_dll([In] ref meshgeomdim meshDimIn, [In] ref meshgeom meshIn, [In, Out] ref meshgeomdim meshDimOut);
+
         /// <summary>
         /// Finds the cells and related quantities
         /// </summary>
@@ -198,7 +217,7 @@ namespace General.tests
         /// <param name="startIndex"> for index based array, the start index </param>
         /// <returns></returns>
         [DllImport(LibDetails.LIB_DLL_NAME, EntryPoint = "ggeo_find_cells", CallingConvention = CallingConvention.Cdecl)]
-        public static extern int ggeo_find_cells_dll([In] ref meshgeomdim meshDimIn, [In] ref meshgeom meshIn, [In,Out] ref meshgeomdim meshDimOut, [In,Out] ref meshgeom meshOut, [In] ref int startIndex);
+        public static extern int ggeo_find_cells_dll([In] ref meshgeomdim meshDimIn, [In,Out] ref meshgeom meshInOut);
 
 
         /// <summary>
@@ -273,12 +292,14 @@ namespace General.tests
         }
 
 
-        public int ggeo_make1D2DRiverLinks(ref int c_nOneDMask, ref IntPtr c_oneDmask, ref double c_searchRadius)
+        public int ggeo_make1D2DRiverLinks(ref int c_nin, ref IntPtr c_xpl, ref IntPtr c_ypl, ref IntPtr c_zpl, ref int c_nOneDMask, ref IntPtr c_oneDmask)
         {
             // the following three variables might become part of the function api
             int c_jsferic = 0;
             int c_jasfer3D = 0;
-            int ierr = ggeo_make1D2DRiverLinks_dll(ref c_jsferic, ref c_jasfer3D, ref c_searchRadius, ref c_nOneDMask, ref c_oneDmask);
+            double c_searchRadius = 5000.0;
+            int ierr = ggeo_make1D2DRiverLinks_dll(ref c_nin, ref c_xpl, ref c_ypl, ref c_zpl, ref c_nOneDMask, ref c_oneDmask, ref c_jsferic, ref c_jasfer3D, ref c_searchRadius);
+
             return ierr;
         }
 
@@ -300,9 +321,9 @@ namespace General.tests
             return ierr;
         }
 
-        public int ggeo_get_links(ref IntPtr arrayfrom, ref IntPtr arrayto, ref int nlinks, ref int linkType)
+        public int ggeo_get_links(ref IntPtr arrayfrom, ref IntPtr arrayto, ref int nlinks, ref int linkType, ref int startIndex)
         {
-            int ierr = ggeo_get_links_dll(ref arrayfrom, ref arrayto, ref nlinks, ref linkType);
+            int ierr = ggeo_get_links_dll(ref arrayfrom, ref arrayto, ref nlinks, ref linkType, ref startIndex);
             return ierr;
         }
 
@@ -319,9 +340,15 @@ namespace General.tests
             return ierr;
         }
 
-        public int ggeo_find_cells(ref meshgeomdim meshDimIn,  ref meshgeom meshIn, ref meshgeomdim meshDimOut,  ref meshgeom meshOut,  ref int startIndex)
+        public int ggeo_find_cells(ref meshgeomdim meshDimIn,  ref meshgeom meshInOut)
         {
-            int ierr = ggeo_find_cells_dll(ref meshDimIn, ref  meshIn, ref meshDimOut, ref meshOut, ref startIndex);
+            int ierr = ggeo_find_cells_dll(ref meshDimIn, ref meshInOut);
+            return ierr;
+        }
+
+        public int ggeo_count_cells(ref meshgeomdim meshDimIn, ref meshgeom meshInOut, ref meshgeomdim meshDimOut)
+        {
+            int ierr = ggeo_count_cells_dll(ref meshDimIn, ref meshInOut, ref meshDimOut);
             return ierr;
         }
 

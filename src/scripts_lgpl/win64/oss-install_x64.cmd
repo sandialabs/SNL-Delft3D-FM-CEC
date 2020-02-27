@@ -7,19 +7,22 @@ echo oss-install...
 rem Usage:
 rem > oss-install.cmd <destiny>
 rem > oss-install.cmd [project] <destiny>
-rem > oss-install.cmd [project] <destiny> ["compiler_dir"]
+rem > oss-install.cmd [project] <destiny> ["compiler_redist_dir"]
+rem > oss-install.cmd [project] <destiny> ["compiler_redist_dir"] ["mkl_redist_dir"]
 
 rem with:
-rem   <destiny>        : Target directory where all binaries etc. are going to be installed by this script
-rem   [project]        : (optional) project to install. If missing, "everything" is installed
-rem   ["compiler_dir"] : (optional) Directory containing compiler specific dll's to be installed,
+rem   <destiny>               : Target directory where all binaries etc. are going to be installed by this script
+rem   [project]               : (optional) project to install. If missing, "everything" is installed
+rem   ["compiler_redist_dir"] : (optional) Directory containing compiler specific dll's to be installed
+rem   ["mkl_redist_dir"]      : (optional) Directory containing Intel math kernel library specific dll's to be installed
 rem                      surrounded by quotes to be able to handle white spaces in the path
 
 rem
 rem Example calls:
 rem > install.cmd <dest directory>                # Install entire solution
-rem > install.cmd flow2d3d <dest directory>       # Install only project flow2d3d (and its dependencies)
-rem > install.cmd flow2d3d <dest directory> "c:\Program Files (x86)\Intel\Composer XE 2011 SP1\redist\ia32\compiler\"      # Install only project flow2d3d (and its dependencies)
+rem > install.cmd dflowfm <dest directory>        # Install only project dflowfm (and its dependencies)
+rem > install.cmd dflowfm <dest directory> "C:\Program Files (x86)\IntelSWTools\compilers_and_libraries\windows\redist\ia32\compiler\"      																				  # Install only project dflowfm (and its dependencies)
+rem > install.cmd dflowfm <dest directory> "C:\Program Files (x86)\IntelSWTools\compilers_and_libraries\windows\redist\ia32\compiler\"  "C:\Program Files (x86)\IntelSWTools\compilers_and_libraries\windows\redist\ia32\mkl\"   # Install only project dflowfm (and its dependencies including mkl required dlls)
 rem                                                                                                                          including compiler specific dll's
 
 rem 0. defaults:
@@ -51,20 +54,62 @@ if [%dest_main%] EQU [] (
 )
 
 if [%3] EQU [] (
-    set compiler_dir=""
+    set compiler_redist_dir=""
 ) else (
-    set compiler_dir_read=%3
+    set compiler_redist_dir_read=%3
     rem Remove leading and trailing quote (")
-    rem These quotes MUST be present in argument number 3, because "compiler_dir" may contain white spaces
-    set compiler_dir=!compiler_dir_read:~1,-1!
+    rem These quotes MUST be present in argument number 3, because "compiler_redist_dir" may contain white spaces
+    set compiler_redist_dir=!compiler_redist_dir_read:~1,-1!
 )
 
+if [%4] EQU [] (
+    set mkl_redist_dir=""
+) else (
+    set mkl_redist_dir_read=%4
+    rem Remove leading and trailing quote (")
+    rem These quotes MUST be present in argument number 4, because "mkl_redist_dir_read" may contain white spaces
+    set mkl_redist_dir=!mkl_redist_dir_read:~1,-1!
+)
 
 rem Change to directory tree where this batch file resides (necessary when oss-install.cmd is called from outside of oss/trunk/src)
 cd %~dp0\..\..
 
+    rem =================
+    rem === LOCKFILE
+    rem === Problems may occur when this install script is being executed more than once at the same time.
+    rem === Workaround:
+    rem === 1. Unique id for each instance
+    rem ===    %RANDOM% is not good enough, so the seconds and milliseconds are summed to %RANDOM% to get a (more) unique id
+    rem === 2. Unique name for a lockfile
+    rem ===    using the unique id
+    rem === 3. getlock
+    rem ===    Count the number of lockfiles: 0: create my unique lockfile
+    rem ===                                  >1: wait 3 seconds and try again
+    rem ===    Wait a second
+    rem ===    Count the number of lockfiles: 1: yes, we have locked it, continue
+    rem ===                                  >1: multiple instances tried the same, remove my lockfile and try again
+    rem ===    Continue without lock after 10 trials
+    rem === 4. Do install actions
+    rem === 5. Remove my lockfile
+    rem ====================
+
+set myid=%TIME%
+set /A myid=(1%myid:~6,2%-100)*100 + (1%myid:~9,2%-100)
+set /A myid=%myid%+%RANDOM%
+
+    rem This echo is necessary, otherwise different instances started at the same time may have the same id
+echo oss-install id:"%myid%"
+    rem The directory containing the lockfiles must be present, also the 1 second wait is necessary
+call :makeDir !dest_main!
+call :waitfunction 2
+set lockfile=!dest_main!\oss-install_lockfile_!myid!.txt
+    rem echo lockfile:!lockfile!
+call :getlock
+
 call :generic
 call :!project!
+
+call :releaselock
 
 goto end
 
@@ -263,14 +308,47 @@ rem ====================
     call :makeDir !dest_plugins!
     call :makeDir !dest_share!
 
-    if !compiler_dir!=="" (
+    call :copyFile engines_gpl\waq\default\bloom.spe                           !dest_default!
+    call :copyFile engines_gpl\waq\default\bloominp.d09                        !dest_default!
+    call :copyFile engines_gpl\waq\default\proc_def.dat                        !dest_default!
+    call :copyFile engines_gpl\waq\default\proc_def.def                        !dest_default!
+
+    call :copyFile engines_gpl\dflowfm\scripts\MSDOS\run_dflowfm_processes.bat !dest_scripts!
+    call :copyFile engines_gpl\dflowfm\scripts\team-city\run_dflowfm.bat       !dest_scripts!
+    call :copyFile engines_gpl\dflowfm\scripts\team-city\run_dfmoutput.bat     !dest_scripts!
+	
+    if !compiler_redist_dir!=="" (
         rem Compiler_dir not set
     ) else (
-        rem "Compiler_dir:!compiler_dir!"
-        set localstring="!compiler_dir!*.dll"
+        rem "Compiler_dir:!compiler_redist_dir!"
+        set localstring="!compiler_redist_dir!*.dll"
         rem Note the awkward usage of !-characters
         call :copyFile !!localstring! !dest_bin!!
+        call :copyFile "third_party_open\petsc\petsc-3.10.2\lib\x64\Release\libpetsc.dll"  !dest_bin!
+        rem is needed for dimr nuget package? please check
+        call :copyFile "third_party_open\petsc\petsc-3.10.2\lib\x64\Release\libpetsc.dll"  !dest_share!
     )
+
+    if !mkl_redist_dir!=="" (
+        rem mkl_redist_dir not set
+    ) else (
+        set localstring="!mkl_redist_dir!mkl_core.dll"
+        call :copyFile !!localstring! !dest_bin!
+        set localstring="!mkl_redist_dir!mkl_def.dll"
+        call :copyFile !!localstring! !dest_bin!
+        set localstring="!mkl_redist_dir!mkl_core.dll"
+        call :copyFile !!localstring! !dest_bin!
+        set localstring="!mkl_redist_dir!mkl_avx.dll"
+        call :copyFile !!localstring! !dest_bin!
+        rem is needed for dimr nuget package? please check
+        call :copyFile !!localstring! !dest_share!
+        set localstring="!mkl_redist_dir!mkl_intel_thread.dll"
+        call :copyFile !!localstring! !dest_bin!
+        rem is needed for dimr nuget package?  please check
+        call :copyFile !!localstring! !dest_share!
+        call :copyFile "third_party_open\petsc\petsc-3.10.2\lib\x64\Release\libpetsc.dll"  !dest_bin!
+    )
+
 goto :endproc
 
 
@@ -340,11 +418,11 @@ rem ====================
     call :copyFile "engines_gpl\flow2d3d\scripts\run_*.bat"                         !dest_scripts!
     call :copyFile "third_party_open\tcl\bin\win64\tclkitsh852.exe"                 !dest_share!
 
-    if !compiler_dir!=="" (
+    if !compiler_redist_dir!=="" (
         rem Compiler_dir not set
     ) else (
-        rem "Compiler_dir:!compiler_dir!"
-        set localstring="!compiler_dir!*.dll"
+        rem "Compiler_dir:!compiler_redist_dir!"
+        set localstring="!compiler_redist_dir!*.dll"
         rem Note the awkward usage of !-characters
         call :copyFile !!localstring! !dest_bin!!
     )
@@ -443,20 +521,20 @@ rem ======================
     call :copyFile engines_gpl\waq\default\proc_def.dat                        !dest_default!
     call :copyFile engines_gpl\waq\default\proc_def.def                        !dest_default!
 	
-    if !compiler_dir!=="" (
+    if !compiler_redist_dir!=="" (
            rem Compiler_dir not set
        ) else (
-           rem "Compiler_dir:!compiler_dir!"
+           rem "Compiler_dir:!compiler_redist_dir!"
            rem Note the awkward usage of !-characters
-           set localstring="!compiler_dir!libiomp5md.dll"
+           set localstring="!compiler_redist_dir!libiomp5md.dll"
            call :copyFile !!localstring! !dest_bin!!
-           set localstring="!compiler_dir!libifcoremd.dll"
+           set localstring="!compiler_redist_dir!libifcoremd.dll"
            call :copyFile !!localstring! !dest_bin!!
-           set localstring="!compiler_dir!libifportmd.dll"
+           set localstring="!compiler_redist_dir!libifportmd.dll"
            call :copyFile !!localstring! !dest_bin!!
-           set localstring="!compiler_dir!libmmd.dll"
+           set localstring="!compiler_redist_dir!libmmd.dll"
            call :copyFile !!localstring! !dest_bin!!
-           set localstring="!compiler_dir!svml_dispmd.dll"
+           set localstring="!compiler_redist_dir!svml_dispmd.dll"
            call :copyFile !!localstring! !dest_bin!!
        )
 
@@ -478,20 +556,20 @@ rem
 rem    call :copyFile engines_gpl\waq\bin\Release\delwaq2_openda_lib.dll          !dest_bin!
 rem	
 
-rem    if !compiler_dir!=="" (
+rem    if !compiler_redist_dir!=="" (
 rem        rem Compiler_dir not set
 rem    ) else (
-rem        rem "Compiler_dir:!compiler_dir!"
+rem        rem "Compiler_dir:!compiler_redist_dir!"
 rem        rem Note the awkward usage of !-characters
-rem        set localstring="!compiler_dir!libiomp5md.dll"
+rem        set localstring="!compiler_redist_dir!libiomp5md.dll"
 rem        call :copyFile !!localstring! !dest_bin!!
-rem        set localstring="!compiler_dir!libifcoremd.dll"
+rem        set localstring="!compiler_redist_dir!libifcoremd.dll"
 rem        call :copyFile !!localstring! !dest_bin!!
-rem        set localstring="!compiler_dir!libifportmd.dll"
+rem        set localstring="!compiler_redist_dir!libifportmd.dll"
 rem        call :copyFile !!localstring! !dest_bin!!
-rem        set localstring="!compiler_dir!libmmd.dll"
+rem        set localstring="!compiler_redist_dir!libmmd.dll"
 rem        call :copyFile !!localstring! !dest_bin!!
-rem        set localstring="!compiler_dir!svml_dispmd.dll"
+rem        set localstring="!compiler_redist_dir!svml_dispmd.dll"
 rem        call :copyFile !!localstring! !dest_bin!!
 rem    )
 goto :endproc
@@ -530,12 +608,12 @@ rem ================
     call :copyFile engines_gpl\part\bin\x64\release\delpar.exe !dest!
     call :copyFile "engines_gpl\part\scripts\run_*.bat"        !dest_scripts!
 
-    if !compiler_dir!=="" (
+    if !compiler_redist_dir!=="" (
         rem Compiler_dir not set
     ) else (
-        rem "Compiler_dir:!compiler_dir!"
+        rem "Compiler_dir:!compiler_redist_dir!"
         rem Note the awkward usage of !-characters
-        set localstring="!compiler_dir!libiomp5md.dll"
+        set localstring="!compiler_redist_dir!libiomp5md.dll"
         call :copyFile !localstring! !dest!
     )
 	
@@ -590,11 +668,11 @@ rem ================
     call :copyFile "third_party_open\esmf\win64\scripts\*.*"          "!dest_esmf_scripts!"
     call :copyFile "engines_gpl\wave\scripts\run_*.bat"               "!dest_scripts!"
 
-    if !compiler_dir!=="" (
+    if !compiler_redist_dir!=="" (
         rem Compiler_dir not set
     ) else (
-        rem "Compiler_dir:!compiler_dir!"
-        set localstring="!compiler_dir!*.dll"
+        rem "Compiler_dir:!compiler_redist_dir!"
+        set localstring="!compiler_redist_dir!*.dll"
         rem Note the awkward usage of !-characters
         call :copyFile !!localstring! !dest_bin!!
     )
@@ -796,6 +874,23 @@ rem =====================
     call :copyFile "utils_lgpl\io_netcdf\packages\io_netcdf\dll\x64\Release\io_netcdf.dll"                  !dest_bin!
 goto :endproc
 
+
+
+rem =====================
+rem === INSTALL EC_MODULE
+rem =====================
+:ec_module
+    echo "installing ec_module . . ."
+
+    set dest_bin="!dest_main!\x64\share\bin"
+
+    call :makeDir !dest_bin!
+
+    call :copyFile "utils_lgpl\ec_module\packages\ec_module\dll\x64\Release\ec_module.dll"                  !dest_bin!
+goto :endproc
+
+
+
 rem =====================
 rem === INSTALL GRIDGEOM
 rem =====================
@@ -808,6 +903,85 @@ rem =====================
 
     call :copyFile "utils_lgpl\gridgeom\packages\gridgeom\dll\x64\Release\gridgeom.dll"                  !dest_bin!
 goto :endproc
+
+
+
+
+rem =======================
+rem === GET LOCK ==========
+rem =======================
+:getlock
+    rem echo "getlock start"
+    set counter=0
+    :getlockloop
+        set filecount=0
+        for %%x in (!dest_main!\oss-install_lockfile_*.txt) do set /a filecount+=1
+        rem echo filecount: !filecount!
+        if !filecount! GTR 0 (
+            set /A counter=%counter%+1
+            rem echo getlock waits for !counter! time
+            call :waitfunction 5
+        ) else (
+            rem echo Creating lockfile named !lockfile!
+            echo This file is created by oss-install_x64.cmd in directory %~dp0 >!lockfile!
+            call :waitfunction 2
+        )
+        if !counter! GTR 10 (
+            goto getlockfinishedwaiting
+        )
+        set filecount=0
+        for %%x in (!dest_main!\oss-install_lockfile_*.txt) do set /a filecount+=1
+        rem echo filecount: !filecount!
+        if !filecount! EQU 1 (
+            rem echo !myid!: yes I have a lock
+            goto getlockfinishedwaiting
+        ) else (
+            rem echo !myid!: too many lock trials, removing mine and try again
+            del /f "!lockfile!" > del_!myid!.log 2>&1
+            del /f del_!myid!.log
+        )
+    goto :getlockloop
+    :getlockfinishedwaiting
+        if !counter! GTR 10 (
+            rem echo Unable to lock destination directory, continueing without lock
+        )
+    rem echo "getlock end"
+goto :endproc
+
+
+
+
+
+rem =======================
+rem === RELEASE LOCK ======
+rem =======================
+:releaselock
+    rem echo "releaselock start"
+    if exist !lockfile! (
+        rem echo Deleting !lockfile!
+        del /f "!lockfile!" > del_!myid!.log 2>&1
+        del /f del_!myid!.log
+    ) else (
+        rem echo !lockfile! does not exist
+    )
+    rem echo "releaselock end"
+goto :endproc
+
+
+
+rem =======================
+rem === WAITFUNCTION ======
+rem =======================
+:waitfunction
+    rem See https://www.robvanderwoude.com/wait.php
+    rem "timeout" is not allowed by VisualStudio: ERROR: Input redirection is not supported, exiting the process immediately.
+
+    rem echo waiting %~1 pings
+    PING localhost -n %~1 >NUL
+goto :endproc
+
+
+
 
 :end
 if NOT %globalErrorLevel% EQU 0 (

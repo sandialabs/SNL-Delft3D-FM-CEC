@@ -3,7 +3,7 @@
   subroutine get_weir_by_id(id, c_weir)
     ! convert structures to pumps (fortran to c conversion)
     use modelGlobalData
-    use m_structure
+    use m_1d_structures
     use m_weir
 
     character(len=*), intent(in) :: id
@@ -17,7 +17,7 @@
     do istruct=1,pnetwork%sts%Count
        structure => pnetwork%sts%struct(istruct)
        if (structure%id == id) then
-          if (.not. structure%st_type .eq. ST_WEIR) then
+          if (.not. structure%type .eq. ST_WEIR) then
              write(msgbuf,*) "Structure", id, "is not of type weir"
              call MESS(LEVEL_ERROR, msgbuf)
           end if
@@ -28,13 +28,11 @@
 
 
     c_weir%id = string_to_char_array(structure%id)
-    c_weir%x = structure%x
-    c_weir%y = structure%y
+    c_weir%x = structure%xCoordinates(1)
+    c_weir%y = structure%yCoordinates(1)
     c_weir%branchid = structure%ibran
-    c_weir%chainage = structure%distance
-    c_weir%left_calc_point = structure%left_calc_point
-    c_weir%right_calc_point = structure%right_calc_point
-    c_weir%link_number = structure%link_number
+    c_weir%chainage = structure%chainage
+    c_weir%link_number = structure%linknumbers(1)
     c_weir%crest_level = fortranweir%crestlevel
     c_weir%crest_width = fortranweir%crestwidth
     c_weir%discharge_coeff = fortranweir%dischargecoeff
@@ -45,7 +43,7 @@
   subroutine get_orifice_by_id(id, c_orifice)
     ! convert structures to pumps (fortran to c conversion)
     use modelGlobalData
-    use m_structure
+    use m_1d_structures
     use m_orifice
 
     character(len=*), intent(in) :: id
@@ -59,7 +57,7 @@
     do istruct=1,pnetwork%sts%Count
        structure => pnetwork%sts%struct(istruct)
        if (structure%id == id) then
-          if (.not. structure%st_type .eq. ST_ORIFICE) then
+          if (.not. structure%type .eq. ST_ORIFICE) then
              write(msgbuf,*) "Structure", id, "is not of type orifice"
              call MESS(LEVEL_ERROR, msgbuf)
           end if
@@ -70,13 +68,11 @@
 
 
     c_orifice%id = string_to_char_array(structure%id)
-    c_orifice%x = structure%x
-    c_orifice%y = structure%y
+    c_orifice%x = structure%xCoordinates(1)
+    c_orifice%y = structure%yCoordinates(1)
     c_orifice%branchid = structure%ibran
-    c_orifice%chainage = structure%distance
-    c_orifice%left_calc_point = structure%left_calc_point
-    c_orifice%right_calc_point = structure%right_calc_point
-    c_orifice%link_number = structure%link_number
+    c_orifice%chainage = structure%chainage
+    c_orifice%link_number = structure%linknumbers(1)
     c_orifice%crest_level = fortranorifice%crestlevel
     c_orifice%crest_width = fortranorifice%crestwidth
     c_orifice%open_level = fortranorifice%openlevel
@@ -90,7 +86,7 @@
   subroutine get_pump_by_id(id, c_pump)
     ! convert structures to pumps (fortran to c conversion)
     use modelGlobalData
-    use m_structure
+    use m_1d_structures
     use m_pump
 
     character(len=*), intent(in) :: id
@@ -104,7 +100,7 @@
     do istruct=1,pnetwork%sts%Count
        structure => pnetwork%sts%struct(istruct)
        if (structure%id == id) then
-          if (.not. structure%st_type .eq. ST_PUMP) then
+          if (.not. structure%type .eq. ST_PUMP) then
              write(msgbuf,*) "Structure", id, "is not of type pump"
              call MESS(LEVEL_ERROR, msgbuf)
           end if
@@ -115,17 +111,14 @@
 
 
     c_pump%id = string_to_char_array(structure%id)
-    c_pump%x = structure%x
-    c_pump%y = structure%y
+    c_pump%x = structure%xCoordinates(1)
+    c_pump%y = structure%yCoordinates(1)
     c_pump%branchid = structure%ibran
-    c_pump%chainage = structure%distance
-    c_pump%left_calc_point = structure%left_calc_point
-    c_pump%right_calc_point = structure%right_calc_point
-    c_pump%link_number = structure%link_number
+    c_pump%chainage = structure%chainage
+    c_pump%link_number = structure%linknumbers(1)
     c_pump%start_level_suction_side = fortranpump%ss_onlevel(1)
     c_pump%stop_level_suction_side = fortranpump%ss_offlevel(1)
     c_pump%capacity = fortranpump%capacity(1)
-    c_pump%oldcapacity = fortranpump%oldcapacity
     c_pump%reduction_factor = fortranpump%reduction_factor
     c_pump%actual_stage = fortranpump%actual_stage
     c_pump%is_active = fortranpump%is_active
@@ -134,7 +127,7 @@
   subroutine get_culvert_by_id(id, c_culvert)
     ! convert structures to pumps (fortran to c conversion)
     use modelGlobalData
-    use m_structure
+    use m_1d_structures
     use m_culvert
 
     character(len=*), intent(in) :: id
@@ -148,7 +141,7 @@
     do istruct=1,pnetwork%sts%Count
        structure => pnetwork%sts%struct(istruct)
        if (structure%id == id) then
-          if (.not. structure%st_type .eq. ST_CULVERT) then
+          if (.not. structure%type .eq. ST_CULVERT) then
              write(msgbuf,*) "Structure", id, "is not of type culvert"
              call MESS(LEVEL_ERROR, msgbuf)
           end if
@@ -159,19 +152,17 @@
 
 
     c_culvert%id = string_to_char_array(structure%id)
-    c_culvert%x = structure%x
-    c_culvert%y = structure%y
+    c_culvert%x = structure%xCoordinates(1)
+    c_culvert%y = structure%yCoordinates(1)
     c_culvert%branchid = structure%ibran
-    c_culvert%chainage = structure%distance
-    c_culvert%left_calc_point = structure%left_calc_point
-    c_culvert%right_calc_point = structure%right_calc_point
-    c_culvert%link_number = structure%link_number
+    c_culvert%chainage = structure%chainage
+    c_culvert%link_number = structure%linknumbers(1)
     c_culvert%left_level = fortranculvert%leftlevel
     c_culvert%right_level = fortranculvert%rightlevel
     c_culvert%allowed_flow_dir = fortranculvert%allowedflowdir
     c_culvert%crosssection_id = fortranculvert%crosssectionnr
     c_culvert%length = fortranculvert%length
     c_culvert%valve_inuse = fortranculvert%has_valve
-    c_culvert%valve_opening = fortranculvert%inivalveopen
+    c_culvert%valve_opening = fortranculvert%valveOpening
 
   end subroutine get_culvert_by_id

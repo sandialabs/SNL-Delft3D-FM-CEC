@@ -1,7 +1,7 @@
 module swan_flow_grid_maps
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
+!  Copyright (C)  Stichting Deltares, 2011-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -25,8 +25,8 @@ module swan_flow_grid_maps
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: swan_flow_grid_maps.f90 62207 2018-09-27 13:49:27Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/wave/packages/data/src/swan_flow_grid_maps.f90 $
+!  $Id: swan_flow_grid_maps.f90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/wave/packages/data/src/swan_flow_grid_maps.f90 $
 !!--description-----------------------------------------------------------------
 ! NONE
 !!--pseudo code and references--------------------------------------------------
@@ -65,14 +65,16 @@ module swan_flow_grid_maps
        integer                                  :: nmax            ! number of rows
        integer                                  :: kmax            ! number of layers
        integer                                  :: npts            ! number of points
-       integer                                  :: numenclpts      ! number of enclosure points
+       integer                                  :: numenclpts      ! total number of enclosure points
+       integer                                  :: numenclparts    ! number of parts of grid enclosure (exteriors+interior rings)
        integer, dimension(:,:), pointer         :: kcs             ! mask-array inactive points
        integer, dimension(:,:), pointer         :: covered         ! mask-array points covered by "other" program
+       integer, dimension(:)  , pointer         :: numenclptsppart ! number of enclosure points per enclosure part
        real                                     :: xymiss          ! missing value
        real(kind=hp), dimension(:,:), pointer   :: x               ! x-coordinates cell center
        real(kind=hp), dimension(:,:), pointer   :: y               ! y-coordinates cell center
-       real(kind=hp), dimension(:,:), pointer   :: bndx            ! x-coordinates boundary link corners
-       real(kind=hp), dimension(:,:), pointer   :: bndy            ! y-coordinates boundary link corners
+       real(kind=hp), dimension(:), pointer     :: bndx            ! x-coordinates boundary link corners
+       real(kind=hp), dimension(:), pointer     :: bndy            ! y-coordinates boundary link corners
        real   , dimension(:,:), pointer         :: alfas           ! grid direction cell center
        real   , dimension(:,:), pointer         :: guu             ! grid size u-cell wall
        real   , dimension(:,:), pointer         :: gvv             ! grid size v-cell wall
@@ -227,7 +229,7 @@ subroutine alloc_and_get_grid(i_grid, g,grid_name,grid_file_type,xy_loc, flowLin
              write(*,'(a)') '*** ERROR: on calling read_netcdf_grd: filename not specified.'
              call wavestop(1, '*** ERROR: on calling read_netcdf_grd: filename not specified.')
           endif
-          call read_netcdf_grd(i_grid, g%grid_name, g%x   ,g%y    ,g%kcs ,g%covered, g%mmax, g%nmax ,g%kmax , g%sferic, g%xymiss, g%bndx, g%bndy, g%numenclpts, filename, flowLinkConnectivity)
+          call read_netcdf_grd(i_grid, g%grid_name, g%x   ,g%y    ,g%kcs ,g%covered, g%mmax, g%nmax ,g%kmax , g%sferic, g%xymiss, g%bndx, g%bndy, g%numenclpts, g%numenclparts, g%numenclptsppart, filename, flowLinkConnectivity)
       case default
          ! grid type not supported
          write(*,'(3a)') '*** ERROR: Grid type ''',trim(grid_file_type), ''' not supported.'
@@ -301,6 +303,8 @@ end subroutine grid_dd_corrections
 subroutine make_grid_map(i1, i2, g1, g2, gm, external_mapper)
    use wave_data
    use netcdf
+   use m_polygon
+   use m_tpoly
    implicit none
    !
    ! Parameters
@@ -314,10 +318,12 @@ subroutine make_grid_map(i1, i2, g1, g2, gm, external_mapper)
    ! Locals
    !
    logical                                         :: b
+   logical                                         :: keepExisting
    integer                                         :: i
    integer                                         :: j
    integer                                         :: n
    integer                                         :: ierror
+   integer                                         :: in
    integer                                         :: ind
    integer                                         :: iprint
    integer                                         :: idfile
@@ -328,6 +334,7 @@ subroutine make_grid_map(i1, i2, g1, g2, gm, external_mapper)
    integer                                         :: idvar_row
    integer                                         :: idvar_s
    integer                                         :: nvert
+   integer                                         :: numpli
    integer, dimension(:), allocatable              :: iflag,nrin,nrx,nry
    integer, dimension(:), allocatable              :: vertex
    integer, dimension(:,:), allocatable            :: ncontrib
@@ -335,8 +342,10 @@ subroutine make_grid_map(i1, i2, g1, g2, gm, external_mapper)
    real(kind=hp)   , dimension(:)  , allocatable   :: ys
    real            , dimension(:,:), allocatable   :: testfield
    character(1024)                                 :: command
+   character(1024)                                 :: tmpstr
    character(50)                                   :: searchstring
    character(NF90_MAX_NAME)                        :: string
+   type(tpoly),       dimension(:), allocatable    :: pli_loc
    !
    ! body
    if (present(external_mapper)) then
@@ -356,7 +365,8 @@ subroutine make_grid_map(i1, i2, g1, g2, gm, external_mapper)
       write(searchstring,'(a,i4.4,a)') "destination_", i2, ".nc"
       ind = index(gm%w_tmp_filename, trim(searchstring), back = .true.)
       if (ind > 0) then
-         write(gm%w_tmp_filename,'(2a,i4.4,a,i4.4,a)') gm%w_tmp_filename(:ind-1), 'weights_', i1, 'to', i2, '.nc'
+         tmpstr = gm%w_tmp_filename(1:ind-1) ! Cannot write and read from w_tmp_filename at the same time.
+         write(gm%w_tmp_filename,'(2a,i4.4,a,i4.4,a)') tmpstr(1:ind-1), 'weights_', i1, 'to', i2, '.nc'
       else
          write(*,'(4a)') '*** ERROR: unable to locate "',trim(searchstring), '" in "', trim(gm%w_tmp_filename), '"'
          call wavestop(1, 'unable to locate "'//trim(searchstring)//'" in "'//trim(gm%w_tmp_filename)// '"')
@@ -454,28 +464,19 @@ subroutine make_grid_map(i1, i2, g1, g2, gm, external_mapper)
             testfield(i,j) = testfield(i,j) + gm%s(n)
             ncontrib(i,j)  = ncontrib(i,j) + 1
          enddo    
-         !
-         ! Works with structured grids only:
-         !do n3d=1, gm%n_s/4
-         !   n = n3d + floor(real(n3d-1)/4.0)*4
-         !   ! n3d = 5,6,7,8,13,14,15,16,21,22,23,24: contribution of points at z=1 so skip
-         !   ! => use n instead of n3d
-         !   ! n > n_s/2: This point is at z=1 (instead of z=0) so skip
-         !   ! => stop when n > n_s/2 (n3d>n_s/4)
-         !   j = floor(real(gm%row(n)-1)/real(g2%mmax)) + 1
-         !   i = gm%row(n) - g2%mmax*(j-1)
-         !   testfield(i,j) = testfield(i,j) + gm%s(n)
-         !enddo
-         !
-         ! Not needed when using bilateral interpolation:
-         !do n=1, gm%n_b
-         !   if (gm%frac_b(n) /= 0.0_hp) then
-         !      j              = floor(real(n-1)/real(g2%mmax)) + 1
-         !      i              = n - g2%mmax*(j-1)
-         !      testfield(i,j) = testfield(i,j)/gm%frac_b(n)
-         !   endif
-         !enddo
       endif 
+      !
+      ! Make polygon administration of domain enclosure
+      !
+      ! safety
+      call savepol()
+      !
+      ! saved in m_polygon::xpl, ypl, zpl
+      call makedomainbndpol(g1%bndx, g1%bndy, g1%numenclpts, g1%numenclparts, g1%numenclptsppart)
+      keepExisting = .false.
+      !
+      ! poly with bounding box
+      call pol_to_tpoly(numpli, pli_loc, keepExisting)
       !
       do i=1, g2%mmax
          do j=1, g2%nmax
@@ -484,20 +485,26 @@ subroutine make_grid_map(i1, i2, g1, g2, gm, external_mapper)
             if (ncontrib(i,j) < gm%msurpnts .and. .not.(g2%covered(i,j)>0)) then
                g2%covered(i,j) = 0
             else
+               ! old serial way:
                !g2%covered(i,j) = nint(testfield(i,j))
                !endif
-               !  Point is covered when within domain edge of partition
-               ! This can probably be accelerated
-               call point_in_polygon ( g1%numenclpts, g1%bndx, g1%bndy, g2%x(i,j), g2%y(i,j), b)
-               if (b) then
+               ! Parallel AND serial approach FM:
+               in = -1    ! init, needed
+               call dbpinpol_tpolies(pli_loc, g2%x(i,j), g2%y(i,j), in)
+               if (in==1) then
                   g2%covered(i,j) = i1
                endif
             endif
          enddo
       enddo
+      !
+      call restorepol()
       !     
       deallocate(testfield, stat=ierror)
       deallocate(ncontrib, stat=ierror)
+      !
+      ! gets allocated in pol_to_tpoly
+      deallocate(pli_loc, stat=ierror)
    else
       ! No external mapper
       !
@@ -808,31 +815,55 @@ subroutine alloc_output_fields (g,outfld)
       outfld%add_out_names   = ' '
    endif
 end subroutine alloc_output_fields
-
-subroutine point_in_polygon( n, x, y, x0, y0, b)
 !
-!! POINT_IN_POLYGON determines if a point is inside a polygon
 !
-  implicit none
-
-  integer, intent(in)              :: n
-  double precision, intent(in)     :: x(n),y(n)
-  double precision, intent(in)     :: x0,y0
-  logical, intent(out)             :: b
-
-  integer             :: i, j
-  
-  b = .false.
-  j = n
-
-  do i = 1, n
-     if ( ((y(i)>y0) .neqv. (y(j)>y0)) .and. (x0 < (x(j)-x(i)) * (y0-y(i)) / (y(j)-y(i)) + x(i)) ) then
-        b = .not.b
-     end if
-     j = i
-  end do
-  return
-  
-end subroutine point_in_polygon
+!==============================================================================
+! write netboundary data to polygons
+subroutine makedomainbndpol(bndx, bndy, numenclpts, numenclparts, numenclptsppart)
+   use geometry_module
+   use m_polygon
+   use m_missing
+   !
+   implicit none
+   !
+   ! Parameters
+   !
+   integer, intent(in)                         :: numenclpts
+   integer, intent(in)                         :: numenclparts
+   integer         , dimension(:), pointer     :: numenclptsppart
+   double precision, dimension(:), pointer     :: bndx
+   double precision, dimension(:), pointer     :: bndy
+   !
+   ! Locals
+   !
+   integer                                     :: ipt
+   integer                                     :: localErr
+   integer                                     :: pcount
+   !
+   ! Body
+   !
+   ! Defined in module geometry_module: xpl, ypl, zpl, npl, xymis
+   if (allocated(xpl)) deallocate(xpl, ypl, zpl, stat = localErr)
+   allocate(xpl(1), ypl(1), zpl(1), stat = localErr)
+   xpl = XYMIS
+   ypl = XYMIS
+   zpl = XYMIS
+   npl = 0
+   !
+   pcount = 1
+   do ipt = 1, numenclparts
+      ! assert size: previous pols (if any) + 1 dmiss + new polyline
+      call increasepol(npl + numenclptsppart(ipt) + 1, 1)
+      ! safety on indexing
+      if (numenclptsppart(ipt)>0) then
+         xpl(npl+1:npl+numenclptsppart(ipt)) = bndx(pcount:pcount+numenclptsppart(ipt)-1)
+         ypl(npl+1:npl+numenclptsppart(ipt)) = bndy(pcount:pcount+numenclptsppart(ipt)-1)
+         npl      = npl    + numenclptsppart(ipt) + 1
+         pcount   = pcount + numenclptsppart(ipt) 
+      endif
+      xpl(npl) = dmiss
+      ypl(npl) = dmiss
+   enddo
+end subroutine makedomainbndpol 
 
 end module swan_flow_grid_maps

@@ -9,7 +9,7 @@ function [Data, errmsg] = qp_netcdf_get(FI,var,varargin)
 
 %----- LGPL --------------------------------------------------------------------
 %
-%   Copyright (C) 2011-2018 Stichting Deltares.
+%   Copyright (C) 2011-2020 Stichting Deltares.
 %
 %   This library is free software; you can redistribute it and/or
 %   modify it under the terms of the GNU Lesser General Public
@@ -34,8 +34,8 @@ function [Data, errmsg] = qp_netcdf_get(FI,var,varargin)
 %
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/private/qp_netcdf_get.m $
-%   $Id: qp_netcdf_get.m 62257 2018-10-04 20:55:00Z jagers $ 
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/private/qp_netcdf_get.m $
+%   $Id: qp_netcdf_get.m 65778 2020-01-14 14:07:42Z mourits $ 
 
 errmsg='';
 %
@@ -56,6 +56,7 @@ end
 RequestDims = {};
 RequestedSubset = {};
 netcdf_use_fillvalue = qp_settings('netcdf_use_fillvalue');
+mesh_subsets = {};
 %
 i = 1;
 while i<=length(varargin)
@@ -63,6 +64,8 @@ while i<=length(varargin)
         switch lower(varargin{i})
             case 'netcdf_use_fillvalue'
                 netcdf_use_fillvalue = varargin{i+1};
+            case 'mesh_subsets'
+                mesh_subsets = varargin{i+1};
             otherwise
                 error('Unknown input argument %i "%s" in qp_netcdf_get',i+2,varargin{i})
         end
@@ -89,10 +92,10 @@ if isempty(RequestedSubset)
 end
 %
 if iscell(Info.Mesh) && strcmp(Info.Mesh{1},'ugrid')
-    imesh = Info.Mesh{2};
-    imdim = Info.Mesh{3};
+    imesh = Info.Mesh{3};
+    imdim = Info.Mesh{4};
     mInfo = FI.Dataset(imesh);
-    mdim  = mInfo.Mesh{4+imdim};
+    mdim  = mInfo.Mesh{5+imdim};
 else
     mdim = '';
 end
@@ -105,42 +108,19 @@ for d=1:N
     if ~isempty(DName)
         d_netcdf = strcmp(DName,Info.Dimension);
         if none(d_netcdf) &&  ~isempty(mdim)
-            imdim2 = find(strcmp(DName,mInfo.Mesh(4:end)))-1;
+            imdim2 = find(strcmp(DName,mInfo.Mesh(5:end)))-1;
             if ~isempty(imdim2)
-                %
-                % the unmatched dimension is a spatial dimension. The data
-                % that we're trying to read is defined at a different mesh
-                % location. The dimension for that location is mdim. Try to
-                % match that.
-                %
-                d_netcdf = strcmp(mdim,Info.Dimension);
-                %
-                % OK, this is a bit of a challenge. So, we get data at
-                % imdim2 and need to provide it at imdim. First of all, we
-                % need to take care of the subsetting, and after the
-                % reading we need to map the data back to the requested
-                % location.
-                %
-                switch imdim*10+imdim2
-                    case 01
-                        % requested at NODE, provided at EDGE
-                        % NODE -> all neighbouring EDGES ... -> average the values
-                    case 02
-                        % requested at NODE, provided at FACE
-                        % NODE -> all neighbouring FACES ... -> average the values
-                    case 10
-                        % requested at EDGE, provided at NODE
-                        % EDGE -> EDGE2NODE mapping -> average of the two node values
-                    case 12
-                        % requested at EDGE, provided at FACE
-                        % EDGE -> two neighbouring FACE -> average the two face
-                        % values, or the value of a single neighbouring face
-                    case 20
-                        % requested at FACE, provided at NODE
-                        % FACE -> FACE2NODE mapping -> average of the node values
-                    case 21
-                        % requested at FACE, provided at EDGE
-                        % FACE -> "FACE2EDGE" mapping -> average the values
+                canConvert = false;
+                if ~isempty(mesh_subsets)
+                    isMDIM = strcmp(mdim,mesh_subsets(:,2));
+                    if sum(isMDIM)==1
+                        canConvert = true;
+                        d_netcdf = strcmp(mdim,Info.Dimension);
+                        RequestedSubset{d} = mesh_subsets{isMDIM,3};
+                    end
+                end
+                if ~canConvert
+                    error('Spatial dimension mismatch for variable "%s": requested dimension "%s", known dimension "%s"',Info.Name,DName,mdim)
                 end
             end
         end
@@ -171,17 +151,11 @@ for d=1:Info.Rank
     end
 end
 %
-fliporder = ~getpref('SNCTOOLS','PRESERVE_FVD',false);
-%if fliporder
-%   reverse=Info.Rank:-1:1;
-%else
-   reverse=1:Info.Rank;
-%end
-%
-if isempty(Info.Dimid)
+if isempty(Info.Dimid) || nargin==3
     Data = nc_varget(FI.Filename,FI.Dataset(varid+1).Name);
-elseif nargin==3
-    Data = nc_varget(FI.Filename,FI.Dataset(varid+1).Name);
+    if length(FI.Dataset(varid+1).Size)>1 && ~isequal(size(Data),FI.Dataset(varid+1).Size)
+        Data = reshape(Data,FI.Dataset(varid+1).Size);
+    end
 else
     %
     % Convert data subset in QP dimension order to NetCDF dimension order
@@ -189,6 +163,7 @@ else
     RS_netcdf=cell(1,Info.Rank);
     start_coord=zeros(1,Info.Rank);
     count_coord=zeros(1,Info.Rank);
+    %fprintf('%s: %d %d %d %d %d\n',FI.Dataset(varid+1).Name,permuted);
     %
     % The following block selection procedure is inefficient if a relatively
     % limited number of values is requested compared to full range of
@@ -215,10 +190,9 @@ if ~isa(Data,'double') && ~isa(Data,'char')
     Data = double(Data);
 end
 %
-reverse=[reverse Info.Rank+1:5];
 permuted(permuted==0)=[];
 if length(permuted)>1
-    Data=permute(Data,reverse(permuted));
+    Data=permute(Data,permuted);
 end
 %
 if ~isempty(Info.Attribute)

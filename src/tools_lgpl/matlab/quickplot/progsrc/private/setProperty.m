@@ -137,7 +137,7 @@ function [OPT Set Default] = setproperty(OPT, inputCell, varargin)
 % $Date: 2015-12-09 08:25:13 -0700 (Wed, 09 Dec 2015) $
 % $Author: jagers $
 % $Revision: 5637 $
-% $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/private/setProperty.m $
+% $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/private/setProperty.m $
 % $Keywords: $
 
 %% shortcut function if there is nothing to set (1)

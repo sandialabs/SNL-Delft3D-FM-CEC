@@ -1,6 +1,6 @@
 !----- AGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2017-2018.                                
+!  Copyright (C)  Stichting Deltares, 2017-2020.                                
 !                                                                               
 !  This file is part of Delft3D (D-Flow Flexible Mesh component).               
 !                                                                               
@@ -250,7 +250,8 @@ subroutine update_particles_in_cells(numremaining, ierror)
 !        END DEBUG
          
 !        check inside or outside triangle 
-         if ( dis.lt.-DTOLd .and. rL.ge.0d0 .and. rL.le.1d0 .and. .not.isboundary ) then
+!         if ( dis.lt.-DTOLd .and. rL.ge.0d0 .and. rL.le.1d0 .and. .not.isboundary ) then
+         if ( dis.lt.-DTOLd .and. .not.isboundary ) then
 !           outside triangle
             tex = 0d0
             Lexit = L
@@ -277,9 +278,9 @@ subroutine update_particles_in_cells(numremaining, ierror)
          
             if ( un.gt.max(DTOLun_rel*d,DTOLun) ) then   ! normal velocity does not change sign: sufficient to look at u0.n
    !           compute exit time for this edge: ln(1+ d/un alpha) / alpha
-               dvar = alpha(k)*d/un
+               dvar = alpha(k)*dis/un
                if ( dvar.gt.-1d0) then
-                  t = d/un
+                  t = dis/un
                   if ( abs(dvar).ge.DTOL ) then
                      t = t * log(1d0+dvar)/dvar
                   end if
@@ -288,7 +289,9 @@ subroutine update_particles_in_cells(numremaining, ierror)
                end if  
             
    !           update exit time/edge (flowlink)      
-               if ( t.le.tex .and. t.ge.0d0 ) then
+!               if ( t.le.tex .and. t.ge.0d0 ) then
+               if ( t.le.tex ) then
+
                   tex = t
                   Lexit = L
                end if
@@ -2049,6 +2052,7 @@ subroutine ini_part(japartfile, partfile, jatracer_loc, starttime_loc, timestep_
    use m_flowtimes, only: tstart_user
    use m_missing
    use m_partitioninfo
+   use unstruc_messages
    implicit none
    
    integer,            intent(in) :: japartfile    !< use particle file (1) or not (0)
@@ -2120,6 +2124,8 @@ subroutine ini_part(japartfile, partfile, jatracer_loc, starttime_loc, timestep_
             call savesam()
             call reasam(minp, 0)
             japart = 1
+         else
+            call mess(LEVEL_ERROR, 'the specified initial particle locations file could not be found: ', trim(partfile))
          end if
       end if
    else  ! initialize only

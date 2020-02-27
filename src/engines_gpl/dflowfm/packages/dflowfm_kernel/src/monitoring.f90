@@ -1,6 +1,6 @@
 !----- AGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2017-2018.                                
+!  Copyright (C)  Stichting Deltares, 2017-2020.                                
 !                                                                               
 !  This file is part of Delft3D (D-Flow Flexible Mesh component).               
 !                                                                               
@@ -27,8 +27,8 @@
 !                                                                               
 !-------------------------------------------------------------------------------
 
-! $Id: monitoring.f90 62201 2018-09-27 10:25:20Z j.reyns $
-! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/dflowfm/packages/dflowfm_kernel/src/monitoring.f90 $
+! $Id: monitoring.f90 65934 2020-02-05 13:17:27Z spee $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/dflowfm/packages/dflowfm_kernel/src/monitoring.f90 $
 
 !> @file monitoring.f90
 !! Monitoring modules (data+routines).
@@ -49,7 +49,7 @@ implicit none
 
     integer                           :: numobs    = 0  !< nr of observation stations
     integer                           :: nummovobs = 0  !< nr of *moving* observation stations
-    double precision, allocatable     :: xobs(:)        !< x-coord of observation points (1:numobs = normal obs, numobs+1:numobs+nummovobs = moving obs)
+    double precision, allocatable     :: xobs(:)        !< x-coord of observation points (1:numobs = normal obs from *.xyn and *.ini files, numobs+1:numobs+nummovobs = moving obs)
     double precision, allocatable     :: yobs(:)        !< y-coord of observation points
     double precision, allocatable, target :: xyobs(:)   !< xy-coord of *moving* observation points (work array for meteo)
     double precision, allocatable     :: smxobs(:)      !< maximum waterlevel of observation points
@@ -57,6 +57,8 @@ implicit none
     integer, allocatable              :: kobs(:)        !< node nrs of ACTIVE observation points
     ! NOTE: kobs is not maintained here (so also not after deleteObservation, etc.) All done once by obs_on_flowgrid.
     character(len=40), allocatable    :: namobs(:)      ! names of observation points
+    integer, allocatable              :: locTpObs(:)    !< location type of observation points, determining to which flownodes to snap to (0=1d2d, 1=1d, 2=2d, 3=1d defined by branchID+chainage)
+    integer, allocatable              :: obs2OP(:)      !< mapping from global m_observation::obs index to m_network::network%obs index (i.e., the ones defined via a *.ini file)
 
     integer, parameter, private       :: capacity_ = 1  !< Nr of additionally allocated elements when lists are full
     integer, private                  :: iUniq_ = 1
@@ -91,10 +93,16 @@ implicit none
     integer                           :: IVAL_UCX         ! 3D, layer centered after 2D
     integer                           :: IVAL_UCY
     integer                           :: IVAL_UCZ
+    integer                           :: IVAL_UCXQ
+    integer                           :: IVAL_UCYQ
     integer                           :: IVAL_SA1
     integer                           :: IVAL_TEM1
     integer                           :: IVAL_TRA1
     integer                           :: IVAL_TRAN
+    integer                           :: IVAL_HWQ1
+    integer                           :: IVAL_HWQN
+    integer                           :: IVAL_WQB1
+    integer                           :: IVAL_WQBN
     integer                           :: IVAL_SED ! HK code
     integer                           :: IVAL_SF1 ! stm code
     integer                           :: IVAL_SFN
@@ -120,6 +128,26 @@ implicit none
     integer                           :: IVAL_QFRC
     integer                           :: IVAL_QTOT
     integer                           :: IVAL_RHO
+    integer                           :: IVAL_SBCX1
+    integer                           :: IVAL_SBCXN
+    integer                           :: IVAL_SBCY1
+    integer                           :: IVAL_SBCYN
+    integer                           :: IVAL_SBWX1
+    integer                           :: IVAL_SBWXN
+    integer                           :: IVAL_SBWY1
+    integer                           :: IVAL_SBWYN
+    integer                           :: IVAL_SSCX1
+    integer                           :: IVAL_SSCXN
+    integer                           :: IVAL_SSCY1
+    integer                           :: IVAL_SSCYN
+    integer                           :: IVAL_SSWX1
+    integer                           :: IVAL_SSWXN
+    integer                           :: IVAL_SSWY1  
+    integer                           :: IVAL_SSWYN
+    integer                           :: IVAL_SOUR1    
+    integer                           :: IVAL_SOURN    
+    integer                           :: IVAL_SINK1    
+    integer                           :: IVAL_SINKN    
     
     integer                           :: IPNT_S1            ! pointers in valobs work array
     integer                           :: IPNT_HS
@@ -140,10 +168,16 @@ implicit none
     integer                           :: IPNT_UCX
     integer                           :: IPNT_UCY
     integer                           :: IPNT_UCZ
+    integer                           :: IPNT_UCXQ
+    integer                           :: IPNT_UCYQ
     integer                           :: IPNT_SA1
     integer                           :: IPNT_TEM1
     integer                           :: IPNT_TRA1
     integer                           :: IPNT_TRAN
+    integer                           :: IPNT_WQB1
+    integer                           :: IPNT_WQBN
+    integer                           :: IPNT_HWQ1
+    integer                           :: IPNT_HWQN
 !    integer                           :: IPNT_SPIR1
     integer                           :: IPNT_SF1
     integer                           :: IPNT_SFN
@@ -171,6 +205,26 @@ implicit none
     integer                           :: IPNT_QTOT
     integer                           :: IPNT_NUM
     integer                           :: IPNT_RHO
+    integer                           :: IPNT_SBCX1           ! should be done per fraction
+    integer                           :: IPNT_SBCXN
+    integer                           :: IPNT_SBCY1
+    integer                           :: IPNT_SBCYN
+    integer                           :: IPNT_SBWX1
+    integer                           :: IPNT_SBWXN
+    integer                           :: IPNT_SBWY1
+    integer                           :: IPNT_SBWYN
+    integer                           :: IPNT_SSCX1
+    integer                           :: IPNT_SSCXN
+    integer                           :: IPNT_SSCY1
+    integer                           :: IPNT_SSCYN
+    integer                           :: IPNT_SSWX1
+    integer                           :: IPNT_SSWXN
+    integer                           :: IPNT_SSWY1    
+    integer                           :: IPNT_SSWYN    
+    integer                           :: IPNT_SOUR1    
+    integer                           :: IPNT_SOURN    
+    integer                           :: IPNT_SINK1    
+    integer                           :: IPNT_SINKN    
 contains
 
 !> (re)initialize valobs and set pointers for observation stations
@@ -218,10 +272,11 @@ subroutine init_valobs_pointers()
    use m_flowparameters
    use m_flow, only: iturbulencemodel, idensform, kmx
    use m_transport, only: ITRA1, ITRAN, ISED1, ISEDN
-   use m_sediment, only: stm_included
+   use m_fm_wq_processes, only: noout, numwqbots
+   use m_sediment, only: stm_included, stmpar
    implicit none
    
-   integer             :: i, i0
+   integer             :: i, i0, numfracs
    
    MAXNUMVALOBS2D  = 0
    MAXNUMVALOBS3D  = 0
@@ -246,10 +301,16 @@ subroutine init_valobs_pointers()
    IVAL_UCX        = 0
    IVAL_UCY        = 0
    IVAL_UCZ        = 0
+   IVAL_UCXQ       = 0
+   IVAL_UCYQ       = 0
    IVAL_SA1        = 0
    IVAL_TEM1       = 0
    IVAL_TRA1       = 0
    IVAL_TRAN       = 0
+   IVAL_HWQ1       = 0
+   IVAL_HWQN       = 0
+   IVAL_WQB1       = 0
+   IVAL_WQBN       = 0
    IVAL_SF1        = 0
    IVAL_SFN        = 0
    IVAL_SED        = 0
@@ -276,7 +337,26 @@ subroutine init_valobs_pointers()
    IVAL_QTOT       = 0
    IVAL_RAIN       = 0
    IVAL_RHO        = 0
-   
+   IVAL_SBCX1      = 0          ! should be done per fraction
+   IVAL_SBCXN      = 0
+   IVAL_SBCY1      = 0
+   IVAL_SBCYN      = 0
+   IVAL_SBWX1      = 0
+   IVAL_SBWXN      = 0
+   IVAL_SBWY1      = 0
+   IVAL_SBWYN      = 0
+   IVAL_SSCX1      = 0
+   IVAL_SSCXN      = 0
+   IVAL_SSCY1      = 0
+   IVAL_SSCYN      = 0
+   IVAL_SSWX1      = 0
+   IVAL_SSWXN      = 0
+   IVAL_SSWY1      = 0   
+   IVAL_SSWYN      = 0
+   IVAL_SOUR1      = 0
+   IVAL_SOURN      = 0
+   IVAL_SINK1      = 0
+   IVAL_SINKN      = 0   
 !  2D
    i=0
    i0=i;
@@ -323,6 +403,36 @@ subroutine init_valobs_pointers()
    if ( jahisrain.gt.0 ) then
       i=i+1;            IVAL_RAIN       = i
    end if
+   if ( numwqbots.gt.0 ) then
+      i=i+1;            IVAL_WQB1       = i
+      i=i+numwqbots-1; IVAL_WQBN       = i
+   end if
+   if (stm_included .and. jased>0) then
+      numfracs = stmpar%lsedtot
+      i=i+1;          IVAL_SBCX1      = i          ! should be done per fraction
+      i=i+numfracs-1; IVAL_SBCXN      = i
+      i=i+1;          IVAL_SBCY1      = i
+      i=i+numfracs-1; IVAL_SBCYN      = i
+      i=i+1;          IVAL_SSCX1      = i
+      i=i+numfracs-1; IVAL_SSCXN      = i
+      i=i+1;          IVAL_SSCY1      = i
+      i=i+numfracs-1; IVAL_SSCYN      = i
+      if (jawave>0) then
+         i=i+1;          IVAL_SBWX1      = i
+         i=i+numfracs-1; IVAL_SBWXN      = i
+         i=i+1;          IVAL_SBWY1      = i
+         i=i+numfracs-1; IVAL_SBWYN      = i
+         i=i+1;          IVAL_SSWX1      = i
+         i=i+numfracs-1; IVAL_SSWXN      = i
+         i=i+1;          IVAL_SSWY1      = i   
+         i=i+numfracs-1; IVAL_SSWYN      = i
+      end if
+      numfracs = stmpar%lsedsus
+      i=i+1;          IVAL_SOUR1      = i
+      i=i+numfracs-1; IVAL_SOURN      = i
+      i=i+1;          IVAL_SINK1      = i
+      i=i+numfracs-1; IVAL_SINKN      = i      
+   end if
    MAXNUMVALOBS2D                       = i-i0
    
 !  3D, layer centered
@@ -331,6 +441,8 @@ subroutine init_valobs_pointers()
    i=i+1;               IVAL_UCY        = i
    if ( kmx.gt.0 ) then
       i=i+1;            IVAL_UCZ        = i
+      i=i+1;            IVAL_UCXQ       = i
+      i=i+1;            IVAL_UCYQ       = i
    end if
    if ( jasal.gt.0 ) then
       i=i+1;            IVAL_SA1        = i
@@ -341,6 +453,10 @@ subroutine init_valobs_pointers()
    if ( ITRA1.gt.0 ) then
       i=i+1;            IVAL_TRA1       = i
       i=i+ITRAN-ITRA1;  IVAL_TRAN       = i  !< All tracers (NOT only the ones with bnd)
+   end if
+   if ( noout.gt.0 ) then
+      i=i+1;            IVAL_HWQ1       = i
+      i=i+noout-1;      IVAL_HWQN       = i  !< All waq history outputs
    end if
    if ( stm_included .and. ISED1.gt.0 ) then
       i=i+1;              IVAL_SF1       = i
@@ -369,13 +485,15 @@ subroutine init_valobs_pointers()
       if ( idensform.gt.0 ) then
          i=i+1;         IVAL_RICH       = i
       end if
-      if ( stm_included .and. ISED1.gt.0 ) then
-         i=i+1;                   IVAL_WS1        = i
-         i=i+ISEDN-ISED1;         IVAL_WSN        = i
-         i=i+1;                   IVAL_SEDDIF1    = i
-         i=i+ISEDN-ISED1;         IVAL_SEDDIFN    = i
-      end if
+      if (jased>0 .and. stm_included .and. ISED1.gt.0) then
+         i=i+1;              IVAL_SEDDIF1   = i
+         i=i+ISEDN-ISED1;    IVAL_SEDDIFN   = i
+      endif
    end if
+   if (jased>0 .and. stm_included .and. ISED1.gt.0) then     ! also 2d
+      i=i+1;              IVAL_WS1       = i
+      i=i+ISEDN-ISED1;    IVAL_WSN       = i
+   endif
    MAXNUMVALOBS3Dw                      = i-i0
    
 !  set pointers in valobs array   
@@ -387,10 +505,14 @@ subroutine init_valobs_pointers()
    IPNT_UCX   = ivalpoint(IVAL_UCX,   kmx)
    IPNT_UCY   = ivalpoint(IVAL_UCY,   kmx)
    IPNT_UCZ   = ivalpoint(IVAL_UCZ,   kmx)   
+   IPNT_UCXQ  = ivalpoint(IVAL_UCXQ,  kmx)   
+   IPNT_UCYQ  = ivalpoint(IVAL_UCYQ,  kmx)   
    IPNT_SA1   = ivalpoint(IVAL_SA1,   kmx)
    IPNT_TEM1  = ivalpoint(IVAL_TEM1,  kmx)
    IPNT_TRA1  = ivalpoint(IVAL_TRA1,  kmx)
    IPNT_TRAN  = ivalpoint(IVAL_TRAN,  kmx)
+   IPNT_HWQ1  = ivalpoint(IVAL_HWQ1,  kmx)
+   IPNT_HWQN  = ivalpoint(IVAL_HWQN,  kmx)
    IPNT_SF1   = ivalpoint(IVAL_SF1,   kmx)
    IPNT_SFN   = ivalpoint(IVAL_SFN,   kmx)
 !   IPNT_SPIR1 = ivalpoint(IVAL_SPIR1, kmx)
@@ -416,6 +538,28 @@ subroutine init_valobs_pointers()
    IPNT_WSN   = ivalpoint(IVAL_WSN,   kmx)
    IPNT_SEDDIF1 = ivalpoint(IVAL_SEDDIF1,   kmx)
    IPNT_SEDDIFN = ivalpoint(IVAL_SEDDIFN,   kmx)
+   IPNT_SBCX1 = ivalpoint(IVAL_SBCX1,   kmx)
+   IPNT_SBCXN = ivalpoint(IVAL_SBCXN,   kmx)
+   IPNT_SBCY1 = ivalpoint(IVAL_SBCY1,   kmx)
+   IPNT_SBCYN = ivalpoint(IVAL_SBCYN,   kmx)
+   IPNT_SSCX1 = ivalpoint(IVAL_SSCX1,   kmx)
+   IPNT_SSCXN = ivalpoint(IVAL_SSCXN,   kmx)
+   IPNT_SSCY1 = ivalpoint(IVAL_SSCY1,   kmx)
+   IPNT_SSCYN = ivalpoint(IVAL_SSCYN,   kmx)
+   IPNT_SOUR1 = ivalpoint(IVAL_SOUR1,   kmx)
+   IPNT_SOURN = ivalpoint(IVAL_SOURN,   kmx)
+   IPNT_SINK1 = ivalpoint(IVAL_SINK1,   kmx)
+   IPNT_SINKN = ivalpoint(IVAL_SINKN,   kmx)
+   if (jawave>0) then
+      IPNT_SBWX1 = ivalpoint(IVAL_SBWX1,   kmx)
+      IPNT_SBWXN = ivalpoint(IVAL_SBWXN,   kmx)
+      IPNT_SBWY1 = ivalpoint(IVAL_SBWY1,   kmx)
+      IPNT_SBWYN = ivalpoint(IVAL_SBWYN,   kmx)
+      IPNT_SSWX1 = ivalpoint(IVAL_SSWX1,   kmx)
+      IPNT_SSWXN = ivalpoint(IVAL_SSWXN,   kmx)
+      IPNT_SSWY1 = ivalpoint(IVAL_SSWY1,   kmx)
+      IPNT_SSWYN = ivalpoint(IVAL_SSWYN,   kmx)
+   endif
    
    IPNT_TAIR  = ivalpoint(IVAL_TAIR,  kmx)
    IPNT_WIND  = ivalpoint(IVAL_WIND,  kmx)
@@ -429,6 +573,8 @@ subroutine init_valobs_pointers()
    IPNT_QFRC  = ivalpoint(IVAL_QFRC,  kmx)
    IPNT_QTOT  = ivalpoint(IVAL_QTOT,  kmx)
    IPNT_RAIN  = ivalpoint(IVAL_RAIN,  kmx)
+   IPNT_WQB1  = ivalpoint(IVAL_WQB1,  kmx)
+   IPNT_WQBN  = ivalpoint(IVAL_WQBN,  kmx)
    
    IPNT_NUM   = ivalpoint(0,          kmx)-1
    
@@ -514,15 +660,18 @@ end subroutine updateObservationXY
 
 !> Adds an observation point to the existing points.
 !! New observation point may be a moving one or not.
-subroutine addObservation(x, y, name, isMoving)
+subroutine addObservation(x, y, name, isMoving, loctype, iOP)
 use m_alloc
+use m_GlobalParameters, only: INDTP_ALL
     double precision, intent(in) :: x !< x-coordinate
     double precision, intent(in) :: y !< y-coordinate
     character(len=*), optional, intent(in) :: name !< Name of the station, appears in output file.
     logical, optional, intent(in) :: isMoving !< Whether point is a moving station or not. Default: .false.
+    integer, optional, intent(in) :: loctype  !< location type (one of INDTP_1D/2D/ALL)
+    integer, optional, intent(in) :: iOP      !< local index of obs that are defined via *.ini, in the m_network%network%obs set.
 
     logical :: isMoving_
-    integer :: i, inew, isize
+    integer :: i, inew, isize, loctype_
 
     character(len=40) :: name_
     name_ = ' '
@@ -534,6 +683,12 @@ use m_alloc
         iUniq_ = iUniq_ + 1
     end if
 
+    if (present(loctype)) then
+       loctype_ = loctype
+    else
+       loctype_ = INDTP_ALL
+    end if
+    
     if (present(isMoving)) then
         isMoving_ = isMoving
     else
@@ -554,6 +709,8 @@ use m_alloc
         call realloc(namobs, numobs+nummovobs+capacity_)
         call realloc(smxobs, numobs+nummovobs+capacity_)
         call realloc(cmxobs, numobs+nummovobs+capacity_)
+        call realloc(locTpObs, numobs+nummovobs+capacity_)
+        call realloc(obs2OP, numobs+nummovobs+capacity_)
     end if
 
     ! Before adding new normal observation station:
@@ -566,6 +723,8 @@ use m_alloc
             namobs(i+1) = namobs(i)
             smxobs(i+1) = smxobs(i)
             cmxobs(i+1) = cmxobs(i)
+            locTpObs(i+1) = locTpObs(i)
+            obs2OP(i+1) = obs2OP(i)
         end do
         numobs = numobs+1
         inew   = numobs
@@ -581,8 +740,87 @@ use m_alloc
     kobs(inew)   = -999   ! Cell number is set elsewhere
     smxobs(inew) = -999d0 ! max waterlevel
     cmxobs(inew) = -999d0 ! max velocity mag.
+    locTpObs(inew) = loctype_
+    if (present(iOP)) then
+       obs2OP(inew) = iOP ! mapping from global obs index to local *.ini obs
+    else
+       obs2OP(inew) = 0
+    end if
 
 end subroutine addObservation
+
+
+!> Adds observation points that are read from *.ini file to the normal obs adm
+subroutine addObservation_from_ini(network, filename)
+   use m_network
+   use m_sferic, only:jsferic
+   use m_ObservationPoints
+   use odugrid
+   use m_save_ugrid_state
+   use dfm_error
+   implicit none
+   type(t_network),  intent(inout)       :: network            !< network
+   character(len=*), intent(in   )       :: filename           !< filename of the obs file
+   
+   integer                               :: nByBrch            ! number of obs that are defined by branchID and chainage
+   integer                               :: ierr, nobsini, i
+   type(t_ObservationPoint), pointer     :: pOPnt
+   integer,              allocatable     :: branchIdx_tmp(:), ibrch2obs(:)
+   double precision    , allocatable     :: Chainage_tmp(:), xx_tmp(:), yy_tmp(:)
+   integer                               :: loctype_
+   
+   
+   ierr    = DFM_NOERR
+   nByBrch = 0
+   nobsini = network%obs%Count
+   
+   !! Step 1. get x- and y-coordinates of obs that are defined by branchID and chainage
+   ! 1a. save their branchIdx and chainage to temporary arrays
+   allocate(branchIdx_tmp(nobsini))
+   allocate(Chainage_tmp(nobsini))
+   allocate(ibrch2obs(nobsini))
+   
+   do i=1, nobsini
+      pOPnt => network%obs%OPnt(i)
+      if (pOPnt%branchIdx > 0) then
+         nByBrch = nByBrch + 1
+         branchIdx_tmp(nByBrch) = pOPnt%branchIdx
+         Chainage_tmp(nByBrch)  = pOPnt%chainage
+         ibrch2obs(nByBrch)     = i
+      end if
+   end do
+         
+   ! 1b. get the corresponding x- and y-coordinates
+   allocate(xx_tmp(nByBrch))
+   allocate(yy_tmp(nByBrch))
+   if (nByBrch > 0) then
+      ierr = odu_get_xy_coordinates(branchIdx_tmp(1:nByBrch), Chainage_tmp(1:nByBrch), meshgeom1d%ngeopointx, meshgeom1d%ngeopointy, &
+                                     meshgeom1d%nbranchgeometrynodes, meshgeom1d%nbranchlengths, jsferic, xx_tmp, yy_tmp)
+   endif
+   if (ierr /= DFM_NOERR) then
+      call mess(LEVEL_ERROR, "Error occurs when getting the x- and y-coordinates for obs from file '"//trim(filename)//".")
+   end if
+   
+   do i=1, nByBrch
+      pOPnt => network%obs%OPnt(ibrch2obs(i))
+      pOPnt%x = xx_tmp(i)
+      pOPnt%y = yy_tmp(i)
+   end do
+   
+   ! Step 2. add all obs from *.ini file
+   do i =1, nobsini
+      pOPnt => network%obs%OPnt(i)
+      call addObservation(pOPnt%x, pOPnt%y, pOPnt%name, loctype = pOPnt%locationtype, iOP = i)
+   end do
+   
+    
+   if(allocated(branchIdx_tmp))deallocate(branchIdx_tmp)
+   if(allocated(Chainage_tmp)) deallocate(Chainage_tmp)
+   if(allocated(ibrch2obs))    deallocate(ibrch2obs)
+   if(allocated(xx_tmp))       deallocate(xx_tmp)
+   if(allocated(yy_tmp))       deallocate(yy_tmp)
+
+end subroutine addObservation_from_ini
 
 !> Adds a moving observation point to the existing points.
 subroutine addMovingObservation(x, y, name)
@@ -633,6 +871,8 @@ end subroutine purgeObservations
 
 !> Removes all observation points
 subroutine deleteObservations()
+use m_ObservationPoints
+use unstruc_channel_flow, only: network
     if (allocated(xobs)) then
        deallocate(xobs)
        deallocate(yobs)
@@ -641,8 +881,12 @@ subroutine deleteObservations()
        deallocate(namobs)
        deallocate(smxobs)
        deallocate(cmxobs)
+       deallocate(locTpObs)
+       deallocate(obs2OP)
     end if
-
+    
+    call dealloc(network%obs) ! deallocate obs (defined in *.ini file)
+    
     allocate(xobs(capacity_))
     allocate(yobs(capacity_))
     allocate(xyobs(2*capacity_))
@@ -650,6 +894,9 @@ subroutine deleteObservations()
     allocate(namobs(capacity_))
     allocate(smxobs(capacity_))
     allocate(cmxobs(capacity_))
+    allocate(locTpObs(capacity_))
+    allocate(obs2OP(capacity_))
+
 
     kobs = -999
 
@@ -661,50 +908,81 @@ end subroutine deleteObservations
 
 
 !> Reads observation points from file.
+!! Two file types are supported: *_obs.xyn and *_obs.ini.
 subroutine loadObservations(filename, jadoorladen)
     use messageHandling
+    use m_readObservationPoints, only: readObservationPoints
+    use unstruc_channel_flow, only: network
+    use m_inquire_flowgeom
+    use dfm_error
     implicit none
-    character(len=*), intent(in) :: filename
+    character(len=*), intent(in) :: filename    !< File containing the observation points. Either a *_obs.xyn or a *_obs.ini.
     integer,          intent(in) :: jadoorladen !< Append to existing observation points or not
 
     logical :: jawel
+    integer :: tok
+
+    inquire(file = filename, exist = jawel)
+    if (jawel) then
+        if (jadoorladen == 0) then
+            call deleteObservations()
+        end if
+
+        tok = index(filename, '.xyn')
+        if (tok > 0) then
+           call loadObservations_from_xyn(filename)
+        else
+           tok = index(filename, '.ini')
+           if (tok > 0) then
+              call readObservationPoints(network, filename)
+              call addObservation_from_ini(network, filename)  
+           end if
+        end if
+    else
+        call mess(LEVEL_ERROR, "Observation file '"//trim(filename)//"' not found!")
+    endif
+
+end subroutine loadObservations
+
+
+!> Reads observation points from an *.xyn file.
+! Typically called via loadObservations().
+subroutine loadObservations_from_xyn(filename)
+    use messageHandling
+    use dfm_error
+    implicit none
+    character(len=*), intent(in) :: filename
+
     integer :: mobs, n, L, L2
     double precision :: xp, yp
     character (len=256) :: rec
     character (len=40) :: nam
 
-    inquire(file = filename, exist = jawel)
-    if (jawel) then
-        call oldfil(mobs,filename)
+    call oldfil(mobs,filename)
 
-        if (jadoorladen == 0) then
-            call deleteObservations()
-        end if
-
-        n=0
- 20     read(mobs,'(a)',end =889) rec
-
-        read(rec,*,err=888) xp, yp, nam
-
-        L  = index(rec,'''')
-        if (L > 0) then
-            L  = L + 1  
-            L2 = index(rec(L:),'''') - 2 + L
-            nam = rec(L:L2)
-        endif
-
-        call addObservation(xp, yp, nam)
-        n = n+1
-        goto 20
-
-889     call doclose(mobs)
-    else
-        !call mess(LEVEL_WARN, "Observation file '"//trim(filename)//"' not found! Skipping ...")
-        call mess(LEVEL_ERROR, "Observation file '"//trim(filename)//"' not found!")
+    n=0
+20  read(mobs,'(a)',end =889) rec
+    
+    read(rec,*,err=888) xp, yp, nam
+    
+    L  = index(rec,'''')
+    if (L > 0) then
+        L  = L + 1  
+        L2 = index(rec(L:),'''') - 2 + L
+        nam = rec(L:L2)
     endif
+    
+    call addObservation(xp, yp, nam)
+    n = n+1
+    goto 20
+
+889 call doclose(mobs)
     return
+
 888 call readerror('reading x,y,nam but getting ',rec,mobs)
-end subroutine loadObservations
+
+end subroutine loadObservations_from_xyn
+
 
 subroutine saveObservations(filename)
     use m_sferic, only: jsferic
@@ -743,6 +1021,7 @@ type tcrs
     character(len=64)             :: name          !< Name
     integer                       :: nval          !< Nr. of different quantities monitored
     type(tcrspath)                :: path          !< Polyline+crossed flow links that defines this cross section.
+    integer                       :: loc2OC = 0    !< mapping from global obs index to obs that are defined by branchID and chainage 
     double precision, allocatable :: sumvalcur(:)  !< Values integrated over the crs
     double precision, allocatable :: sumvalcum(:)  !< Values integrated over crs *and* time
     double precision, allocatable :: sumvalavg(:)  !< Values integrated over crs and averaged in time.
@@ -896,10 +1175,11 @@ end subroutine increaseCrossSections
 
 
 !> Starts a new cross section in the active array of crs, increasing memory when necessary.
-subroutine addCrossSection(name, xp, yp)
+subroutine addCrossSections(name, xp, yp, iOC)
     character(len=*), intent(in) :: name
     double precision, intent(in) :: xp(:), yp(:)
-
+    integer, optional, intent(in):: iOC          !< local index of cross sections that are defined via *.ini, in the m_network%network%observcrs set.
+    
     integer :: m
     character(len=1) :: cdigits
 
@@ -920,7 +1200,15 @@ subroutine addCrossSection(name, xp, yp)
         write(crs(ncrs)%name, '(a,i'//cdigits//'.'//cdigits//')'), trim(defaultName_), iUniq_
         iUniq_ = iUniq_ + 1
     end if
-end subroutine addCrossSection
+    
+    ! Set mapping from global index to local crs that are defined by branchId and chainage
+    if (present(iOC)) then
+       crs(ncrs)%loc2OC = iOC
+    else
+       crs(ncrs)%loc2OC = 0
+    end if
+    
+end subroutine addCrossSections
 
 
 !> Deletes all cross sections from crs.
@@ -939,6 +1227,139 @@ subroutine delCrossSections()
 
     ! Do not reset crs data, just let it be overwritten later.
 end subroutine delCrossSections
+
+!> Reads observation cross sections and adds them to the normal crs adm
+!! Two file types are supported: *_crs.pli and *_crs.ini.
+subroutine loadObservCrossSections(filename, jadoorladen)
+   use unstruc_messages
+   use m_readObservCrossSections, only: readObservCrossSections
+   use unstruc_channel_flow, only: network
+   
+   implicit none
+   character(len=*), intent(in   ) :: filename    !< File containing the observation cross sections. Either a *_crs.pli or a *_crs.ini.
+   integer,          intent(in   ) :: jadoorladen !< Append to existing observation cross sections or not
+
+   logical :: jawel
+   integer :: tok_pli, tok_ini
+
+   !!!!!
+   inquire(file = filename, exist = jawel)
+   if (jawel) then
+      if (jadoorladen == 0) then
+         call delCrossSections()
+      end if
+      tok_pli = index(filename, '.pli')
+      tok_ini = index(filename, '.ini')
+      if (tok_pli > 0) then
+         call loadObservCrossSections_from_pli(filename)
+      else if (tok_ini > 0) then
+         call readObservCrossSections(network, filename)
+         call addObservCrsFromIni(network, filename)
+      else
+         call mess(LEVEL_WARN, "Observation cross section file ('"//trim(filename)//"') does not end with .pli or .ini.")
+      end if
+   else
+       call mess(LEVEL_ERROR, "Observation cross section file '"//trim(filename)//"' not found!")
+   endif
+end subroutine loadObservCrossSections
+
+
+!> Reads observation points from an *.pli file.
+! Typically called via loadObservCrossSections().
+subroutine loadObservCrossSections_from_pli(filename)
+   use messageHandling
+   use dfm_error
+   use m_polygon
+   implicit none
+   character(len=*), intent(in) :: filename
+
+   integer :: minp, ipli
+
+   call oldfil(minp, filename)
+   ipli = 0
+   call reapol_nampli(minp, 0, 1, ipli)
+   call pol_to_crosssections(xpl, ypl, npl, names=nampli)
+   call doclose(minp)
+
+end subroutine loadObservCrossSections_from_pli
+
+   
+!> Adds observation cross sections, that are read from *.ini file, to the normal cross section adm
+subroutine addObservCrsFromIni(network, filename)
+   use m_network
+   use m_sferic, only:jsferic
+   use odugrid
+   use m_save_ugrid_state
+   use dfm_error
+   use m_missing
+   use m_ObservCrossSections
+   implicit none
+   type(t_network),  intent(inout)       :: network            !< network
+   character(len=*), intent(in   )       :: filename           !< filename of the cross section file
+   
+   integer                               :: nByBrch            ! number of cross sections that are defined by branchID and chainage
+   integer                               :: ierr, ncrsini, i, numv
+   type(t_observCrossSection), pointer   :: pCrs
+   integer,              allocatable     :: branchIdx_tmp(:), ibrch2crs(:)
+   double precision    , allocatable     :: Chainage_tmp(:), xx_tmp(:), yy_tmp(:)
+   
+   
+   ierr    = DFM_NOERR
+   nByBrch   = 0
+   ncrsini = network%observcrs%count
+   
+   !! Step 1. get x- and y-coordinates of crs that are defined by branchID and chainage
+   ! 1a. save their branchIdx and chainage to temporary arrays
+   allocate(branchIdx_tmp(ncrsini))
+   allocate(Chainage_tmp(ncrsini))
+   allocate(ibrch2crs(ncrsini))
+   
+   do i=1, ncrsini
+      pCrs => network%observcrs%observcross(i)
+      if (pCrs%branchIdx > 0) then
+         nByBrch = nByBrch + 1
+         branchIdx_tmp(nByBrch) = pCrs%branchIdx
+         Chainage_tmp(nByBrch)  = pCrs%chainage
+         ibrch2crs(nByBrch)     = i
+      end if
+   end do
+         
+   ! 1b. get the corresponding x- and y-coordinates
+   if (nByBrch > 0) then
+      allocate(xx_tmp(nByBrch))
+      allocate(yy_tmp(nByBrch))
+      ierr = odu_get_xy_coordinates(branchIdx_tmp(1:nByBrch), Chainage_tmp(1: nByBrch), meshgeom1d%ngeopointx, meshgeom1d%ngeopointy, &
+                                    meshgeom1d%nbranchgeometrynodes, meshgeom1d%nbranchlengths, jsferic, xx_tmp, yy_tmp)
+      
+      if (ierr /= DFM_NOERR) then
+         call mess(LEVEL_ERROR, "Error occurs when getting xy coordinates for observation cross sections from file '"//trim(filename)//".")
+      end if
+      
+      do i=1, nByBrch
+         pCrs => network%observcrs%observcross(ibrch2crs(i))
+         pCrs%x(1) = xx_tmp(i)
+         pCrs%y(1) = yy_tmp(i)
+      end do
+   endif
+   
+   ! Step 2. add all observation crs from *.ini file
+   do i =1, ncrsini
+      pCrs => network%observcrs%observcross(i)
+      numv = pCrs%numValues
+      if (pCrs%branchIdx > 0) then ! crs which is defined by branchID and chainage
+         call addCrossSections(pCrs%name, pCrs%x(1:numv), pCrs%y(1:numv), iOC = i)
+      else
+         call addCrossSections(pCrs%name, pCrs%x(1:numv), pCrs%y(1:numv))
+      end if
+   end do
+    
+   if(allocated(branchIdx_tmp))deallocate(branchIdx_tmp)
+   if(allocated(Chainage_tmp)) deallocate(Chainage_tmp)
+   if(allocated(ibrch2crs))    deallocate(ibrch2crs)
+   if(allocated(xx_tmp))       deallocate(xx_tmp)
+   if(allocated(yy_tmp))       deallocate(yy_tmp)
+
+end subroutine addObservCrsFromIni
 
 
 !> Converts a set of polylines into cross sections
@@ -978,7 +1399,7 @@ subroutine pol_to_crosssections(xpl, ypl, npl, names)
                 end if
 
                 ! 2: add the current polyline as a new crs.
-                call addCrossSection(name, xpl(i1:i2), ypl(i1:i2))
+                call addCrossSections(name, xpl(i1:i2), ypl(i1:i2))
             end if
             i1 = i+1
             cycle

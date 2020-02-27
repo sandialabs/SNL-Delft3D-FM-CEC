@@ -1,6 +1,6 @@
 //---- LGPL --------------------------------------------------------------------
 //
-// Copyright (C)  Stichting Deltares, 2011-2018.
+// Copyright (C)  Stichting Deltares, 2011-2020.
 //
 // This library is free software; you can redistribute it and/or
 // modify it under the terms of the GNU Lesser General Public
@@ -24,18 +24,13 @@
 // Stichting Deltares. All rights reserved.
 //
 //------------------------------------------------------------------------------
-// $Id: c2c.h 7992 2018-01-09 10:27:35Z mourits $
-// $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_lgpl/nefis/packages/nefis/include/c2c.h $
+// $Id: c2c.h 65778 2020-01-14 14:07:42Z mourits $
+// $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/nefis/packages/nefis/include/c2c.h $
 #ifndef __C2C__
 #define __C2C__
 
 #include "nefis.h"
 #include "nef-tag.h"
-
-BInt4 nefis_errcnt;
-BInt4 nefis_errno;
-BChar error_text[LENGTH_ERROR_MESSAGE+1];
-BInt4 nefis_flush;
 
 BInt4 close_nefis_files    ( BInt4 *);
 BInt4 create_nefis_files   ( BInt4 *, BText  , BText  , BChar  , BChar  );
@@ -75,4 +70,10 @@ BInt4 OC_get_version       ( BText *);
 BInt4 OC_reset_file_version( BInt4, BInt4 );
 BInt4 OC_close_all_nefis_files( void );
 
+extern BInt4 nefis_errcnt;
+extern BInt4 nefis_errno;
+extern BInt4 nefis_flush;
+
+
+extern BChar error_text[LENGTH_ERROR_MESSAGE+1];
 #endif

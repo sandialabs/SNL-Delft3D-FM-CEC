@@ -41,7 +41,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <CharacterSet>MultiByte</CharacterSet>
-    <PlatformToolset>v140</PlatformToolset>
+    <PlatformToolset>v141</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
@@ -53,12 +53,12 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <CharacterSet>MultiByte</CharacterSet>
-    <PlatformToolset>v140</PlatformToolset>
+    <PlatformToolset>v141</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <CharacterSet>MultiByte</CharacterSet>
-    <PlatformToolset>v140</PlatformToolset>
+    <PlatformToolset>v141</PlatformToolset>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
@@ -143,12 +143,14 @@ call ..\..\..\..\scripts_lgpl\win32\update_version.cmd .\include\dimr_exe_versio
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>..\..\bin\$(PlatformName)\$(ConfigurationName)\dimr_dll.lib;..\..\..\..\utils_lgpl\deltares_common\packages\deltares_common_c\bin\$(PlatformName)\$(ConfigurationName)\deltares_common_c.lib;pthreadVC2.lib;..\..\..\..\third_party_open\expat\x64\$(PlatformName)\$(ConfigurationName)\libexpat.lib;mpi.lib;..\..\..\..\third_party_open\netcdf\netCDF 4.6.1\lib\netcdf.lib;</AdditionalDependencies>
+      <AdditionalDependencies>..\..\bin\$(PlatformName)\$(ConfigurationName)\dimr_dll.lib;..\..\..\..\utils_lgpl\deltares_common\lib\$(PlatformName)\$(ConfigurationName)\static\deltares_common_c.lib;pthreadVC2.lib;..\..\..\..\third_party_open\expat\x64\$(PlatformName)\$(ConfigurationName)\libexpat.lib;mpi.lib;..\..\..\..\third_party_open\netcdf\netCDF 4.6.1\lib\netcdf.lib</AdditionalDependencies>
       <OutputFile>$(OutDir)dimr.exe</OutputFile>
       <AdditionalLibraryDirectories>..\..\..\..\third_party_open\expat\x64\x64\Release;..\..\..\..\third_party_open\pthreads\bin\x64;..\..\..\..\third_party_open\mpich2\x64\lib;..\..\..\..\utils_lgpl\dimr_lib\lib\x64\Release\static;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <IgnoreSpecificDefaultLibraries>LIBCMTD.lib;LIBCMT.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Console</SubSystem>
+      <StackReserveSize>20000000</StackReserveSize>
+      <LargeAddressAware>true</LargeAddressAware>
     </Link>
     <ProjectReference />
     <PostBuildEvent>
@@ -187,7 +189,7 @@ call ..\..\..\..\scripts_lgpl\win32\update_version.cmd .\include\dimr_exe_versio
     </Link>
     <PostBuildEvent>
       <Command>echo "This file is overwritten by the post-build command of the project dimr" &gt; .\include\dimr_exe_version.h
-..\..\..\..\scripts_lgpl\win32\oss-install.cmd dimr bin "$(IFORT_COMPILER16)redist\ia32\compiler\"
+..\..\..\..\scripts_lgpl\win32\oss-install.cmd dimr bin "$(IFORT_COMPILER18)redist\ia32\compiler\"
 </Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
@@ -210,7 +212,7 @@ call ..\..\..\..\scripts_lgpl\win32\update_version.cmd .\include\dimr_exe_versio
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>..\..\bin\$(PlatformName)\$(ConfigurationName)\dimr_dll.lib;..\..\..\..\utils_lgpl\deltares_common\packages\deltares_common_c\bin\$(PlatformName)\$(ConfigurationName)\deltares_common_c.lib;pthreadVC2.lib;..\..\..\..\third_party_open\expat\x64\$(PlatformName)\$(ConfigurationName)\libexpat.lib;mpi.lib;..\..\..\..\third_party_open\netcdf\netCDF 4.6.1\lib\netcdf.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>..\..\bin\$(PlatformName)\$(ConfigurationName)\dimr_dll.lib;..\..\..\..\utils_lgpl\deltares_common\lib\$(PlatformName)\$(ConfigurationName)\static\deltares_common_c.lib;pthreadVC2.lib;..\..\..\..\third_party_open\expat\x64\$(PlatformName)\$(ConfigurationName)\libexpat.lib;mpi.lib;..\..\..\..\third_party_open\netcdf\netCDF 4.6.1\lib\netcdf.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <OutputFile>$(OutDir)dimr.exe</OutputFile>
       <AdditionalLibraryDirectories>..\..\..\..\third_party_open\expat\x64\x64\Release;..\..\..\..\third_party_open\pthreads\bin\x64;..\..\..\..\third_party_open\mpich2\x64\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <IgnoreSpecificDefaultLibraries>LIBCMTD.lib;LIBCMT.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
@@ -218,10 +220,12 @@ call ..\..\..\..\scripts_lgpl\win32\update_version.cmd .\include\dimr_exe_versio
       <SubSystem>Console</SubSystem>
       <OptimizeReferences>true</OptimizeReferences>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <StackReserveSize>20000000</StackReserveSize>
+      <LargeAddressAware>true</LargeAddressAware>
     </Link>
     <PostBuildEvent>
       <Command>echo "This file is overwritten by the post-build command of the project dimr" &gt; .\include\dimr_exe_version.h
-..\..\..\..\scripts_lgpl\win64\oss-install_x64.cmd dimr bin "$(IFORT_COMPILER16)redist\intel64\compiler\"
+..\..\..\..\scripts_lgpl\win64\oss-install_x64.cmd dimr bin "$(IFORT_COMPILER18)redist\intel64\compiler\"
 </Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>

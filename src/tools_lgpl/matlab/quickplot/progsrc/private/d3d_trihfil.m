@@ -18,7 +18,7 @@ function varargout=d3d_trihfil(FI,domain,field,cmd,varargin)
 
 %----- LGPL --------------------------------------------------------------------
 %
-%   Copyright (C) 2011-2018 Stichting Deltares.
+%   Copyright (C) 2011-2020 Stichting Deltares.
 %
 %   This library is free software; you can redistribute it and/or
 %   modify it under the terms of the GNU Lesser General Public
@@ -43,8 +43,8 @@ function varargout=d3d_trihfil(FI,domain,field,cmd,varargin)
 %
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/private/d3d_trihfil.m $
-%   $Id: d3d_trihfil.m 7992 2018-01-09 10:27:35Z mourits $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/private/d3d_trihfil.m $
+%   $Id: d3d_trihfil.m 65778 2020-01-14 14:07:42Z mourits $
 
 %========================= GENERAL CODE =======================================
 T_=1; ST_=2; M_=3; N_=4; K_=5;
@@ -658,6 +658,21 @@ PropNames={'Name'            'Units'   'DimFlag' 'DataInCell' 'NVal' 'VecType' '
 DataProps={'location observation points'   ''   [1 6 0 0 0]  0         4     ''       'z'   'z'       ''      'his-series'     'XYSTAT'   ''  []       0
     'location tidal turbines'   ''       [1 3 0 0 0]  0         4     ''       TRB   'z'       ''      'his-const'      'XYTURBINES'   ''     []       0
     '-------'                   ''       [0 0 0 0 0]  0         0     ''       ''    ''        ''      ''               ''         ''         []       0
+    'wind speed'                'm/s'    [1 5 0 0 0]  0         1     ''       'z'   'z'       ''      'his-series'     'ZWNDSPD'  ''         []       0
+    'wind direction'            'deg'    [1 5 0 0 0]  0         1     ''       'z'   'z'       ''      'his-series'     'ZWNDDIR'  ''         []       0
+    'wind drag coefficient'     '-'      [1 5 0 0 0]  0         1     ''       'z'   'z'       ''      'his-series'     'ZWNDCD'   ''         []       0
+    'air pressure'              'Pa'     [1 5 0 0 0]  0         1     ''       'z'   'z'       ''      'his-series'     'PATM'     ''         []       0
+    'precipitation rate'        'mm/h'   [1 5 0 0 0]  0         1     ''       'z'   'z'       ''      'his-series'     'ZPRECP'   ''         []       0
+    'evaporation rate'          'mm/h'   [1 5 0 0 0]  0         1     ''       'z'   'z'       ''      'his-series'     'ZEVAP'    ''         []       0
+    'evaporation heat flux'            'W/m^2'  [1 5 0 0 0]  0  1     ''       'z'   'z'       ''      'his-series'     'ZQEVA'    ''         []       0
+    'heat flux of forced convection'   'W/m^2'  [1 5 0 0 0]  0  1     ''       'z'   'z'       ''      'his-series'     'ZQCO'     ''         []       0
+    'nett back radiation'              'W/m^2'  [1 5 0 0 0]  0  1     ''       'z'   'z'       ''      'his-series'     'ZQBL'     ''         []       0
+    'nett solar radiation'             'W/m^2'  [1 5 0 0 0]  0  1     ''       'z'   'z'       ''      'his-series'     'ZQIN'     ''         []       0
+    'total nett heat flux'             'W/m^2'  [1 5 0 0 0]  0  1     ''       'z'   'z'       ''      'his-series'     'ZQNET'    ''         []       0
+    'free convection of sensible heat' 'W/m^2'  [1 5 0 0 0]  0  1     ''       'z'   'z'       ''      'his-series'     'ZHFREE'   ''         []       0
+    'free convection of latent heat'   'W/m^2'  [1 5 0 0 0]  0  1     ''       'z'   'z'       ''      'his-series'     'ZEFREE'   ''         []       0
+%    'computed minus derived heat flux' 'W/m^2'  [1 5 0 0 0]  0  1     ''       'z'   'z'       ''      'his-series'     'ZQMIS'    ''         []       0
+    '-------'                   ''       [0 0 0 0 0]  0         0     ''       ''    ''        ''      ''               ''         ''         []       0
     'water level'               'm'      [1 5 0 0 0]  0         1     ''       'z'   'z'       ''      'his-series'     'ZWL'      ''         []       0
     'water depth'               'm'      [1 5 0 0 0]  0         1     ''       'z'   'z'       ''      'his-series'     'ZWL'      ''         []       0
     'depth averaged velocity'   'm/s'    [1 5 0 0 0]  0         2     'u'      'z'   'z'       ''      'his-series'     'ZCURU'    'ZCURV'    []       1
@@ -667,13 +682,6 @@ DataProps={'location observation points'   ''   [1 6 0 0 0]  0         4     '' 
     'discharge'                 'm^3/s'  [1 5 0 0 1]  0         2     'u'      'z'   'z'       'c'     'his-series'     'ZQXK'     'ZQYK'     []       1
     'froude number'             '-'      [1 5 0 0 0]  0         1     'u'      'z'   'z'       ''      'his-series'     'ZCURU'    'ZCURV'    []       0
     'head'                      'm'      [1 5 0 0 0]  0         1     'u'      'z'   'z'       ''      'his-series'     'ZCURU'    'ZCURV'    []       0
-    '-------'                   ''       [0 0 0 0 0]  0         0     ''       ''    ''        ''      ''               ''         ''         []       0
-    'wind speed'                'm/s'    [1 5 0 0 0]  0         1     ''       'z'   'z'       ''      'his-series'     'ZWNDSPD'  ''         []       0
-    'wind direction'            'deg'    [1 5 0 0 0]  0         1     ''       'z'   'z'       ''      'his-series'     'ZWNDDIR'  ''         []       0
-    'wind drag coefficient'     '-'      [1 5 0 0 0]  0         1     ''       'z'   'z'       ''      'his-series'     'ZWNDCD'   ''         []       0
-    'air pressure'              'Pa'     [1 5 0 0 0]  0         1     ''       'z'   'z'       ''      'his-series'     'PATM'     ''         []       0
-    'precipitation rate'        'mm/h'   [1 5 0 0 0]  0         1     ''       'z'   'z'       ''      'his-series'     'ZPRECP'   ''         []       0
-    'evaporation rate'          'mm/h'   [1 5 0 0 0]  0         1     ''       'z'   'z'       ''      'his-series'     'ZEVAP'    ''         []       0
     '-------'                   ''       [0 0 0 0 0]  0         0     ''       ''    ''        ''      ''               ''         ''         []       0
     'density'                   'kg/m^3' [1 5 0 0 1]  0         1     ''       'z'   'z'       'c'     'his-series'     'ZRHO'     ''         []       0
     'non-hydrostatic pressure'  ''       [1 5 0 0 1]  0         1     ''       'z'   'z'       'c'     'his-series'     'HYDPRES'  ''         []       0

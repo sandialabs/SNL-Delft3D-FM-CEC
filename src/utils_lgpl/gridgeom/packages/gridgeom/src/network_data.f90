@@ -1,6 +1,6 @@
 !----- AGPL --------------------------------------------------------------------
 !
-!  Copyright (C)  Stichting Deltares, 2017-2018.
+!  Copyright (C)  Stichting Deltares, 2017-2020.
 !
 !  This file is part of Delft3D (D-Flow Flexible Mesh component).
 !
@@ -27,8 +27,8 @@
 !
 !-------------------------------------------------------------------------------
 
-! $Id: network_data.f90 62230 2018-10-02 15:17:27Z carniato $
-! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_lgpl/gridgeom/packages/gridgeom/src/network_data.f90 $
+! $Id: network_data.f90 65778 2020-01-14 14:07:42Z mourits $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/gridgeom/packages/gridgeom/src/network_data.f90 $
 
 !> Global network data (==unstructured grid).
 !! \see network
@@ -116,6 +116,8 @@ module network_data
   integer,  allocatable            :: LC0(:)          !< Backup for lc.
   real   , allocatable             :: RLIN(:)         !< (numl) Placeholder for link values to be displayed.
   double precision, allocatable    :: xe(:), ye(:)    !< (numl) Edge (link) center coordinates.
+  double precision, allocatable    :: dxe(:)          !< (numl) Edge (link) actual length. OPTIONAL. When unallocated, we default to Euclidean distance between the netnodes xk,yk.
+  double precision, allocatable    :: dxe0(:)         !< Backup for dxe.
   integer,  allocatable            :: KTRI(:), KTON(:), KBT (:)
 
   ! Edge (and cell) related :      ! there are more edges than flow links .....
@@ -178,12 +180,21 @@ module network_data
 
   double precision                 :: TOOCLOSE = 0.001d0                !< Network points closer than tooclose are merged
 
-  double precision                 :: CONNECT1DEND = 200d0              !< Merge 1D endpoint ti closest branch point
+  double precision                 :: CONNECT1DEND = 0d0                !< Merge 1D endpoint ti closest branch point
 
   double precision                 :: Unidx1D = 100d0                   !< Uniform 1D dx in copylandboundaryto1Dnetw
 
   integer                          :: makeorthocenters = 0              !< shift from circumcentre to orthocentre (acts as a maxiter)
 
+  integer, parameter               :: I1D2DTP_1TO1     = 0              !< 1D2D link generation algorithm for 1-to-1 mapping HK algorithm, depending on filetype.
+  integer, parameter               :: I1D2DTP_1TON_EMB = 1              !< 1D2D link generation algorithm for 1-to-1 mapping, for embedded ('rural') links.
+  integer, parameter               :: I1D2DTP_1TON_LAT = 2              !< 1D2D link generation algorithm for 1-to-n mapping, for lateral ('river') links.
+  integer, parameter               :: I1D2DTP_LONG     = -3             !< NOT IMPLEMENTED YET, 1D2D link generation algorithm for 1-to-1 longitudinal links.
+  integer                          :: imake1d2dtype                     !< Selects which algorithm to use for 1D2D link generation (in the GUI). One of I1D2DTP_(1TO1|1TON_EMB|1TON_LAT).
+  
+  double precision                 :: searchRadius1D2DLateral                 !< Search radius for for lateral ('river') links. When the search radius is equalt to defaultSearchRadius1D2DLateral, the algorithm will calculate an appropriate search radius 
+  double precision, parameter      :: defaultSearchRadius1D2DLateral = 0.0d0  !< The default search radius for for lateral ('river') links.
+ 
   double precision                 :: xkmin, xkmax , ykmin, ykmax
 
 ! 1d NET BRANCHES
@@ -212,11 +223,7 @@ module network_data
 
 ! keep circumcenters before orthogonalization in case of quadtree meshes
   integer                          :: keepcircumcenters = 0    !< keep circumcenter (1) or not (0)
-  
-! for dry/illegal/cutcells (mesh generation related only)
-  character(len=255)               :: dryptsfile = ''
-  character(len=255)               :: gridencfile = ''
-     
+
 !  netlink permutation by setnodadm
    integer, dimension(:), allocatable :: Lperm  !< permuation of netlinks by setnodadm, dim(numL)
 !  netnode permutation by setnodadm
@@ -279,6 +286,8 @@ module network_data
    if(allocated(RLIN)) deallocate(RLIN)
    if(allocated(xe)) deallocate(xe)
    if(allocated(ye)) deallocate(ye)
+   if(allocated(dxe)) deallocate(dxe)
+   if(allocated(dxe0)) deallocate(dxe0)
    if(allocated(KTRI)) deallocate(KTRI)
    if(allocated(KTON)) deallocate(KTON)
    if(allocated(KBT)) deallocate(KBT)
@@ -339,9 +348,11 @@ module network_data
    cosphiutrsh = 0.5d0               
    CORNERCOS   = 0.25d0             
    TOOCLOSE = 0.001d0                
-   CONNECT1DEND = 200d0              
+   CONNECT1DEND = 0d0              
    Unidx1D = 100d0                   
    makeorthocenters = 0             
+   imake1d2dtype = I1D2DTP_1TO1 ! HK algorithm
+   searchRadius1D2DLateral = defaultSearchRadius1D2DLateral
    xkmin = 0
    xkmax = 0
    ykmin = 0

@@ -3,7 +3,7 @@ program nesthd2
     implicit none
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
+!  Copyright (C)  Stichting Deltares, 2011-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -27,8 +27,8 @@ program nesthd2
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: nesthd2.f90 59893 2018-08-24 15:36:15Z mooiman $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_gpl/nesthd2/packages/nesthd2/src/nesthd2.f90 $
+!  $Id: nesthd2.f90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_gpl/nesthd2/packages/nesthd2/src/nesthd2.f90 $
 !***********************************************************************
 ! Deltares                         marine and coastal management
 !

@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2018.
+!!  Copyright (C)  Stichting Deltares, 2012-2020.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -75,6 +75,7 @@
       integer                               :: i_base_grid  ! index of base grid
       integer                               :: igrid        ! index of input grid
       integer                               :: noseg        ! number of segments
+      integer                               :: noseg_org    ! original number of segments
       integer                               :: i            ! loop counter
       integer                               :: noits        ! number of scale factors / columns sybstances
       integer                               :: noits_loc    ! number of scale factors locations
@@ -89,11 +90,14 @@
       character                             :: cdummy       ! dummy not used
       integer                               :: idummy       ! dummy not used
       real                                  :: rdummy       ! dummy not used
+      character(len=256)                    :: adummy       ! dummy not used
       character(len=10)                     :: callr        ! kind of item
       character(len=10)                     :: strng1       ! kind of item
       character(len=10)                     :: strng2       ! kind of item
       character(len=10)                     :: strng3       ! kind of item
 
+      logical                               :: lfound       ! Keyword found (or not)
+      logical                               :: lsegfuncheck ! Do check if segmentfunctions are correct
       integer(kind=int64)                   :: filesize     ! Reported size of the file
 
       logical       dtflg1 , dtflg2, dtflg3
@@ -101,6 +105,9 @@
       integer                               :: nocol        ! number of columns in input
       integer(4) :: ithndl = 0
       if (timon) call timstrt( "read_block", ithndl )
+
+      call getcom ( '-nosegfuncheck', 0, lfound, idummy, rdummy, adummy, ierr2)
+      lsegfuncheck = .not. lfound
 
 !     defaults and initialisation
 
@@ -140,6 +147,7 @@
 
       i_base_grid = GridPs%base_grid
       noseg = GridPs%Pointers(i_base_grid)%noseg
+      noseg_org = get_original_noseg()
 
 !     initialise a number of variables
 
@@ -510,18 +518,19 @@
                write ( lunut   ,   2220   ) ctoken
                data_block%filename = ctoken
 
-               ! Check the size of the file (if it is binary, otherwise this is not reliable)
-
-               call check_file_size( ctoken, noits*noseg, mod(data_block%filetype,10), filesize, ierr2 )
-               if ( ierr2 < 0 ) then
-                   ierr2 = 1
-                   write( lunut , 2320 ) ctoken
-               elseif ( ierr2 > 0 ) then
-                   ierr2 = 0        ! It is a warning, proceed at your own peril
-                   iwar  = iwar + 1
-                   write( lunut , 2330 ) ctoken, filesize, 4*(1+noits*noseg), noits, noseg
-                   write( lunut , 2340 )
-               endif
+               if (lsegfuncheck) then
+                  ! Check the size of the file (if it is binary, otherwise this is not reliable)
+                  call check_file_size( ctoken, noits*noseg_org, mod(data_block%filetype,10), filesize, ierr2 )
+                  if ( ierr2 < 0 ) then
+                      ierr2 = 1
+                      write( lunut , 2320 ) ctoken
+                  elseif ( ierr2 > 0 ) then
+                      ierr2 = 0        ! It is a warning, proceed at your own peril
+                      iwar  = iwar + 1
+                      write( lunut , 2330 ) ctoken, filesize, 4*(1+noits*noseg_org), noits, noseg
+                      write( lunut , 2340 )
+                  endif
+               end if
 
             else
 
@@ -769,4 +778,11 @@
       endif
 
       end subroutine check_file_size
+
+      ! Function to get around the name clash - information in a COMMON block
+      integer function get_original_noseg()
+          include 'sysn.inc'
+
+          get_original_noseg = noseg
+      end function get_original_noseg
       END

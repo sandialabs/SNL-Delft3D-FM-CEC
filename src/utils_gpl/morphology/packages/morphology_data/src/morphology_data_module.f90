@@ -1,7 +1,7 @@
 module morphology_data_module
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                     
+!  Copyright (C)  Stichting Deltares, 2011-2020.                                     
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -25,8 +25,8 @@ module morphology_data_module
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: morphology_data_module.f90 59748 2018-08-04 04:37:35Z ottevan $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_gpl/morphology/packages/morphology_data/src/morphology_data_module.f90 $
+!  $Id: morphology_data_module.f90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_gpl/morphology/packages/morphology_data/src/morphology_data_module.f90 $
 !!--module description----------------------------------------------------------
 !
 ! This module defines the data structures for sediment transport and
@@ -184,7 +184,16 @@ integer,parameter, public  :: MOR_STAT_MIN = 1
 integer,parameter, public  :: MOR_STAT_MAX = 2
 integer,parameter, public  :: MOR_STAT_MEAN= 4
 integer,parameter, public  :: MOR_STAT_STD = 8
+integer,parameter, public  :: MOR_STAT_CUM = 16
 
+integer,parameter,public   :: MOR_STAT_TIME= 1
+integer,parameter,public   :: MOR_STAT_BODS= 2
+!
+! Soulsby & Clarke skin friction options
+!
+integer,parameter,public   :: SC_MUDTHC  = 1
+integer,parameter,public   :: SC_MUDFRAC = 2
+!
 ! collection of morphology output options
 !
 type moroutputtype
@@ -198,11 +207,15 @@ type moroutputtype
                                                    "total bedload transport  ",  &
                                                    "total suspended transport"/)
     character(len=30), dimension(4) :: statunt = (/"m  ","m/s","   ","   "/)
-    integer, dimension(5,4)         :: statflg  ! 1 = waterdepth, 2 = velocity, 3 = bedload, 4 = suspload
+    !integer, dimension(5,4)         :: statflg  ! 1 = waterdepth, 2 = velocity, 3 = bedload, 4 = suspload
+    integer, dimension(6,4)         :: statflg  ! 1 = waterdepth, 2 = velocity, 3 = bedload, 4 = suspload
     integer                         :: nstatqnt ! number of quantities for morphology statistics output
+    integer                         :: weightflg ! weighting by time or dbodsd
+    real(fp), dimension(3)          :: avgintv  ! interval, start, stop for writing statistics (FM only)
     !
     logical :: aks
     logical :: cumavg
+    logical :: morstats
     logical :: dg
     logical :: dgsd
     logical :: dm
@@ -237,6 +250,7 @@ type moroutputtype
     logical :: uuuvvv
     logical :: ws
     logical :: zumod
+    logical :: rawtransports    ! output flag for transports before upwinding/bed slope effects
 end type moroutputtype
 
 !
@@ -353,7 +367,7 @@ type morpar_type
     real(fp):: pangle     !  phase lead angle acc. to Nielsen (1992) for TR2004 expression
     real(fp):: fpco       !  coefficient for phase llag effects
     real(fp):: factcr     !  calibration factor on Shields' critical shear stress   
-    real(fp):: tmor       !  time where calculation for morphological changes start (minutes relative to ITDATE,00:00:00)
+    real(fp):: tmor       !  time where calculation for morphological changes start (tunit relative to ITDATE,00:00:00)
     real(fp):: thetsd     !  global dry bank erosion factor
     real(fp):: susw       !  factor for adjusting wave-related suspended sand transport (included in bed-load)
     real(fp):: sedthr     !  minimum depth for sediment calculations
@@ -497,8 +511,10 @@ type sedpar_type
     real(fp) :: csoil     !  concentration at bed used in hindered settling formulation
     real(fp) :: mdcuni    !  mud content / mud fraction uniform value (non-zero only
                           !  if mud is not included simulation)
-    real(fp) :: kssilt    !  ks value for silt for Soulsby 2004 formulation
-    real(fp) :: kssand    !  ks value for sand
+    real(fp) :: kssilt    !  ks value for silt for Soulsby 2004 formulation (used below sc_cmf1)
+    real(fp) :: kssand    !  ks value for sand (used above sc_cmf2)
+    real(fp) :: sc_cmf1   !  lower critical mud factor for determining bed roughness length for Soulsby & Clarke (2005)
+    real(fp) :: sc_cmf2   !  upper critical mud factor for determining bed roughness length for Soulsby & Clarke (2005)
     real(fp) :: version   !  interpreter version
     !
     ! reals
@@ -507,6 +523,7 @@ type sedpar_type
     ! integers
     !
     integer  :: nmudfrac  !  number of simulated mud fractions
+    integer  :: sc_mudfac !  formulation used for determining bed roughness length for Soulsby & Clarke (2005): SC_MUDFRAC, or SC_MUDTHC
     !
     ! pointers
     !
@@ -647,14 +664,14 @@ type sedtra_type
     real(fp)         , dimension(:,:)    , pointer :: e_ssnc   !(nu1:nu2,lsed)    ssuuc in structured Delft3D-FLOW
     real(fp)         , dimension(:,:)    , pointer :: e_sstc   !(nu1:nu2,lsed)    ssvvc in structured Delft3D-FLOW
     !
-    real(fp)         , dimension(:,:)    , pointer :: frac     !(nc1:nc2,lsedtot) effective fraction of sediment in bed available for transport
-    real(fp)         , dimension(:)      , pointer :: mudfrac  !(nc1:nc2)         effective mud fraction in the part of the bed exposed to transport
-    real(fp)         , dimension(:)      , pointer :: sandfrac !(nc1:nc2)         effective sand fraction in the part of the bed exposed to transport (mud excluded)
-    real(fp)         , dimension(:)      , pointer :: dm       !(nc1:nc2)         arithmetic mean sediment diameter of the part of the bed exposed to transport (mud excluded)
-    real(fp)         , dimension(:)      , pointer :: dg       !(nc1:nc2)         geometric mean sediment diameter of the part of the bed exposed to transport (mud excluded)
-    real(fp)         , dimension(:)      , pointer :: dgsd     !(nc1:nc2)         geometric standard deviation of particle size mix of the part of the bed exposed to transport (mud excluded)
-    real(fp)         , dimension(:,:)    , pointer :: dxx      !(nc1:nc2,nxx)     sediment diameter corresponding to percentile xx (mud excluded)
-    real(fp)         , dimension(:,:)    , pointer :: hidexp   !(nc1:nc2,lsedtot) hiding-exposure factor correcting the shear stress (sand-gravel mixtures)
+    real(fp)         , dimension(:,:)    , pointer :: frac     !< (nc1:nc2,lsedtot) effective fraction of sediment in bed available for transport
+    real(fp)         , dimension(:)      , pointer :: mudfrac  !< (nc1:nc2)         effective mud fraction in the part of the bed exposed to transport
+    real(fp)         , dimension(:)      , pointer :: sandfrac !< (nc1:nc2)         effective sand fraction in the part of the bed exposed to transport (mud excluded)
+    real(fp)         , dimension(:)      , pointer :: dm       !< (nc1:nc2)         arithmetic mean sediment diameter of the part of the bed exposed to transport (mud excluded)
+    real(fp)         , dimension(:)      , pointer :: dg       !< (nc1:nc2)         geometric mean sediment diameter of the part of the bed exposed to transport (mud excluded)
+    real(fp)         , dimension(:)      , pointer :: dgsd     !< (nc1:nc2)         geometric standard deviation of particle size mix of the part of the bed exposed to transport (mud excluded)
+    real(fp)         , dimension(:,:)    , pointer :: dxx      !< (nc1:nc2,nxx)     sediment diameter corresponding to percentile xx (mud excluded)
+    real(fp)         , dimension(:,:)    , pointer :: hidexp   !< (nc1:nc2,lsedtot) hiding-exposure factor correcting the shear stress (sand-gravel mixtures)
     !
     real(fp)         , dimension(:)      , pointer :: uuu      !(nc1:nc2)
     real(fp)         , dimension(:)      , pointer :: vvv      !(nc1:nc2)
@@ -681,6 +698,10 @@ type sedtra_type
     real(fp)         , dimension(:,:)    , pointer :: sytot    !(nc1:nc2,lsedtot) svtot in structured Delft3D-FLOW
     real(fp)         , dimension(:,:)    , pointer :: sscx     !(nc1:nc2,lsedtot) svtot in structured Delft3D-FLOW
     real(fp)         , dimension(:,:)    , pointer :: sscy     !(nc1:nc2,lsedtot) svtot in structured Delft3D-FLOW
+    real(fp)         , dimension(:,:)    , pointer :: sbxcum   !(nc1:nc2,lsedtot) Cumulative transports in FM in zeta
+    real(fp)         , dimension(:,:)    , pointer :: sbycum   !(nc1:nc2,lsedtot) Cumulative transports in FM in zeta
+    real(fp)         , dimension(:,:)    , pointer :: ssxcum   !(nc1:nc2,lsedtot) Cumulative transports in FM in zeta
+    real(fp)         , dimension(:,:)    , pointer :: ssycum   !(nc1:nc2,lsedtot) Cumulative transports in FM in zeta    
     !
     real(fp)         , dimension(:,:)    , pointer :: srcmax   !(nc1:nc2,lsedtot)
     real(fp)         , dimension(:,:)    , pointer :: fixfac   !(nc1:nc2,lsedtot)
@@ -781,6 +802,10 @@ subroutine nullsedtra(sedtra)
     nullify(sedtra%sytot)
     nullify(sedtra%sscx)
     nullify(sedtra%sscy)
+    nullify(sedtra%sbxcum)
+    nullify(sedtra%sbycum)
+    nullify(sedtra%ssxcum)
+    nullify(sedtra%ssycum)    
     !
     nullify(sedtra%srcmax)
     nullify(sedtra%fixfac)
@@ -900,10 +925,18 @@ subroutine allocsedtra(sedtra, moroutput, kmax, lsed, lsedtot, nc1, nc2, nu1, nu
     if (istat==0) allocate(sedtra%sytot   (nc1:nc2,lsedtot), STAT = istat)
     if (ioptloc==CODE_DEFAULT) then
        if (istat==0) allocate(sedtra%sscx   (nc1:nc2,lsedtot), STAT = istat)  ! to have ss output in FM in zeta points
-       if (istat==0) allocate(sedtra%sscy   (nc1:nc2,lsedtot), STAT = istat)  ! dimensioned on sedtot on purpose!!
+       if (istat==0) allocate(sedtra%sscy   (nc1:nc2,lsedtot), STAT = istat)  ! dimensioned on sedtot on purpose, see reconstructsedtransports()
+       if (istat==0) allocate(sedtra%sbxcum (nc1:nc2,lsedtot), STAT = istat)  ! Cumulative transports in FM in zeta points
+       if (istat==0) allocate(sedtra%sbycum (nc1:nc2,lsedtot), STAT = istat)  
+       if (istat==0) allocate(sedtra%ssxcum (nc1:nc2,lsedtot), STAT = istat)  
+       if (istat==0) allocate(sedtra%ssycum (nc1:nc2,lsedtot), STAT = istat)         
     else
        if (istat==0) allocate(sedtra%sscx   (1,1), STAT = istat)           ! not used in structured Delft3D-FLOW
        if (istat==0) allocate(sedtra%sscy   (1,1), STAT = istat)           ! not used in structured Delft3D-FLOW
+       if (istat==0) allocate(sedtra%sbxcum (1,1), STAT = istat)  ! Cumulative transports in FM, compare to e_sstc
+       if (istat==0) allocate(sedtra%sbycum (1,1), STAT = istat)  
+       if (istat==0) allocate(sedtra%ssxcum (1,1), STAT = istat)  
+       if (istat==0) allocate(sedtra%ssycum (1,1), STAT = istat)       
     endif
     !
     if (istat==0) allocate(sedtra%srcmax  (nc1:nc2,lsedtot), STAT = istat)
@@ -959,7 +992,6 @@ subroutine allocsedtra(sedtra, moroutput, kmax, lsed, lsedtot, nc1, nc2, nu1, nu
     sedtra%vvv      = 0.0_fp
     sedtra%umod     = 0.0_fp
     sedtra%zumod    = 0.0_fp
-    sedtra%ust2     = 0.0_fp
     !
     sedtra%aks      = 0.0_fp
     sedtra%rca      = 0.0_fp
@@ -980,6 +1012,10 @@ subroutine allocsedtra(sedtra, moroutput, kmax, lsed, lsedtot, nc1, nc2, nu1, nu
     sedtra%sytot    = 0.0_fp
     sedtra%sscx     = 0.0_fp
     sedtra%sscy     = 0.0_fp
+    sedtra%sbxcum   = 0.0_fp
+    sedtra%sbycum   = 0.0_fp
+    sedtra%ssxcum   = 0.0_fp
+    sedtra%ssycum   = 0.0_fp    
     !
     sedtra%srcmax   = 0.0_fp
     sedtra%fixfac   = 1.0_fp
@@ -1087,8 +1123,12 @@ subroutine clrsedtra(istat, sedtra)
     if (associated(sedtra%sswy    ))   deallocate(sedtra%sswy    , STAT = istat)
     if (associated(sedtra%sxtot   ))   deallocate(sedtra%sxtot   , STAT = istat)
     if (associated(sedtra%sytot   ))   deallocate(sedtra%sytot   , STAT = istat)
-    if (associated(sedtra%sytot   ))   deallocate(sedtra%sscx    , STAT = istat)
-    if (associated(sedtra%sytot   ))   deallocate(sedtra%sscy    , STAT = istat)
+    if (associated(sedtra%sscx    ))   deallocate(sedtra%sscx    , STAT = istat)
+    if (associated(sedtra%sscy    ))   deallocate(sedtra%sscy    , STAT = istat)
+    if (associated(sedtra%sbxcum  ))   deallocate(sedtra%sbxcum  , STAT = istat)
+    if (associated(sedtra%sbycum  ))   deallocate(sedtra%sbycum  , STAT = istat)
+    if (associated(sedtra%ssxcum  ))   deallocate(sedtra%ssxcum  , STAT = istat)
+    if (associated(sedtra%ssycum  ))   deallocate(sedtra%ssycum  , STAT = istat)    
     !
     if (associated(sedtra%srcmax  ))   deallocate(sedtra%srcmax  , STAT = istat)
     if (associated(sedtra%fixfac  ))   deallocate(sedtra%fixfac  , STAT = istat)
@@ -1120,11 +1160,24 @@ subroutine nullsedpar(sedpar)
 !
 !! executable statements -------------------------------------------------------
 !
+    sedpar%csoil    = 1.0e4_fp
     sedpar%mdcuni   = 0.0_fp
+    sedpar%kssilt   = 0.0_fp
+    sedpar%kssand   = 0.0_fp
+    sedpar%sc_cmf1  = 0.01_fp
+    sedpar%sc_cmf2  = 0.01_fp
+    sedpar%kssand   = 0.0_fp
+    sedpar%version  = 2.0_fp
+    !
     sedpar%nmudfrac = 0
+    sedpar%sc_mudfac= SC_MUDTHC
+    !
+    sedpar%anymud   = .false.
+    sedpar%bsskin   = .false.
+    !
     sedpar%flsdia   = ' '
     sedpar%flsmdc   = ' '
-    sedpar%version  = 2.0_fp
+    sedpar%flspmc   = ' '
     !
     nullify(sedpar%sedblock)
     nullify(sedpar%rhosol)
@@ -1408,6 +1461,9 @@ subroutine nullmorpar(morpar)
     !
     morpar%moroutput%statflg(:,:) = 0
     morpar%moroutput%nstatqnt     = 0
+    morpar%moroutput%weightflg    = 1
+    morpar%moroutput%avgintv      = -999d0
+    morpar%moroutput%morstats     = .false.
     !
     morpar%moroutput%aks         = .false.
     morpar%moroutput%cumavg      = .false.
@@ -1444,7 +1500,8 @@ subroutine nullmorpar(morpar)
     morpar%moroutput%ustar       = .false.
     morpar%moroutput%uuuvvv      = .false.
     morpar%moroutput%ws           = .true.
-    morpar%moroutput%zumod       = .false.
+    morpar%moroutput%zumod        = .false.
+    morpar%moroutput%rawtransports= .false.
     !
     morpar%mornum%upwindbedload            = .true.
     morpar%mornum%laterallyaveragedbedload = .false.

@@ -1,6 +1,6 @@
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
+!  Copyright (C)  Stichting Deltares, 2011-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -24,8 +24,8 @@
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: aggregate_waqgeom.f90 8887 2018-05-31 14:15:38Z jeuke_ml $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_lgpl/io_hyd/packages/io_hyd/src/aggregate_waqgeom.f90 $
+!  $Id: aggregate_waqgeom.f90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/io_hyd/packages/io_hyd/src/aggregate_waqgeom.f90 $
 !!--description-----------------------------------------------------------------
 !> Aggregates the given mesh geometry using the given aggregation table.
 !!--pseudo code and references--------------------------------------------------
@@ -47,6 +47,7 @@ contains
 !! since array pointers will become disassociated, possibly causing memory leaks.
 function aggregate_ugrid_geometry(input, output, input_edge_type, output_edge_type, face_mapping_table) result(success)
     use io_ugrid
+    use geometry_module
     use m_alloc
 
     implicit none
@@ -257,7 +258,7 @@ function aggregate_ugrid_geometry(input, output, input_edge_type, output_edge_ty
 
         ! Note that passed xs and ys arrays are larger than the passed polygon size (extra elements are not used in subroutine comp_masscenter).
         call comp_masscenter(node_count, output%nodex(nodes(1:node_count)), output%nodey(nodes(1:node_count)), &
-                output%facex(output_face), output%facey(output_face), area, counterclockwise)
+                output%facex(output_face), output%facey(output_face), area, counterclockwise, 0, 0, -999.0D0)
         ! Face z coordinates are unknown.
     end do
 

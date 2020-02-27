@@ -3,7 +3,7 @@ subroutine wetdis(i         ,isrc      ,jsrc      ,dp        ,xcor      , &
                 & j         ,nmmaxj    ,icx       ,icy       ,gdp       )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
+!  Copyright (C)  Stichting Deltares, 2011-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -27,8 +27,8 @@ subroutine wetdis(i         ,isrc      ,jsrc      ,dp        ,xcor      , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: wetdis.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/flow2d3d/packages/kernel/src/timedep/wetdis.f90 $
+!  $Id: wetdis.f90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/kernel/src/timedep/wetdis.f90 $
 !!--description-----------------------------------------------------------------
 !
 ! NONE

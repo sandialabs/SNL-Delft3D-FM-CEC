@@ -1,7 +1,7 @@
 module m_node
 !----- AGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2017-2018.                                
+!  Copyright (C)  Stichting Deltares, 2017-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify              
 !  it under the terms of the GNU Affero General Public License as               
@@ -25,8 +25,8 @@ module m_node
 !  Stichting Deltares. All rights reserved.
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: nodes.f90 59790 2018-08-09 14:15:22Z noort $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_gpl/flow1d/packages/flow1d_core/src/nodes.f90 $
+!  $Id: nodes.f90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_gpl/flow1d/packages/flow1d_core/src/nodes.f90 $
 !-------------------------------------------------------------------------------
 
    use MessageHandling
@@ -53,7 +53,6 @@ module m_node
   
    public realloc
    public dealloc
-   public admin_nodes
    public fill_hashtable
    public getnodeid
 
@@ -158,31 +157,6 @@ contains
       nds%Size = nds%Size+nds%growsBy
    end subroutine
    
-   subroutine admin_nodes(nds, ngrid)
-      type(t_nodeset), intent(inout) :: nds
-      integer, intent(inout) :: ngrid
-      
-      integer i
-      type(t_node), pointer :: nod
-      
-      do i = 1, nds%count
-         nod => nds%node(i)
-         select case (nod%nodeType)
-         case (nt_EndNode, nt_LinkNode)
-            ngrid = ngrid+1
-            nod%gridNumber = ngrid
-         case (NT_LEVELBOUN)
-            nod%gridNumber = -1
-            nds%bndCount = nds%bndCount + 1
-            nds%LevelBoundaryCount = nds%LevelBoundaryCount + 1
-         case (NT_DISCHBOUN)
-            nod%gridNumber = -1
-            nds%bndCount = nds%bndCount + 1
-            nds%DisBoundaryCount = nds%DisBoundaryCount + 1
-         end select
-      enddo
-      
-   end subroutine admin_nodes
 
    subroutine fill_hashtable_nds(nds)
    

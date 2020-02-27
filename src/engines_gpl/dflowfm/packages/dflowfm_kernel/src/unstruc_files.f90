@@ -1,6 +1,6 @@
 !----- AGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2017-2018.                                
+!  Copyright (C)  Stichting Deltares, 2017-2020.                                
 !                                                                               
 !  This file is part of Delft3D (D-Flow Flexible Mesh component).               
 !                                                                               
@@ -27,8 +27,8 @@
 !                                                                               
 !-------------------------------------------------------------------------------
 
-! $Id: unstruc_files.f90 62178 2018-09-27 09:19:40Z mourits $
-! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/dflowfm/packages/dflowfm_kernel/src/unstruc_files.f90 $
+! $Id: unstruc_files.f90 65935 2020-02-05 14:57:26Z mourits $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/dflowfm/packages/dflowfm_kernel/src/unstruc_files.f90 $
 
 module unstruc_files
 !! Centralizes unstruc file management (formerly in REST.F90)
@@ -51,6 +51,7 @@ implicit none
     integer :: mhlp = 0 !< File pointer to help file
     
     character(len=60)  :: pathdi          ! TODO: AvD: TEMP. moved from hwsw.inc
+    character(len=86)  :: Filnammenu      ! name of selected file in nfiles
    
 contains
 
@@ -126,7 +127,7 @@ function defaultFilename(filecat, timestamp, prefixWithDirectory, allowWildcard)
     character(len=255) :: basename
     character(len=255) :: shapeOutputDir
     character(1), external :: get_dirsep
-    character(len=16)  :: suffix
+    character(len=20)  :: suffix
     character(len=255) :: defaultFilename
     character(len=16)  :: dateandtime
     logical :: prefix_dir
@@ -166,7 +167,10 @@ function defaultFilename(filecat, timestamp, prefixWithDirectory, allowWildcard)
         suffix     = '_fou.nc'
     case ('avgwavquant')                         !! JRE
         activeFile = md_avgwavquantfile
-        suffix     = '_wav.nc'
+        suffix     = '_wav.nc'    
+    case ('avgsedquant')                         
+        activeFile = md_avgsedquantfile
+        suffix     = '_sed.nc'
     case ('tec')
         activeFile = ''
         suffix     = '.dat'
@@ -179,9 +183,6 @@ function defaultFilename(filecat, timestamp, prefixWithDirectory, allowWildcard)
     case ('net')
         activeFile = md_netfile
         suffix     = '_net.nc'
-    case ('waqgeom')
-        activeFile = ''
-        suffix     = '_waqgeom.nc'
     case ('ldb')
         activeFile = md_ldbfile
         suffix     = '.ldb'
@@ -200,9 +201,6 @@ function defaultFilename(filecat, timestamp, prefixWithDirectory, allowWildcard)
     case ('bot')
         activeFile = ''
         suffix     = '.xyb'
-    case ('_lev.xyz')
-        activeFile = ''
-        suffix     = '_lev.xyz' ! dus..    
     case ('pipe')
         activeFile = md_pipefile
         suffix     = '_pipes.pliz'
@@ -262,19 +260,37 @@ function defaultFilename(filecat, timestamp, prefixWithDirectory, allowWildcard)
    case ('shpdry')
         activeFile = ''
         suffix     = '_snapped_dryarea' ! .shp extension will be added automatically (and .shx/.dbf)
+   case ('shpgenstruc')
+        activeFile = ''
+        suffix     = '_snapped_genstruc' ! .shp extension will be added automatically (and .shx/.dbf)
         
     !---------------------------------------------------------!
     ! Shape files
     !---------------------------------------------------------!
 
     ! Delwaq files: filecat is identical to file extension
-    case ('hyd','vol','are','flo','poi','len','srf','tau','vdf','tem','sal','atr','bnd')
+    case ('hyd','vol','are','flo','vel','poi','len','srf','tau','vdf','tem','sal','atr','bnd','waqgeom')
         if (prefix_dir) then
-            call datum2(rundat2)
-            basename =  'DFM_DELWAQ_'//trim(md_ident)//trim(rundat2)
+           basename = getoutputdir('waq')
         end if
         basename = trim(basename)//trim(md_waqfilebase)
-        suffix   = '.'//trim(filecat)
+        if (trim(filecat) == 'waqgeom') then
+           suffix = '_waqgeom.nc'
+        else
+           suffix = '.'//trim(filecat)
+        end if
+
+        activeFile = ''
+
+    case ('wq_lsp')
+        activeFile = ''
+        suffix = '_wq_proc.lsp'
+    case ('wq_bal')
+        activeFile = ''
+        suffix = '_wq_proc_bal.txt'
+    case ('wq_timers')
+        activeFile = ''
+        suffix = '_wq_proc_timers.txt'
     end select
 
     if (present(timestamp)) then
@@ -301,11 +317,11 @@ function defaultFilename(filecat, timestamp, prefixWithDirectory, allowWildcard)
     
     ! Output files are generally stored in a subfolder, so prefix them here with that.
     select case (trim(filecat))
-    case ('his', 'map', 'clm', 'rstold', 'rst', 'bal', 'histek', 'inc_s1', 'tec', 'map.plt', 'net.plt', 'avgwavquant', 'com')                             !! JRE
+    case ('his', 'map', 'clm', 'rstold', 'rst', 'bal', 'histek', 'inc_s1', 'tec', 'map.plt', 'net.plt', 'avgwavquant', 'com','avgsedquant', 'wq_lsp', 'wq_bal', 'wq_timers') !! JRE
         if (prefix_dir) then
             defaultFilename = trim(getoutputdir())//trim(defaultFilename)
         end if
-    case ('shpcrs','shpobs', 'shpweir', 'shpthd', 'shpgate', 'shpemb', 'shpfxw', 'shpsrc', 'shppump', 'shpdry')
+    case ('shpcrs','shpobs', 'shpweir', 'shpthd', 'shpgate', 'shpemb', 'shpfxw', 'shpsrc', 'shppump', 'shpdry', 'shpgenstruc')
         if (prefix_dir) then        
             shapeOutputDir = trim(getoutputdir())//'snapped'
             call makedir(shapeOutputDir)
@@ -328,7 +344,6 @@ subroutine inidia(basename)
     integer :: ierr
     integer :: k
     integer :: L
-!    integer :: numuni
     CHARACTER(*) FILENAME*256, BASE*256
     character(*) RW*20
    
@@ -441,31 +456,29 @@ subroutine basename(filename, filebase, filecat)
 end subroutine basename
 
 
-!> get output directory
-function getoutputdir()
-   use m_flowtimes
-   use unstruc_model
-   implicit none
-   
-   character(len=255)         :: getoutputdir
-   
-   character(len=1), external :: get_dirsep
-   
-   call datum2(rundat2)
-   
-   if ( len_trim(md_outputdir)==0 ) then
-!     default
-      if ( len_trim(md_ident_sequential) > 0 ) then
-         getoutputdir = 'DFM_OUTPUT_'//trim(md_ident_sequential)//trim(rundat2)
-      else
-         getoutputdir = 'DFM_OUTPUT_'//trim(rundat2)
-      end if
-   else
-      getoutputdir = trim(md_outputdir)//get_dirsep()
+!> Resolves an input path (typically a file path) to its
+!! actual location. This routine selects whether the path
+!! needs to be resolved relative to a given basedir, or
+!! relative to the MDU current working dir.
+!! If inpath is absolute, then that path is returned unchanged.
+subroutine resolvePath(inpath, basedir, outpath)
+use system_utils, only: is_abs, cat_filename
+use unstruc_model, only: md_paths_relto_parent
+character(len=*), intent(in   ) :: inpath  !< Input path
+character(len=*), intent(in   ) :: basedir !< Basedir w.r.t. which the input path *might* be resolved, depending on PathsRelativeToParent setting.
+character(len=*), intent(  out) :: outpath !< Resolved path
+
+character(len=len_trim(inpath)+len_trim(basedir)+1) :: tmppath
+
+if (is_abs(inpath) .or. md_paths_relto_parent == 0) then
+   outpath = inpath
+else
+   if (md_paths_relto_parent > 0) then
+      tmppath = cat_filename(basedir, inpath)
+      outpath = tmppath
    end if
-   
-   return
-end function getoutputdir
+end if
+end subroutine resolvePath
 
 end module unstruc_files
 

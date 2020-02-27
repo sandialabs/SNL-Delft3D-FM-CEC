@@ -23,12 +23,15 @@ EXTRA_DIST = \
 	$(builddir)/../../dflowfm_lib/include/bmi_get_var_type.inc \
 	$(builddir)/../../dflowfm_lib/include/bmi_set_var.inc \
 	$(builddir)/../../dflowfm_lib/include/bmi_set_var_slice.inc \
-	$(builddir)/../include/RF.inc
+	$(builddir)/../include/RF.inc \
+	$(builddir)/../include/blasfm.inc
 
 EXTRA_DIST += $(builddir)/../../dflowfm_lib/templates 
 
 # default to empty so we can conditionally expand it
 include_HEADERS=
+
+EXTRALIBS=
 
 # For source distributions: the tar.gz will contain the correct version numbers in the generated *version.F90
 # So, just before packaging the .tar.gz dist, disable version number REgeneration parts of this Makefile.am.
@@ -48,15 +51,18 @@ libdflowfm_la_SOURCES=\
         unstruc_ini.f90 \
         xbeach_typesandkinds.F90 \
         dredge_data.f90 \
+		hydrology.f90 \
         bedform_data.f90 \
         d3ddimens.f90 \
         modules.f90 \
         dfm_signals.F90 \
+        inquire_flowgeom.f90 \
         oned_functions.f90 \
+        turbines.f90 \
         d_flooding.f90 \
         partition.F90 \
+        unstruc_structures.f90 \
         unstruc_netcdf.f90 \
-        unstruc_shapefile.F90 \
         network.f90 \
         monitoring.f90 \
         manholes.f90 \
@@ -68,13 +74,17 @@ libdflowfm_la_SOURCES=\
         shaec.f \
         shsec.f \
         sphcom.f \
+        caching.f90 \
+        unstruc_model.f90 \
         meteo1.f90 \
         fourier_analysis.f90 \
-        unstruc_model.f90 \
         unstruc_files.f90 \
         unstruc_netcdf_incremental.f90 \
+        unstruc_shapefile.F90 \
         dredgepolygon.f90 \
         bedform_io.f90 \
+        unstruc_boundaries.f90 \
+        unstruc_inifields.f90 \
         unstruc_startup.f90 \
         unstruc_opengis.f90 \
         wrwaq.F90 \
@@ -85,7 +95,6 @@ libdflowfm_la_SOURCES=\
         rcm.f90 \
         unstruc_api.F90 \
         rest.F90 \
-        unstruc_boundaries.f90 \
         xbeach_paramsconst.f90 \
         xbeach_netcdf.f90 \
         xbeach_errorhandling.f90 \
@@ -118,13 +127,18 @@ libdflowfm_la_SOURCES+=\
         solve_guus.F90 \
         waves.f90 \
         fm_bedform.f90 \
+	fm_morstatistics.f90 \
         fm_dredge.f90 \
         fm_erosed.f90 \
+        fm_wq_processes.f90 \
+        fm_wq_processes_mba.f90 \
         fm_thahbc.f90 \
         tecplot.F90 \
         transport.f90 \
         part.f90 \
         advec.f90 \
+	m_filter.f90 \
+	filter.F90 \
         unstruc.F90
 # and the library interface
 libdflowfm_la_SOURCES+=\
@@ -177,7 +191,20 @@ FMODULES += \
     -I$(top_builddir)/utils_gpl/flow1d/packages/flow1d_io/src \
     -I$(top_builddir)/third_party_open/kdtree2/src-f90 \
     -I$(top_builddir)/third_party_open/libsigwatch \
-    -I$(top_builddir)/utils_lgpl/kdtree_wrapper/packages/kdtree_wrapper/src
+    -I$(top_builddir)/third_party_open/md5/md5file \
+    -I$(top_builddir)/utils_lgpl/kdtree_wrapper/packages/kdtree_wrapper/src \
+    -I$(top_builddir)/engines_gpl/waq/include \
+    -I$(top_builddir)/engines_gpl/waq/packages/wq_processes/src \
+    -I$(top_builddir)/engines_gpl/waq/packages/waq_process/src \
+    -I$(top_builddir)/engines_gpl/waq/packages/waq_process/src/bloom \
+    -I$(top_builddir)/engines_gpl/waq/packages/waq_process/src/charon \
+    -I$(top_builddir)/engines_gpl/waq/packages/waq_process/src/proc_preprocess \
+    -I$(top_builddir)/engines_gpl/waq/packages/waq_process/src/waq_process \
+    -I$(top_builddir)/engines_gpl/waq/packages/waq_utils_f/src/mod_timings \
+    -I$(top_builddir)/engines_gpl/waq/packages/waq_utils_f/src/mod_couplib \
+    -I$(top_builddir)/engines_gpl/waq/packages/waq_utils_f/src/waq_utils \
+    -I$(top_builddir)/utils_lgpl/deltares_common/packages/deltares_common/src/rd_token \
+    -I$(top_builddir)/utils_lgpl/deltares_common/packages/deltares_common/src
 
 # NOTE:
 # includes, modules, optimization and openmp are all added to AM_FCFLAGS by common.am
@@ -205,6 +232,26 @@ endif
 if USEPETSC
 AM_FCFLAGS+=${PETSc_CFLAGS}
 LIBS+=${PETSc_LIBS}
+endif
+
+if USEPROJ
+AM_FCFLAGS+=${PROJ_CFLAGS}
+LIBS+=${PROJ_LIBS}
+USEFORTRANGIS=TRUE
+endif
+
+if USESHAPELIB
+AM_FCFLAGS+=${SHAPELIB_CFLAGS}
+LIBS+=${SHAPELIB_LIBS}
+USEFORTRANGIS=TRUE
+endif
+
+if USEFORTRANGIS
+FMODULES += \
+    -I$(top_builddir)/third_party_open/fortrangis/libfortrangis
+EXTRALIBS += \
+    $(top_builddir)/third_party_open/fortrangis/libfortranc/libfortranc.la \
+    $(top_builddir)/third_party_open/fortrangis/libfortrangis/libfortrangis.la
 endif
 
 if USEMETIS
@@ -235,16 +282,22 @@ endif
 
 
 
-EXTRALIBS=\
+EXTRALIBS+=\
         $(top_builddir)/utils_gpl/flow1d/packages/flow1d/src/libflow1d.la \
-        $(top_builddir)/utils_gpl/flow1d/packages/flow1d_core/src/libflow1d_core.la \
-        $(top_builddir)/utils_gpl/flow1d/packages/flow1d_io/src/libflow1d_io.la \
         $(top_builddir)/utils_gpl/morphology/packages/morphology_plugins_c/src/libMorphologyPluginsC.la \
         $(top_builddir)/utils_gpl/morphology/packages/morphology_kernel/src/libMorphologyKernel.la \
         $(top_builddir)/utils_gpl/morphology/packages/morphology_io/src/libMorphologyIO.la \
         $(top_builddir)/utils_gpl/morphology/packages/morphology_data/src/libMorphologyData.la \
         $(top_builddir)/utils_gpl/trachytopes/packages/trachytopes_kernel/src/libTrachytopesKernel.la \
         $(top_builddir)/utils_gpl/trachytopes/packages/trachytopes_io/src/libTrachytopesIO.la \
+        $(top_builddir)/engines_gpl/waq/packages/waq_process/src/proc_preprocess/libproc_preprocess.la \
+        $(top_builddir)/engines_gpl/waq/packages/waq_process/src/bloom/libbloom.la \
+        $(top_builddir)/engines_gpl/waq/packages/waq_process/src/waq_process/libwaq_process.la \
+        $(top_builddir)/engines_gpl/waq/packages/waq_plugin_wasteload/src/libwaq_plugin_wasteload.la \
+        $(top_builddir)/engines_gpl/waq/packages/waq_utils_c/src/libwaq_utils_c.la \
+        $(top_builddir)/engines_gpl/waq/packages/waq_utils_f/src/waq_utils/libwaq_utils.la \
+        $(top_builddir)/engines_gpl/waq/packages/wq_processes/src/libwqprocesses.la \
+        $(top_builddir)/utils_lgpl/nefis/packages/nefis/src/libNefis.la \
         $(top_builddir)/utils_lgpl/deltares_common/packages/deltares_common/src/libDeltaresCommon.la \
         $(top_builddir)/utils_lgpl/deltares_common/packages/deltares_common_mpi/src/libDeltaresCommonMpi.la \
         $(top_builddir)/utils_lgpl/kdtree_wrapper/packages/kdtree_wrapper/src/libkdtreewrapper.la \
@@ -257,7 +310,9 @@ EXTRALIBS=\
         $(top_builddir)/third_party_open/kdtree2/src-f90/libkdtree2f.la \
         $(top_builddir)/third_party_open/polypack/src/libpolypack.la \
         $(top_builddir)/third_party_open/libsigwatch/libsigwatch.la \
-        $(CCLIBS)
+        $(top_builddir)/third_party_open/md5/md5file/libmd5file.la \
+        $(top_builddir)/third_party_open/md5/md5digest/libmd5digest.la \
+        $(CCLIBS) -luuid
 
 # dflowfm_LDADD = \
 #         libdflowfm.la		#

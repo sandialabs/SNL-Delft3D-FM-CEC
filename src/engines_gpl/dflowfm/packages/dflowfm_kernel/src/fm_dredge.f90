@@ -2100,7 +2100,8 @@ subroutine fm_dredge(error)
     use m_sediment, only: stmpar
     use unstruc_files, only: mdia
     use m_bedform
-    use m_partitioninfo, only: ndomains, my_rank, numranks   ! #TODOsedmorparallel    to check numranks or ndomains 
+    use m_partitioninfo, only: ndomains, my_rank, numranks   ! #TODOsedmorparallel    to check numranks or ndomains
+    use m_fm_morstatistics
 
 !#TODOsedmorparallel   
 !* ghost cells in in polygon dredge ... if non ghost
@@ -2281,7 +2282,6 @@ subroutine fm_dredge(error)
     tmor                => stmpar%morpar%tmor
     morft               => stmpar%morpar%morft
     cmpupd              => stmpar%morpar%cmpupd
-    tmor                => stmpar%morpar%tmor
     !
     morhr = real(morft*24.0_hp,fp)
     if (firstdredge) then
@@ -3764,6 +3764,7 @@ subroutine fm_dredge(error)
     !
     if (cmpupd) then 
        allocate(dz_dummy(1:ndx), stat=istat)   ! no actual bed update, unlike updmorlyr in fm_erosed.f90
+       call morstats(dbodsd)
        if (updmorlyr(stmpar%morlyr, dbodsd, dz_dummy, mtd%messages) /= 0) then
           call writemessages(mtd%messages, mdia)
           error = .true.

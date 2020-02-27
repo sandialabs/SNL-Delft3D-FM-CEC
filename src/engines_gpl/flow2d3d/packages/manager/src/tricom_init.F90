@@ -1,7 +1,7 @@
 subroutine tricom_init(olv_handle, gdp)
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
+!  Copyright (C)  Stichting Deltares, 2011-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -25,8 +25,8 @@ subroutine tricom_init(olv_handle, gdp)
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: tricom_init.F90 8579 2018-04-16 08:46:46Z dam_ar $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/flow2d3d/packages/manager/src/tricom_init.F90 $
+!  $Id: tricom_init.F90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/manager/src/tricom_init.F90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: - Read md-file
@@ -1205,6 +1205,8 @@ subroutine tricom_init(olv_handle, gdp)
     call timer_start(timer_d3dflowinit, gdp)
     nhystp = nxtstp(d3dflow_init, gdp)
     call timer_stop(timer_d3dflowinit, gdp)
+    !
+    if (dredge) call dredge_initialize(gdp) ! Initialize dredging data across partitions
     !
     ! related vseminit is in tricom.f90, at label 9997
     !

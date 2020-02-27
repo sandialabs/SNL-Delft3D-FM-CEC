@@ -9,7 +9,7 @@ subroutine z_difuflux(stage   ,lundia    ,kmax      ,nmmax     ,nmmaxj    , &
                   & timest    ,icx       ,icy       ,gdp       )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
+!  Copyright (C)  Stichting Deltares, 2011-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -33,8 +33,8 @@ subroutine z_difuflux(stage   ,lundia    ,kmax      ,nmmax     ,nmmaxj    , &
 !  Stichting Deltares. All rights reserved.                                     
 !
 !-------------------------------------------------------------------------------
-!  $Id: z_difuflux.f90 8747 2018-05-09 10:03:21Z platzek $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/flow2d3d/packages/kernel/src/compute/z_difuflux.f90 $
+!  $Id: z_difuflux.f90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/kernel/src/compute/z_difuflux.f90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: Compute flux corresponding to Z_DIFU

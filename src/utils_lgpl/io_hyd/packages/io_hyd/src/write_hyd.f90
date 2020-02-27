@@ -1,6 +1,6 @@
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
+!  Copyright (C)  Stichting Deltares, 2011-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -24,8 +24,8 @@
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: write_hyd.f90 8345 2018-03-13 15:28:32Z jeuke_ml $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_lgpl/io_hyd/packages/io_hyd/src/write_hyd.f90 $
+!  $Id: write_hyd.f90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/io_hyd/packages/io_hyd/src/write_hyd.f90 $
 
       subroutine write_hyd(hyd, version_full)
 
@@ -183,7 +183,7 @@
       write(lunhyd,'(a,'' '',i10)') key(16), hyd%mmax
       write(lunhyd,'(a,'' '',i10)') key(17), hyd%nmax
       write(lunhyd,'(a,'' '',i10)') key(18), hyd%kmax
-      write(lunhyd,'(a,'' '',i10)') key(70), hyd%noq1
+      write(lunhyd,'(a,'' '',i10)') key(70), hyd%noq1 + hyd%noq2
       write(lunhyd,'(a,'' '',i10)') key(71), hyd%noq3
       write(lunhyd,'(a,'' '',i10)') key(72), hyd%nosegl
       write(lunhyd,'(a,'' '',i10)') key(19), hyd%nolay
@@ -324,6 +324,8 @@
          enddo
          write(lunhyd,'(a)') key(57)
       endif
+
+      call dlwqfile_close(hyd%file_hyd)
 
       return
       end subroutine write_hyd

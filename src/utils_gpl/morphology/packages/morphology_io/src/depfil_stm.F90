@@ -2,7 +2,7 @@
 module m_depfil_stm
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
+!  Copyright (C)  Stichting Deltares, 2011-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -26,8 +26,8 @@ module m_depfil_stm
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: depfil_stm.F90 62210 2018-09-28 09:56:23Z ottevan $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_gpl/morphology/packages/morphology_io/src/depfil_stm.F90 $
+!  $Id: depfil_stm.F90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_gpl/morphology/packages/morphology_io/src/depfil_stm.F90 $
 !-------------------------------------------------------------------------------
 !!--description----------------------------------------------------------------- 
 ! 
@@ -127,7 +127,7 @@ subroutine depfil_stm(lundia    ,error     ,fildep    ,fmttmp    , &
       allocate (array1d(ngrid), stat=ierror)
       array1d = dmiss
 
-      CALL triinterp2(dims%xz, dims%yz, array1d, dims%nmmax, jdla, & 
+      CALL triinterp2(dims%xz, dims%yz, array1d, ngrid, jdla, & 
                       XS, YS, ZS(1,:), NS, dmiss, jsferic, jins, jasfer3D, NPL, 0, 0, XPL, YPL, ZPL, transformcoef)
       array(ifld,:,1) = array1d
       deallocate(array1d, stat=ierror)
@@ -142,7 +142,7 @@ subroutine depfil_stm(lundia    ,error     ,fildep    ,fmttmp    , &
       enddo   
       
       ! if sample still equal to dmiss (values are not defined on flow nodes) - throw error
-      do nm = 1, size(array,1)  ! loop over flow nodes
+      do nm = 1, size(array,2)  ! loop over flow nodes
          if (array(ifld, nm, 1) == dmiss) then
              error = .true.
              write(xlocstring, '(F10.3)') dims%xz(nm)
@@ -250,7 +250,7 @@ subroutine depfil_stm_double(lundia    ,error     ,fildep    ,fmttmp    , &
       allocate (array1d(ngrid), stat=ierror)
       array1d = dmiss
 
-      CALL triinterp2(dims%xz, dims%yz, array1d, dims%nmmax, jdla, & 
+      CALL triinterp2(dims%xz, dims%yz, array1d, ngrid, jdla, & 
                       XS, YS, ZS(1,:), NS, dmiss, jsferic, jins, jasfer3D, NPL, 0, 0, XPL, YPL, ZPL, transformcoef)
       array(ifld,:,1) = array1d
       deallocate(array1d, stat=ierror)
@@ -264,7 +264,7 @@ subroutine depfil_stm_double(lundia    ,error     ,fildep    ,fmttmp    , &
       enddo
       
       ! if sample still equal to dmiss (values are not defined on flow nodes) - throw error
-      do nm = 1, size(array,1)  ! loop over flow nodes
+      do nm = 1, size(array,2)  ! loop over flow nodes
          if (array(ifld, nm, 1) == dmiss) then
              error = .true.
              write(xlocstring, '(F10.3)') dims%xz(nm)

@@ -1,8 +1,18 @@
 module ec_module_api
 
    use iso_c_binding
+   use iso_c_utils
+   use m_ec_module
+   use m_ec_parameters
    
 implicit none
+
+   type(tEcInstance), pointer  :: instancePtr
+
+   public :: averaging
+   
+   private
+   
    contains
    
 function triangulation(meshtwoddim, meshtwod, startIndex, c_sampleX, c_sampleY, c_sampleValues, numSamples, c_targetValues, locType, jsferic, jasfer3D) result(ierr) bind(C, name="triangulation")
@@ -21,7 +31,7 @@ function triangulation(meshtwoddim, meshtwod, startIndex, c_sampleX, c_sampleY, 
     ! inputs
     type(c_t_ug_meshgeomdim), intent(in)    :: meshtwoddim         !< input 2d mesh dimensions
     type(c_t_ug_meshgeom), intent(in)       :: meshtwod            !< input 2d mesh 
-    type(c_ptr), intent(in)                 :: startIndex          !< start index of index based arrays (might be needed for 1d interpolation)
+    integer(c_int), intent(in)              :: startIndex          !< start index of index based arrays (might be needed for 1d interpolation)
     type(c_ptr), intent(in)                 :: c_sampleX           !< samples x
     type(c_ptr), intent(in)                 :: c_sampleY           !< samples y 
     type(c_ptr), intent(in)                 :: c_sampleValues      !< samples values
@@ -46,6 +56,7 @@ function triangulation(meshtwoddim, meshtwod, startIndex, c_sampleX, c_sampleY, 
     integer                                  :: ierr 
     integer                                  :: jdla
     real(hp)                                 :: transformcoef(6)
+    integer                                  :: shift, start_node, end_node 
     
     !fill meshgeom
     ierr = 0
@@ -66,13 +77,27 @@ function triangulation(meshtwoddim, meshtwod, startIndex, c_sampleX, c_sampleY, 
       targetX = meshgeom%nodex
       targetY = meshgeom%nodey
     else if (locType.eq.2) then  
-      numTargets = size(meshgeom%edge_nodes,2)
-      allocate(targetX(numTargets))
-      allocate(targetY(numTargets))
-      do i=1,numTargets
-         targetX(i) = (meshgeom%nodex(meshgeom%edge_nodes(1,i)) + meshgeom%nodex(meshgeom%edge_nodes(2,i)))/2.0d0
-         targetY(i) = (meshgeom%nodey(meshgeom%edge_nodes(1,i)) + meshgeom%nodey(meshgeom%edge_nodes(2,i)))/2.0d0
-      enddo     
+      shift = 1 - startIndex
+      do i=1,size(meshgeom%edge_nodes,2)
+         meshgeom%edge_nodes(1,i) = meshgeom%edge_nodes(1,i) + shift
+         meshgeom%edge_nodes(2,i) = meshgeom%edge_nodes(2,i) + shift
+      enddo
+      allocate(targetX(size(meshgeom%edge_nodes,2)))
+      allocate(targetY(size(meshgeom%edge_nodes,2)))      
+      numTargets = 0
+      do i=1,size(meshgeom%edge_nodes,2)
+         start_node = meshgeom%edge_nodes(1,i)
+         end_node = meshgeom%edge_nodes(2,i)
+         if (start_node>=1 .and. start_node<=size(meshgeom%nodex,1) .and. end_node>=1 .and. end_node<=size(meshgeom%nodex,1)) then
+            targetX(i) = (meshgeom%nodex(start_node) + meshgeom%nodex(end_node)) * 0.5d0
+            targetY(i) = (meshgeom%nodey(start_node) + meshgeom%nodey(end_node)) * 0.5d0
+            numTargets = numTargets + 1
+         end if
+      enddo
+      if(numTargets.ne.size(meshgeom%edge_nodes,2)) then
+         ierr = -1
+         goto 1234  
+      endif
     else
       !not valid location
       ierr = -1
@@ -170,7 +195,7 @@ function averaging(meshtwoddim, meshtwod, startIndex, c_sampleX, c_sampleY, c_sa
     integer                                 :: nMaxNodesPolygon
     real(hp), allocatable                   :: xx(:,:), yy(:,:), xxx(:), yyy(:)
     integer, allocatable                    :: nnn(:)
-    integer                                 :: nNetCells
+    integer                                 :: nNetCells, shift
        
     !get and convert meshgeom to kn table
     ierr = network_data_destructor()
@@ -310,8 +335,13 @@ function averaging(meshtwoddim, meshtwod, startIndex, c_sampleX, c_sampleY, c_sa
        call c_f_pointer(c_targetValues, targetValues, (/numTargets/))
        targetValues = interpolationResults(1,nodePermutation)
     else if(locType.eq.2) then
+        shift = 1 - meshgeom%start_index
+        do i=1,size(meshgeom%edge_nodes,2)
+          meshgeom%edge_nodes(1,i) = meshgeom%edge_nodes(1,i) + shift
+          meshgeom%edge_nodes(2,i) = meshgeom%edge_nodes(2,i) + shift
+        enddo
        ! if the node have been permuted by findcell, restore the original ordering, supposing is the same as 
-       ! the one in the edge_nodes
+       ! the one in the edge_nodes       
        allocate(rawTargetValues(numTargets))
        rawTargetValues = interpolationResults(1,nodePermutation)
        !reset number of targets, associate c# and fortran pointers
@@ -352,5 +382,5 @@ function averaging(meshtwoddim, meshtwod, startIndex, c_sampleX, c_sampleY, c_sa
     if (allocated(yyy)) deallocate(yyy) 
 
 end function averaging
-      
+   
 end module ec_module_api

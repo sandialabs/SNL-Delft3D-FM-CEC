@@ -3,7 +3,7 @@
   subroutine set_weir_by_id(id, c_weir)
     ! convert structures to pumps (fortran to c conversion)
     use modelGlobalData
-    use m_structure
+    use m_1d_structures
     use m_weir
     use MessageHandling
     character(len=*), intent(in) :: id
@@ -19,7 +19,7 @@
     do istruct=1,pnetwork%sts%Count
        structure => pnetwork%sts%struct(istruct)
        if (structure%id == id) then
-          if (.not. structure%st_type .eq. ST_WEIR) then
+          if (.not. structure%type .eq. ST_WEIR) then
              write(msgbuf,*) "Structure", id, "is not of type weir"
              call MESS(LEVEL_ERROR, msgbuf)
           end if
@@ -29,27 +29,22 @@
     end do
 
     structure%id = char_array_to_string(c_weir%id)
-    write(msgbuf,*) 'setting structure%x to', c_weir%x
+    write(msgbuf,*) 'setting structure%xCoordinates(1) to', c_weir%x
     call mess(LEVEL_DEBUG, msgbuf)
-    structure%x = c_weir%x
-    write(msgbuf,*) 'setting structure%y to', c_weir%y
+    structure%xCoordinates(1) = c_weir%x
+    write(msgbuf,*) 'setting structure%yCoordinates(1) to', c_weir%y
     call mess(LEVEL_DEBUG, msgbuf)
-    structure%y = c_weir%y
+    structure%yCoordinates(1) = c_weir%y
     write(msgbuf,*) 'setting structure%ibran to', c_weir%branchid
     call mess(LEVEL_DEBUG, msgbuf)
     structure%ibran = c_weir%branchid
-    write(msgbuf,*) 'setting structure%distance to', c_weir%chainage
+    write(msgbuf,*) 'setting structure%chainage to', c_weir%chainage
     call mess(LEVEL_DEBUG, msgbuf)
-    structure%distance = c_weir%chainage
-    write(msgbuf,*) 'setting structure%left_calc_point to', c_weir%left_calc_point
+    structure%chainage = c_weir%chainage
     call mess(LEVEL_DEBUG, msgbuf)
-    structure%left_calc_point = c_weir%left_calc_point
-    write(msgbuf,*) 'setting structure%right_calc_point to', c_weir%right_calc_point
+    write(msgbuf,*) 'setting structure%linknumbers(1) to', c_weir%link_number
     call mess(LEVEL_DEBUG, msgbuf)
-    structure%right_calc_point = c_weir%right_calc_point
-    write(msgbuf,*) 'setting structure%link_number to', c_weir%link_number
-    call mess(LEVEL_DEBUG, msgbuf)
-    structure%link_number = c_weir%link_number
+    structure%linknumbers(1) = c_weir%link_number
     write(msgbuf,*) 'setting fortranweir%crestlevel to', c_weir%crest_level
     call mess(LEVEL_DEBUG, msgbuf)
     fortranweir%crestlevel = c_weir%crest_level
@@ -69,7 +64,7 @@
   subroutine set_orifice_by_id(id, c_orifice)
     ! convert structures to pumps (fortran to c conversion)
     use modelGlobalData
-    use m_structure
+    use m_1d_structures
     use m_orifice
     use MessageHandling
     character(len=*), intent(in) :: id
@@ -85,7 +80,7 @@
     do istruct=1,pnetwork%sts%Count
        structure => pnetwork%sts%struct(istruct)
        if (structure%id == id) then
-          if (.not. structure%st_type .eq. ST_ORIFICE) then
+          if (.not. structure%type .eq. ST_ORIFICE) then
              write(msgbuf,*) "Structure", id, "is not of type orifice"
              call MESS(LEVEL_ERROR, msgbuf)
           end if
@@ -95,27 +90,22 @@
     end do
 
     structure%id = char_array_to_string(c_orifice%id)
-    write(msgbuf,*) 'setting structure%x to', c_orifice%x
+    write(msgbuf,*) 'setting structure%xCoordinates(1) to', c_orifice%x
     call mess(LEVEL_DEBUG, msgbuf)
-    structure%x = c_orifice%x
-    write(msgbuf,*) 'setting structure%y to', c_orifice%y
+    structure%xCoordinates(1) = c_orifice%x
+    write(msgbuf,*) 'setting structure%yCoordinates(1) to', c_orifice%y
     call mess(LEVEL_DEBUG, msgbuf)
-    structure%y = c_orifice%y
+    structure%yCoordinates(1) = c_orifice%y
     write(msgbuf,*) 'setting structure%ibran to', c_orifice%branchid
     call mess(LEVEL_DEBUG, msgbuf)
     structure%ibran = c_orifice%branchid
-    write(msgbuf,*) 'setting structure%distance to', c_orifice%chainage
+    write(msgbuf,*) 'setting structure%chainage to', c_orifice%chainage
     call mess(LEVEL_DEBUG, msgbuf)
-    structure%distance = c_orifice%chainage
-    write(msgbuf,*) 'setting structure%left_calc_point to', c_orifice%left_calc_point
+    structure%chainage = c_orifice%chainage
     call mess(LEVEL_DEBUG, msgbuf)
-    structure%left_calc_point = c_orifice%left_calc_point
-    write(msgbuf,*) 'setting structure%right_calc_point to', c_orifice%right_calc_point
+    write(msgbuf,*) 'setting structure%linknumbers(1) to', c_orifice%link_number
     call mess(LEVEL_DEBUG, msgbuf)
-    structure%right_calc_point = c_orifice%right_calc_point
-    write(msgbuf,*) 'setting structure%link_number to', c_orifice%link_number
-    call mess(LEVEL_DEBUG, msgbuf)
-    structure%link_number = c_orifice%link_number
+    structure%linknumbers(1) = c_orifice%link_number
     write(msgbuf,*) 'setting fortranorifice%crestlevel to', c_orifice%crest_level
     call mess(LEVEL_DEBUG, msgbuf)
     fortranorifice%crestlevel = c_orifice%crest_level
@@ -144,7 +134,7 @@
   subroutine set_pump_by_id(id, c_pump)
     ! convert structures to pumps (fortran to c conversion)
     use modelGlobalData
-    use m_structure
+    use m_1d_structures
     use m_pump
     use MessageHandling
     character(len=*), intent(in) :: id
@@ -160,7 +150,7 @@
     do istruct=1,pnetwork%sts%Count
        structure => pnetwork%sts%struct(istruct)
        if (structure%id == id) then
-          if (.not. structure%st_type .eq. ST_PUMP) then
+          if (.not. structure%type .eq. ST_PUMP) then
              write(msgbuf,*) "Structure", id, "is not of type pump"
              call MESS(LEVEL_ERROR, msgbuf)
           end if
@@ -170,27 +160,22 @@
     end do
 
     structure%id = char_array_to_string(c_pump%id)
-    write(msgbuf,*) 'setting structure%x to', c_pump%x
+    write(msgbuf,*) 'setting structure%xCoordinates(1) to', c_pump%x
     call mess(LEVEL_DEBUG, msgbuf)
-    structure%x = c_pump%x
-    write(msgbuf,*) 'setting structure%y to', c_pump%y
+    structure%xCoordinates(1) = c_pump%x
+    write(msgbuf,*) 'setting structure%yCoordinates(1) to', c_pump%y
     call mess(LEVEL_DEBUG, msgbuf)
-    structure%y = c_pump%y
+    structure%yCoordinates(1) = c_pump%y
     write(msgbuf,*) 'setting structure%ibran to', c_pump%branchid
     call mess(LEVEL_DEBUG, msgbuf)
     structure%ibran = c_pump%branchid
-    write(msgbuf,*) 'setting structure%distance to', c_pump%chainage
+    write(msgbuf,*) 'setting structure%chainage to', c_pump%chainage
     call mess(LEVEL_DEBUG, msgbuf)
-    structure%distance = c_pump%chainage
-    write(msgbuf,*) 'setting structure%left_calc_point to', c_pump%left_calc_point
+    structure%chainage = c_pump%chainage
     call mess(LEVEL_DEBUG, msgbuf)
-    structure%left_calc_point = c_pump%left_calc_point
-    write(msgbuf,*) 'setting structure%right_calc_point to', c_pump%right_calc_point
+    write(msgbuf,*) 'setting structure%linknumbers(1) to', c_pump%link_number
     call mess(LEVEL_DEBUG, msgbuf)
-    structure%right_calc_point = c_pump%right_calc_point
-    write(msgbuf,*) 'setting structure%link_number to', c_pump%link_number
-    call mess(LEVEL_DEBUG, msgbuf)
-    structure%link_number = c_pump%link_number
+    structure%linknumbers(1) = c_pump%link_number
     write(msgbuf,*) 'setting fortranpump%ss_onlevel(1) to', c_pump%start_level_suction_side
     call mess(LEVEL_DEBUG, msgbuf)
     fortranpump%ss_onlevel(1) = c_pump%start_level_suction_side
@@ -200,9 +185,6 @@
     write(msgbuf,*) 'setting fortranpump%capacity(1) to', c_pump%capacity
     call mess(LEVEL_DEBUG, msgbuf)
     fortranpump%capacity(1) = c_pump%capacity
-    write(msgbuf,*) 'setting fortranpump%oldcapacity to', c_pump%oldcapacity
-    call mess(LEVEL_DEBUG, msgbuf)
-    fortranpump%oldcapacity = c_pump%oldcapacity
     write(msgbuf,*) 'setting fortranpump%reduction_factor to', c_pump%reduction_factor
     call mess(LEVEL_DEBUG, msgbuf)
     fortranpump%reduction_factor = c_pump%reduction_factor
@@ -216,7 +198,7 @@
   subroutine set_culvert_by_id(id, c_culvert)
     ! convert structures to pumps (fortran to c conversion)
     use modelGlobalData
-    use m_structure
+    use m_1d_structures
     use m_culvert
     use MessageHandling
     character(len=*), intent(in) :: id
@@ -232,7 +214,7 @@
     do istruct=1,pnetwork%sts%Count
        structure => pnetwork%sts%struct(istruct)
        if (structure%id == id) then
-          if (.not. structure%st_type .eq. ST_CULVERT) then
+          if (.not. structure%type .eq. ST_CULVERT) then
              write(msgbuf,*) "Structure", id, "is not of type culvert"
              call MESS(LEVEL_ERROR, msgbuf)
           end if
@@ -242,27 +224,21 @@
     end do
 
     structure%id = char_array_to_string(c_culvert%id)
-    write(msgbuf,*) 'setting structure%x to', c_culvert%x
+    write(msgbuf,*) 'setting structure%xCoordinates(1) to', c_culvert%x
     call mess(LEVEL_DEBUG, msgbuf)
-    structure%x = c_culvert%x
-    write(msgbuf,*) 'setting structure%y to', c_culvert%y
+    structure%xCoordinates(1) = c_culvert%x
+    write(msgbuf,*) 'setting structure%yCoordinates(1) to', c_culvert%y
     call mess(LEVEL_DEBUG, msgbuf)
-    structure%y = c_culvert%y
+    structure%yCoordinates(1) = c_culvert%y
     write(msgbuf,*) 'setting structure%ibran to', c_culvert%branchid
     call mess(LEVEL_DEBUG, msgbuf)
     structure%ibran = c_culvert%branchid
-    write(msgbuf,*) 'setting structure%distance to', c_culvert%chainage
+    write(msgbuf,*) 'setting structure%chainage to', c_culvert%chainage
     call mess(LEVEL_DEBUG, msgbuf)
-    structure%distance = c_culvert%chainage
-    write(msgbuf,*) 'setting structure%left_calc_point to', c_culvert%left_calc_point
+    structure%chainage = c_culvert%chainage
+    write(msgbuf,*) 'setting structure%linknumbers(1) to', c_culvert%link_number
     call mess(LEVEL_DEBUG, msgbuf)
-    structure%left_calc_point = c_culvert%left_calc_point
-    write(msgbuf,*) 'setting structure%right_calc_point to', c_culvert%right_calc_point
-    call mess(LEVEL_DEBUG, msgbuf)
-    structure%right_calc_point = c_culvert%right_calc_point
-    write(msgbuf,*) 'setting structure%link_number to', c_culvert%link_number
-    call mess(LEVEL_DEBUG, msgbuf)
-    structure%link_number = c_culvert%link_number
+    structure%linknumbers(1) = c_culvert%link_number
     write(msgbuf,*) 'setting fortranculvert%leftlevel to', c_culvert%left_level
     call mess(LEVEL_DEBUG, msgbuf)
     fortranculvert%leftlevel = c_culvert%left_level
@@ -281,7 +257,7 @@
     write(msgbuf,*) 'setting fortranculvert%valve_onoff to', c_culvert%valve_inuse
     call mess(LEVEL_DEBUG, msgbuf)
     fortranculvert%has_valve = c_culvert%valve_inuse
-    write(msgbuf,*) 'setting fortranculvert%inivalveopen to', c_culvert%valve_opening
+    write(msgbuf,*) 'setting fortranculvert%valveOpening to', c_culvert%valve_opening
     call mess(LEVEL_DEBUG, msgbuf)
-    fortranculvert%inivalveopen = c_culvert%valve_opening
+    fortranculvert%valveOpening = c_culvert%valve_opening
   end subroutine set_culvert_by_id

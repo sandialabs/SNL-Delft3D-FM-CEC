@@ -1,6 +1,6 @@
 !----- LGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
+!  Copyright (C)  Stichting Deltares, 2011-2020.                                
 !                                                                               
 !  This library is free software; you can redistribute it and/or                
 !  modify it under the terms of the GNU Lesser General Public                   
@@ -23,8 +23,8 @@
 !  are registered trademarks of Stichting Deltares, and remain the property of  
 !  Stichting Deltares. All rights reserved.                                     
 
-!  $Id: ec_instance.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_lgpl/ec_module/packages/ec_module/src/ec_instance.f90 $
+!  $Id: ec_instance.f90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/ec_module/packages/ec_module/src/ec_instance.f90 $
 
 !> This module contains the constructor and destructor for the datatype tEcInstance.
 !! @author edwin.bos@deltares.nl
@@ -126,6 +126,12 @@ module m_ec_instance
                allocate(ptr%ecNetCDFsPtr(10), STAT = istat)
                if (istat /= 0) then
                   call setECMessage("ERROR: ec_instance::ecInstanceCreate: Unable to allocate memory for ecNetCDFsPtr array.")
+                  success = .false.
+               end if
+               ptr%nBCFiles = 0
+               allocate(ptr%ecBCFilesPtr(10), STAT = istat)
+               if (istat /= 0) then
+                  call setECMessage("ERROR: ec_instance::ecInstanceCreate: Unable to allocate memory for ecBCFilesPtr array.")
                   success = .false.
                end if
                ptr%nBCBlocks = 0
@@ -438,7 +444,7 @@ module m_ec_instance
                   return
                end if
             end if
-            ! register the BCBlock
+            ! register the new instance
             instancePtr%nNetCDFs = instancePtr%nNetCDFs + 1
             instancePtr%ecNetCDFsPtr(instancePtr%nNetCDFs)%ptr => netCDFPtr
             instancePtr%idCounter = instancePtr%idCounter + 1
@@ -447,7 +453,6 @@ module m_ec_instance
       end function ecInstanceCreateNetCDF
 
       ! =======================================================================
-      
       !> 
       subroutine ecInstanceListSourceItems(instancePtr,dev)
          implicit none
@@ -526,17 +531,27 @@ module m_ec_instance
             ! TODO: This lookup loop of items may be expensive for large models, use a lookup table with ids.
             targetItemPtr => instancePtr%ecItemsPtr(ii)%ptr
             if (targetItemPtr%role == itemType_target) then
-               write(line,'(a,i5.5,a,i1,a)') 'Target Item ', targetItemPtr%id, ' (name='//trim(targetItemPtr%quantityPtr%name)//', vectormax=',targetItemPtr%quantityPtr%vectormax,')'
+               if (associated(targetItemPtr%quantityPtr)) then
+                  write(line,'(a,i5.5,a,i1,a)') 'Target Item ', targetItemPtr%id, ' (name='//trim(targetItemPtr%quantityPtr%name)//', vectormax=',targetItemPtr%quantityPtr%vectormax,')'
+               else
+                  write(line,'(a,i5.5,a,i1,a)') 'Target Item ', targetItemPtr%id
+               endif
                call messenger(lvl, line)
-               write(line,'(a,i5.5,a,i1,a)') 'Element Set ', targetItemPtr%elementSetPtr%id
-               call messenger(lvl, line)
+               if (associated(targetItemPtr%elementSetPtr)) then
+                  write(line,'(a,i5.5,a,i1,a)') 'Element Set ', targetItemPtr%elementSetPtr%id
+                  call messenger(lvl, line)
+               end if
                if (targetItemPtr%nConnections==0) then
-                  write(line,'(a)') '   TARGET ITEM HAS NO CONNECTIONS !!!'
+                  write(line,'(a,i5.5,a)') '   TARGET ITEM ',targetItemPtr%id,' HAS NO CONNECTIONS !!!'
                   call messenger(lvl, line)
                end if
                do ic=1, targetItemPtr%nConnections
                   connectionPtr => targetItemPtr%connectionsPtr(ic)%ptr
-                  write(line,'(a,i5.5)') '   Connection ',connectionPtr%id 
+                  if (associated(connectionPtr%converterPtr)) then
+                     write(line,'(a,i5.5,a,i5.5,a,i3.3)') '   Connection ',connectionPtr%id,', Converter ',connectionPtr%converterPtr%id,', targetIndex ',connectionPtr%converterPtr%targetIndex  
+                  else
+                     write(line,'(a,i5.5,a,i5.5,a,i3.3)') '   Connection ',connectionPtr%id,', Converter NONE !'
+                  end if
                   call messenger(lvl, line)
                   if (connectionPtr%nSourceItems==0) then
                      write(line,'(a)') '   CONNECTION HAS NO SOURCE ITEMS !!!'

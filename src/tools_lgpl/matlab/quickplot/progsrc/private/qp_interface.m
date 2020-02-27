@@ -3,7 +3,7 @@ function fig=qp_interface(showUI)
 
 %----- LGPL --------------------------------------------------------------------
 %                                                                               
-%   Copyright (C) 2011-2018 Stichting Deltares.                                     
+%   Copyright (C) 2011-2020 Stichting Deltares.                                     
 %                                                                               
 %   This library is free software; you can redistribute it and/or                
 %   modify it under the terms of the GNU Lesser General Public                   
@@ -28,8 +28,8 @@ function fig=qp_interface(showUI)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/private/qp_interface.m $
-%   $Id: qp_interface.m 8084 2018-01-31 13:26:04Z jagers $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/private/qp_interface.m $
+%   $Id: qp_interface.m 65778 2020-01-14 14:07:42Z mourits $
 
 if ischar(showUI)
     m = showUI;
@@ -292,7 +292,7 @@ MW.VSelType=uicontrol('Parent',mfig, ...
     'Callback','d3d_qp vselectiontype', ...
     'Enable','off', ...
     'Position',[176 voffset 155 20], ...
-    'String',{'K range','Z slice','dZ below surface','dZ above bed'}, ...
+    'String',{'K range','Z slice','dZ below surface','dZ above bed','depth percentage'}, ...
     'Style','popupmenu', ...
     'Tag','vselectiontype', ...
     'Value',1);

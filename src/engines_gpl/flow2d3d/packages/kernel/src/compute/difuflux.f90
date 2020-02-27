@@ -6,7 +6,7 @@ subroutine difuflux(stage     ,lundia    ,kmax      ,nmmax     ,nmmaxj    , &
                   & gdp       )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
+!  Copyright (C)  Stichting Deltares, 2011-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -30,8 +30,8 @@ subroutine difuflux(stage     ,lundia    ,kmax      ,nmmax     ,nmmaxj    , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: difuflux.f90 8714 2018-05-04 14:55:55Z platzek $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/flow2d3d/packages/kernel/src/compute/difuflux.f90 $
+!  $Id: difuflux.f90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/kernel/src/compute/difuflux.f90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: Compute flux corresponding to DIFU

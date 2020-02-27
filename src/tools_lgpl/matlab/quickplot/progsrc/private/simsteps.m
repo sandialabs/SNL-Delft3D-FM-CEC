@@ -8,7 +8,7 @@ function [OutTxt,OutFig]=simsteps(C,i)
 
 %----- LGPL --------------------------------------------------------------------
 %                                                                               
-%   Copyright (C) 2011-2018 Stichting Deltares.                                     
+%   Copyright (C) 2011-2020 Stichting Deltares.                                     
 %                                                                               
 %   This library is free software; you can redistribute it and/or                
 %   modify it under the terms of the GNU Lesser General Public                   
@@ -33,8 +33,8 @@ function [OutTxt,OutFig]=simsteps(C,i)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/private/simsteps.m $
-%   $Id: simsteps.m 8628 2018-04-19 14:55:49Z jagers $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/private/simsteps.m $
+%   $Id: simsteps.m 65778 2020-01-14 14:07:42Z mourits $
 
 Txt={'NOTE: This function provides only indicative values.'
     'For theory see chapter 10 (in particular sections 10.4 and 10.6) of the'

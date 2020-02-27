@@ -1,6 +1,6 @@
 !----- LGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
+!  Copyright (C)  Stichting Deltares, 2011-2020.                                
 !                                                                               
 !  This library is free software; you can redistribute it and/or                
 !  modify it under the terms of the GNU Lesser General Public                   
@@ -25,8 +25,8 @@
 !                                                                               
 !-------------------------------------------------------------------------------
 
-! $Id: gridgeom.F90 61856 2018-09-17 10:50:37Z carniato $
-! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_lgpl/gridgeom/packages/gridgeom/src/gridgeom.F90 $
+! $Id: gridgeom.F90 65778 2020-01-14 14:07:42Z mourits $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/gridgeom/packages/gridgeom/src/gridgeom.F90 $
 
 !> Module for grid operations.
 
@@ -73,7 +73,7 @@ end function ggeo_get_start_end_nodes_of_branches
 
 
 
-function ggeo_make1D2Dinternalnetlinks(xplLinks, yplLinks, zplLinks, oneDmask, c_jsferic, c_jasfer3D, c_jglobe) result(ierr)
+function ggeo_make1D2Dinternalnetlinks(xplLinks, yplLinks, zplLinks, oneDmask, inNet, c_jsferic, c_jasfer3D, c_jglobe) result(ierr)
 
    use gridoperations
    use m_sferic
@@ -81,6 +81,7 @@ function ggeo_make1D2Dinternalnetlinks(xplLinks, yplLinks, zplLinks, oneDmask, c
    integer :: ierr
    double precision, intent(in) :: xplLinks(:), yplLinks(:), zplLinks(:)
    integer, intent(in)          :: oneDmask(:)
+   integer, intent(in)          :: inNet
    integer, intent(in)          :: c_jsferic
    integer, intent(in)          :: c_jasfer3D
    integer, intent(in)          :: c_jglobe
@@ -89,7 +90,7 @@ function ggeo_make1D2Dinternalnetlinks(xplLinks, yplLinks, zplLinks, oneDmask, c
    jasfer3D = c_jasfer3D
    jglobe   = c_jglobe
 
-   ierr = make1D2Dinternalnetlinks(xplLinks, yplLinks, zplLinks, oneDmask)
+   ierr = make1D2Dinternalnetlinks(xplLinks, yplLinks, zplLinks, oneDmask, inNet)
 
 end function ggeo_make1D2Dinternalnetlinks
 

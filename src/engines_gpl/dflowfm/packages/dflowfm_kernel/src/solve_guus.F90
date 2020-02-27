@@ -1,6 +1,6 @@
 !----- AGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2017-2018.                                
+!  Copyright (C)  Stichting Deltares, 2017-2020.                                
 !                                                                               
 !  This file is part of Delft3D (D-Flow Flexible Mesh component).               
 !                                                                               
@@ -27,8 +27,8 @@
 !                                                                               
 !-------------------------------------------------------------------------------
 
-! $Id: solve_guus.F90 62178 2018-09-27 09:19:40Z mourits $
-! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/dflowfm/packages/dflowfm_kernel/src/solve_guus.F90 $
+! $Id: solve_guus.F90 65924 2020-02-03 15:51:32Z spee $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/dflowfm/packages/dflowfm_kernel/src/solve_guus.F90 $
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif 
@@ -555,6 +555,10 @@ endif
  else if (icgsolver == 6 ) then
 #ifdef HAVE_PETSC
     call conjugategradientPETSC(s1,ndx,nocgiter,1,ipre)       ! 1:always compute preconditioner
+    if (nocgiter == -999) then
+       ierror = 1
+       goto 1234
+    endif
 #else
     call qnerror('No PETSC solver available', ' ', ' ')
 #endif
@@ -618,6 +622,8 @@ endif
  use MessageHandling
  use m_flowparameters, only : jajipjan
  use m_partitioninfo, only : jampi, sdmn, my_rank
+ use m_netw, only: xzw, yzw
+ use unstruc_model, only: md_ident
 
  implicit none
  integer                                       :: ndx, ipre, its
@@ -628,11 +634,13 @@ endif
  integer,                          intent(out) :: ierror         !< error (1) or not (0)
 
  integer          :: j,jj,n,ntot, na, matr, nietnul, m
- integer          :: minp
+ integer          :: minp, k
  
  double precision :: res, dum
  
  character(len=100) :: message
+ 
+ logical, save :: jaoutput=.false.
 
 
 ! ddr (rechterlid), bbr (diag) , ccr (off diag), s1, row, row()%j, row()%a [AvD]
@@ -819,22 +827,49 @@ endif
     endif   
  end if
  
- if ( .false. ) then
+ if ( jaoutput ) then
  !  BEGIN DEBUG
-    call newfil(minp, 'matrix.crs')
-    write(minp, "('Numrows = ', I0)") nn
-    write(minp, "('startpointers ia = ', $)")
+    call newfil(minp, 'system_' // trim(md_ident) // '.m')
+    write(minp, "('Numrows = ', I0, ';')") nn
+    write(minp, "('%startpointers')")
+    write(minp, "('ia = [', $)")
     write(minp, "(I0, ' ', $)") (iao(i), i=1,nn+1)
-    write(minp, *)
-    write(minp, "('rowindices ja = ', $)")
+    write(minp, "('];')")
+    write(minp, "('%rowindices')")
+    write(minp, "('ja = [', $)")
     write(minp, "(I0, ' ', $)") (jao(i), i=1,iao(nn+1)-1)
-    write(minp, *)
-    write(minp, "('matrix elements aa = ', $)")
+    write(minp, "('];')")
+    write(minp, "('%matrix elements')")
+    write(minp, "('aa = [', $)")
     write(minp, "(E15.5, $)") (ao(i), i=1,iao(nn+1)-1)
-    write(minp, *)
-    write(minp, "('right-hand side rhs = ', $)")
+    write(minp, "('];')")
+    write(minp, "('%right-hand side')")
+    write(minp, "('rhs = [', $)")
     write(minp, "(E15.5, $)") (rhs(i), i=1,nn)
+    write(minp, "('];')")
+    write(minp, "('%x-coordinates')")
+    write(minp, "('x= [', $)")
+    nn = 0
+    do n=nogauss+1,nogauss+nocg
+      k = noel(n)
+      if ( k.gt.0 ) then
+         nn = nn+1
+         write(minp, "(E15.5, $)") xzw(k)
+      end if
+    end do
+    write(minp, "('];')")
+    write(minp, "('%y-coordinates')")
+    write(minp, "('y= [', $)")
+    do n=nogauss+1,nogauss+nocg
+      k = noel(n)
+      if ( k.gt.0 ) then
+         write(minp, "(E15.5, $)") yzw(k)
+      end if
+    end do
+    write(minp, "('];')")
+    
     call doclose(minp)
+    jaoutput = .false.
  !  END DEBUG
  end if
        
@@ -1628,7 +1663,7 @@ subroutine gauss_eliminationjipjan
 
  do nn=1,nogauss0
    ndn=noel0(nn)
-   if (kfs(ndn)==1) then ! .or.abs(qi(ndn))>1d-12) then
+   if (kfs(ndn)==1) then
      nowet=nowet+1
      noel(nowet)=ndn
      nogauss=nogauss+1
@@ -1637,7 +1672,7 @@ subroutine gauss_eliminationjipjan
 
  do nn=nogauss0+1,nogauss0+nocg0
    ndn=noel0(nn)
-   if (kfs(ndn)==1) then  ! .or.abs(qi(ndn))>1d-12) then
+   if (kfs(ndn)==1) then
      nowet=nowet+1
      noel(nowet)=ndn
      nocg=nocg+1

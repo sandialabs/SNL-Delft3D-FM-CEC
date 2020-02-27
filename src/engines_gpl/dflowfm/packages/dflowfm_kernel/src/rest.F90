@@ -1,6 +1,6 @@
 !----- AGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2017-2018.                                
+!  Copyright (C)  Stichting Deltares, 2017-2020.                                
 !                                                                               
 !  This file is part of Delft3D (D-Flow Flexible Mesh component).               
 !                                                                               
@@ -27,8 +27,8 @@
 !                                                                               
 !-------------------------------------------------------------------------------
 
-! $Id: rest.F90 62198 2018-09-27 10:18:19Z dam_ar $
-! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/dflowfm/packages/dflowfm_kernel/src/rest.F90 $
+! $Id: rest.F90 65778 2020-01-14 14:07:42Z mourits $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/dflowfm/packages/dflowfm_kernel/src/rest.F90 $
 
       SUBROUTINE dCROSS(X1,Y1,X2,Y2,X3,Y3,X4,Y4,JACROS,SL,SM,XCR,YCR,CRP) ! liggen 3 en 4 aan weerszijden van lijn 12
       use m_sferic
@@ -494,11 +494,22 @@ subroutine read_land_boundary_netcdf(filename)
     endif
 end subroutine read_land_boundary_netcdf
 
+
+      subroutine reapol(mpol, jadoorladen)
+      implicit none
+      integer :: mpol
+      integer, intent(in)           :: jadoorladen !< Append to existing polygons (intended to read multiple crs files)
+      integer                       :: ipli
+      ipli = 0
+      call reapol_nampli(mpol, jadoorladen, 0, ipli)    
+      end subroutine reapol
+    
+
       !> Read polygon file (or cross section/pli file) and store in global polygon.
       !! File should contain Tekal block(s) with two or three columns.
       !! The block names may be used for cross sections.
       !! A dmiss line starts a new polyline without a name. Multiple dmiss lines are skipped.
-      SUBROUTINE REAPOL(MPOL, jadoorladen)
+      SUBROUTINE REAPOL_NAMPLI(MPOL, jadoorladen, janampl, ipli)
       USE M_POLYGON
       use network_data, only: netstat, NETSTAT_CELLS_DIRTY
       USE M_MISSING
@@ -509,12 +520,15 @@ end subroutine read_land_boundary_netcdf
  
       implicit none
       integer :: mpol
-      integer, intent(in) :: jadoorladen !< Append to existing polygons (intended to read multiple crs files)
+      integer, intent(in)           :: jadoorladen !< Append to existing polygons (intended to read multiple crs files)
+      integer, intent(in)           :: janampl     !< Store the pli-name as crosssection name
+      integer, intent(inout)        :: ipli
      
-      integer :: i, ipli, janampl
+      integer :: i
       integer :: nkol
       integer :: nrow
       integer :: nmiss
+      integer :: ierr
       double precision :: xx, yy, zz, dz1, dz2
       double precision :: zcrest,sillup, silldown, crestl,taludl, taludr, veg
       character(len=1) :: weirtype
@@ -523,16 +537,6 @@ end subroutine read_land_boundary_netcdf
       character(len=64) :: MATR
       character(len=256) :: REC
       
-      janampl = 0
-      if (index (filenames(mpol),'crs' ) > 0) then 
-         janampl = 1
-      endif
-  
-      if (index (filenames(mpol),'CRS' ) > 0)  then 
-         janampl = 1
-      endif
-
-      ipli = 0
       if (jadoorladen /= 1) then
         if (.not. allocated(XPL)) allocate(XPL(1), YPL(1), ZPL(1))
         XPL = XYMIS
@@ -540,13 +544,6 @@ end subroutine read_land_boundary_netcdf
         ZPL = XYMIS
         NPL = 0
         call realloc(nampli,20, keepExisting = .false., fill = ' ')
-      else
-        ! Count number of existing polylines, to start storing new names at proper index.
-        do i=1,npl-1
-            if (xpl(i) == dmiss) then
-                ipli = ipli + 1
-            end if
-        end do
       end if
 
 
@@ -555,7 +552,8 @@ end subroutine read_land_boundary_netcdf
       READ(MPOL,'(A)',END=999,ERR=888) MATR
       IF (MATR(1:1) .EQ. '*' .or. len_trim(matr) == 0) GOTO 10
       READ(MPOL,'(A)',END = 999) REC
-      READ(REC,*,ERR=888) NROW, NKOL
+      READ(REC,*,iostat=ierr) NROW, NKOL
+      if (ierr /= 0) goto 888
       jaKol45 = 0 
       if (nkol < 2) then
         CALL QNERROR('File should contain at least 2 or 3 columns, but got:', ' ', ' ') ! nkol)
@@ -567,11 +565,13 @@ end subroutine read_land_boundary_netcdf
       end if
       CALL INCREASEPOL(NPL + NROW + 1, 1) ! previous pols (if any) + 1 dmiss + new polyline
 
-   11 ipli = ipli + 1         ! Start reading a new polyline
+11    ipli = ipli + 1         ! Start reading a new polyline
      
-      if (janampl == 1) then  ! hk: only store names when called from reacrosssections
+      if (janampl>0) then
          if (len_trim(matr) > 0) then 
-            call realloc(nampli, int(1.2*ipli) + 1, fill = ' ')
+            if (ipli>size(nampli)) then
+               call realloc(nampli, int(1.2*ipli) + 1, keepexisting = .True.)
+            endif
             nampli(ipli) = matr  ! Temporarily store cross section name with polyline
          endif
       endif
@@ -594,19 +594,25 @@ end subroutine read_land_boundary_netcdf
                 READ(MPOL,'(A)',END = 999) REC
                 ZZ = DMISS ; dz1 = dmiss; dz2 = dmiss
                 if (nkol == 10) then 
-                    READ(REC,*,ERR=777) XX,YY,zcrest, sillup, silldown, crestl, taludl, taludr, veg, weirtype  ! read weir data from Baseline format plus weirtype 
+                    READ(REC,*,iostat=ierr) XX,YY,zcrest, sillup, silldown, crestl, taludl, taludr, veg, weirtype  ! read weir data from Baseline format plus weirtype 
+                    if (ierr /= 0) goto 777
                     ZZ = zcrest ! dummy value for zz to guarantee that ZPL will be filled
                 else if (nkol == 9) then 
-                    READ(REC,*,ERR=777) XX,YY,zcrest, sillup, silldown, crestl, taludl, taludr, veg  ! read weir data from Baseline format 
+                    READ(REC,*,iostat=ierr) XX,YY,zcrest, sillup, silldown, crestl, taludl, taludr, veg  ! read weir data from Baseline format 
+                    if (ierr /= 0) goto 777
                     ZZ = zcrest ! dummy value for zz to guarantee that ZPL will be filled
                 else if (nkol == 5) then 
-                    READ(REC,*,ERR=777) XX,YY,ZZ,dz1,dz2
+                    READ(REC,*,iostat=ierr) XX,YY,ZZ,dz1,dz2
+                    if (ierr /= 0) goto 777
                 else if (nkol == 4) then 
-                    READ(REC,*,ERR=777) XX,YY,ZZ,dz1 
+                    READ(REC,*,iostat=ierr) XX,YY,ZZ,dz1 
+                    if (ierr /= 0) goto 777
                 else if (nkol == 3) then
-                    READ(REC,*,ERR=777) XX,YY,ZZ
+                    READ(REC,*,iostat=ierr) XX,YY,ZZ
+                    if (ierr /= 0) goto 777
                 else
-                    READ(REC,*,ERR=777) XX,YY
+                    READ(REC,*,iostat=ierr) XX,YY
+                    if (ierr /= 0) goto 777
                 end if
                 IF (XX .NE. dmiss .AND. XX .NE. 999.999d0) exit
                 nmiss = nmiss + 1
@@ -689,7 +695,7 @@ end subroutine read_land_boundary_netcdf
       call doclose (MPOL)
       RETURN
 
-      END subroutine reapol
+      END SUBROUTINE REAPOL_NAMPLI
 
       SUBROUTINE WRIPOL(MPOL)
       USE M_POLYGON
@@ -1322,6 +1328,7 @@ end subroutine read_land_boundary_netcdf
       use unstruc_startup
       use unstruc_version_module, only : unstruc_basename
       use unstruc_display, only : jaGUI
+      use unstruc_messages
 
       implicit none
 
@@ -1341,6 +1348,8 @@ end subroutine read_land_boundary_netcdf
       COMMON /MESSAGETOSCREEN/ JSCREEN
       CHARACTER NAMEGRID*80,NAMEFIELDI*80,NAMEFIELDO*80,GRIDAT*1
       CHARACTER WRDKEY*40
+      CHARACTER(len=8192) :: cmd
+      integer :: cmdlen
 
 !
       WRDKEY  = 'PROGRAM PURPOSE'
@@ -1349,9 +1358,13 @@ end subroutine read_land_boundary_netcdf
       INFOFILE = 0
       
       CALL INIDIA(unstruc_basename)
-      
+
       CALL FIRSTLIN(MDIA)
+      CALL FIRSTLIN(6)
       
+      CALL get_command(cmd, cmdlen)
+      write (msgbuf, '(a,a)') 'Command: ', cmd(1:cmdlen); call msg_flush()
+
       if ( jaGUI.ne.1 ) return
 
 !     initialisatiefiles
@@ -1441,36 +1454,33 @@ end subroutine read_land_boundary_netcdf
       double precision :: y0
       double precision :: DumX, DumY
       CHARACTER REC*132
+      
+      DumY = -1d10
+      
    10 CONTINUE
-      READ(MINP,'(A)',END = 100) REC
-      IF (REC(1:1) .EQ. '*' .OR. REC(2:2) .EQ. '*') GOTO 10
-      READ(REC(13:),*,ERR = 101) MMAX
-      READ(MINP,'(A)',END = 100) REC
-      READ(REC(13:),*,ERR = 102) NMAX
-
-      READ(MINP,'(A)',END = 100) REC
-      READ(REC(13:),*,ERR = 103) X0
+      read(minp,*, end=100) rec, mmax
+      call ilowercase(rec)
+      IF (INDEX(REC,'ncol') .LT. 1) goto 101   ! wrong format
+      read(minp,*, end=100,err=102) rec, nmax
+      read(minp,*, end=100,err=103) rec, x0
       call ilowercase(rec)
       JACORNERX = 0
       IF (INDEX(REC,'cor') .GE. 1) JACORNERX = 1
-
-      READ(MINP,'(A)',END = 100) REC
-      READ(REC(13:),*,ERR = 104) Y0
+      read(minp,*, end=100,err=104) rec, y0
       call ilowercase(rec)
-      JACORNERy= 0
-      IF (INDEX(REC,'cor') .GE. 1) JACORNERy = 1
-
-      READ(MINP,'(A)',END = 100) REC
-      READ(REC(13:),*,ERR = 105) DX
-      
-!     SPvdP: also try to read a DY on the same line
+      JACORNERY= 0
+      IF (INDEX(REC,'cor') .GE. 1) JACORNERY = 1
+      read(minp,'(A)', end=100) rec
+      READ(REC(10:),*,ERR = 105) DX
       DY = DX
-      READ(REC(13:),*,END = 107) DumX, DumY
-      DY = DumY
+      READ(REC(10:),*,END = 107) DumX, DumY
+      if (DumY>0) DY = DumY
+
   107 continue
       
-      READ(MINP,'(A)',END = 100) REC
-      READ(REC(13:),*,ERR = 106) RMIS
+      !READ(MINP,'(A)',END = 100) REC
+      !READ(REC(13:),*,ERR = 106) RMIS
+      read(minp,*,end=100,err=106) rec,rmis
       IF (JACORNERX .EQ. 1) X0 = X0 + DX/2
       IF (JACORNERy .EQ. 1) Y0 = Y0 + DX/2
       RETURN
@@ -1542,8 +1552,6 @@ end subroutine read_land_boundary_netcdf
       CHARACTER TEX*16
 
       ierror = 1
-
-      open(6)
 
 !     compute subblock sizes
 !      istep = max(Mfile/Marray,1)
@@ -1650,8 +1658,6 @@ end subroutine read_land_boundary_netcdf
 !     deallocate
       deallocate(dline)
       deallocate(num)
-
-      close(6)
 
       return
       end subroutine ReadLargeArcInfoBlock
@@ -4191,7 +4197,6 @@ end subroutine read_samples_from_arcinfo
       end function nod2wally
    
       SUBROUTINE dLINEDIS3(X3,Y3,X1,Y1,X2,Y2,JA,DIS,XN,YN, RLOUT)  ! 3: SORRY
-      use m_sferic
       use geometry_module, only: getdx, getdy, dbdistance, sphertocart3D, Cart3Dtospher
       use m_missing, only: dmiss
       use m_sferic, only: jsferic, jasfer3D
@@ -4425,23 +4430,6 @@ end subroutine read_samples_from_arcinfo
 end subroutine tecplot_out
 
 subroutine timdat(julday, timsec, idatum, itijd)
-!!--copyright-------------------------------------------------------------------
-! Copyright (c) 2006, WL | Delft Hydraulics. All rights reserved.
-!!--disclaimer------------------------------------------------------------------
-! This code is part of the Delft3D software system. WL|Delft Hydraulics has
-! developed c.q. manufactured this code to its best ability and according to the
-! state of the art. Nevertheless, there is no express or implied warranty as to
-! this software whether tangible or intangible. In particular, there is no
-! express or implied warranty as to the fitness for a particular purpose of this
-! software, whether tangible or intangible. The intellectual property rights
-! related to this software code remain with WL|Delft Hydraulics at all times.
-! For details on the licensing agreement, we refer to the Delft3D software
-! license and any modifications to this license, if applicable. These documents
-! are available upon request.
-!!--version information---------------------------------------------------------
-! $Author$
-! $Date$
-! $Revision$
 !!--description-----------------------------------------------------------------
 !
 !    Function:  returns date and time according actual time
@@ -4758,7 +4746,7 @@ end subroutine timdat
       call get_unstruc_source(TEX)
       WRITE(MRGF,'(A)') '* Source: '//trim(TEX)
       TEX = '* File creation date: ' //RUNDAT
-      WRITE(MRGF,'(A)') TEX
+      WRITE(MRGF,'(A)') trim(TEX)
 
       RETURN
       END
@@ -4978,16 +4966,12 @@ end subroutine timdat
    end subroutine find_crossed_links_kdtree2
 
 
-
-
-
-
-
 !> find flow cells with kdtree2
-  subroutine find_flowcells_kdtree(treeinst,Ns,xs,ys,inod,jaoutside,ierror)
+  subroutine find_flowcells_kdtree(treeinst,Ns,xs,ys,inod,jaoutside,iLocTp, ierror)
 
      use m_missing
      use m_flowgeom
+     use m_GlobalParameters, only: INDTP_1D, INDTP_2D, INDTP_ALL
      use kdtree2Factory
      use m_sferic
      use unstruc_messages
@@ -5004,6 +4988,7 @@ end subroutine timdat
      integer,          dimension(:),  allocatable   :: invperm !< inverse array 
      integer,          dimension(Ns), intent(out)   :: inod    !< flow nodes
      integer,                         intent(in)    :: jaoutside  !< allow outside cells (for 1D) (1) or not (0)
+     integer,                         intent(in)    :: iLocTp !< (0) not for obs, or obs with locationtype==0, (1) for obs with locationtype==1, (2) for obs with locationtype==2
      integer,                         intent(out)   :: ierror  !< error (>0), or not (0)
      
      character(len=128)                           :: mesg, FNAM
@@ -5019,7 +5004,7 @@ end subroutine timdat
      integer                                      :: i, ip1, isam, in, k, N, NN 
      integer                                      :: inum, num, jj
      integer                                      :: in3D, j, fid
-     
+     integer                                      :: nstart, nend
      logical                                      :: jadouble
      double precision                             :: dist_old, dist_new    
 
@@ -5072,10 +5057,24 @@ end subroutine timdat
         goto 1234
      end if
 
+     ! define the searching range, this is especially for the purpose of snapping obs to 1D, 2D or 1D+2D flownodes. 
+     ! For other purpose it should stay as before
+     select case(iLocTp)
+     case (INDTP_ALL)
+        nstart = 1
+        nend   = ndx
+     case(INDTP_1D) ! 1d flownodes coordinates
+        nstart = ndx2D+1
+        nend   = ndx
+     case(INDTP_2D) ! 2d flownodes coordinates
+        nstart = 1
+        nend   = ndx2D 
+     end select
+     
      call mess(LEVEL_INFO, 'Finding flow nodes...')   
 
 !    loop over flownodes
-     do k=1,Ndx
+     do k = nstart, nend
 !       fill query vector
         call make_queryvector_kdtree(treeinst,xz(k),yz(k), jsferic)
         
@@ -5157,7 +5156,7 @@ end subroutine timdat
               
            endif 
            if ( in.eq.1 ) then
-              if ( inod(isam).ne.0 ) then            ! should not happen, but it can
+              if ( inod(isam).ne.0 ) then            ! should not happen, but it can: for example in case of overlapping 1D branches
                  write(mesg, "('find_flowcells_kdtree: sample/point ', I0, ' in cells ', I0, ' and ', I0)") isam, inod(isam), k
                  call mess(LEVEL_INFO, mesg  )
 !                goto 1234
@@ -5419,6 +5418,7 @@ implicit none
   subroutine snappnt(Nin, xin, yin, dsep, Nout, xout, yout, ipoLout, ierror)
      use m_alloc
      use m_flowgeom, only: xz, yz
+     use m_GlobalParameters, only: INDTP_ALL
      implicit none
 
      integer,                                     intent(in)  :: Nin          !< thin-dyke polyline size
@@ -5452,7 +5452,7 @@ implicit none
         kobs(i)   = 0
      end do
 
-     call find_flownode(Nin, xin, yin, namobs, kobs, jakdtree, 1)
+     call find_flownode(Nin, xin, yin, namobs, kobs, jakdtree, 1, INDTP_ALL)
 
 !    copy to output
      Nout = Nin
@@ -5513,7 +5513,7 @@ implicit none
      integer,          dimension(:),   allocatable              :: idx
 
      double precision                                           :: wL, wR
-     double precision                                           :: xm, ym, crpm
+     double precision                                           :: xm, ym, crpm, distanceStartPolygon
 
      double precision, dimension(4)                             :: xx, yy
      double precision                                           :: xzz, yzz, xci, yci, xce2, yce2
@@ -5666,7 +5666,7 @@ implicit none
            do i=1,num
               m = ki(i)
    !          find polyline section (again)
-              call CROSSPOLY(xe(m),ye(m),xyen(1,m),xyen(2,m),XPL,YPL,NPL,xm,ym,crpm,ja,isec)
+              call CROSSPOLY(xe(m),ye(m),xyen(1,m),xyen(2,m),XPL,YPL,NPL,xm,ym,crpm,ja,isec,distanceStartPolygon)
            
    !          remember which polyline segment points to this link
               if ( isec.gt.0 ) then
@@ -6354,7 +6354,7 @@ subroutine updateBalance()
    voltot(IDX_EXCHIN)  = voltot(IDX_EXCHIN)  + cumvolcur(IDX_EXCHIN) 
    voltot(IDX_EXCHOUT) = voltot(IDX_EXCHOUT) + cumvolcur(IDX_EXCHOUT)
    voltot(IDX_EXCHTOT) = voltot(IDX_EXCHTOT) + cumvolcur(IDX_EXCHTOT)
-   voltot(IDX_PARTIP)  = voltot(IDX_PARTIP)  + cumvolcur(IDX_PARTIP) 
+   voltot(IDX_PRECIP)  = voltot(IDX_PRECIP)  + cumvolcur(IDX_PRECIP) 
    voltot(IDX_SOUR)    = voltot(IDX_SOUR)    + cumvolcur(IDX_SOUR)
    voltot(IDX_InternalTidesDissipation) = voltot(IDX_InternalTidesDIssipation) + cumvolcur(IDX_InternalTidesDIssipation)
    voltot(IDX_GravInput) = voltot(IDX_GravInput) + cumvolcur(IDX_GravInput)
@@ -6366,6 +6366,7 @@ subroutine updateBalance()
    voltot(IDX_LATIN )  = voltot(IDX_LATIN )  + cumvolcur(IDX_LATIN ) 
    voltot(IDX_LATOUT)  = voltot(IDX_LATOUT)  + cumvolcur(IDX_LATOUT) 
    voltot(IDX_LATTOT)  = voltot(IDX_LATTOT)  + cumvolcur(IDX_LATTOT) 
+   voltot(IDX_EVAP)    = voltot(IDX_EVAP)    + cumvolcur(IDX_EVAP)
 
    cumvolcur = 0d0
 end subroutine updateBalance
@@ -6403,22 +6404,23 @@ subroutine generatePartitionMDUFile(filename, filename_new)
       end if
 
       string_c = string(1:n)
-      k1 = index(string_c, 'NetFile')
-      k2 = index(string_c, 'Icgsolver')
+      call str_lower(string_c)
+      k1 = index(string_c, 'netfile')
+      k2 = index(string_c, 'icgsolver')
       if (len_trim(md_restartfile) > 0) then
-         k3 = index(string_c, 'RestartFile')
+         k3 = index(string_c, 'restartfile')
       endif
       if (len_trim(md_mapfile) > 0) then
-         k4 = index(string_c, 'MapFile')
+         k4 = index(string_c, 'mapfile')
       endif
       if (md_genpolygon .eq. 1) then
-         k5 = index(string_c, 'PartitionFile')
+         k5 = index(string_c, 'partitionfile')
       endif
       if (len_trim(md_flowgeomfile) > 0) then
-         k6 = index(string_c, 'FlowGeomFile')
+         k6 = index(string_c, 'flowgeomfile')
       endif
       if (len_trim(md_classmap_file) > 0) then
-         k7 = index(string_c, 'ClassMapFile')
+         k7 = index(string_c, 'classmapfile')
       endif
 
       if(k1==0 .and. k2==0 .and. k3==0 .and. k4==0 .and. k5==0 .and. k6==0 .and. k7==0) then ! Copy the whole row

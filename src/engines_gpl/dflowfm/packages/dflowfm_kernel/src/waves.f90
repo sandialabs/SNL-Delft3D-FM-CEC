@@ -1,6 +1,6 @@
    !----- AGPL --------------------------------------------------------------------
    !
-   !  Copyright (C)  Stichting Deltares, 2017-2018.
+   !  Copyright (C)  Stichting Deltares, 2017-2020.
    !
    !  This file is part of Delft3D (D-Flow Flexible Mesh component).
    !
@@ -27,8 +27,34 @@
    !
    !-------------------------------------------------------------------------------
 
-   ! $Id: waves.f90 61526 2018-08-29 10:16:03Z lugt $
-   ! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/dflowfm/packages/dflowfm_kernel/src/waves.f90 $
+   ! $Id: waves.f90 65778 2020-01-14 14:07:42Z mourits $
+   ! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/dflowfm/packages/dflowfm_kernel/src/waves.f90 $
+
+   subroutine alloc9basicwavearrays()  
+   use m_flow
+   use m_flowgeom
+   use m_waves 
+   implicit none
+   integer      :: ierr
+   call realloc( hwav,    ndx,  stat=ierr, keepExisting = .false., fill = hwavuni)
+   call aerr   ('hwav    (ndx)',     ierr, ndx)
+   call realloc( twav,    ndx,  stat=ierr, keepExisting = .false., fill = twavuni)
+   call aerr   ('twav    (ndx)',     ierr, ndx)
+   call realloc( phiwav,  ndx,  stat=ierr, keepExisting = .false., fill = phiwavuni)
+   call aerr   ('phiwav  (ndx)',     ierr, ndx)
+   call realloc( rlabda,  ndx,  stat=ierr, keepExisting = .false., fill = 0d0)
+   call aerr   ('rlabda  (ndx)',     ierr, ndx)
+   call realloc( uorb,    ndx,  stat=ierr, keepExisting = .false., fill = 0d0)
+   call aerr   ('uorb    (ndx)',     ierr, ndx)
+   call realloc( taus,    ndx,  stat=ierr, keepExisting = .false., fill = 0d0)     
+   call aerr   ('taus    (ndx)',     ierr, ndx)
+   call realloc( ustk,    ndx,  stat=ierr, keepExisting = .false., fill = 0d0)     
+   call aerr   ('ustk    (ndx)',     ierr, ndx)
+   call realloc( ustokes, lnkx, stat=ierr, keepExisting = .false., fill = 0d0)
+   call aerr   ('ustokes(lnkx)',     ierr, lnkx)
+   call realloc( vstokes, lnkx, stat=ierr, keepExisting = .false., fill = 0d0)
+   call aerr   ('vstokes(lnkx)',     ierr, lnkx) 
+   end subroutine alloc9basicwavearrays
 
    subroutine flow_waveinit
    use m_flow
@@ -55,7 +81,7 @@
    integer      :: minp0, jdla, nm, ibnd, kb, ki
 
    ierr = DFM_NOERR
-
+ 
    call realloc(uin, nbndw, stat=ierr, keepExisting = .false., fill = 0d0)
    call aerr('uin  (nbndw)', ierr, nbndw)
    call realloc(vin, nbndw, stat=ierr, keepExisting = .false., fill = 0d0)
@@ -71,8 +97,6 @@
    call aerr('cfhi_vanrijn(lnx)', ierr, lnx)
    call realloc(taubxu, lnx, stat=ierr, keepExisting = .false., fill = 0d0)   ! Always needs to be allocated, even if jawave == 0, used in gettau()
    call aerr('taubxu(lnx)', ierr, lnx)
-   call realloc(taus, ndx, stat=ierr, keepExisting = .false., fill = 0d0)     ! in subroutine gettaus for jawave <= 2 ..
-   call aerr('taus  (ndx)', ierr, ndx)
    call realloc(ktb, ndx, stat=ierr, keepExisting = .false., fill = 0d0)
    call aerr('ktb  (ndx)', ierr, ndx)
    call realloc(taux_cc, ndx, stat=ierr, keepExisting = .false., fill = 0d0)
@@ -83,10 +107,6 @@
    call aerr('ust_mag  (ndx)', ierr, ndx)
    call realloc(fwav_mag, ndx, stat=ierr, keepExisting = .false., fill = 0d0)
    call aerr('fwav_mag  (ndx)', ierr, ndx)
-   call realloc(ustokes, lnkx, stat=ierr, keepExisting = .false., fill = 0d0)
-   call aerr('ustokes(lnkx)', ierr, lnkx)
-   call realloc(vstokes, lnkx, stat=ierr, keepExisting = .false., fill = 0d0)
-   call aerr('vstokes(lnkx)', ierr, lnkx) 
    call realloc(wblt, lnx, stat=ierr, keepExisting = .false., fill = 0d0  )
    call aerr('wblt(lnx)', ierr, lnx)
 
@@ -124,17 +144,9 @@
 
    end if
    if  (jawave > 0) then
-      call realloc(rlabda, ndx, stat=ierr, keepExisting = .false., fill = 0d0)
-      call aerr('rlabda(ndx)', ierr, ndx)
-      call realloc( hwav,   ndx, stat=ierr, keepExisting = .false., fill = hwavuni)
-      call aerr   ('hwav   (ndx)', ierr, ndx)
-      call realloc( twav,   ndx, stat=ierr, keepExisting = .false., fill = twavuni)
-      call aerr   ('twav   (ndx)', ierr, ndx)
-      call realloc( phiwav, ndx, stat=ierr, keepExisting = .false., fill = phiwavuni)
-      call aerr   ('phiwav (ndx)', ierr, ndx)
-      call realloc(uorb, ndx, stat=ierr, keepExisting = .false., fill = 0d0)
-      call aerr('uorb  (ndx)', ierr, ndx)
-   endif
+       call realloc( hwavcom,   ndx, stat=ierr, keepExisting = .false., fill = hwavuni)
+      call aerr   ('hwavcom   (ndx)', ierr, ndx)
+    endif
 
    if (jawave .eq. 4) then
       call realloc(ee0, (/ntheta,ndx/), stat=ierr, keepExisting = .false., fill = 0d0)
@@ -420,44 +432,44 @@
          call realloc(DR_varsquare, ndx, stat=ierr, keepExisting = .false., fill = tiny(0d0))
          call aerr('DR_varsquare  (ndx)', ierr, ndx)
 
-         call realloc(ust_mean, lnx, stat=ierr, keepExisting = .false., fill = 0d0)
-         call aerr('ust_mean  (lnx)', ierr, lnx)
-         call realloc(ust_var, lnx, stat=ierr, keepExisting = .false., fill = 0d0)
-         call aerr('ust_var  (lnx)', ierr, lnx)
-         call realloc(ust_min, lnx, stat=ierr, keepExisting = .false., fill = huge(0d0))
-         call aerr('ust_min  (lnx)', ierr, lnx)
-         call realloc(ust_max, lnx, stat=ierr, keepExisting = .false., fill = -1d0*huge(0d0))
-         call aerr('ust_max  (lnx)', ierr, lnx)
-         call realloc(ust_varcross, lnx, stat=ierr, keepExisting = .false., fill = 0d0)
-         call aerr('ust_varcross  (lnx)', ierr, lnx)
-         call realloc(ust_varsquare, lnx, stat=ierr, keepExisting = .false., fill = 0d0)
-         call aerr('ust_varsquare  (lnx)', ierr, lnx)
+         call realloc(ust_mean, ndx, stat=ierr, keepExisting = .false., fill = 0d0)
+         call aerr('ust_mean  (ndx)', ierr, ndx)
+         call realloc(ust_var, ndx, stat=ierr, keepExisting = .false., fill = 0d0)
+         call aerr('ust_var  (ndx)', ierr, ndx)
+         call realloc(ust_min, ndx, stat=ierr, keepExisting = .false., fill = huge(0d0))
+         call aerr('ust_min  (ndx)', ierr, ndx)
+         call realloc(ust_max, ndx, stat=ierr, keepExisting = .false., fill = -1d0*huge(0d0))
+         call aerr('ust_max  (ndx)', ierr, ndx)
+         call realloc(ust_varcross, ndx, stat=ierr, keepExisting = .false., fill = 0d0)
+         call aerr('ust_varcross  (ndx)', ierr, ndx)
+         call realloc(ust_varsquare, ndx, stat=ierr, keepExisting = .false., fill = 0d0)
+         call aerr('ust_varsquare  (ndx)', ierr, ndx)
 
-         call realloc(vst_mean, lnx, stat=ierr, keepExisting = .false., fill = 0d0)
-         call aerr('vst_mean  (lnx)', ierr, lnx)
-         call realloc(vst_var, lnx, stat=ierr, keepExisting = .false., fill = 0d0)
-         call aerr('vst_var  (lnx)', ierr, lnx)
-         call realloc(vst_min, lnx, stat=ierr, keepExisting = .false., fill = huge(0d0))
-         call aerr('vst_min  (lnx)', ierr, lnx)
-         call realloc(vst_max, lnx, stat=ierr, keepExisting = .false., fill = -1d0*huge(0d0))
-         call aerr('vst_max  (lnx)', ierr, lnx)
-         call realloc(vst_varcross, lnx, stat=ierr, keepExisting = .false., fill = 0d0)
-         call aerr('vst_varcross  (lnx)', ierr, lnx)
-         call realloc(vst_varsquare, lnx, stat=ierr, keepExisting = .false., fill = 0d0)
-         call aerr('vst_varsquare  (lnx)', ierr, lnx)
+         call realloc(vst_mean, ndx, stat=ierr, keepExisting = .false., fill = 0d0)
+         call aerr('vst_mean  (ndx)', ierr, ndx)
+         call realloc(vst_var, ndx, stat=ierr, keepExisting = .false., fill = 0d0)
+         call aerr('vst_var  (ndx)', ierr, ndx)
+         call realloc(vst_min, ndx, stat=ierr, keepExisting = .false., fill = huge(0d0))
+         call aerr('vst_min  (ndx)', ierr, ndx)
+         call realloc(vst_max, ndx, stat=ierr, keepExisting = .false., fill = -1d0*huge(0d0))
+         call aerr('vst_max  (ndx)', ierr, ndx)
+         call realloc(vst_varcross, ndx, stat=ierr, keepExisting = .false., fill = 0d0)
+         call aerr('vst_varcross  (ndx)', ierr, ndx)
+         call realloc(vst_varsquare, ndx, stat=ierr, keepExisting = .false., fill = 0d0)
+         call aerr('vst_varsquare  (ndx)', ierr, ndx)
 
-         call realloc(urms_mean, lnx, stat=ierr, keepExisting = .false., fill = 0d0)
-         call aerr('urms_mean  (lnx)', ierr, lnx)
-         call realloc(urms_var, lnx, stat=ierr, keepExisting = .false., fill = 0d0)
-         call aerr('urms_var  (lnx)', ierr, lnx)
-         call realloc(urms_min, lnx, stat=ierr, keepExisting = .false., fill = huge(0d0))
-         call aerr('urms_min  (lnx)', ierr, lnx)
-         call realloc(urms_max, lnx, stat=ierr, keepExisting = .false., fill = -1d0*huge(0d0))
-         call aerr('urms_max  (lnx)', ierr, lnx)
-         call realloc(urms_varcross, lnx, stat=ierr, keepExisting = .false., fill = 0d0)
-         call aerr('urms_varcross  (lnx)', ierr, lnx)
-         call realloc(urms_varsquare, lnx, stat=ierr, keepExisting = .false., fill = 0d0)
-         call aerr('urms_varsquare  (lnx)', ierr, lnx)
+         call realloc(urms_mean, ndx, stat=ierr, keepExisting = .false., fill = 0d0)
+         call aerr('urms_mean  (ndx)', ierr, ndx)
+         call realloc(urms_var, ndx, stat=ierr, keepExisting = .false., fill = 0d0)
+         call aerr('urms_var  (ndx)', ierr, ndx)
+         call realloc(urms_min, ndx, stat=ierr, keepExisting = .false., fill = huge(0d0))
+         call aerr('urms_min  (ndx)', ierr, ndx)
+         call realloc(urms_max, ndx, stat=ierr, keepExisting = .false., fill = -1d0*huge(0d0))
+         call aerr('urms_max  (ndx)', ierr, ndx)
+         call realloc(urms_varcross, ndx, stat=ierr, keepExisting = .false., fill = 0d0)
+         call aerr('urms_varcross  (ndx)', ierr, ndx)
+         call realloc(urms_varsquare, ndx, stat=ierr, keepExisting = .false., fill = 0d0)
+         call aerr('urms_varsquare  (ndx)', ierr, ndx)
 
          call realloc(thetamean_mean, ndx, stat=ierr, keepExisting = .false., fill = 0d0)
          call aerr('thetamean_mean  (ndx)', ierr, ndx)
@@ -528,57 +540,57 @@
          call realloc(s1_varsquare, ndx, stat=ierr, keepExisting = .false., fill = 0d0)
          call aerr('s1_varsquare  (ndx)', ierr, ndx)
 
-         call realloc(Fx_mean, lnx, stat=ierr, keepExisting = .false., fill = 0d0)
-         call aerr('Fx_mean  (lnx)', ierr, lnx)
-         call realloc(Fx_var, lnx, stat=ierr, keepExisting = .false., fill = 0d0)
-         call aerr('Fx_var  (lnx)', ierr, lnx)
-         call realloc(Fx_min, lnx, stat=ierr, keepExisting = .false., fill = huge(0d0))
-         call aerr('Fx_min  (lnx)', ierr, lnx)
-         call realloc(Fx_max, lnx, stat=ierr, keepExisting = .false., fill = -1d0*huge(0d0))
-         call aerr('Fx_max  (lnx)', ierr, lnx)
-         call realloc(Fx_varcross, lnx, stat=ierr, keepExisting = .false., fill = 0d0)
-         call aerr('Fx_varcross  (lnx)', ierr, lnx)
-         call realloc(Fx_varsquare, lnx, stat=ierr, keepExisting = .false., fill = 0d0)
-         call aerr('Fx_varsquare  (lnx)', ierr, lnx)
+         call realloc(Fx_mean, ndx, stat=ierr, keepExisting = .false., fill = 0d0)
+         call aerr('Fx_mean  (ndx)', ierr, ndx)
+         call realloc(Fx_var, ndx, stat=ierr, keepExisting = .false., fill = 0d0)
+         call aerr('Fx_var  (ndx)', ierr, ndx)
+         call realloc(Fx_min, ndx, stat=ierr, keepExisting = .false., fill = huge(0d0))
+         call aerr('Fx_min  (ndx)', ierr, ndx)
+         call realloc(Fx_max, ndx, stat=ierr, keepExisting = .false., fill = -1d0*huge(0d0))
+         call aerr('Fx_max  (ndx)', ierr, ndx)
+         call realloc(Fx_varcross, ndx, stat=ierr, keepExisting = .false., fill = 0d0)
+         call aerr('Fx_varcross  (ndx)', ierr, ndx)
+         call realloc(Fx_varsquare, ndx, stat=ierr, keepExisting = .false., fill = 0d0)
+         call aerr('Fx_varsquare  (ndx)', ierr, ndx)
 
-         call realloc(Fy_mean, lnx, stat=ierr, keepExisting = .false., fill = 0d0)
-         call aerr('Fy_mean  (lnx)', ierr, lnx)
-         call realloc(Fy_var, lnx, stat=ierr, keepExisting = .false., fill = 0d0)
-         call aerr('Fy_var  (lnx)', ierr, lnx)
-         call realloc(Fy_min, lnx, stat=ierr, keepExisting = .false., fill = huge(0d0))
-         call aerr('Fy_min  (lnx)', ierr, lnx)
-         call realloc(Fy_max, lnx, stat=ierr, keepExisting = .false., fill = -1d0*huge(0d0))
-         call aerr('Fy_max  (lnx)', ierr, lnx)
-         call realloc(Fy_varcross, lnx, stat=ierr, keepExisting = .false., fill = 0d0)
-         call aerr('Fy_varcross  (lnx)', ierr, lnx)
-         call realloc(Fy_varsquare, lnx, stat=ierr, keepExisting = .false., fill = 0d0)
-         call aerr('Fy_varsquare  (lnx)', ierr, lnx)
+         call realloc(Fy_mean, ndx, stat=ierr, keepExisting = .false., fill = 0d0)
+         call aerr('Fy_mean  (ndx)', ierr, ndx)
+         call realloc(Fy_var, ndx, stat=ierr, keepExisting = .false., fill = 0d0)
+         call aerr('Fy_var  (ndx)', ierr, ndx)
+         call realloc(Fy_min, ndx, stat=ierr, keepExisting = .false., fill = huge(0d0))
+         call aerr('Fy_min  (ndx)', ierr, ndx)
+         call realloc(Fy_max, ndx, stat=ierr, keepExisting = .false., fill = -1d0*huge(0d0))
+         call aerr('Fy_max  (ndx)', ierr, ndx)
+         call realloc(Fy_varcross, ndx, stat=ierr, keepExisting = .false., fill = 0d0)
+         call aerr('Fy_varcross  (ndx)', ierr, ndx)
+         call realloc(Fy_varsquare, ndx, stat=ierr, keepExisting = .false., fill = 0d0)
+         call aerr('Fy_varsquare  (ndx)', ierr, ndx)
 
-         call realloc(u_mean, lnx, stat=ierr, keepExisting = .false., fill = 0d0)
-         call aerr('u_mean  (lnx)', ierr, lnx)
-         call realloc(u_var, lnx, stat=ierr, keepExisting = .false., fill = 0d0)
-         call aerr('u_var  (lnx)', ierr, lnx)
-         call realloc(u_min, lnx, stat=ierr, keepExisting = .false., fill = huge(0d0))
-         call aerr('u_min  (lnx)', ierr, lnx)
-         call realloc(u_max, lnx, stat=ierr, keepExisting = .false., fill = -1d0*huge(0d0))
-         call aerr('u_max  (lnx)', ierr, lnx)
-         call realloc(u_varcross, lnx, stat=ierr, keepExisting = .false., fill = 0d0)
-         call aerr('u_varcross  (lnx)', ierr, lnx)
-         call realloc(u_varsquare, lnx, stat=ierr, keepExisting = .false., fill = 0d0)
-         call aerr('u_varsquare  (lnx)', ierr, lnx)
+         call realloc(u_mean, ndx, stat=ierr, keepExisting = .false., fill = 0d0)
+         call aerr('u_mean  (ndx)', ierr, ndx)
+         call realloc(u_var, ndx, stat=ierr, keepExisting = .false., fill = 0d0)
+         call aerr('u_var  (ndx)', ierr, ndx)
+         call realloc(u_min, ndx, stat=ierr, keepExisting = .false., fill = huge(0d0))
+         call aerr('u_min  (ndx)', ierr, ndx)
+         call realloc(u_max, ndx, stat=ierr, keepExisting = .false., fill = -1d0*huge(0d0))
+         call aerr('u_max  (ndx)', ierr, ndx)
+         call realloc(u_varcross, ndx, stat=ierr, keepExisting = .false., fill = 0d0)
+         call aerr('u_varcross  (ndx)', ierr, ndx)
+         call realloc(u_varsquare, ndx, stat=ierr, keepExisting = .false., fill = 0d0)
+         call aerr('u_varsquare  (ndx)', ierr, ndx)
 
-         call realloc(v_mean, lnx, stat=ierr, keepExisting = .false., fill = 0d0)
-         call aerr('v_mean  (lnx)', ierr, lnx)
-         call realloc(v_var, lnx, stat=ierr, keepExisting = .false., fill = 0d0)
-         call aerr('v_var  (lnx)', ierr, lnx)
-         call realloc(v_min, lnx, stat=ierr, keepExisting = .false., fill = huge(0d0))
-         call aerr('v_min  (lnx)', ierr, lnx)
-         call realloc(v_max, lnx, stat=ierr, keepExisting = .false., fill = -1d0*huge(0d0))
-         call aerr('v_max  (lnx)', ierr, lnx)
-         call realloc(v_varcross, lnx, stat=ierr, keepExisting = .false., fill = 0d0)
-         call aerr('v_varcross  (lnx)', ierr, lnx)
-         call realloc(v_varsquare, lnx, stat=ierr, keepExisting = .false., fill = 0d0)
-         call aerr('v_varsquare  (lnx)', ierr, lnx)
+         call realloc(v_mean, ndx, stat=ierr, keepExisting = .false., fill = 0d0)
+         call aerr('v_mean  (ndx)', ierr, ndx)
+         call realloc(v_var, ndx, stat=ierr, keepExisting = .false., fill = 0d0)
+         call aerr('v_var  (ndx)', ierr, ndx)
+         call realloc(v_min, ndx, stat=ierr, keepExisting = .false., fill = huge(0d0))
+         call aerr('v_min  (ndx)', ierr, ndx)
+         call realloc(v_max, ndx, stat=ierr, keepExisting = .false., fill = -1d0*huge(0d0))
+         call aerr('v_max  (ndx)', ierr, ndx)
+         call realloc(v_varcross, ndx, stat=ierr, keepExisting = .false., fill = 0d0)
+         call aerr('v_varcross  (ndx)', ierr, ndx)
+         call realloc(v_varsquare, ndx, stat=ierr, keepExisting = .false., fill = 0d0)
+         call aerr('v_varsquare  (ndx)', ierr, ndx)
       end if
    end if
    end subroutine flow_waveinit
@@ -599,17 +611,16 @@
    double precision           :: uorb1, k0, k0h, phigrid, phiwave, phi
    integer                    :: k, k1, k2, n, L, mout
    integer                    :: jatauw = 1
-   integer                    :: wlenwav_from_SWAN = 0
-   integer                    :: uorbwav_from_SWAN = 0
    double precision           :: hk, sh2hk,hksh2,rn,asg,ew,sxx,syy,dtau,shs, h2k, cc, cg, omeg, hminlwi
    double precision           :: dsk2, rk, astar, fw, hss, per, astarc, tauwav, taucur, tauwci, cdrag, z0, uorbu, tpu
    double precision           :: cz, frcn, uuu, vvv, umod, umodsq, cvalue, costu, sintu, abscos, uorbhs, waveps, u2dh
    double precision           :: xpar, ymxpar, lfc, cj, coeffb, coeffp, coeffq, ci,coeffa, coeffm, coeffn, yparL
-   double precision           :: hpr, wu2, b21, ai, BL1, BL2, hus, ust, ac1, ac2
+   double precision           :: hpr, wu2, b21, ai, BL1, BL2, ust, ac1, ac2
    double precision           :: ar, alfaw, wbl, rz, cf, cwall
    double precision           :: a, ks, phivr
    double precision           :: hrmsu, rlabdau, rr,umax,t1,u11,a11,raih,rmax, uon, uoff, uwbih
    double precision           :: rksru, rksmru, gamma, ksc, uratio, ka, ca
+   double precision           :: cosk1, cosk2, sink1, sink2
    integer                    :: ifrctyp
 
    double precision, external         :: tanhsafe, sinhsafe, sinhsafei
@@ -623,43 +634,6 @@
    double precision, dimension(8, 4)          :: pp         ! Coefficient p(i) in expression for parameter p
    double precision, dimension(8, 4)          :: qq         ! Coefficient q(i) in expression for parameter q
 
-   !!! ! data statemens
-   !!!!
-   !!!    data bb/      0.29,  0.65,  0.27,  0.73,  0.22,  0.32,  0.47, -0.06, &
-   !!!                  0.55,  0.29,  0.51,  0.40,  0.73,  0.55,  0.29,  0.26, &
-   !!!                 -0.10, -0.30, -0.10, -0.23, -0.05,  0.00, -0.09,  0.08, &
-   !!!                 -0.14, -0.21, -0.24, -0.24, -0.35,  0.00, -0.12, -0.03/
-   !!!    !
-   !!!    data pp/     -0.77, -0.60, -0.75, -0.68, -0.86, -0.63, -0.70, -1.00, &
-   !!!                  0.10,  0.10,  0.13,  0.13,  0.26,  0.05,  0.13,  0.31, &
-   !!!                  0.27,  0.27,  0.12,  0.24,  0.34,  0.00,  0.28,  0.25, &
-   !!!                  0.14, -0.06,  0.02, -0.07, -0.07,  0.00, -0.04, -0.26/
-   !!!    !
-   !!!    data qq/      0.91,  1.19,  0.89,  1.04, -0.89,  1.14,  1.65,  0.38, &
-   !!!                  0.25, -0.68,  0.40, -0.56,  2.33,  0.18, -1.19,  1.19, &
-   !!!                  0.50,  0.22,  0.50,  0.34,  2.60,  0.00, -0.42,  0.25, &
-   !!!                  0.45, -0.21, -0.28, -0.27, -2.50,  0.00,  0.49, -0.66/
-   !!!    !
-   !!!    data coeffj/  3.00,  0.50,  2.70,  0.50,  2.70,  3.00,  0.60,  1.50/
-   !!!    !
-   !!!    !-----for tau_max
-   !!!    data aa/     -0.06, -0.01, -0.07,  0.11,  0.05,  0.00, -0.01, -0.45, &
-   !!!                  1.70,  1.84,  1.87,  1.95,  1.62,  2.00,  1.58,  2.24, &
-   !!!                 -0.29, -0.58, -0.34, -0.49, -0.38,  0.00, -0.52,  0.16, &
-   !!!                  0.29, -0.22, -0.12, -0.28,  0.25,  0.00,  0.09, -0.09/
-   !!!    !
-   !!!    data mm/      0.67,  0.63,  0.72,  0.65,  1.05,  0.00,  0.65,  0.71, &
-   !!!                 -0.29, -0.09, -0.33, -0.22, -0.75,  0.50, -0.17,  0.27, &
-   !!!                  0.09,  0.23,  0.08,  0.15, -0.08,  0.00,  0.18, -0.15, &
-   !!!                  0.42, -0.02,  0.34,  0.06,  0.59,  0.00,  0.05,  0.03/
-   !!!    !
-   !!!    data nn/      0.75,  0.82,  0.78,  0.71,  0.66,  0.00,  0.47,  1.19, &
-   !!!                 -0.27, -0.30, -0.23, -0.19, -0.25,  0.50, -0.03, -0.66, &
-   !!!                  0.11,  0.19,  0.12,  0.17,  0.19,  0.00,  0.59, -0.13, &
-   !!!                 -0.02, -0.21, -0.12, -0.15, -0.03,  0.00, -0.50,  0.12/
-   !!!    !
-   !!!    data coeffi/  0.80,  0.67,  0.82,  0.67,  0.82,  1.00,  0.64,  0.77/
-
    waveps = 1d-8
    alfaw  = 20d0
    hminlwi = 1d0/hminlw
@@ -668,6 +642,8 @@
 
    do L = 1,lnx
       k1 = ln(1,L); k2 = ln(2,L)
+      ac1 = acl(L); ac2 = 1d0-ac1
+      !
       ! Use Eulerian velocities
       uuu = u1(L) - ustokes(L)
 
@@ -685,19 +661,23 @@
       cfwavhi(L)= 0.0d0
       !
       ! TO DO: Replace the following messing with angles by an inproduct, without
-      ! the expensive atan2 call
+      ! the expensive atan2 call -> requires acos call, and quadrant messing, so hardly cheaper
       !
       ! phigrid: angle between "normal direction on link" and "positive x-axis"
       phigrid = atan2(snu(L),csu(L)) * rd2dg
       ! phiwave: angle between "wave propagation direction" and "positive x-axis"
       !          Interpolate from nodes to links
-      phiwave = acl(L)*phiwav(k1) + (1.0d0-acl(L))*phiwav(k2)
+      cosk1 = cos(phiwav(k1)*dg2rd); sink1 = sin(phiwav(k1)*dg2rd)
+      cosk2 = cos(phiwav(k2)*dg2rd); sink2 = sin(phiwav(k2)*dg2rd)
+      cosk1 = ac1*cosk1+ac2*cosk2; sink1 = ac1*sink1+ac2*sink2 
+      !
+      phiwave = atan2(sink1, cosk1)*rd2dg
       ! phi: angle between "wave propagation direction" and "normal direction on link"
       phi     = phiwave - phigrid
 
       ! interpolate uorbu, tpu and wavmu from flownodes to flowlinks
-      uorbu = acl(L)*uorb(k1) + (1.0d0-acl(L))*uorb(k2)
-      tpu   = acl(L)*twav(k1)       + (1.0d0-acl(L))*twav(k2)
+      uorbu = ac1*uorb(k1) + ac2*uorb(k2)
+      tpu   = ac1*twav(k1) + ac2*twav(k2)
 
       ! get current related roughness height
       call getczz0(hu(L),dble(frcu(L)),ifrcutp(L),cz,z0)
@@ -735,37 +715,6 @@
             !
             call getymxpar(modind,tauwav, taucur, fw, cdrag, abscos, yparL, ymxpar)
             ypar(L) = yparL
-            !!!if (tauwav<1.0E-8) then
-            !!!    xpar    = 1.0d0                               ! X-parameter in D3D-FLOW manual 9.7.5
-            !!!    ypar(L) = 1.0d0                               ! Y-parameter in D3D-FLOW manual 9.7.5
-            !!!    ymxpar  = 1.0d0                               ! Z-parameter in D3D-FLOW manual 9.7.5
-            !!!else
-            !!!    xpar = taucur/(taucur + tauwav)
-            !!!    if (xpar<1.0d-8 .or. modind==9) then
-            !!!        ypar(L)= 0.0d0
-            !!!        ymxpar = 1.0d0
-            !!!    else
-            !!!        lfc    = log10(fw/cdrag)
-            !!!        !
-            !!!        cj     = abscos**coeffj(modind)
-            !!!        coeffb = (bb(modind, 1) + bb(modind, 2)*cj)                     &
-            !!!               & + (bb(modind, 3) + bb(modind, 4)*cj)*lfc
-            !!!        coeffp = (pp(modind, 1) + pp(modind, 2)*cj)                     &
-            !!!               & + (pp(modind, 3) + pp(modind, 4)*cj)*lfc
-            !!!        coeffq = (qq(modind, 1) + qq(modind, 2)*cj)                     &
-            !!!               & + (qq(modind, 3) + qq(modind, 4)*cj)*lfc
-            !!!        ypar(L)= xpar*(1.0d0 + coeffb*(xpar**coeffp)*((1.0d0 - xpar)**coeffq))
-            !!!        !
-            !!!        ci     = abscos**coeffi(modind)
-            !!!        coeffa = (aa(modind, 1) + aa(modind, 2)*ci)                     &
-            !!!               & + (aa(modind, 3) + aa(modind, 4)*ci)*lfc
-            !!!        coeffm = (mm(modind, 1) + mm(modind, 2)*ci)                     &
-            !!!               & + (mm(modind, 3) + mm(modind, 4)*ci)*lfc
-            !!!        coeffn = (nn(modind, 1) + nn(modind, 2)*ci)                     &
-            !!!               & + (nn(modind, 3) + nn(modind, 4)*ci)*lfc
-            !!!        ymxpar = 1.0d0 + coeffa*(xpar**coeffm)*((1.0d0 - xpar)**coeffn)
-            !!!    endif
-            !!!endif
             !
             ! bottom friction for combined waves and current
             !
@@ -781,7 +730,6 @@
                ! no waveps needed here: hu>0 and umod=max(umod,waveps)
                cfwavhi(L) = tauwav/ (rhomean*umod**2)*min(huvli(L),hminlwi)   ! tau = cf * rhomean * ||u|| u, and tau/(rho h) appears in (depth-averaged) momentum equation and in D3D taubpu = tau/ (rho ||u||)
             elseif (modind==9) then
-               ac1 = acl(L); ac2 = 1d0-ac1
                uorbhs   = sqrt(2.0d0)*uorbu
                hrmsu    = ac1*hwav(k1)+ac2*hwav(k2)
                rlabdau  = ac1*rlabda(k1)+ac2*rlabda(k2)
@@ -867,7 +815,7 @@
    end subroutine tauwave
 
    subroutine wave_uorbrlabda()
-   use m_waves, only: uorb, wlenwav, uorbwav, twav, hwav, gammax, rlabda, jauorb
+   use m_waves, only: uorb, wlenwav, uorbwav, twav, hwav, hwavcom, gammax, rlabda, jauorb, jauorbfromswan
    use m_flow, only: hs
    use m_flowgeom, only: ndx
    use m_physcoef, only: ag
@@ -886,7 +834,7 @@
       hss  = max(0.01, hs(k))
       per = max(0.01, twav(k))                   ! wave period
 
-      hwav(k) = min(hwav(k), gammax*hs(k))       ! Prevent unrealistic Hrms in shallow water
+      hwav(k) = min(hwavcom(k), gammax*hs(k))       ! Prevent unrealistic Hrms in shallow water. Use original comfile value again every time, as hs changes per dts
       omeg       = 2.0*pi/per
       k0         = omeg*omeg/ag
       k0h        = k0*hss
@@ -903,20 +851,19 @@
          rlabda(k) = 2.0*pi/rk
       endif
       if (rk*hss<80d0) then            ! if not very deep water
-         if (uorbwav_from_SWAN.eq.1) then
+         if (jauorbfromswan.eq.1) then
             Uorb(k)    = uorbwav(k)
          else
             Uorb(k)      = 0.5d0*hwav(k)*omeg/sinh(rk*hss)
             !Uorb(k)    = uorb1*sqrt(pi)/2d0                            ! See note Dano on orbital velocities in D3D, SWAN and XBeach
+            if (jauorb==0) then       ! old d3d convention
+               uorb(k) = uorb(k)*sqrt(pi)/2d0    ! only on hrms derived value, not on SWAN read uorb
+            end if
          endif
       else
          Uorb(k) = 0d0
       endif
    enddo
-
-   if (jauorb==0) then       ! old d3d convention
-      uorb = uorb*sqrt(pi)/2d0
-   end if
 
    end subroutine wave_uorbrlabda
 
@@ -1125,7 +1072,7 @@
    my      = 0d0
 
    do k = 1,ndx
-      massflux_max = 1d0/8d0*sag*(hs(k)**1.5)*gammax**2
+      massflux_max = 1d0/8d0*sag*(max(hs(k),0d0)**1.5)*gammax**2
       mnorm  = min(sqrt(mxwav(k)**2+mywav(k)**2), massflux_max)
       mangle = atan2(mywav(k), mxwav(k))
       mx(k)  = mnorm*dcos(mangle)

@@ -67,7 +67,7 @@ function varargout = tekal(cmd,varargin)
 
 %----- LGPL --------------------------------------------------------------------
 %                                                                               
-%   Copyright (C) 2011-2018 Stichting Deltares.                                     
+%   Copyright (C) 2011-2020 Stichting Deltares.                                     
 %                                                                               
 %   This library is free software; you can redistribute it and/or                
 %   modify it under the terms of the GNU Lesser General Public                   
@@ -92,8 +92,8 @@ function varargout = tekal(cmd,varargin)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/tekal.m $
-%   $Id: tekal.m 8084 2018-01-31 13:26:04Z jagers $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/tekal.m $
+%   $Id: tekal.m 65778 2020-01-14 14:07:42Z mourits $
 
 if nargin==0
     if nargout>0
@@ -223,8 +223,8 @@ while 1
         if ~ischar(line)
             dim=[];
         else
-            dim=sscanf(line,['%f' space],[1 inf]);
-            if ~isequal(dim,round(dim))
+            [dim,~,err]=sscanf(line,['%f' space],[1 inf]);
+            if ~isequal(dim,round(dim)) || ~isempty(err)
                 if TryToCorrect
                     dim = inf;
                     fprintf(1,'Expecting block size but reading: %s\nInterpreting as missing block size; trying to automatically detect block size.\n',line);

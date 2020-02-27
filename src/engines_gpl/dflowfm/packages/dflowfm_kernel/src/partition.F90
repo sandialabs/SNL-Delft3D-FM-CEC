@@ -1,6 +1,6 @@
 !----- AGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2017-2018.                                
+!  Copyright (C)  Stichting Deltares, 2017-2020.                                
 !                                                                               
 !  This file is part of Delft3D (D-Flow Flexible Mesh component).               
 !                                                                               
@@ -27,8 +27,8 @@
 !                                                                               
 !-------------------------------------------------------------------------------
 
-! $Id: partition.F90 62232 2018-10-02 16:03:16Z zhao $
-! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/dflowfm/packages/dflowfm_kernel/src/partition.F90 $
+! $Id: partition.F90 65964 2020-02-10 11:27:22Z spee $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/dflowfm/packages/dflowfm_kernel/src/partition.F90 $
    
 !------------------------------------------------------------------------
 !  THOUGHTS:
@@ -292,8 +292,7 @@ use m_tpoly
             call find1dcells()
          end if
          
-         call delete_drypoints_from_netgeom(dryptsfile, 0, 0)
-         call delete_drypoints_from_netgeom(gridencfile, 0, -1)
+         call delete_dry_points_and_areas()
       end if
       
 !     determine number of cells
@@ -718,8 +717,7 @@ use m_tpoly
       call findcells(100000)  ! output link permutation array "Lperm" (only used if jacells.eq.1)
       call find1dcells()
    
-      call delete_drypoints_from_netgeom(dryptsfile, 0, 0)
-      call delete_drypoints_from_netgeom(gridencfile, 0, -1)
+      call delete_dry_points_and_areas()
   
       if (numk == 0 .or. numl == 0) then
          write(message,"('While making partition domain #', I0, ': empty domain (', I0, ' net nodes, ', I0, ' net links).')") idmn, numk, numl
@@ -2404,7 +2402,8 @@ use m_tpoly
       
       integer, intent(out) :: ierror
       
-      integer              :: LL
+      integer              :: LL, L
+      integer, allocatable :: kmxL1(:)
       
       ierror = 0   ! so far, so good
       
@@ -2438,9 +2437,15 @@ use m_tpoly
       call partition_fill_ghostsendlist_3d(nghostlist_u(ndomains-1), ighostlist_u, nghostlist_u, Lnx, Lbot, kmxL, nghostlist_u_3d)
       call partition_fill_ghostsendlist_3d(nsendlist_u(ndomains-1),  isendlist_u,  nsendlist_u,  Lnx, Lbot, kmxL, nsendlist_u_3d)
       
-      call partition_fill_ghostsendlist_3d(nghostlist_u(ndomains-1), ighostlist_u, nghostlist_u, Lnx, Lbot, kmxL+1, nghostlist_u_3dw)
-      call partition_fill_ghostsendlist_3d(nsendlist_u(ndomains-1),  isendlist_u,  nsendlist_u,  Lnx, Lbot, kmxL+1, nsendlist_u_3dw)
-      
+      if (allocated(kmxL1)) deallocate(kmxL1)  
+      allocate(kmxL1(lnx))
+      do L = 1,lnx
+         kmxL1(L) =  kmxL(L) + 1
+      enddo
+      call partition_fill_ghostsendlist_3d(nghostlist_u(ndomains-1), ighostlist_u, nghostlist_u, Lnx, Lbot, kmxL1, nghostlist_u_3dw)
+      call partition_fill_ghostsendlist_3d(nsendlist_u(ndomains-1),  isendlist_u,  nsendlist_u,  Lnx, Lbot, kmxL1, nsendlist_u_3dw)
+      deallocate(kmxL1)      
+
       ierror = 0
  1234 continue
  
@@ -3503,7 +3508,28 @@ end subroutine partition_make_globalnumbers
 
       return
    end subroutine reduce_intN_sum
-   
+
+   !> for an array over integers, take global sum over all subdomains (not over the array itself)
+   subroutine reduce_int_array_sum(N, var)
+#ifdef HAVE_MPI
+      use mpi
+#endif
+
+      implicit none
+      
+      integer,                        intent(in)    :: N  !< array size
+      integer, dimension(N),          intent(inout) :: var !< array with values to be summed over the subdomains (not an array summation)
+      
+      integer, dimension(N)                         :: dum
+      
+      integer :: ierror
+      
+#ifdef HAVE_MPI
+      call MPI_allreduce(var,dum,N,mpi_integer,mpi_sum,DFM_COMM_DFMWORLD,ierror)
+#endif
+      var = dum
+      return
+   end subroutine reduce_int_array_sum
     
 !> reduce key (also used for nonlin in setprofs1D)
 !>   take maximum
@@ -3613,6 +3639,27 @@ end subroutine partition_make_globalnumbers
 #endif      
       return
    end subroutine reduce_sum
+   
+   !> take maximum integer over all subdomains
+   subroutine reduce_int1_max(var)
+#ifdef HAVE_MPI
+      use mpi
+#endif
+
+      implicit none
+      
+      integer, intent(inout) :: var !< array with values to be summed over the subdomains (not an array summation)
+      
+      integer                :: dum
+      
+      integer                :: ierror
+      
+#ifdef HAVE_MPI
+      call MPI_allreduce(var,dum,1,mpi_integer,mpi_max,DFM_COMM_DFMWORLD,ierror)
+      var = dum
+#endif      
+      return
+   end subroutine reduce_int1_max
    
    
    
@@ -3860,13 +3907,11 @@ end subroutine partition_make_globalnumbers
 #ifdef HAVE_MPI
 
       
-!     disable oberservation stations with missing values in this domain
+!     disable observation stations with missing values in this domain
       do iobs=1,numobs
          do ival=1,numvals
             if ( valobs(ival,iobs).eq.DMISS ) then
-                valobs(1:numvals,iobs) = dsmall
-!               write(6,"(I4, ':', I4)") my_rank, iobs
-               exit
+                valobs(ival,iobs) = dsmall
             end if
          end do
       end do
@@ -3878,8 +3923,7 @@ end subroutine partition_make_globalnumbers
       do iobs=1,numobs
          do ival=1,numvals
             if ( valobs(ival,iobs).eq.dsmall ) then   ! safety, check all vals until not found (not necessary)
-               valobs(1:numvals,iobs) = DMISS
-               exit
+               valobs(ival,iobs) = DMISS
             end if
          end do
       end do
@@ -4682,12 +4726,12 @@ end subroutine partition_make_globalnumbers
    end subroutine
 
 
-   !> Generic function for weighted average on a quantity defined on cells or links, also applying optional filters
+   !> Generic function for weighted average on a quantities defined on cells or links, also applying optional filters
    !> optional firstFilter is defined on a global weights array [1, ncells/nlinks]
    !> optional secondFilter is defined on a local array [1,size(secondFilter)]
    !> works also across multiple MPI ranks
-   function getAverageQuantityFromLinks(startLinks, endLinks, weights, indsWeight, quantity, indsQuantity, results, &
-      firstFilter, firstFilterValue, secondFilter, secondFilterValue) result(ierr)
+   function getAverageQuantityFromLinks(startLinks, endLinks, weights, indsWeight, quantity, indsQuantity, results, quantityType, &
+      firstFilter, firstFilterValue, secondFilter, secondFilterValue ) result(ierr)
 
    use mpi
    use m_flowexternalforcings
@@ -4700,7 +4744,8 @@ end subroutine partition_make_globalnumbers
    integer,intent(in),dimension(:)               :: indsWeight             !< local indexes on global weights array
    double precision,intent(in),dimension(:)      :: quantity               !< global quantity array
    integer,intent(in),dimension(:)               :: indsQuantity           !< local indexes on global quantity array
-
+   integer,intent(in)                            :: quantityType           !< The type of quantity: 0 scalar, 1 array (edge orientation matters)
+   
    double precision,intent(in),dimension(:), optional :: firstFilter       !< filter to apply on the global weights array
    double precision,intent(in), optional              :: firstFilterValue  !< value to activate the first filter (activated if larger than filter value)
 
@@ -4740,8 +4785,18 @@ end subroutine partition_make_globalnumbers
             end if
          end if
 
-         quantitiesByWeight =  quantity(indQuantity)*weights(indWeight)
+
+         ! weights are always positive
          weight = weights(indWeight)
+         if(quantityType == 1) then
+            if (indsQuantity(nl)< 0) then
+               quantitiesByWeight =   - quantity(indQuantity)*weight
+            else
+               quantitiesByWeight =   quantity(indQuantity)*weight
+            endif
+         else
+            quantitiesByWeight =  quantity(indQuantity)*weight
+         endif
 
          if ( present(firstFilter).and.present(firstFilterValue)) then
             if ( firstFilter(indWeight) <= firstFilterValue ) then
@@ -4821,8 +4876,7 @@ end subroutine partition_make_globalnumbers
          call findcells(0)
          call find1Dcells()
          
-         call delete_drypoints_from_netgeom(dryptsfile, 0, 0)
-         call delete_drypoints_from_netgeom(gridencfile, 0, -1)
+         call delete_dry_points_and_areas()
       end if
       
 !     check for 1D cells (not supported)
@@ -4919,6 +4973,30 @@ end subroutine partition_make_globalnumbers
       return
    end subroutine generate_partition_pol_from_idomain
    
+!> reduce error level, note that it is assumed that DFM_NOERR=0 and that all error levels >=0 
+   subroutine reduce_error(ierror) 
+      implicit none 
+      integer, intent(inout) :: ierror
+      
+      integer, dimension(1)  :: idum
+      
+      idum(1) = ierror
+      call reduce_int_max(1, idum)
+      ierror = idum(1)
+
+      return 
+   end subroutine reduce_error 
+   
+!> Abort all processes
+   subroutine abort_all()
+      use dfm_error, only: DFM_GENERICERROR
+      implicit none
+      integer :: ierr
+#ifdef HAVE_MPI      
+      call MPI_Abort(DFM_COMM_DFMWORLD, DFM_GENERICERROR, ierr)
+#endif
+      return
+   end subroutine abort_all
    end module m_partitioninfo
    
    
@@ -4934,7 +5012,7 @@ end subroutine partition_make_globalnumbers
       call MPI_barrier(DFM_COMM_DFMWORLD,ierr)
 
       if ( my_rank.eq.0 ) then
-         write(6,*) "press a key..."
+         write(6,*) "press a key from rank 0..."
          read(5,*)
       end if
 
@@ -5267,13 +5345,13 @@ end subroutine partition_make_globalnumbers
          end if
       end do
       
-!     make CSR arrays zero-based
-      iadj = iadj-1
-      jadj = jadj-1
-      
 !     edge weights
       allocate(adjw(iadj(nump1d2d+1)-1))
       adjw = 1
+      
+!     make CSR arrays zero-based
+      iadj = iadj-1
+      jadj = jadj-1
       
       netstat = NETSTAT_CELLS_DIRTY
 !      
@@ -5342,7 +5420,6 @@ end subroutine partition_make_globalnumbers
       use m_partitioninfo
       use MessageHandling
       use gridoperations
-      use network_data, only: dryptsfile
       
       implicit none
    
@@ -5365,7 +5442,7 @@ end subroutine partition_make_globalnumbers
 !     reenable polygons
       NPL = NPL_save
    
-      call delete_drypoints_from_netgeom(dryptsfile, 0, 0)
+      call delete_dry_points_and_areas()
       
       if ( NPL.gt.1 ) then ! use the polygons
          call generate_partitioning_from_pol()

@@ -1,6 +1,6 @@
 !----- LGPL --------------------------------------------------------------------
 !
-!  Copyright (C)  Stichting Deltares, 2011-2018.
+!  Copyright (C)  Stichting Deltares, 2011-2020.
 !
 !  This library is free software; you can redistribute it and/or
 !  modify it under the terms of the GNU Lesser General Public
@@ -25,8 +25,8 @@
 !
 !-------------------------------------------------------------------------------
 
-! $Id: netcdf_utils.F90 61870 2018-09-19 12:08:50Z spee $
-! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_lgpl/io_netcdf/packages/io_netcdf/src/netcdf_utils.F90 $
+! $Id: netcdf_utils.F90 65778 2020-01-14 14:07:42Z mourits $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/io_netcdf/packages/io_netcdf/src/netcdf_utils.F90 $
 
 !> Utility module for additional manipulation/inquiry of NetCDF files, on top of the basic nf90* primitives.
 module netcdf_utils
@@ -35,6 +35,7 @@ implicit none
 
 private
 
+public :: ncu_format_to_cmode
 public :: ncu_inq_var_fill, ncu_copy_atts, ncu_copy_chunking_deflate
 
 ! Copied from official NetCDF: typeSizes.f90
@@ -52,8 +53,30 @@ interface ncu_inq_var_fill
    module procedure ncu_inq_var_fill_real8
 end interface ncu_inq_var_fill
 
-contains
+   contains
 
+
+!> Returns the NetCDF creation mode flag value, given the colloquial
+!! format number (3 or 4).
+!! Use this returned value as cmode argument to nf90_create calls.
+!!
+!! NOTE: the input number is *not* equivalent with the library's
+!! NF90_FORMAT_* constants!
+pure function ncu_format_to_cmode(iformatnumber) result(cmode)
+   integer, intent(in) :: iformatnumber !< The NetCDF format version (3 or 4, colloquially speaking)
+   integer             :: cmode         !< Return value (for example NF90_CLASSIC_MODEL or NF90_NETCDF4), ready for use in nf90_create calls.
+
+   select case(iformatnumber)
+   case(3)
+      cmode = NF90_CLASSIC_MODEL
+   case(4)
+      cmode = NF90_NETCDF4
+   case default
+      cmode = NF90_CLOBBER ! 0: use library default
+   end select
+end function ncu_format_to_cmode
+
+      
 !> Copy all attributes from a variable or dataset into another variable/dataset.
 !! Returns:
 !     nf90_noerr if all okay, otherwise an error code
@@ -123,12 +146,12 @@ function ncu_inq_var_fill_real8( ncid, varid, no_fill, fill_value) result(ierr)
    real(kind=EightByteReal),  intent(out) :: fill_value  !< This will get the fill value for this variable.
 
    integer :: ierr ! Error status, nf90_noerr = if successful.
-
+   
    no_fill = 1
 
    ierr = nf90_get_att(ncid, varid, '_FillValue', fill_value)
    if (ierr /= nf90_noerr) then
-      fill_value = nf90_fill_int
+      fill_value =  nf90_fill_double
       ierr = nf90_noerr
    end if
 end function ncu_inq_var_fill_real8

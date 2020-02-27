@@ -1,6 +1,6 @@
 //---- LGPL --------------------------------------------------------------------
 //
-// Copyright (C)  Stichting Deltares, 2011-2018.
+// Copyright (C)  Stichting Deltares, 2011-2020.
 //
 // This library is free software; you can redistribute it and/or
 // modify it under the terms of the GNU Lesser General Public
@@ -98,7 +98,7 @@ class DimrExe {
         void openLibrary(void);
         void freeLib (void);
         void lib_initialize(void);
-        void lib_update(void);
+        int lib_update(void);
         void lib_update_test(void);
         void lib_finalize(void);
 

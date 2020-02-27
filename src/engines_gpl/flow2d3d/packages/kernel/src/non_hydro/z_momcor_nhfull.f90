@@ -12,7 +12,7 @@ subroutine z_momcor_nhfull(nmmax     ,kmax      ,icx       ,icy       ,s1       
                          & gdp )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
+!  Copyright (C)  Stichting Deltares, 2011-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -36,8 +36,8 @@ subroutine z_momcor_nhfull(nmmax     ,kmax      ,icx       ,icy       ,s1       
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: z_momcor_nhfull.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/flow2d3d/packages/kernel/src/non_hydro/z_momcor_nhfull.f90 $
+!  $Id: z_momcor_nhfull.f90 65844 2020-01-23 20:56:06Z platzek $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/kernel/src/non_hydro/z_momcor_nhfull.f90 $
 !!--description-----------------------------------------------------------------
 !
 !
@@ -255,6 +255,9 @@ subroutine z_momcor_nhfull(nmmax     ,kmax      ,icx       ,icy       ,s1       
           enddo
        endif
     enddo
+    !
+    ! Computation of the new fluxes in u- and v-points
+    !
     do nm = 1, nmmax
        if (kfu(nm) == 1) then
           do k = kfumin(nm), kfumx0(nm)

@@ -16,7 +16,7 @@
 #   Irv.Elshoff@Deltares.NL
 #   2 jul 12
 #
-#   Copyright (C)  Stichting Deltares, 2011-2013.
+#   Copyright (C)  Stichting Deltares, 2011-2019.
 #-------------------------------------------------------------------------------
 
 # This script must be executed in the directory where it resides
@@ -376,7 +376,7 @@ if [ "$compiler" = 'gnu' ]; then
     fflags=''
 else
     # Intel compilers
-    fflags='-threads'
+    fflags=''
 fi
 
 
@@ -571,7 +571,7 @@ fi
 # Post-install cleaning
 log "Executing python script 'dimr_artifacts.py' to clean up installation directory"
 log='logs/post-install.log'
-command="python $orgdir/engines_gpl/dimr/scripts/dimr_artifacts.py $orgdir &> $log"
+command="python $maindir/engines_gpl/dimr/scripts/dimr_artifacts.py $maindir &> $log"
 
 log "Running $command"
 eval $command

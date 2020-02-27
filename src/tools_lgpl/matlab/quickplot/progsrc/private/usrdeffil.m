@@ -18,7 +18,7 @@ function varargout=usrdeffil(FI,domain,field,cmd,varargin)
 
 %----- LGPL --------------------------------------------------------------------
 %                                                                               
-%   Copyright (C) 2011-2018 Stichting Deltares.                                     
+%   Copyright (C) 2011-2020 Stichting Deltares.                                     
 %                                                                               
 %   This library is free software; you can redistribute it and/or                
 %   modify it under the terms of the GNU Lesser General Public                   
@@ -43,8 +43,8 @@ function varargout=usrdeffil(FI,domain,field,cmd,varargin)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/private/usrdeffil.m $
-%   $Id: usrdeffil.m 62254 2018-10-04 20:41:38Z jagers $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/private/usrdeffil.m $
+%   $Id: usrdeffil.m 65778 2020-01-14 14:07:42Z mourits $
 
 %========================= GENERAL CODE =======================================
 
@@ -125,7 +125,9 @@ idx(fidx(1:length(varargin)))=varargin;
 
 i=Props.Fld;
 [Ans,FIi]=getdata(FI(i),cmd,idx);
-Ans.Time=readtim(FI,Props,idx{1});
+if Props.DimFlag(T_)
+    Ans.Time=readtim(FI,Props,idx{1});
+end
 FI(i)=FIi;
 
 varargout={Ans FI};

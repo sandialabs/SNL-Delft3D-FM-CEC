@@ -1,41 +1,41 @@
 !----- AGPL --------------------------------------------------------------------
-!                                                                               
-!  Copyright (C)  Stichting Deltares, 2017-2018.                                
-!                                                                               
-!  This file is part of Delft3D (D-Flow Flexible Mesh component).               
-!                                                                               
-!  Delft3D is free software: you can redistribute it and/or modify              
-!  it under the terms of the GNU Affero General Public License as               
-!  published by the Free Software Foundation version 3.                         
-!                                                                               
-!  Delft3D  is distributed in the hope that it will be useful,                  
-!  but WITHOUT ANY WARRANTY; without even the implied warranty of               
-!  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the                
-!  GNU Affero General Public License for more details.                          
-!                                                                               
-!  You should have received a copy of the GNU Affero General Public License     
-!  along with Delft3D.  If not, see <http://www.gnu.org/licenses/>.             
-!                                                                               
-!  contact: delft3d.support@deltares.nl                                         
-!  Stichting Deltares                                                           
-!  P.O. Box 177                                                                 
-!  2600 MH Delft, The Netherlands                                               
-!                                                                               
-!  All indications and logos of, and references to, "Delft3D",                  
-!  "D-Flow Flexible Mesh" and "Deltares" are registered trademarks of Stichting 
+!
+!  Copyright (C)  Stichting Deltares, 2017-2020.
+!
+!  This file is part of Delft3D (D-Flow Flexible Mesh component).
+!
+!  Delft3D is free software: you can redistribute it and/or modify
+!  it under the terms of the GNU Affero General Public License as
+!  published by the Free Software Foundation version 3.
+!
+!  Delft3D  is distributed in the hope that it will be useful,
+!  but WITHOUT ANY WARRANTY; without even the implied warranty of
+!  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!  GNU Affero General Public License for more details.
+!
+!  You should have received a copy of the GNU Affero General Public License
+!  along with Delft3D.  If not, see <http://www.gnu.org/licenses/>.
+!
+!  contact: delft3d.support@deltares.nl
+!  Stichting Deltares
+!  P.O. Box 177
+!  2600 MH Delft, The Netherlands
+!
+!  All indications and logos of, and references to, "Delft3D",
+!  "D-Flow Flexible Mesh" and "Deltares" are registered trademarks of Stichting
 !  Deltares, and remain the property of Stichting Deltares. All rights reserved.
-!                                                                               
+!
 !-------------------------------------------------------------------------------
 
-! $Id: net.F90 62232 2018-10-02 16:03:16Z zhao $
-! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/dflowfm/packages/dflowfm_kernel/src/net.F90 $
+! $Id: net.F90 65906 2020-01-29 13:13:38Z markus $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/dflowfm/packages/dflowfm_kernel/src/net.F90 $
 #ifdef HAVE_CONFIG_H
 #include "config.h"
-#endif 
+#endif
 
 
    SUBROUTINE INIDAT()
-   
+
    USE m_missing
    use m_netw
    USE M_BOAT
@@ -134,7 +134,7 @@
    call dfm_add_signalwatchers() ! Register ourselves to Ctrl-C and Ctrl-Z presses, etc. for emergency map files.
 
    CALL ININUMBERS()
-   
+
    call maketekaltimes()
 
    JQN       = 2
@@ -177,10 +177,10 @@
    ndraw(40) = 0  ! waterbal
    ndraw(41) = 1  ! sorsin
 
-   
+
    plotje    = ' '
-   jview     = len_trim (plotje) 
-   
+   jview     = len_trim (plotje)
+
    JVIEW     = 1
    JAV       = 3
    ITGS      = 0
@@ -205,17 +205,18 @@
    CALL PARAMTEXT('Waterlevel                          (m )', 1)
 
    if (.not. allocated(xk)) then
-      allocate( xk (1), yk (1), zk (1) , NOD (1) , KC (1) , NMK (1) , RNOD(1)   )
+      allocate( xk (1), yk (1), zk (1) , NOD (1) , KC (1) , NMK (1) , KN(3,1), LC(1), RNOD(1), RLIN(1))
       allocate(nod(1)%lin(1))
+      NMK = 0
    endif
    if (.not. allocated(xk0)) then
-      allocate( xk0(1), yk0(1), zk0(1) , NOD0(1) , KC0(1) , NMK0(1), KN0(1,1), LC0(1)  )
+      allocate( xk0(1), yk0(1), zk0(1) , NOD0(1) , KC0(1) , NMK0(1), KN0(3,1), LC0(1)  )
       allocate(nod0(1)%lin(1))
       nmk0 = 0
    endif
 
-   KMAX = 2
-   LMAX = 2
+   KMAX = 1
+   LMAX = 1
    CALL INCREASENETW(KMAX, LMAX)
 
    CALL INCREASEPOL(MAXPOL, 0)
@@ -349,17 +350,18 @@
 
    RETURN
    END SUBROUTINE INIDAT
-   
+
    subroutine maketekaltimes()
    use m_flowtimes
+   implicit none
    logical          :: jawel
-   integer          :: minp, mout
+   integer          :: minp, mout, i, k
    double precision :: tim, a(30)
-   
+
    character*20 dateandtime
-   
+
    inquire (file = '102023.DAT', exist = jawel)
-   if (jawel) then 
+   if (jawel) then
      refdat = '19920831'
      call oldfil(minp, '102023.DAT')
      call newfil(mout, '102023.tek')
@@ -402,18 +404,18 @@
         read(minp,*)
      enddo
      do i=1,6202
-        read(minp,*) tim, (a(k), k = 1,30) 
+        read(minp,*) tim, (a(k), k = 1,30)
         call maketime(dateandtime, tim)
         dateandtime(9:9) = ' '
-        write(mout,'(a, 30F10.3)') dateandtime, (a(k), k = 1,30)  
+        write(mout,'(a, 30F10.3)') dateandtime, (a(k), k = 1,30)
      enddo
      call doclose(minp)
      call doclose(mout)
 
    endif
-  
+
    end subroutine maketekaltimes
-   
+
 
    SUBROUTINE INIDEPMAX2
    use unstruc_display
@@ -441,8 +443,8 @@
    use m_observations
    use m_flow
    use m_flowgeom
-   
-   implicit none 
+
+   implicit none
    integer :: mhis2, n, k, L1
 
    character (len=*) :: name
@@ -481,55 +483,55 @@
    use unstruc_model
    use m_flowtimes
    use unstruc_files, only: defaultFilename
-   
+
    implicit none
    integer            :: n, i, ntbal
    double precision   :: tim, ue, te
    character(len=256) :: nam
 
     if (mxls /= 0 .and. dnt == 1) then  ! volerr, volerrcum
-        call doclose(mxls)   
+        call doclose(mxls)
         mxls = 0
     end if
-   
+
    !  return ! His file broken
-   if (mxls == 0) then 
+   if (mxls == 0) then
       nam = defaultFilename('histek')
       call newfil(mxls, nam)
-      ntbal = -1 + int(Tstop_user - Tstart_user) / Ti_xls   
+      ntbal = -1 + int(Tstop_user - Tstart_user) / Ti_xls
 
-      if (nshiptxy == 0) then 
-         write(mxls,'(a)') '* column 1  : Time (min) '                                        
-         write(mxls,'(a)') '* column 2  : Waterlevel Obs 1     (m  ) '                                        
-         write(mxls,'(a)') '* column 3  : Waterdepth Obs 1     (m  ) '                                        
-        
-         write(mxls,'(a)') 'BL01'                                        
-         write(mxls,'(i0, a)') ntbal, '   4'              
-      else 
-         write(mxls, '(a)' )       '*tim,   (fx2(n),    fy2(n),    fm2(n),    fricx(n),    fricy(n),    fricm(n),  & 
+      if (nshiptxy == 0) then
+         write(mxls,'(a)') '* column 1  : Time (min) '
+         write(mxls,'(a)') '* column 2  : Waterlevel Obs 1     (m  ) '
+         write(mxls,'(a)') '* column 3  : Waterdepth Obs 1     (m  ) '
+
+         write(mxls,'(a)') 'BL01'
+         write(mxls,'(i0, a)') ntbal, '   4'
+      else
+         write(mxls, '(a)' )       '*tim,   (fx2(n),    fy2(n),    fm2(n),    fricx(n),    fricy(n),    fricm(n),  &
                                    fx2(n)+fricx(n),   fy2(n)+fricy(n),  fm2(n)+fricm(n),   shx(n),    shu(n), squat(n), squatbow(n), n=1, nshiptxy ), cfav'
          write(mxls, '(a)' ) 'BL01'
-         write(mxls,'(i0, a)') ntbal, '   15'              
-      endif   
+         write(mxls,'(i0, a)') ntbal, '   15'
+      endif
    endif
-      
+
    if (nshiptxy == 1) then
        write(mxls, '(100f18.5)' ) tim,    (fx2(n), fy2(n), fm2(n), fricx(n), fricy(n), fricm(n),  &
                                     fx2(n)+fricx(n),   fy2(n)+fricy(n),  fm2(n)+fricm(n), shx(n), shu(n), squat(n), squatbow(n), n=1, nshiptxy ), cfav
-   else 
-   
+   else
+
       !if (ncrs.gt.0) then
-      !   write(mxls,'(13f14.4)')  ( crs(i)%sumvalcur(1), i=1,min(6,ncrs) ) 
-      !endif   
+      !   write(mxls,'(13f14.4)')  ( crs(i)%sumvalcur(1), i=1,min(6,ncrs) )
+      !endif
       ue = sqrt(2*9.81)
-      Te = 2*400/ue 
-      
-      !write(mxls,'(13f14.6)') tim/Te ,  ucx(kobs(1)) / ue !   , s1(kobs(1)) - bl(kobs(1))    
+      Te = 2*400/ue
+
+      !write(mxls,'(13f14.6)') tim/Te ,  ucx(kobs(1)) / ue !   , s1(kobs(1)) - bl(kobs(1))
       if (numobs > 0 .and. kobs(1) > 0 ) then
-         write(mxls,'(13f14.6)') tim/60d0,  s1(kobs(1)), s1(kobs(1)) - bl(kobs(1))   
-      endif   
-   endif  
-     
+         write(mxls,'(13f14.6)') tim/60d0,  s1(kobs(1)), s1(kobs(1)) - bl(kobs(1))
+      endif
+   endif
+
    end subroutine wrihistek
 
    SUBROUTINE WRIRSTfileold(tim)
@@ -555,7 +557,6 @@
    USE M_FLOW
    USE M_FLOWGEOM
    use unstruc_model
-   use unstruc_files, only: getoutputdir
    use m_sediment, only: jaceneqtr
    use unstruc_netcdf, only: unc_write_net
    implicit none
@@ -563,18 +564,18 @@
 
   ! WRITE(MOUT,'(a,2x,F25.14,2i10,a)') REFDAT, TIME1,  NDX, LNX, ' (refdat, timsec, ndx, lnx)'
 
-   if (jagrw < 2) then 
-   !    WRITE(MOUT,'(A,I10)') 'S1 ', NDX, ' 3' 
+   if (jagrw < 2) then
+   !    WRITE(MOUT,'(A,I10)') 'S1 ', NDX, ' 3'
        DO K = 1,NDX
           WRITE(MOUT,*) XZ(K) , YZ(K), S1(K)
        ENDDO
-   else 
-    !   WRITE(MOUT,'(A,I10)') 'S1 ', NDX, ' 4' 
+   else
+    !   WRITE(MOUT,'(A,I10)') 'S1 ', NDX, ' 4'
        DO K = 1,NDX
          WRITE(MOUT,*) XZ(K) , YZ(K), S1(K), SGRW1(K)
       ENDDO
-   endif    
-      
+   endif
+
    ! WRITE(MOUT,'(A,I10)') 'U1 ', LNX
 
    ! DO L = 1,LNX
@@ -601,7 +602,7 @@
       endif
    endif
 
-   if (jased > 0) then 
+   if (jased > 0) then
       if (jaceneqtr .ne. 1) then
          call unc_write_net(trim(getoutputdir())//trim(md_ident)//'_'//'_new_net.nc' )  ! write resulting bathymetry
       endif
@@ -625,8 +626,8 @@
    integer   :: l
    INTEGER   :: NDXR, LNXR       ! alleen binnen deze subroutine
    LOGICAL   :: JAWEL
-   DOUBLE PRECISION    :: DUM   
-   
+   DOUBLE PRECISION    :: DUM
+
    ja = 0
  ! READ(Mrst,*)  REFDATLOC, TSTART_USERLOC, NDXR, LNXR
    READ(Mrst,*)  DUM , DUM,                 NDXR, LNXR
@@ -701,7 +702,7 @@
 
 
    SUBROUTINE MAKENET(japaramscreen)
-   
+
    use m_netw
    use m_makenet  ! NTYP ANGLE SIZE THICK NRX NRY
    use m_polygon
@@ -710,9 +711,9 @@
    use m_sferic
    use geometry_module, only: pinpok
    use gridoperations
-   
+
    implicit none
-   
+
    integer, intent(in) :: japaramscreen !< Load parameter screen or not (1/0)
    double precision :: ael
    double precision :: ag
@@ -742,11 +743,14 @@
       CALL MAKENETPARAMETERS()
    end if
 
-   IF (NPL > 0) THEN
-       CALL  DMINMAX(   XPL ,  NPL  ,  XPLMIN,  XPLMAX, NPL)
-       CALL  DMINMAX(   YPL ,  NPL  ,  YPLMIN,  YPLMAX, NPL)
-       X0 = XPLMIN ; Y0 = YPLMIN
-   ENDIF
+!  get parameters from polygon if available
+   call pol2netparams()
+
+!   IF (NPL > 0) THEN
+!       CALL  DMINMAX(   XPL ,  NPL  ,  XPLMIN,  XPLMAX, NPL)
+!       CALL  DMINMAX(   YPL ,  NPL  ,  YPLMIN,  YPLMAX, NPL)
+!       X0 = XPLMIN ; Y0 = YPLMIN
+!   ENDIF
 
    AEL = PI*THICK*THICK/4  ! RDIAM in mm
    SIZ = SIZE
@@ -774,7 +778,7 @@
       ENDIF
    ENDIF
 
-   
+
    IF (NTYP == 0) THEN
       MC = NRX+1 ; NC = NRY+1
       CALL INCREASEGRID(MC,NC)
@@ -782,13 +786,16 @@
           DO M = 1,MC
              XC(M,N) = X0 + (M-1)*DX*CS - (N-1)*DY*SN
              YC(M,N) = Y0 + (M-1)*DX*SN + (N-1)*DY*CS
-             if (jsferic == 1 .and. n > 1)  then 
+             if (jsferic == 1 .and. n > 1)  then
                 dy = dx*cos(dg2rd*yc(m,n-1))
                 YC(M,N) = YC(M,N-1) + dy
              endif
 
           ENDDO
       ENDDO
+
+      call del_grid_outside_pol()
+
       ! CALL GRIDTONET()
       ! MC = 0 ; NC = 0; XC = DMISS; YC = DMISS
 
@@ -889,7 +896,7 @@
    SUBROUTINE ADDMAZE(X,Y,Z,N)    ! FOR FLOW GRIDS
    use m_netw
    use gridoperations
-   
+
    implicit none
    double precision :: X(N), Y(N), Z(N)
    integer :: N
@@ -921,7 +928,7 @@
 
    SUBROUTINE MERGENET()
    use m_netw
-   USE M_MERGENET   ! NUMM JBLUNT 
+   USE M_MERGENET   ! NUMM JBLUNT
    use geometry_module, only: dbdistance
    use m_missing, only: dmiss
    use m_sferic, only: jsferic, jasfer3D
@@ -1346,7 +1353,7 @@
       end subroutine removewallfromsamples
 
       subroutine findnearwallpoint(k1,k2)
-      
+
       use m_samples
       use geometry_module, only: dbdistance
       use m_missing, only: dmiss
@@ -1368,12 +1375,12 @@
       end subroutine findnearwallpoint
 
       subroutine findneargroundpoint(k1,k2)
-      
+
       use m_samples
       use geometry_module, only: dbdistance
       use m_missing, only: dmiss
       use m_sferic, only: jsferic, jasfer3D
-      
+
       implicit none
       integer          :: k1,k2,k,kk,n1,n2
 
@@ -1518,15 +1525,15 @@
             ENDIF
          ELSE IF ( NPUT .EQ. -4 ) THEN
 !           DELETE ALL EXCEPT SELECTED LINE
-         
+
 !           get start and end indices of the line
             call get_polstartend(MMAX, X, Y, MP, jstart, jend)
-            
+
 !           delete leading part in array
             if ( jstart.gt.1 ) then
                x(1:jstart-1) = DMISS
             end if
-            
+
 !           delete trailing part in array
             if ( jend.lt.MMAX) then
                x(jend+1:MMAX) = DMISS
@@ -1663,7 +1670,7 @@
 !>  indentify the points in an array
     subroutine makelineindex(num, x, idx)
       use m_missing
-      use geometry_module, only: get_startend 
+      use geometry_module, only: get_startend
 
       implicit none
 
@@ -1959,7 +1966,7 @@ end subroutine mergepoly
       use geometry_module, only: dbdistance
       use m_missing, only: dmiss
       use m_sferic, only: jsferic, jasfer3D
-      
+
       implicit none
       integer :: K1, K2
       double precision :: XD,YD,ZD
@@ -1988,32 +1995,32 @@ end subroutine mergepoly
       RETURN
       END SUBROUTINE DELPOL
 
-!>    gives link length      
+!>    gives link length
       double precision function dLinklength(L)
-      
+
       use m_netw
       use m_missing, only: dmiss, JINS
       use m_polygon, only: NPL, xpl, ypl, zpl
       use m_sferic, only: jsferic, jasfer3D
       use geometry_module, only: dbpinpol, dbdistance
       use gridoperations
-      
+
       implicit none
-     
+
       integer,          intent(in)  :: L  !< link number
       double precision              :: dx, dy
-      integer                       :: La, k1, k2   
-      
+      integer                       :: La, k1, k2
+
       La = iabs(L)
       k1 = kn(1,La)
       k2 = kn(2,La)
-        
+
       dLinklength = dbdistance(xk(k1), yk(k1), xk(k2), yk(k2), jsferic, jasfer3D, dmiss)
-         
+
       end function dLinklength
 
       subroutine triangulate_quadsandmore(ja) ! ja==1, findcells moet opnieuw
-      
+
       use m_netw
       use m_flowgeom
       use m_polygon
@@ -2059,14 +2066,14 @@ end subroutine mergepoly
 
 
       SUBROUTINE WRIswan(MNET,filnam)
-      
+
       use m_netw
       use m_polygon
       use m_missing
       use geometry_module, only: dbdistance, cross, normaloutchk
       use m_sferic, only: jsferic, jasfer3D
       use gridoperations
-      
+
       implicit none
 
       integer          :: MNET
@@ -2192,7 +2199,7 @@ end subroutine mergepoly
       SUBROUTINE REAJANET(MNET,JA,JADOORLADEN)
       use m_netw
       use gridoperations
-      
+
       implicit none
       integer :: MNET, JA, JADOORLADEN
 
@@ -2292,17 +2299,17 @@ end subroutine mergepoly
       RETURN
 
       END SUBROUTINE REAJANET
-      
+
       SUBROUTINE READADCIRCNET(MNET,JA,JADOORLADEN)
-      
+
       use m_netw
       use m_polygon
       use m_landboundary
       use m_missing
       use gridoperations
-      
+
       implicit none
-      
+
       integer :: MNET, JA, JADOORLADEN
       integer :: k, j
       integer :: k0, K1, K2, K3, kk, nn
@@ -2331,7 +2338,7 @@ end subroutine mergepoly
       READ(MNET,'(A)',end = 777) REC   ! COMMENT
 
       READ(MNET,'(A)',end = 777) REC
-      READ(REC,*, err = 555) nump, NUMKN 
+      READ(REC,*, err = 555) nump, NUMKN
 
       NUMLN = 3*NUMP
       CALL INCREASENETW(K0+NUMKN, L0 + NUMLN)
@@ -2348,13 +2355,13 @@ end subroutine mergepoly
       L = L0
       DO K = 1,NUMP
          READ(MNET,'(A)',END = 777) REC
-         READ(REC,*,ERR = 999) KK, nn, k1, k2, k3 
-         L = L + 1 ; kn(1,L) = k1 ; kn(2,L) = k2 ; kn(3,L) = 2      
-         L = L + 1 ; kn(1,L) = k2 ; kn(2,L) = k3 ; kn(3,L) = 2     
-         L = L + 1 ; kn(1,L) = k3 ; kn(2,L) = k1 ; kn(3,L) = 2     
+         READ(REC,*,ERR = 999) KK, nn, k1, k2, k3
+         L = L + 1 ; kn(1,L) = k1 ; kn(2,L) = k2 ; kn(3,L) = 2
+         L = L + 1 ; kn(1,L) = k2 ; kn(2,L) = k3 ; kn(3,L) = 2
+         L = L + 1 ; kn(1,L) = k3 ; kn(2,L) = k1 ; kn(3,L) = 2
       ENDDO
 
-      NUML = L  
+      NUML = L
 
       CALL READYY('Converting ADCIRC data...',.4d0)
       CALL SETNODADM(0)
@@ -2392,7 +2399,7 @@ end subroutine mergepoly
 
       MXLAN = 0
       call increaselan(2*(NVEL+NBOU))    ! Store both sides of adcirc levee as two landboundary polylines per levee, for visual inspection.
-      
+
       do k=1, NBOU
          READ(MNET,'(A)',end = 777) REC   ! NVELL(k), IBTYPE(k) param
          READ(REC,*, err = 555) NVELL, IBTYPE
@@ -2431,13 +2438,13 @@ end subroutine mergepoly
                   if (xpl(npl) < -100) then
                      continue
                   end if
-                  
+
 
                   ! NOTE: This assumes that the opposite node is ONLY marked for deletion, NOT YET deleted, such that node numbering won't change yet, and file reading can continue with original numbers!
                   call MERGEUNCONNECTEDNODES(K1,K2,JA)
 
                end if
-               
+
             case (5,25)
                ! NBVV(k,j), IBCONN(k,j), BARINHT(k,j), BARINCFSB(k,j), BARINCFSP(k,j), PIPEHT(k,j), PIPECOEF(k,j), PIPEDIAM(k,j), include this line only if IBTYPE(k) = 5, 25
                continue
@@ -2473,7 +2480,7 @@ end subroutine mergepoly
 
       END SUBROUTINE READADCIRCNET
 
-      
+
 
       SUBROUTINE REANET(MNET,JA,JADOORLADEN)
       use m_netw
@@ -2584,7 +2591,7 @@ end subroutine mergepoly
 
       xkmin = minval(xk(1:numk))
       xkmax = maxval(xk(1:numk))
-      
+
       RETURN
 
   999 CALL QNREADERROR('READING NETNODES, BUT GETTING ', REC, MNET)
@@ -2696,11 +2703,11 @@ end subroutine mergepoly
   END FUNCTION GETRCIR
 
       SUBROUTINE MAKEPANELXY(JPANEL)
-      
+
       use m_netw
       USE M_AFMETING
       use gridoperations
-      
+
       implicit none
       integer :: JPANEL
 
@@ -3042,11 +3049,11 @@ end subroutine mergepoly
   END SUBROUTINE ADDBLOCK
 
   SUBROUTINE POLTOLINES()
-  
+
   use m_netw
   use m_afmeting
   use gridoperations
-  
+
   implicit none
   double precision :: ael
   double precision :: ag
@@ -3088,11 +3095,11 @@ end subroutine mergepoly
 
 
   SUBROUTINE DSETNEWPOINT(XP,YP,K)
-  
+
   use m_netw
   use m_missing
   use gridoperations
-  
+
   implicit none
   DOUBLE PRECISION :: XP, YP
   INTEGER          :: K
@@ -3102,10 +3109,10 @@ end subroutine mergepoly
   END SUBROUTINE DSETNEWPOINT
 
   SUBROUTINE SETPOINT(XP,YP,ZP,K1)
-  
+
   use m_netw
   use gridoperations
-  
+
   implicit none
   double precision :: XP, YP, ZP
   integer :: K1
@@ -3160,14 +3167,14 @@ end subroutine mergepoly
 
 
   SUBROUTINE ISNODE(KP, XP, YP, ZP)
-  
+
   use m_netw
   use m_wearelt
   use m_missing
   use gridoperations
-  
+
   implicit none
-  
+
   integer :: KP
   double precision :: XP, YP, ZP
 
@@ -3230,14 +3237,14 @@ end subroutine mergepoly
   !! as a diagonal and another diagonal with length searchradius rcir.
   !! The returned zp value is the z-coordinate of the link's center.
   SUBROUTINE ISLINK(LL, XP, YP, ZP)
-  
+
   use m_netw
   use m_wearelt
   use m_missing, only: jins, dmiss, dxymis
   use geometry_module, only: pinpok, normalout
   use m_sferic, only: jsferic, jasfer3D
   use gridoperations
-  
+
   implicit none
   integer, intent(out)          :: LL     !< Number of first netlink found, 0 if none.
   double precision, intent(in)  :: XP, YP !< Coordinates of input point.
@@ -3337,7 +3344,7 @@ SUBROUTINE ISflowlink(XP, YP, LL) ! IS THIS A flow NODE OR A flow LINK ?
 
 
  SUBROUTINE MERGENODESINPOLYGON()
-  
+
   use m_netw
   use kdtree2Factory
   use unstruc_messages
@@ -3346,7 +3353,7 @@ SUBROUTINE ISflowlink(XP, YP, LL) ! IS THIS A flow NODE OR A flow LINK ?
   use m_polygon, only: NPL, xpl, ypl, zpl
   use geometry_module, only: dbpinpol, dbdistance
   use gridoperations
-  
+
   implicit none
 
   INTEGER           :: K, KK, KM, K1, K2, KK1, KK2, KA, KB, kn3, L, LL, JA, JACROS
@@ -3362,18 +3369,18 @@ SUBROUTINE ISflowlink(XP, YP, LL) ! IS THIS A flow NODE OR A flow LINK ?
   integer, parameter                          :: NUMKDTREEMIN = 100   ! minimum number of nodes required for kdtree
   integer, parameter                          :: jakdtree = 1         ! use kdtree (1) or not (0)
 
-  integer                                     :: i, kkother, kother, nummerged, jadone, ierror, nrl1d
+  integer                                     :: itp, i, kkother, kother, nummerged, jadone, ierror, nrl1d
 
   double precision, dimension(:), allocatable :: xx, yy  ! coordinates of nodes in polygon
 
   integer,          dimension(:), allocatable :: iperm   ! permutation array
 
   double precision                            :: xboundmin, xboundmax, d
-  
+
   double precision                            :: dtol
-  
+
   logical                                     :: Lmerge
-  
+
   if ( janeedfix.eq.1 ) then
      dtol=1d-4
   else
@@ -3385,10 +3392,30 @@ SUBROUTINE ISflowlink(XP, YP, LL) ! IS THIS A flow NODE OR A flow LINK ?
   call setnodadm(0)
   KC = 0
   in = -1
-  DO K = 1,NUMK
+  node:DO K = 1,NUMK
      CALL DBPINPOL( XK(K), YK(K), in, dmiss, JINS, NPL, xpl, ypl, zpl)
-     if ( in.gt.0 ) kc(k) = 1
-  ENDDO
+     if ( in.gt.0 ) then
+        kc(k) = 0  ! Initialize for link loop below
+        DO kk=1,nmk(K)
+           LL = abs(nod(k)%lin(kk))
+
+           ! KC(1D NODES) = 1 , KC(2D NODES) = 2
+
+           if (kn(3,LL) == 1 .or. kn(3,LL) == 6) then
+              itp = 1 ! "1D" netnode type
+           else if (kn(3,LL) == 3 .or. kn(3,LL) == 4 .or. kn(3,LL) == 5 .or. kn(3,LL) == 7) then
+              itp = kn(3,LL) ! 1d2d connections
+           else if (kn(3,LL) == 2) then
+              itp = 2 ! "2D" netnode type
+           else
+              itp = 0
+           end if
+
+           kc(k) = max(kc(k), itp)
+
+        end do
+     end if
+  ENDDO node
 
   if ( jsferic.eq.1 ) then
      call get_meshbounds(xboundmin, xboundmax)
@@ -3414,14 +3441,14 @@ SUBROUTINE ISflowlink(XP, YP, LL) ! IS THIS A flow NODE OR A flow LINK ?
         yy = 0d0
         allocate(iperm(numk))
         iperm = 0
-        
+
         nummerged = 0
 
         numk_inpoly = 0
         do k=1,numk
-           if ( kc(k).eq.1 .and. xk(k).ne.DMISS .and. yk(k).ne.DMISS ) then
+           if ( kc(k) >= 1 .and. xk(k).ne.DMISS .and. yk(k).ne.DMISS ) then
               numk_inpoly=numk_inpoly+1
-              
+
               if ( janeedfix.eq.1 ) then
 !                kdtree may run into problems (infinite recursion) with duplicate input data: perturb data
                  call random_number(d)
@@ -3452,7 +3479,7 @@ SUBROUTINE ISflowlink(XP, YP, LL) ! IS THIS A flow NODE OR A flow LINK ?
 
         if ( ierror.eq.0 ) then
            jadone = 1
-        
+
 !          find and merge nodes on top of each other
            do kk=1,numk_inpoly
               k = iperm(kk)
@@ -3482,12 +3509,22 @@ SUBROUTINE ISflowlink(XP, YP, LL) ! IS THIS A flow NODE OR A flow LINK ?
                      kother  = iperm(kkother)
 !                    exclude own node and nodes already merged
                      if ( kother.ne.k .and. kother.gt.0 ) then
-                        Lmerge = .true.
-                        if ( janeedfix.eq.1 ) then
+
+                        Lmerge = .false.
+                        if (kc(k) == 1 .and. (kc(kother) == 1 .or. kc(kother) >= 3)) then
+                           Lmerge = .true.
+                        else if (kc(k) == 2 .and. kc(kother) == 2) then
+                           Lmerge = .true.
+                        else if (kc(k) >= 3 .and. nmk(k) > 1) then ! Only 1d2d links if they are not endpoints that should connect inside a 2D cell.
+                           Lmerge = .true.
+                        end if
+
+                        if ( Lmerge .and. janeedfix.eq.1 ) then
 !                          because of random perturbations<=tolerance added to kdtree: check real distance
                            Lmerge = ( dbdistance(xk(k),yk(k),xk(kother),yk(kother), jsferic, jasfer3D, dmiss).lt.tooclose )
                         end if
                         if ( Lmerge ) then
+                           kc(k) = max(kc(k), kc(kother)) ! merged node gets maximum of the two node types
                            call mergenodes(kother,k,ja)
                            if ( ja.eq.1 ) then
                               iperm(kkother) = 0
@@ -3525,7 +3562,7 @@ SUBROUTINE ISflowlink(XP, YP, LL) ! IS THIS A flow NODE OR A flow LINK ?
                     IF (dbdistance( XK(K), yk(k), XK(KK), yk(kk), jsferic, jasfer3D, dmiss ) < TOOCLOSE ) THEN
                        CALL MERGENODES(K,KK,JA)
                        IF (JA .EQ. 1) THEN
-                          KC(K)  = -1
+                          KC(K)  = -ABS(KC(K))
                        ENDIF
                     ENDIF
                  ENDIF
@@ -3570,7 +3607,7 @@ SUBROUTINE ISflowlink(XP, YP, LL) ! IS THIS A flow NODE OR A flow LINK ?
          CALL READYY(' ',-1d0) ; netstat = NETSTAT_OK
          return
      endif
-         
+
      KC    = 1
      DO L  = 1,NUML
        IF (KN(3,L) == 2) THEN               ! KC(1D NODES) = 1 , KC(2D NODES) = 2
@@ -3600,6 +3637,7 @@ SUBROUTINE ISflowlink(XP, YP, LL) ! IS THIS A flow NODE OR A flow LINK ?
                     IF (KA .NE. K .AND. KC(K) == 1) THEN
                        JADUM = 1
                        IF (LC(L) == LC(NOD(K)%LIN(1)) ) THEN
+                          ! Known bug: do not only check %lin(1), but all links.
                           JADUM = 0
                           CYCLE  !  SKIP OWN BRANCH
                        ENDIF
@@ -3640,9 +3678,9 @@ SUBROUTINE ISflowlink(XP, YP, LL) ! IS THIS A flow NODE OR A flow LINK ?
   ENDIF
 
   END SUBROUTINE MERGENODESINPOLYGON
-   
+
   RECURSIVE SUBROUTINE WALK1D(K1,IBR,NRL,JASTOP,KN316)
-  
+
   use m_netw
   use gridoperations
 
@@ -3658,74 +3696,74 @@ SUBROUTINE ISflowlink(XP, YP, LL) ! IS THIS A flow NODE OR A flow LINK ?
 
         CALL OTHERNODE (K1,L,K2)
         CALL GAANWESTOPPEN(K2,KN316,JASTOP,L)
-        
+
         LC(L) = IBR ; NRL = NRL + 1
         LIB(NRL) = L ; K1BR(NRL) = K1 ; IBN(NRL) = IBR; NRLB(L) = NRL
-        
-        IF (JASTOP == 1) THEN 
-           RETURN   
-        ENDIF   
 
-        KA = K2     
+        IF (JASTOP == 1) THEN
+           RETURN
+        ENDIF
+
+        KA = K2
         CALL WALK1D(KA,IBR,NRL,JASTOP,KN316)
-        
+
         IF (JASTOP == 1) THEN
            RETURN
         ENDIF
      ENDIF
   ENDDO
   END SUBROUTINE WALK1D
-   
+
   SUBROUTINE GAANWESTARTEN(L,K1,KN316,JASTART)
   USE M_NETW
   IMPLICIT NONE
   INTEGER :: L,K1,K2,KN316,JASTART,J, JASTOP, J1, J2
 
   JASTART = 0
-  IF (KN(3,L) /= KN316) RETURN 
-  
+  IF (KN(3,L) /= KN316) RETURN
+
   DO J = 1,2
-     K1 = KN(J,L) 
+     K1 = KN(J,L)
      CALL GAANWESTOPPEN(K1,KN316,JASTART,L)
-     IF (JASTART == 1 ) THEN  
+     IF (JASTART == 1 ) THEN
         RETURN
      ENDIF
-  ENDDO   
-  
+  ENDDO
+
   END SUBROUTINE GAANWESTARTEN
-   
-   
-  SUBROUTINE GAANWESTOPPEN(K,KN316,JASTOP,LO)  !SET JASTOP = 1 ALS WE GAAN STOPPEN 
+
+
+  SUBROUTINE GAANWESTOPPEN(K,KN316,JASTOP,LO)  !SET JASTOP = 1 ALS WE GAAN STOPPEN
   USE M_NETW
   IMPLICIT NONE
   INTEGER :: K2,KN316,JASTOP,N1,N6,KK,L,K1,K,LO
 
   JASTOP = 0 ; N1 = 0 ; N6 = 0
-  
-  IF (NMK0(K) == 1) THEN   
+
+  IF (NMK0(K) == 1) THEN
       JASTOP = 1 ; RETURN
-  ENDIF 
-  
+  ENDIF
+
   DO KK = 1,NMK(K)
      L  = NOD(K)%LIN(KK)
-     IF (KN(3,L) == 1) THEN 
-        N1 = N1 + 1 
-     ELSE IF (KN(3,L) == 6) THEN   
+     IF (KN(3,L) == 1) THEN
+        N1 = N1 + 1
+     ELSE IF (KN(3,L) == 6) THEN
         N6 = N6 + 1
      ENDIF
   ENDDO
-  IF (KN316 == 1) THEN 
-     IF (N1 + N6 .NE. 2) THEN  ! altijd stoppen bij niet doorgaande node 
-        JASTOP = 1 
-     ENDIF  
-  ELSE IF (KN316 == 6) THEN    ! alleen stoppen bij aantal 6 jes ongelijk 2 
-     IF (N6 .NE. 2) THEN 
-        JASTOP = 1   
+  IF (KN316 == 1) THEN
+     IF (N1 + N6 .NE. 2) THEN  ! altijd stoppen bij niet doorgaande node
+        JASTOP = 1
      ENDIF
-  ENDIF   
- 
-  END SUBROUTINE GAANWESTOPPEN 
-      
+  ELSE IF (KN316 == 6) THEN    ! alleen stoppen bij aantal 6 jes ongelijk 2
+     IF (N6 .NE. 2) THEN
+        JASTOP = 1
+     ENDIF
+  ENDIF
+
+  END SUBROUTINE GAANWESTOPPEN
+
   SUBROUTINE SETBRANCH_LC(nrl1d)
   USE M_NETW
   use gridoperations
@@ -3738,68 +3776,68 @@ SUBROUTINE ISflowlink(XP, YP, LL) ! IS THIS A flow NODE OR A flow LINK ?
   call setnodadm(0)
 
   IF (ALLOCATED(NMK0) ) DEALLOCATE(NMK0) ; ALLOCATE(NMK0(NUMK)) ; NMK0  = 0
-  
+
   LC    = 0 ; NRL1D = 0 ; NRL1D6 = 0
   DO L  = 1,NUML
      IF (KN(3,L) == 1 .or. KN(3,L) == 6) THEN
         K1 = KN(1,L) ; K2 = KN(2,L) ; K3 = KN(3,L)
         NMK0(K1) = NMK0(K1) +  1
         NMK0(K2) = NMK0(K2) +  1
-        IF (KN(3,L) == 1) THEN  
+        IF (KN(3,L) == 1) THEN
            NRL1D  = NRL1D + 1                 ! count 1D links
         ELSE IF (KN(3,L) == 6) THEN
            NRL1D6 = NRL1D6 + 1
-        ENDIF   
-     ELSE 
+        ENDIF
+     ELSE
         LC(L) = -1
      ENDIF
   ENDDO
-  
+
   if (NRL1D + NRL1D6 == 0) then
       netstat = NETSTAT_OK ; return
   endif
-  
+
   IF (ALLOCATED(IBN)) DEALLOCATE(IBN,LIB,K1BR,NRLB)
   ALLOCATE (IBN(NUML), LIB(NUML), K1BR(NUML), NRLB(NUML) ) ; IBN = 0; LIB = 0; K1BR = 0; NRLB = 0
 
-  IBR  = 0; NRL = 0 
-  
+  IBR  = 0; NRL = 0
+
   DO J = 1,2
-  
-     IF (J == 1) THEN 
+
+     IF (J == 1) THEN
         KN316 = 6 ; NRL1D16 = NRL1D6
      ELSE
-        KN316 = 1 ; NRL1D16 = NRL1D6 + NRL1D 
-     ENDIF   
-  
-     DO WHILE (NRL < NRL1D16)  
-        
+        KN316 = 1 ; NRL1D16 = NRL1D6 + NRL1D
+     ENDIF
+
+     DO WHILE (NRL < NRL1D16)
+
         NRLO = NRL
         DO L = 1,NUML
-           IF (LC(L) == 0) THEN  
+           IF (LC(L) == 0) THEN
               JASTART = 0
               CALL GAANWESTARTEN(L,K1,KN316,JASTART)
-              IF (JASTART == 1) THEN 
+              IF (JASTART == 1) THEN
                  IBR = IBR + 1
                  CALL WALK1D(K1,IBR,NRL,JASTOP,KN316)
-                 ENDIF   
-              ENDIF   
+                 ENDIF
+              ENDIF
         ENDDO
-        
+
         IF (NRL == NRLO) THEN ! REPAIR CODE, FILL IN ISOLATED BRANCHES
            DO L = 1,NUML
-              IF ( LC(L) == 0 .AND. KN316 == KN(3,L) ) THEN  
+              IF ( LC(L) == 0 .AND. KN316 == KN(3,L) ) THEN
                  IBR = IBR + 1
                  LC(L) = IBR ; NRL = NRL + 1
                  LIB(NRL) = L ; K1BR(NRL) = KN(1,L) ; IBN(NRL) = IBR; NRLB(L) = NRL
-              ENDIF   
-           ENDDO   
-        ENDIF   
-         
-     ENDDO   
+              ENDIF
+           ENDDO
+        ENDIF
 
-     
-  ENDDO   
+     ENDDO
+
+
+  ENDDO
 
   IBX = IBR ; MXNETBR = IBR
 
@@ -3807,22 +3845,22 @@ SUBROUTINE ISflowlink(XP, YP, LL) ! IS THIS A flow NODE OR A flow LINK ?
   ALLOCATE ( NETBR(IBX) ,STAT=IERR)
   CALL AERR('NETBR(IBX)',IERR,NUML)
 
-  IBR   = 1 
+  IBR   = 1
   KS    = 1
-  NRL1D = NRL1D16 
-  
+  NRL1D = NRL1D16
+
   DO K  = 1,NRL1D
-     
-     ja = 0 
+
+     ja = 0
      if ( k < NRL1D ) then
-        if ( IBR .NE. IBN(K+1) ) then 
-           ja = 1 
+        if ( IBR .NE. IBN(K+1) ) then
+           ja = 1
         endif
-     else 
+     else
         ja = 1
-     endif   
+     endif
      IF ( ja == 1 ) THEN
-        KE = K 
+        KE = K
         N  = KE - KS + 1
         ALLOCATE ( NETBR(IBR)%LN(N) ,STAT=IERR )
         CALL AERR('NETBR(IBR)%LN(N)',IERR,  IBR)
@@ -3839,12 +3877,12 @@ SUBROUTINE ISflowlink(XP, YP, LL) ! IS THIS A flow NODE OR A flow LINK ?
            ENDIF
 
         ENDDO
-        
+
         if ( k < NRL1D ) then
            IBR = IBN(K+1)
            KS  = K + 1
         ENDIF
-           
+
      ENDIF
 
   ENDDO
@@ -3869,38 +3907,38 @@ SUBROUTINE CUTCELWU(n12, jamasks, ipoly)
   integer, intent(in) :: N12     ! 3: only mask nodes, 4: preparation for cut cells (set kfs), 5: actual cut cells (change wu, nd), 6: dry cells
   integer, intent(in) :: jamasks ! do not use masks (0), store masks (1), use stored masks (2)
   integer, intent(in) :: ipoly   ! polygon number for masks
-  
+
   integer :: ja, KMOD
   integer :: K, KM, K1, K2, K3, K4, L, LL, LNU,N,N1,N2,NN, LF, IC, LLU, IN, KL
   INTEGER , ALLOCATABLE :: KNP(:)
   INTEGER :: KK(4)
 
   DOUBLE PRECISION           :: XM, YM, XXC(8), YYC(8), DAREA, DLENGTH, DLENMX
-  
+
   double precision, dimension(:), allocatable :: xmL, ymL   ! intersection coordinates
   integer,          dimension(:), allocatable :: Lmask      ! link mask
-                             
+
  double precision                             :: cx, cy, R2search, Area, cof0
  integer                                      :: i, ip1, num, k_start, k_end, numsam, ierror
  integer                                      :: jadelete
  integer                                      :: jakdtree
  integer                                      :: jasplitpol, numpolies, ip
- 
+
  type(tpoly),       dimension(:), allocatable :: pli_loc
- 
+
   double precision, parameter :: dtol = 1d-8
-  
+
   jakdtree = 1
- 
+
   CALL READYY('CUTCELWU',0d0)
 
   IN  = -1
-  
+
 !  write(6,"('cutcelwu:', I4)") 1
-  
+
   if ( jamasks.eq.0 .or. jamasks.eq.1 ) then
 !    generate mask "kc"
-  
+
      jasplitpol = 0
      numpolies = 1
      if ( NPL.gt.100 ) then
@@ -3910,18 +3948,18 @@ SUBROUTINE CUTCELWU(n12, jamasks, ipoly)
         jasplitpol = 1
         call pol_to_tpoly(numpolies, pli_loc, keepExisting=.false.)
      end if
-     
+
      if ( n12.ge.4 ) then  ! n12=3: mask nodes
         KC = 0
      end if
-     
+
      do ip=1,numpolies
         if ( jasplitpol.eq.1 ) then
            NPL = 0
            call tpoly_to_pol(pli_loc,iselect=ip)
            in = -1
         end if
-    
+
         if( jakdtree == 1 ) then
            !
            ! gravity point of polygon
@@ -3932,7 +3970,7 @@ SUBROUTINE CUTCELWU(n12, jamasks, ipoly)
            num  = 0
            do i = 1,NPL
               ip1 = i+1; if ( ip1.gt.NPL ) ip1 = ip1-NPL
-           
+
               if( xpl(ip1) == DMISS ) cycle
               cof0 = xpl(i) * ypl(ip1) - xpl(ip1) * ypl(i)
               Area = Area + cof0
@@ -3941,9 +3979,9 @@ SUBROUTINE CUTCELWU(n12, jamasks, ipoly)
               num = num + 1
            enddo
            area = area * 0.5d0
-           
+
            if ( area.eq.0d0 ) cycle
-           
+
            cx = cx / area / 6.0d0
            cy = cy / area / 6.0d0
            !
@@ -3953,14 +3991,14 @@ SUBROUTINE CUTCELWU(n12, jamasks, ipoly)
            do i = 1,npl-1
               R2search = max( R2search, dbdistance(xpl(i),ypl(i),cx,cy, jsferic, jasfer3D, dmiss)**2 )
            enddo
-        
+
 !           write(6,"('cutcelwu:', I4)") 2
-        
+
            call make_queryvector_kdtree( treeglob,cx, cy, jsferic)
            numsam = kdtree2_r_count( treeglob%tree, treeglob%qv, R2search )
-        
+
 !           write(6,"('cutcelwu:', I4)") 3
-        
+
            k_start = 1
            k_end   = numsam
            if ( numsam.gt.0 ) then
@@ -3969,9 +4007,9 @@ SUBROUTINE CUTCELWU(n12, jamasks, ipoly)
               call tekpolygon()
 !              call qnerror(' ', ' ', ' ')
            end if
-        
+
 !           write(6,"('cutcelwu:', I4)") 4
-        
+
            do k = k_start,k_end                                          ! LOKAAL BINNEN BUITEN POLYGON, IN REKENGEBIED = 0
               k1 = treeglob%results(k)%idx
               if ( kc(k1).ne.1 ) then
@@ -3979,24 +4017,24 @@ SUBROUTINE CUTCELWU(n12, jamasks, ipoly)
                  KC(K1) = IN
               end if
            enddo
-        
+
 !           write(6,"('cutcelwu:', I4)") 5
-           
-        !!!    
+
+        !!!
         else
            DO K = 1,NUMK                                          ! LOKAAL BINNEN BUITEN POLYGON, IN REKENGEBIED = 0
               CALL DBPINPOL( XK(K), YK(K), IN, dmiss, jins, NPL, xpl, ypl, zpl)
               KC(K) = IN
            ENDDO
         endif
-     
+
      end do
-     
+
      if ( jasplitpol.eq.1 ) then
         call restorepol()
         call dealloc_tpoly(pli_loc)
      end if
-        
+
   else
 !    use stored masks
      kc = 0
@@ -4004,7 +4042,7 @@ SUBROUTINE CUTCELWU(n12, jamasks, ipoly)
         kc(jk(i)) = 1
      end do
   end if
-  
+
   if ( n12.ge.4 ) then  ! 4, 5, or 6
      ALLOCATE (KNP (NUMP)); KNP  = 0
 
@@ -4021,24 +4059,24 @@ SUBROUTINE CUTCELWU(n12, jamasks, ipoly)
      ENDDO
 
      KMOD = MAX(1,NUMP/100)
-  
+
    !  write(6,"('cutcelwu:', I4)") 6
-  
+
    !  if ( jakdtree_cross.eq.1 ) then
    !     call find_intersecting_polysections()
    !  end if
-  
+
    !  write(6,"('cutcelwu:', I4)") 7
-  
+
      num = 0   !< number of netlink-polygon intersections
-  
+
      if ( jamasks.eq.1 ) then
         allocate(Lmask(numL))
         Lmask = 0
         allocate(xmL(numL))
         allocate(ymL(numL))
      end if
-  
+
      DO N = 1,NUMP
 
         if (mod(n,KMOD) == 0) CALL READYY('CUTCELWU', dble(n)/dble(nump))
@@ -4051,14 +4089,14 @@ SUBROUTINE CUTCELWU(n12, jamasks, ipoly)
            DO LL  = 1,NN
 
               L   = netcell(N)%LIN(LL)
-           
-           
+
+
               !IF (LNN (L) <= 1) THEN
               !   CYCLE
               !ELSE
               !   IF (N12 == 5) LF  = LNE2LN(L)
               !ENDIF
-           
+
               if ( n12.ne.6 ) then  ! 6: netgeom only
    !             SPvdP: cell next to net boundary may be cut, and not necessarily at the boundary. So need to include boundary link too
                  Lf = lne2ln(L)
@@ -4076,12 +4114,12 @@ SUBROUTINE CUTCELWU(n12, jamasks, ipoly)
                  else
                     ja = 0
                  end if
-              
+
     !             if ( kc(kn(1,L)).ne.kc(kn(2,L)) .and. ja.eq.0 ) then
     !                call qnerror('cutcelwu: error', ' ', ' ')
     !             end if
               else
-   !             use stored intersections           
+   !             use stored intersections
                  ja = 0
                  do i=idxL(L),idxL(L+1)-1
                     if ( pdxL(i).eq.ipoly ) then
@@ -4094,21 +4132,21 @@ SUBROUTINE CUTCELWU(n12, jamasks, ipoly)
               end if
 
               IF ( JA == 1 ) THEN
-           
+
                  if ( jamasks.eq.1 ) then
    !                store intersections with polygon
                     Lmask(L) = 1
                     xmL(L) = xm
                     ymL(L) = ym
                  end if
-           
+
 
                  IF (N12 == 5) THEN ! OP DEZE MANIER UITSTEL AANPASSING TOT NA DE WEGINGEN VAN LINK CENTER/CORNER WEIGHTS
 
                     IF (KC(K1) == 1 .and. kc(k2).ne.1 ) THEN       ! 1 OUTSIDE
                        IC = IC + 1 ; XXC(IC) = XM     ; YYC(IC) = YM
                        IC = IC + 1 ; XXC(IC) = XK(K2) ; YYC(IC) = YK(K2)
-                       if ( Lf.gt.0) then  
+                       if ( Lf.gt.0) then
                           if (wu(LF) .ne. 0d0) WU( LF ) = DBDISTANCE(XM,YM,XK(K2),YK(K2), jsferic, jasfer3D, dmiss)
                        endif
                     ELSE if ( kc(k1).ne.1 .and. kc(k2).eq.1 ) then
@@ -4116,7 +4154,7 @@ SUBROUTINE CUTCELWU(n12, jamasks, ipoly)
                           IC = IC + 1 ; XXC(IC) = XK(K1) ; YYC(IC) = YK(K1)
                        ENDIF
                        IC = IC + 1 ; XXC(IC) = XM     ; YYC(IC) = YM
-                       if ( Lf.gt.0 ) then 
+                       if ( Lf.gt.0 ) then
                           if (wu(LF) .ne. 0d0) WU( LF ) = DBDISTANCE(XM,YM,XK(K1),YK(K1), jsferic, jasfer3D, dmiss)
                        endif
                     else if ( kc(k1).eq.1 .and. kc(k2).eq.1  .and. Lf.gt.0 ) then
@@ -4163,8 +4201,8 @@ SUBROUTINE CUTCELWU(n12, jamasks, ipoly)
            IF (N12 == 5 .AND. IC > 0) THEN
 
                CALL dAREAN( XXC, YYC, IC, DAREA, DLENGTH, DLENMX ) ! AREA AND LENGTH OF POLYGON
-               if (numlimdt(n) <= numlimdt_baorg) then  
-                  BA(N) = max( DAREA, Baorgfracmin*ba(n) )         
+               if (numlimdt(n) <= numlimdt_baorg) then
+                  BA(N) = max( DAREA, Baorgfracmin*ba(n) )
                endif
                BA(N) = MAX(BA(N), BAMIN)  ! ; BAI(N) = 1D0/BA(N)    ! BAI ZIT IN ADVECTIEWEGING
                if (ic > 2) then
@@ -4180,28 +4218,28 @@ SUBROUTINE CUTCELWU(n12, jamasks, ipoly)
 
                IF (IC < 3) THEN
 
-                  do KL = 1,nd(n)%lnx 
+                  do KL = 1,nd(n)%lnx
                      L  = iabs( nd(n)%ln(KL) ) ; wu(L) = 0d0
-                  enddo  
-                  ba(n) = 0d0           
+                  enddo
+                  ba(n) = 0d0
 
                ELSE
 
                   CALL dAREAN( XXC, YYC, IC, DAREA, DLENGTH, DLENMX ) ! AREA AND LENGTH OF POLYGON
 
-                  IF (DAREA/BA(n) < 0.05d0) then 
-                     do KL = 1,nd(n)%lnx 
+                  IF (DAREA/BA(n) < 0.05d0) then
+                     do KL = 1,nd(n)%lnx
                         L  = iabs( nd(n)%ln(KL) ) ; wu(L) = 0d0
-                     enddo  
+                     enddo
                      ba(n) = 0d0
-                  ELSE 
+                  ELSE
                      BA(N) = MAX(DAREA,BAMIN)  ! ; BAI(N) = 1D0/BA(N)    ! BAI ZIT IN ADVECTIEWEGING
                      DEALLOCATE( ND(N)%X    , ND(N)%Y    )
                      ALLOCATE  ( ND(N)%X(IC), ND(N)%Y(IC))
                      ND(N)%X(1:IC) = XXC(1:IC)
                      ND(N)%Y(1:IC) = YYC(1:IC)
                   ENDIF
-           
+
                ENDIF
 
            ENDIF
@@ -4209,9 +4247,9 @@ SUBROUTINE CUTCELWU(n12, jamasks, ipoly)
 
      ENDDO
   end if
-  
+
 !  write(6,"('cutcelwu:', I4)") 8
-  
+
 !  if ( n12.eq.5 ) then
 !!    SPvdP: disable flow-links that are associated to disabled net-links
 !     do Lf=1,Lnx
@@ -4223,16 +4261,16 @@ SUBROUTINE CUTCELWU(n12, jamasks, ipoly)
 !        end if
 !     end do
 !  end if
-  
+
   if ( jamasks.eq.1 ) then
 !    store mask
      call store_cutcellmasks(numk, kc, numL, Lmask, xmL, ymL)
   end if
-  
+
 !  write(6,"('cutcelwu:', I4)") 9
 
   if ( allocated(knp) )DEALLOCATE(KNP)
-  
+
   if ( jamasks.eq.1 ) then
      if ( allocated(Lmask) ) deallocate(Lmask)
      if ( allocated(xmL) ) deallocate(xmL)
@@ -4243,42 +4281,42 @@ SUBROUTINE CUTCELWU(n12, jamasks, ipoly)
 
   END SUBROUTINE CUTCELwu
 
-  
+
   subroutine renumber_cutcellmasks(perm)
      use network_data, only: numL
      use m_cutcells
      implicit none
-     
+
      integer,          dimension(numL), intent(in)  :: perm !< permuation array
-     
+
      integer,          dimension(:),    allocatable :: idxL_bak
      double precision, dimension(:),    allocatable :: xdxL_bak, ydxL_bak
      integer,          dimension(:),    allocatable :: pdxL_bak
-     
+
      integer                                        :: i, ii, L, LL, num
-     
+
      if ( jastored.ne.1 ) then
         return ! nothing to do
      end if
-     
+
 !    allocate
      allocate(idxL_bak(numL+1))
      num = idxL(numL+1)-1
      allocate(xdxL_bak(num))
      allocate(ydxL_bak(num))
      allocate(pdxL_bak(num))
-     
+
 !    copy
      do L=1,numL+1
         idxL_bak(L) = idxL(L)
      end do
-     
+
      do i=1,num
         xdxL_bak(i) = xdxL(i)
         ydxL_bak(i) = ydxL(i)
         pdxL_bak(i) = pdxL(i)
      end do
-     
+
 !    apply permutation
      idxL_bak(1) = 1
      do LL=1,numL
@@ -4293,13 +4331,13 @@ SUBROUTINE CUTCELWU(n12, jamasks, ipoly)
            ii = ii+1
         end do
      end do
-     
+
 !    deallocate
      if ( allocated(idxL_bak) ) deallocate(idxL_bak)
      if ( allocated(xdxL_bak) ) deallocate(xdxL_bak)
      if ( allocated(ydxL_bak) ) deallocate(ydxL_bak)
      if ( allocated(pdxL_bak) ) deallocate(pdxL_bak)
-     
+
      return
   end subroutine renumber_cutcellmasks
 
@@ -4365,7 +4403,7 @@ SUBROUTINE CUTCELWU(n12, jamasks, ipoly)
            ELSE
               IF (N12 == 5) LF  = LNE2LN(L)
            ENDIF
-           
+
            ! SPvdP: cell next to net boundary may be cut, and not necessarily at the boundary. So need to include boundary link too
            ! Lf = lne2ln(L)
 
@@ -4423,7 +4461,7 @@ SUBROUTINE CUTCELWU(n12, jamasks, ipoly)
      ENDIF
 
   ENDDO
-  
+
   if ( n12.eq.51 ) then
 !    SPvdP: disable flow-links that are associated to disabled net-links
      do Lf=1,Lnx
@@ -4573,7 +4611,7 @@ SUBROUTINE CUTCELWU(n12, jamasks, ipoly)
 
 
   SUBROUTINE CUTCELLSORG()
-  
+
   use m_netw
   use m_missing, only: dmiss, JINS
   use m_polygon, only: NPL, xpl, ypl, zpl
@@ -4752,14 +4790,14 @@ SUBROUTINE CUTCELWU(n12, jamasks, ipoly)
   !> Finds the crossing of link L with the current polyline.
   !! returns first crossing, if found, JA=1
   SUBROUTINE CROSSLINKPOLY(L,num,ipoly,jdxL,pdxL,XM,YM,JA)
-  
+
   use m_missing, only: dmiss
   use m_netw
   use kdtree2Factory
   use m_sferic, only: jsferic, jasfer3D
   use unstruc_messages
   use geometry_module, only: dbdistance, crossinbox
-  
+
   implicit none
   integer :: L, JA
   DOUBLE PRECISION :: XM, YM
@@ -4774,9 +4812,9 @@ SUBROUTINE CUTCELWU(n12, jamasks, ipoly)
   integer :: k2
   integer :: ku
   DOUBLE PRECISION :: XP1, YP1, XP2, YP2, SL, SM, XCR, YCR, CRP, dis, xcr1, ycr1
-  
+
   double precision, parameter :: dtol  = 1d-8
-  
+
   integer                               :: i
   integer                               :: janew
   integer                               :: numcrossed
@@ -4784,34 +4822,34 @@ SUBROUTINE CUTCELWU(n12, jamasks, ipoly)
   double precision, dimension(MAXCROSS) :: xcross, ycross
 
   K1 = KN(1,L); K2 = KN(2,L)
-  
-! initialization  
+
+! initialization
   xm = 0d0
   ym = 0d0
 
   JA = 0
   numcrossed = 0
-  
+
   if ( num.eq.0 ) then
      kend = NPL
   else
      kend = num
   end if
-  
+
   DO K_= 1,kend
-  
+
      if ( num.eq.0 ) then
         k = k_
      else
         if ( pdxL(k_).ne.ipoly ) cycle
         k = jdxL(k_)
      end if
-     
+
      KU = K + 1
      IF (K == NPL) KU   = 1
      XP1 = XPL(K ) ; YP1 = YPL(K )
      XP2 = XPL(KU) ; YP2 = YPL(KU)
-     
+
 ! Formerly:
 !     CALL DCROSS (XP1, YP1, XP2, YP2, XK(K1), YK(K1), XK(K2), YK(K2), JACROS, SL, SM, XM, YM, CRP)
 !     IF (JACROS == 1) THEN
@@ -4824,12 +4862,12 @@ SUBROUTINE CUTCELWU(n12, jamasks, ipoly)
         !CALL CROSSinbox (XP1, YP1, XP2, YP2, XK(K1), YK(K1), XK(K2), YK(K2), jacros, SL, SM, XCR, YCR, CRP)
 
      CALL CROSSinbox (XK(K1), YK(K1), XK(K2), YK(K2), XP1, YP1, XP2, YP2, jacros, SL, SM, XCR, YCR, CRP, jsferic, dmiss)
-     
+
 !    fix for spherical coordinates (enforce same reference point for local projections)
      if ( jsferic.eq.1 .and. SM.gt.0.75d0 .and. jacros.eq.1 ) then
         CALL CROSSinbox (XK(K1), YK(K1), XK(K2), YK(K2), XP2, YP2, XP1, YP1, jacros, SL, SM, XCR, YCR, CRP, jsferic, dmiss)
      end if
-    
+
      if (jacros == 1) then
 
         !IF (SL > 0D0 .AND. SL < 1D0 .AND. SM > 0D0 .AND. SM < 1D0) THEN
@@ -4847,9 +4885,9 @@ SUBROUTINE CUTCELWU(n12, jamasks, ipoly)
               janew = 0
               exit
            end if
-           
+
         end do
-        
+
         if ( janew.eq.1 ) then
            numcrossed = numcrossed+1
            if ( numcrossed.gt.MAXCROSS ) then
@@ -4861,7 +4899,7 @@ SUBROUTINE CUTCELWU(n12, jamasks, ipoly)
         end if
      end if
   ENDDO
-  
+
   if ( mod(numcrossed,2).eq.0 ) then
   !  even number of intersections: no intersection
      ja = 0
@@ -4876,45 +4914,54 @@ SUBROUTINE CUTCELWU(n12, jamasks, ipoly)
 
   END SUBROUTINE CROSSLINKPOLY
 
-  
-  SUBROUTINE CROSSPOLY(xa,ya,xb,yb,xpl,ypl,npl,XM,YM,CRPM,JA,isec)
-  
+
+  subroutine crosspoly(xa,ya,xb,yb,xpl,ypl,npl,XM,YM,CRPM,JA,isec, distanceStartPolygon)
+
   use m_missing
-  use m_sferic, only: jsferic
-  use geometry_module, only: crossinbox
-  
+  use m_sferic, only: jsferic, jasfer3D
+  use geometry_module, only: crossinbox, dbdistance
+
   implicit none
-  integer          :: npl, ja
-     integer, intent(out) :: isec   !< crossed polyline section (>0) or not crossed (0)
-  DOUBLE PRECISION :: xa, xb, ya, yb, xm, ym, crpm
-  DOUBLE PRECISION :: xpl(npl), ypl(npl)
+  integer                                   :: npl, ja
+  integer, intent(out)                      :: isec                 !< crossed polyline section (>0) or not crossed (0)
+  !locals
+  double precision                          :: xa, xb, ya, yb, xm, ym, crpm
+  double precision                          :: xpl(npl), ypl(npl)
+  double precision, intent(inout)           :: distanceStartPolygon !< distance from the start point of the polygon
 
   integer :: jacros
   integer :: k
   integer :: k1
   integer :: k2
   integer :: ku
-  DOUBLE PRECISION :: XP1, YP1, XP2, YP2, SL, SM, XCR, YCR, CRP
+  double precision :: XP1, YP1, XP2, YP2, sl, sm, XCR, YCR, CRP, currentSegmentLength
 
   isec = 0
   JA = 0
+  distanceStartPolygon = 0.0d0
   DO K = 1,NPL - 1
      KU  = K + 1
      XP1 = XPL(K ) ; YP1 = YPL(K )
      XP2 = XPL(KU) ; YP2 = YPL(KU)
-        if ( xp1.eq.DMISS .or. yp1.eq.DMISS .or. xp2.eq.DMISS .or. yp2.eq.DMISS ) cycle   ! SPvdP: added
-     CALL CROSSinbox (XP1, YP1, XP2, YP2, Xa, Ya, Xb, Yb, jacros, SL, SM, XCR, YCR, CRP, jsferic, dmiss)
+     currentSegmentLength = dbdistance(xp1,yp1,xp2,yp2, jsferic, jasfer3D, dmiss)
+
+     if ( xp1.eq.DMISS .or. yp1.eq.DMISS .or. xp2.eq.DMISS .or. yp2.eq.DMISS ) cycle   ! SPvdP: added
+
+     CALL CROSSinbox (XP1, YP1, XP2, YP2, Xa, Ya, Xb, Yb, jacros, sl, sm, XCR, YCR, CRP, jsferic, dmiss)
+
      if (jacros == 1) then
         JA = JA+1
         XM = XCR
         YM = YCR
         crpm = crp
         isec = k
+        distanceStartPolygon = distanceStartPolygon + currentSegmentLength * sl
         return ! SPvdP: added
      end if
-  ENDDO
+     distanceStartPolygon = distanceStartPolygon + currentSegmentLength
+  end do
 
-  END SUBROUTINE CROSSPOLY
+  end subroutine crosspoly
 
 
   SUBROUTINE REFINELINES()
@@ -5033,34 +5080,36 @@ SUBROUTINE CUTCELWU(n12, jamasks, ipoly)
   CALL AERR('XC(NUMP)', IERR, NUMP )
   ALLOCATE ( YC(NUMP) , STAT = IERR)
   CALL AERR('YC(NUMP)', IERR, NUMP )
-  ALLOCATE ( AR(NUMP) , STAT = IERR); AR = DMISS
+  ALLOCATE ( AR(NUMP) , STAT = IERR)
   CALL AERR('AR(NUMP)', IERR, NUMP )
+  AR = DMISS
 
   DO N  = 1,NUMP
      CALL getcellsurface ( N, AR(N), XC(N), YC(N) )
   ENDDO
 
-  ALLOCATE( ZC(NUMP) , STAT = IERR); ZC = DMISS
+  ALLOCATE( ZC(NUMP) , STAT = IERR)
   CALL AERR('ZC(NUMP)', IERR, NUMP )
+  ZC = DMISS
 
 ! First interpolate bottom level in netcell-based zc, then use zc as cellmask
   IF (JACOURANTNETWORK == 1) THEN
-     ALLOCATE ( NA(NUMP) , STAT = IERR); NA = 0
+     ALLOCATE ( NA(NUMP) , STAT = IERR)
      CALL AERR('NA(NUMP)', IERR, NUMP )
-
+     NA = 0
 
      if (interpolationtype == INTP_INTP) then
         if ( MXSAM.gt.0 .and. MYSAM.gt.0 ) then
 !          bilinear interpolation of structured sample data
-           call bilin_interp(Numk, xc, yc, zc, &
-                             dmiss, XS, YS, ZS, MXSAM, MYSAM, XPL, YPL, ZPL, NPL, jsferic)
+           call bilin_interp(Numk, xc, yc, zc, dmiss, XS, YS, ZS, MXSAM, MYSAM, jsferic)
         else
-           CALL triinterp2(XC,YC,ZC,NUMP,JDLA, & 
+           CALL triinterp2(XC,YC,ZC,NUMP,JDLA, &
                            XS, YS, ZS, NS, dmiss, jsferic, jins, jasfer3D, NPL, MXSAM, MYSAM, XPL, YPL, ZPL, transformcoef)
         end if
      else if (interpolationtype == INTP_AVG) then
         n6 = 6
-        ALLOCATE( XX(N6,NUMP), YY(N6,NUMP), NNN(NUMP) )
+        ALLOCATE( XX(N6,NUMP), YY(N6,NUMP), NNN(NUMP), STAT = IERR )
+        CALL AERR('XX(N6,NUMP), YY(N6,NUMP), NNN(NUMP)', IERR, (1+2*N6)*NUMP)
         DO N = 1,NUMP
            NNN(N) = NETCELL(N)%N
            DO NN = 1, NNN(N)
@@ -5357,7 +5406,7 @@ SUBROUTINE CUTCELWU(n12, jamasks, ipoly)
   use m_missing, only : dxymis
   use geometry_module, only: dcosphi
   use gridoperations
-  
+
   implicit none
   INTEGER          :: N3(6), N4(4)
   DOUBLE PRECISION :: ARN, XCN, YCN
@@ -5726,7 +5775,7 @@ SUBROUTINE CUTCELWU(n12, jamasks, ipoly)
   use m_missing, only: dmiss
   use m_sferic,  only: jsferic, jasfer3D
   use gridoperations
-  
+
   implicit none
   integer :: ins
   integer :: ip
@@ -5782,7 +5831,7 @@ SUBROUTINE CUTCELWU(n12, jamasks, ipoly)
 
   integer, allocatable :: nnp(:), nnl(:), nrl(:), nnl2(:,:), k1L(:), k2L(:)
 
-  
+
   double precision                            :: sL, sm, xcr, ycr, crp
   integer                                     :: i, jacross, k1dum
   double precision, dimension(:), allocatable :: dist
@@ -5910,7 +5959,7 @@ SUBROUTINE CUTCELWU(n12, jamasks, ipoly)
 
 !          get opposing netlink and nodes
            call  tegenovernodesandlink(np,L1,k1a,k2a,La)
-           
+
 !          if lines kins(1)-k1a and kins(ins)-k2a cross: invert
            call cross(xk(k1), yk(k1), xk(k1a), yk(k1a), xk(k2), yk(k2), xk(k2a), yk(k2a), jacross, sL, sm, xcr, ycr, crp, jsferic, dmiss)
            if ( jacross.eq.1 ) then
@@ -5918,7 +5967,7 @@ SUBROUTINE CUTCELWU(n12, jamasks, ipoly)
               k1a   = k2a
               k2a   = k1dum
            end if
-           
+
            if (ins == 1) then                  ! 1-on-2 coupling:
               call newlink(kins(1), k1a, lnu)  ! two diagonals from inside point to opp. corners
               call newlink(kins(1), k2a, lnu)
@@ -5985,7 +6034,7 @@ SUBROUTINE CUTCELWU(n12, jamasks, ipoly)
                        k1d = k2d
                        k2d = k1dum
                     end if
-                 
+
                     if ( k1e.gt.0 .and. k2e.gt.0 ) then
                        call cross(xk(k1d), yk(k1d), xk(k1e), yk(k1e), xk(k2d), yk(k2d), xk(k2e), yk(k2e), jacross, sL, sm, xcr, ycr, crp, jsferic, dmiss)
                        if ( jacross.eq.1 ) then
@@ -6277,7 +6326,7 @@ SUBROUTINE CUTCELWU(n12, jamasks, ipoly)
         call mergeUNCONNECTEDnodes(k2,k1,ja)
      endif
   enddo
-  
+
   call setnodadm(0)
   kc(1:numk) = 1
 
@@ -6347,11 +6396,11 @@ SUBROUTINE CUTCELWU(n12, jamasks, ipoly)
   end subroutine tegenovernodesandlink
 
   subroutine closeenough ( x1,y1,x2,y2,r,ja)
-  
+
   use m_missing, only: dmiss
   use m_sferic, only: jsferic, jasfer3D
   use geometry_module, only: dbdistance
-  
+
   implicit none
 
   double precision :: x1,y1,x2,y2, r2, r
@@ -6425,7 +6474,7 @@ SUBROUTINE CUTCELWU(n12, jamasks, ipoly)
 
 
   subroutine adjacent(x1,y1,x2,y2,x3,y3,x4,y4,ja,k1k,k2k)
-  
+
   use m_missing, only: dmiss
   use m_sferic, only: jsferic, jasfer3D
   use geometry_module, only: dbdistance, dlinedis
@@ -7086,7 +7135,7 @@ end subroutine checknetwork
     use unstruc_messages
     use m_alloc
     use m_partitioninfo, only: idomain, iglobal_s, jampi, my_rank
-    
+
     implicit none
 
     integer , allocatable :: adj_row(:)
@@ -7100,7 +7149,7 @@ end subroutine checknetwork
     integer, external :: adj_bandwidth, adj_perm_bandwidth
 
     integer :: numltot, numlcur, ii, jj, i, j, indx, isgn, k, kk, k1, k2, km, L, LL, p, p1, bw, bwrn, sumdiff, sumdiffrn
-    
+
     call readyy('Renumber flow nodes', 0d0 )
 
     jaFlowNetChanged = 1
@@ -7189,36 +7238,36 @@ end subroutine checknetwork
     do k=1,NUMP
        ba(k)       = xz1(perm(k))
     end do
-    
-    
+
+
 !   see if we can update idomain
     if ( allocated(idomain) ) then
        if ( ubound(idomain,1).ge.nump ) then
            call realloc(idomain1, nump, keepExisting=.false.)
            idomain1(1:nump) = idomain(1:nump)
-           
+
            do k=1,nump
               idomain(k) = idomain1(perm(k))
            end do
-           
+
            deallocate(idomain1)
        end if
     end if
-    
+
 !   see if we can update iglobal
     if ( allocated(iglobal_s) ) then
        if ( ubound(iglobal_s,1).ge.nump ) then
           call realloc(iglobal_s1, nump, keepExisting=.false., fill=0)
           iglobal_s1(1:nump) = iglobal_s(1:nump)
-          
+
           do k = 1, nump
              iglobal_s(k) = iglobal_s1(perm(k))
           enddo
-    
+
           deallocate(iglobal_s1)
        end if
     end if
-    
+
     !i1(1:NUMP)   = lc(1:NUMP)
     !do k=1,NUMP
     !    LC(k) = i1( perm(k) )
@@ -7255,7 +7304,7 @@ end subroutine checknetwork
     call dbg_flush()
     write(msgbuf,*) 'Bandwidth:', bw, '  Bandwidth renum: ', bwrn
     call dbg_flush()
-    
+
 !    return
 
     ! STEP 2: Reorder flow links (to follow the renumbered flow nodes, when possible)
@@ -7266,7 +7315,7 @@ end subroutine checknetwork
     do L=1,NUML
         perm_lnk(L) = L
     end do
-    
+
     ! Now build the permutation list, based on sort order of lne.
     ! Only after this 'postponed sorting', the lne list itself will be permuted.
     do
@@ -7349,21 +7398,29 @@ end subroutine checknetwork
             netcell(p)%lin(L) = perm_inv_lnk(netcell(p)%lin(L))
         end do
     end do
-    
+
     call renumber_cutcellmasks(perm_lnk)
-    
+
 !   permute cutcell related arrays
 !    call permute_cutcellmasks(iperm_lnk)
-    
+
     call readyy('Renumber flow nodes', 1d0 )
 
-    deallocate(adj_row, adj, &
-               perm, perm_inv, perm_lnk, perm_inv_lnk, &
-               i1, xz1, yz1, tface1)
-    deallocate(adj_tmp,adj_tmp2)
+    deallocate(adj_row)
+    deallocate(adj)
+    deallocate(perm)
+    deallocate(perm_inv)
+    deallocate(perm_lnk)
+    deallocate(perm_inv_lnk)
+    deallocate(i1)
+    deallocate(xz1)
+    deallocate(yz1)
+    deallocate(tface1)
+    deallocate(adj_tmp)
+    deallocate(adj_tmp2)
 
     call readyy('Renumber flow nodes', -1d0 )
- 
+
 !   DO NOT CALL FINDCELLS FROM NOW ON, IT WILL DESTROY THE RENUMBERING
     netstat = NETSTAT_OK
 
@@ -7401,23 +7458,23 @@ end subroutine checknetwork
       ENDDO
 
       DO L = 1, NUML1D
-         
-         K1  = KN(1,L) ; K2  = KN(2,L)    
+
+         K1  = KN(1,L) ; K2  = KN(2,L)
          if (k1 == 0) cycle
-         
+
          NC1 = 0       ; NC2 = 0
-         
+
          IF (NMK(K1) == 1 .and. kn(3,L) .ne. 1 .and. kn(3,L) .ne. 6) THEN
             CALL INCELLS(XK(K1), YK(K1), NC1)       ! IS INSIDE 2D CELLS()
          ENDIF
          IF (NMK(K2) == 1 .and. kn(3,L) .ne. 1 .and. kn(3,L) .ne. 6) THEN
             CALL INCELLS(XK(K2), YK(K2), NC2)
          ENDIF
-         
-         if (nc1 .ne. 0 .and. nc1 == nc2) then 
+
+         if (nc1 .ne. 0 .and. nc1 == nc2) then
              nc2 = 0
          endif
-             
+
          IF (NC1 == 0) THEN
              IF ( KC(K1) == 1) THEN                 ! NIEUWE 1d CELL
                 nump1d2d =  nump1d2d + 1
@@ -7529,13 +7586,13 @@ end subroutine checknetwork
    end subroutine find1dcells
 
 
-  
+
   LOGICAL FUNCTION RECHTSAF_active(K1,K2,K3)
-  
+
   use m_netw
-  use geometry_module, only : duitpl 
+  use geometry_module, only : duitpl
   use m_sferic, only: jsferic
-  
+
   implicit none
   integer :: K1, K2, K3
 
@@ -7655,10 +7712,10 @@ end subroutine checknetwork
   END SUBROUTINE NEWLINK
 
   SUBROUTINE OGIVENEWLINKNUM(LNU)
-  
+
   use m_netw
   use gridoperations
-  
+
   implicit none
   integer :: LNU
 
@@ -7779,11 +7836,11 @@ end subroutine checknetwork
 
 
   SUBROUTINE MERGENODES(K1,K2,JA)  ! KNOOP 1 WORDT OPGENOMEN IN KNOOP 2
-  
+
   use m_netw
   use m_missing
   use gridoperations
-  
+
   implicit none
   integer :: K1,K2,JA, L2, NN, K22, NM22, L2A, K22A, N1
 
@@ -7983,49 +8040,49 @@ end subroutine checknetwork
   integer,             intent(in)  :: jamasks      !< store masks and polygons (1), use stored masks and polygons (2), use stored masks masks and polygons and clear masks and polygons (3), do not use stored masks and polygons at all (0)
   LOGICAL JAWEL
   double precision                 :: xplmax, xplmin
-  
+
   double precision                 :: t0, t1
-  
+
   INTEGER N, MPOL, MLIST, KEY, JADEL, NN, L, K, IN, NUMFIL, ierror
   CHARACTER(LEN=132),  ALLOCATABLE :: FILIST(:)
-  
+
   character(len=128)                    :: mesg
-  
+
   integer, dimension(:),    allocatable :: kc_bak  ! backup of kc
-  
+
   integer                               :: Lf
-  
+
   integer                               :: ipoly
   integer                               :: ipol_stored
   integer                               :: NMAX
-  
+
   integer,                  parameter   :: jaalltogether = 1 !< all polygons at once (1) or not (0)
 
   jastored = 0
-  
-  INQUIRE (FILE = md_cutcelllist, EXIST = JAWEL)   
+
+  INQUIRE (FILE = md_cutcelllist, EXIST = JAWEL)
   NUMFIL = 0
   IF (JAWEL) THEN
       CALL OLDFIL(MLIST, md_cutcelllist)
- 777  READ (MLIST,*, END = 888) 
+ 777  READ (MLIST,*, END = 888)
       NUMFIL = NUMFIL+1
       GOTO 777
  888  ALLOCATE ( FILIST(NUMFIL) )  ; filist = ' '
       REWIND (MLIST)
-      DO N = 1,NUMFIL 
-         READ(MLIST,'(A)') FILIST(N) 
-      ENDDO    
-      CALL DOCLOSE(MLIST) 
-  ELSE 
+      DO N = 1,NUMFIL
+         READ(MLIST,'(A)') FILIST(N)
+      ENDDO
+      CALL DOCLOSE(MLIST)
+  ELSE
       RETURN
   ENDIF
-  
+
   CALL mess (LEVEL_INFO, 'cutcell_list; nr of *.cut files found = ' , numfil, n12)
 
   do n = 1,numfil
      call message ('cutcell ', filist(n),  ' ')
   enddo
-  
+
 ! store kc
   allocate(kc_bak(numk))
   do k=1,numk
@@ -8043,25 +8100,25 @@ end subroutine checknetwork
         call build_kdtree( treeglob, numk, xk, yk, ierror, jsferic, dmiss)
      end if
   end if
-  
+
   ipol_stored = 0
-  
+
   if ( jaalltogether.eq.1 .and. ( jamasks.eq.0 .or. jamasks.eq.1 ) ) then
      call dealloc_tpoly(pli)  ! safety
-     
+
      DO N = 1,NUMFIL
         CALL OLDFIL(MPOL,TRIM(FILIST(N)))
         CALL REAPOL(MPOL, 0)
-        
-        if (jsferic == 1) then 
+
+        if (jsferic == 1) then
            call fix_global_polygons(1,0)
         endif
-     
+
 !       add polygon to all tpoly-type polygons
         call  pol_to_tpoly(numpols, pli, keepExisting=.true.)
      end do
   end if
-  
+
   if ( jaalltogether.eq.1 ) then
      NMAX = 1  ! all polygons stored as tpoly-type polygons
 !     call realloc(idxL, 1)
@@ -8071,32 +8128,32 @@ end subroutine checknetwork
   else
      NMAX = NUMFIL
   end if
-  
+
   do N=1,NMAX
      if ( jaalltogether.ne.1 ) then
-!       read polygons from file     
+!       read polygons from file
         CALL OLDFIL(MPOL,TRIM(FILIST(N)))
         CALL REAPOL(MPOL, 0)
-    
-        if (jsferic == 1) then 
+
+        if (jsferic == 1) then
            call fix_global_polygons(1,0)
         end if
-    
+
         call pol_to_tpoly(numpols, pli, keepExisting=.false.)
      end if
-    
+
      do ipoly=1,numpols
         call klok(t0)
-        
+
         ipol_stored = ipol_stored + 1
         call delpol()
         call tpoly_to_pol(pli,iselect=ipoly)
-        
+
         if ( jaalltogether.eq.1 ) then
            write(mesg, "('cutcells: processing polygon ', I0, ' of ', I0, '...')") ipoly, numpols
            call mess(LEVEL_INFO, trim(mesg))
         end if
-       
+
         if (n12 == 1) then
            CALL CUTCELLS(n12)
         else if (N12 == 2) then                ! DELETE NEtNODES IF INSIDE POLYGON
@@ -8110,14 +8167,14 @@ end subroutine checknetwork
 !              ENDIF
 !           ENDDO
         else if (N12 >= 3) then                ! 3, 4 and 5
-           CALL CUTCELWU(n12, jamasks, ipol_stored)
+           CALL CUTCELWU(n12, jamasks, ipol_stored) ! calls SAVEPOL via split_pol
         endif
-        
+
         call klok(t1)
 
         write(mesg, "('done in ', F12.5, ' sec.')") t1-t0
         call mess(LEVEL_INFO, trim(mesg))
-    
+
      end do
   ENDDO
   if (N12 >= 3) then                ! cleanup after cutcellwu
@@ -8125,8 +8182,8 @@ end subroutine checknetwork
         call delete_kdtree2(treeglob)
      end if
   end if
-  
-  
+
+
   IF (N12 == 3) THEN
      kc = 1-kc ! 1: active, 0: inactive
      NPL = 0
@@ -8149,30 +8206,30 @@ end subroutine checknetwork
            ENDDO
         ENDIF
      ENDDO
-     
+
      DO L = 1,NUML
         IF (LNE(1,L) == 0 .AND. LNE(2,L) == 0 ) THEN
            KN(1,L) = 0 ; KN(2,L) = 0; KN(3,L) = -1
         ENDIF
      ENDDO
-     
+
 !    mark original netboundary (setnodadm will make lnn invalid)
      do L=1,numL
         if ( lnn(L).eq.1 .and. kn(3,L).gt.0 ) then
            kc(kn(1,L)) = -abs(kc(kn(1,L)))  ! 0 or -1
            kc(kn(2,L)) = -abs(kc(kn(2,L)))  ! 0 or -1
         end if
-     end do     
-     
+     end do
+
      CALL SETNODADM(0)
-     
+
 !    output newly created cells that are no cells as polygons
      call write_illegal_cells_to_pol(1)
-     
-!    clean     
+
+!    clean
      call dealloc_tpoly(pli)
   ENDIF
-  
+
   if ( n12.eq.5 ) then
 !    SPvdP: disable flow-links that are associated to disabled net-links
      do Lf=1,Lnx
@@ -8185,7 +8242,7 @@ end subroutine checknetwork
         end if
      end do
   end if
-  
+
   if ( n12.eq.6 ) then
      call realloc(cellmask, nump, fill=1, keepExisting=.false.)
 !    disable cells with only "lnn<0" links
@@ -8203,13 +8260,14 @@ end subroutine checknetwork
      call remove_masked_netcells()
      if ( allocated(cellmask) ) deallocate(cellmask)
   end if
-  
-  call restorepol()
-  
+
+  ! call restorepol() ! initial SAVEPOL no longer valid due to CUTCELWU call
+  CALL DELPOL() ! don't keep the cutcell polygons since they will clip the bed levels
+
   if ( jaalltogether.ne.1 ) then
      call dealloc_tpoly(pli)
   end if
-  
+
 ! restore kc
   if ( allocated(kc_bak) ) then
      do k=1,numk
@@ -8217,16 +8275,16 @@ end subroutine checknetwork
      end do
      deallocate(kc_bak)
   end if
-  
+
   if ( jamasks.eq.3 ) then
      call dealloc_cutcellmasks()
      call dealloc_tpoly(pli)
   end if
-  
+
   DEALLOCATE ( filist )
-  
+
   return
-  
+
   contains
 
 !>   determine for each netlink if it is intersected by the polygon
@@ -8238,33 +8296,34 @@ end subroutine checknetwork
         use m_missing
         use m_tpoly
         implicit none
-        
+
         integer,                                intent(in) :: numpols !< number of tpoly-type polygons
         type(tpoly), dimension(numpols),        intent(in) :: pli  !< tpoly-type polygons
-        
+
         integer,     dimension(:), allocatable, intent(out) :: idxL, jdxL ! intersecting polygon sections per netlink in CRS
         integer,     dimension(:), allocatable, intent(out) :: pdxL       ! intersecting polygon numbers  per netlink in CRS
-        
+
         type(kdtree_instance) :: kdtree
-        
+
         double precision, dimension(:), allocatable :: x, y
-        
+
         double precision, dimension(:), allocatable :: dsL
         integer,          dimension(:), allocatable :: iLink, iPol
         integer,          dimension(:), allocatable :: numcrossed
         integer,          dimension(:), allocatable :: polynum
         integer,          dimension(:), allocatable :: polysec
-        
+
         integer                                     :: numcrossedlinks
         integer                                     :: i, j, L, num
         integer                                     :: ierror
-        
+        double precision                            :: t0, t1
+
 !       count total number of polygon nodes, including missing and closures
         num = numpols-1 ! missing values as seperators
         do i=1,numpols
            num = num + pli(i)%len + 1  ! 1: closure
         end do
-        
+
 !       allocate
         allocate(iLink(numL))
         allocate(iPol(numL))
@@ -8273,10 +8332,11 @@ end subroutine checknetwork
         allocate(y(num))
         allocate(polynum(num))
         allocate(polysec(num))
-        
+
+        call klok(t0)
         num = 0
         do i=1,numpols
-!          copy i-the tpoly-type polygon        
+!          copy i-the tpoly-type polygon
            do j=1,pli(i)%len
               num = num+1
               x(num) = pli(i)%x(j)
@@ -8292,7 +8352,7 @@ end subroutine checknetwork
 !          add identifier
            polynum(num) = i
            polysec(num) = pli(i)%len+1
-           
+
            if ( i.lt.numpols) then
 !             add seperator
               x(num) = DMISS
@@ -8302,17 +8362,17 @@ end subroutine checknetwork
               polysec(num) = 0
            end if
         end do
-        
-!       find crossed links   
+
+!       find crossed links
         call find_crossed_links_kdtree2(kdtree, num, x, y, 3, numL, 1, numcrossedlinks, iLink, iPol, dsL, ierror)
         deallocate(x,y)
         if ( ierror.ne.0 ) goto 1234
-        
+
 !       (re)alloc
         call realloc(idxL, numL+1, keepExisting=.false., fill=0)
         call realloc(jdxL, numcrossedlinks+1, keepExisting=.false., fill=0)
         call realloc(pdxL, numcrossedlinks+1, keepExisting=.false., fill=0)
-        
+
 !       count number of intersections per netlink
         allocate(numcrossed(numL))
         numcrossed = 0
@@ -8320,13 +8380,13 @@ end subroutine checknetwork
            L = iLink(i)
            numcrossed(L) = numcrossed(L) + 1
         end do
-        
+
 !       construct CRS of polygon sections that cross the links
         idxL(1) = 1
         do L=1,numL
            idxL(L+1) = idxL(L) + numcrossed(L)
         end do
-        
+
         numcrossed = 0
         do i=1,numcrossedlinks
            L = iLink(i)
@@ -8336,9 +8396,12 @@ end subroutine checknetwork
            pdxL(num) = polynum(j)
            numcrossed(L) = numcrossed(L) + 1
         end do
-     
+
   1234  continue
-     
+
+        call klok(t1)
+        write(mesg,"('cutcell with kdtree2, elapsed time: ', G15.5, 's.')") t1-t0
+        call mess(LEVEL_INFO, trim(mesg))
 !       deallocate
         if ( allocated(iLink) ) deallocate(iLink)
         if ( allocated(iPol) )  deallocate(iPol)
@@ -8346,13 +8409,13 @@ end subroutine checknetwork
         if ( allocated(numcrossed) ) deallocate(numcrossed)
         if ( allocated(polynum) ) deallocate(polynum)
         if ( allocated(polysec) ) deallocate(polysec)
-        
+
         return
      end subroutine find_intersecting_polysections
-     
+
   END SUBROUTINE cutcell_list
-  
-   
+
+
 !> add polygon and fill cutcell mask with "kc"
    subroutine store_cutcellmasks(numk, kc, numL, Lmask, xmL, ymL)
       use m_cutcells
@@ -8360,30 +8423,30 @@ end subroutine checknetwork
       use m_alloc
       use unstruc_messages
       implicit none
-      
+
       integer,                           intent(in) :: numk
       integer,          dimension(numk), intent(in) :: kc
       integer,                           intent(in) :: numL
       integer,          dimension(numL), intent(in) :: Lmask
       double precision, dimension(numL), intent(in) :: xmL, ymL
-      
+
       integer                                       :: istart, k, L, num, i, iL, iR
       integer                                       :: numcur, numnew
-      
+
       jastored = 1
-      
+
       if ( NPOL.eq.0 ) then
 !        initialize
          call realloc(ik, NPOL+1, keepexisting=.false., fill=0)
          ik(1) = 1
       end if
-      
+
 !     increase number of polygons
       NPOL = NPOL+1
-      
+
 !     get startpointer
       istart = ik(NPOL)
-      
+
 !     count number of new data
       num = 0
       do k=1,numk
@@ -8391,16 +8454,16 @@ end subroutine checknetwork
             num = num+1
          end if
       end do
-      
-!     reallocate ik      
+
+!     reallocate ik
       call realloc(ik, NPOL+1, keepexisting=.true., fill=0)
-      
+
 !     add to ik
       ik(NPOL+1) = istart + num
-      
-!     reallocate jk      
+
+!     reallocate jk
       call realloc(jk, ik(NPOL+1)-1, keepexisting=.true., fill=0)
-      
+
 !     add to jk
       num = 0
       do k=1,numk
@@ -8409,7 +8472,7 @@ end subroutine checknetwork
             num = num+1
          end if
       end do
-      
+
 !     count number of new intersections
       num = 0
       do L=1,numL
@@ -8417,7 +8480,7 @@ end subroutine checknetwork
             num = num+1
          end if
       end do
-      
+
 !     get current number of intersections
       if ( allocated(idxL) .and. NPOL.gt.1 ) then
          numcur = idxL(numL+1)-1
@@ -8425,7 +8488,7 @@ end subroutine checknetwork
          numcur = 0
       end if
       numnew = numcur+num
-      
+
 !     reallocate idxL, jdxL, xdxL, ydxL, pdxL
       if ( NPOL.eq.1 ) then
          call realloc(idxL, numL+1, keepExisting=.true., fill=1)
@@ -8433,9 +8496,9 @@ end subroutine checknetwork
       call realloc(xdxL, numnew, keepExisting=.true., fill=0d0)
       call realloc(ydxL, numnew, keepExisting=.true., fill=0d0)
       call realloc(pdxL, numnew, keepExisting=.true., fill=0)
-      
+
 !     shift pointers and data
-      iL = idxL(numL+1)-1
+      iL = idxL(numL+1)
       do L=numL,1,-1
          iR = iL-1
          iL = idxL(L)
@@ -8456,46 +8519,46 @@ end subroutine checknetwork
          call mess(LEVEL_ERROR, 'store_cutcellmasks: numbering error')
       end if
 !     shift and add to idxL, jdxL, xdxL, ydxL, pdxL
-      
+
       return
    end subroutine store_cutcellmasks
-   
 
-  subroutine delnetzkabovezkuni()  
-  
+
+  subroutine delnetzkabovezkuni()
+
   use m_netw
   USE M_MISSING
   use gridoperations
-  
+
   implicit none
   integer :: k, kk, L, k2, jaweg
-  
+
   do k = 1,numk
      if (zk(k) .ne. dmiss) then
-        if (zk(k) > zkuni) then 
+        if (zk(k) > zkuni) then
             jaweg = 0
-            do kk = 1,nmk(k) 
+            do kk = 1,nmk(k)
                L  = nod(k)%lin(kk)
                k2 = kn(1,L) + kn(2,L) - k
-               if (zk(k2) > zkuni .or. zk(k2) == dmiss) then 
-                  jaweg = jaweg + 1 
+               if (zk(k2) > zkuni .or. zk(k2) == dmiss) then
+                  jaweg = jaweg + 1
                endif
             enddo
-            if (jaweg == nmk(k) ) then 
-               xk(k) = dmiss ; yk(k) = dmiss; zk(k) = dmiss  
+            if (jaweg == nmk(k) ) then
+               xk(k) = dmiss ; yk(k) = dmiss; zk(k) = dmiss
             endif
-        
-        endif   
-     else if (zk(k) == dmiss) then 
-        xk(k) = dmiss ; yk(k) = dmiss; zk(k) = dmiss  
-     endif    
-  enddo    
-  
-  call setnodadm(0)
-  
-  end subroutine delnetzkabovezkuni   
 
-  
+        endif
+     else if (zk(k) == dmiss) then
+        xk(k) = dmiss ; yk(k) = dmiss; zk(k) = dmiss
+     endif
+  enddo
+
+  call setnodadm(0)
+
+  end subroutine delnetzkabovezkuni
+
+
   SUBROUTINE DELNET(KEY, jacheckcells, JASAVE)
   use m_netw
   USE m_missing
@@ -8520,7 +8583,7 @@ end subroutine checknetwork
   inhul = -1 ; inall = 1
 
   IF (JASAVE .EQ. 1) CALL SAVENET()
-  
+
   KEY = 3
   IF (NPL .LE. 2) THEN
      CALL CONFRM('NO POLYON, SO DELETE all NET POINTS ? ',JA)
@@ -8529,29 +8592,29 @@ end subroutine checknetwork
         RETURN
      ENDIF
   ENDIF
-  
-  if (jadelnetlinktyp > 0) then 
+
+  if (jadelnetlinktyp > 0) then
      do L = 1,numL
-        if (kn(3,L) == jadelnetlinktyp) then 
+        if (kn(3,L) == jadelnetlinktyp) then
            k1 = kn(1,L) ; k2 = kn(2,L)
            call half(xk(k1),yk(k1),xk(k2),yk(k2),xL,yL, jsferic, jasfer3D)
            CALL DBPINPOL( XL, YL, INHUL, dmiss, JINS, NPL, xpl, ypl, zpl)
-           if (inhul == 1) then 
-              kn(1,L) = 0 ; kn(2,L) = 0  
+           if (inhul == 1) then
+              kn(1,L) = 0 ; kn(2,L) = 0
            endif
-        endif   
+        endif
      enddo
      CALL SETNODADM(0)
      CALL DELPOL()
      return
-  endif   
+  endif
 
   if (jacheckcells == 1) then
     call savepol()
     NPL = 0
     call findcells(0)
     call restorepol()
- 
+
       DO L = 1,NUML
          K1 = KN(1,L) ; K2 = KN(2,L)
          IF (K1 .NE. 0 .AND. K2 .NE. 0) THEN
@@ -8613,89 +8676,89 @@ end subroutine checknetwork
 
       ENDDO
 
-  else if (jacheckcells == 0) then    ! netnodes inside 
-      
+  else if (jacheckcells == 0) then    ! netnodes inside
+
       do k = 1,numk
          CALL DBPINPOL( Xk(k), Yk(k), INHUL, dmiss, JINS, NPL, xpl, ypl, zpl)
-         if (inhul == 1) then 
-            xk(k) = dmiss ; yk(k) = dmiss 
+         if (inhul == 1) then
+            xk(k) = dmiss ; yk(k) = dmiss
          endif
-      enddo    
+      enddo
 
-  else if (jacheckcells == 2) then    
-     
+  else if (jacheckcells == 2) then
+
       call savepol()
       NPL = 0
       call findcells(0)
       call restorepol()
- 
+
       kc = 0
       do k = 1,numk
          CALL DBPINPOL( Xk(k), Yk(k), INHUL, dmiss, JINS, NPL, xpl, ypl, zpl)
-         if (inhul == 1) then 
-            kc(k) = 1  
+         if (inhul == 1) then
+            kc(k) = 1
          endif
-      enddo    
-      
+      enddo
+
       Lc    = 0
-      do L  = 1,numL 
-         k1 = kn(1,L) ; k2 = kn(2,L) 
-         if (kc(k1) == 1 .and. kc(k2) == 1) then 
-            Lc(L) = 1 
-         endif   
-      enddo   
-      
-      allocate (LC2(numL) ) ; Lc2(1:numL) = Lc(1:numL)   
-      
+      do L  = 1,numL
+         k1 = kn(1,L) ; k2 = kn(2,L)
+         if (kc(k1) == 1 .and. kc(k2) == 1) then
+            Lc(L) = 1
+         endif
+      enddo
+
+      allocate (LC2(numL) ) ; Lc2(1:numL) = Lc(1:numL)
+
       do n = 1, nump
-         
-         nzero = 0 
+
+         nzero = 0
          do nn = 1,size(netcell(n)%lin)    ! check if any link should be kept for cell n
             L  = iabs(netcell(n)%lin(nn))
-            if (L > 0) then 
-               if (Lc(L) == 0) then 
+            if (L > 0) then
+               if (Lc(L) == 0) then
                   nzero = 1 ; exit
                endif
-            endif   
-         enddo   
-      
+            endif
+         enddo
+
          if (nzero == 1) then         ! if it should be kept, flag all links of that cell to be kept.
             do nn = 1,size(netcell(n)%lin)
                L  = iabs(netcell(n)%lin(nn))
                if (L > 0) then
-                  LC2(L) = 0 
-               endif   
-            enddo   
+                  LC2(L) = 0
+               endif
+            enddo
          endif
-      enddo   
-      
-      do L  = 1,numL 
-         if (LC2(L) == 1) then 
-            kn(1,L) = 0 ; kn(2,L) = 0 
-         endif   
-      enddo   
-      
-      deallocate (LC2) 
-      
+      enddo
+
+      do L  = 1,numL
+         if (LC2(L) == 1) then
+            kn(1,L) = 0 ; kn(2,L) = 0
+         endif
+      enddo
+
+      deallocate (LC2)
+
   end if
 
   CALL SETNODADM(0)
 
-  if ( jacheckcells == 0  .or. jacheckcells == 2) then 
+  if ( jacheckcells == 0  .or. jacheckcells == 2) then
 
      do k = 1,numk
-        if ( nmk(k) == 1 ) then 
+        if ( nmk(k) == 1 ) then
             L = nod(k)%lin(1)
-            if (kn(3,L) == 2) then 
-                xk(k) = dmiss ; yk(k) = dmiss    
-            endif    
+            if (kn(3,L) == 2) then
+                xk(k) = dmiss ; yk(k) = dmiss
+            endif
         endif
-     enddo    
-  
+     enddo
+
      CALL SETNODADM(0)
-     
+
   endif
-  
+
   CALL DELPOL()
 
   RETURN
@@ -8968,14 +9031,14 @@ end subroutine checknetwork
 
 
    ! SPvdP: TIELDB never called
-   
+
       SUBROUTINE TIELDB()
       use m_netw
       USE m_missing
       use geometry_module, only: dpinpok, cross
       use m_sferic, only: jsferic
       use gridoperations
-   
+
       implicit none
       double precision :: crp
       integer :: in1, in2, ja, jacros, k, k1, k2, k3, ku, L, Lnu
@@ -9068,7 +9131,7 @@ end subroutine checknetwork
   if ( L.gt.0) then
        if (xlan(L).ne.XYMIS ) then
           L = L + 1
-       endif   
+       endif
   end if
 
   CALL INCREASELAN(L+NPL)
@@ -9324,7 +9387,7 @@ end subroutine copySplinesToFinePol
   use m_alloc
   use m_missing, only: jins, dmiss
   use geometry_module, only: get_startend, dpinpok
-  
+
   implicit none
 
   integer :: ierr
@@ -9415,11 +9478,11 @@ end subroutine copySplinesToFinePol
   END SUBROUTINE COPYTRANS
 
   SUBROUTINE CLOSENODES(K,KK,JA) ! ARE THESE NODES CLOSE, BUT UNCONNECTED?
-  
+
   use m_netw
   use m_wearelt
   use gridoperations
-  
+
   implicit none
   INTEGER          :: K,KK,JA
 
@@ -9533,14 +9596,14 @@ end subroutine copySplinesToFinePol
    character(len=10)  :: time
    character(len=5)   :: zone
    integer            :: timing(8)
-   
+
    character(len=128) :: mesg
 
    integer,          save :: ndays=0
-   integer,          save :: dayprev=-999 
+   integer,          save :: dayprev=-999
 
    call date_and_time(date, time, zone, timing)
-   
+
 !  check for new day
    if ( dayprev.eq.-999 ) then
       dayprev = timing(3)    ! initialization to
@@ -9726,15 +9789,15 @@ end subroutine copySplinesToFinePol
    END SUBROUTINE DELLINKSINPOL
 
    SUBROUTINE RELINK()
-   
+
    use m_netw
    use m_ec_triangle
    use gridoperations
    use m_polygon
    use gridoperations
-   
+
    use m_ec_basic_interpolation, only: dlaun
-   
+
    implicit none
 
    double precision :: af
@@ -9845,7 +9908,7 @@ end subroutine copySplinesToFinePol
 
 
    SUBROUTINE ORTHOGONISENET_old()
-   
+
    use m_netw
    USE M_FLOWGEOM
    USE M_POLYGON
@@ -10392,13 +10455,13 @@ numka:DO K0 = 1,NUMK                 ! ATTRACTION PARAMETERS
    !! net coupling and 'poltoland' functionality.
    !! network_data::NB values: 1=INTERN, 2=RAND, 3=HOEK, 0/-1=DOET NIET MEE OF 1D
    SUBROUTINE MAKENETNODESCODING()
-   
+
    use m_netw
    use m_sferic, only: jsferic, jasfer3D
    use m_missing, only : dxymis
    use geometry_module, only: dcosphi
    use gridoperations
-   
+
    implicit none
 
    integer :: k
@@ -10412,7 +10475,7 @@ numka:DO K0 = 1,NUMK                 ! ATTRACTION PARAMETERS
 
 
    DO L  = 1,NUML                         ! NODE BOUNDARY ADMINISTRATION
-      K1 = KN(1,L) ; K2 = KN(2,L) 
+      K1 = KN(1,L) ; K2 = KN(2,L)
       if ( k1.lt.1 .or. k2.lt.1 ) cycle   ! SPvdP: safety
       IF (KN(3,L) == 2 .or. KN(3,L) == 0 ) THEN
          IF (NB(K1) .NE. -1 .AND. NB(K2) .NE. -1) THEN
@@ -10476,7 +10539,7 @@ numka:DO K0 = 1,NUMK                 ! ATTRACTION PARAMETERS
 
 
    SUBROUTINE REMOVESMALLLINKS()  ! 1 REMOVES IF FLOW LINK DISTANCES ARE SMALL RELATIVE TO CONNECTED CELL SIZES
-   
+
    use m_netw                     ! 2 REMOVES SMALL TRIANGLES NEXT TO
    use M_FLOWGEOM
    use unstruc_messages
@@ -10484,9 +10547,9 @@ numka:DO K0 = 1,NUMK                 ! ATTRACTION PARAMETERS
    use m_missing, only: dmiss, dxymis
    use m_sferic, only: jsferic, jasfer3D, dtol_pole
    use gridoperations
-   
+
    implicit none
-   
+
    integer            :: minp
 
    DOUBLE PRECISION :: R01, R02, AN1, AN2, XL, YL, XR, YR, XZWr, YZWr, ZZZ
@@ -10498,7 +10561,7 @@ numka:DO K0 = 1,NUMK                 ! ATTRACTION PARAMETERS
 
    DOUBLE PRECISION, ALLOCATABLE :: XNW(:), YNW(:)
    INTEGER         , ALLOCATABLE :: NNW(:,:)
-   
+
    CALL SAVENET()
 
    CALL SETNODADM(0)                                   !
@@ -10506,9 +10569,9 @@ numka:DO K0 = 1,NUMK                 ! ATTRACTION PARAMETERS
    CALL REMOVECOINCIDINGTRIANGLES()                    !
 
    CALL FINDCELLS(0)
-   
+
 !   take dry cells into account (after findcells)
-    call delete_drypoints_from_netgeom(dryptsfile, 0, 0)
+    call delete_dry_points_and_areas()
 
    JAREMOVE = 0
    DO L = 1, NUML                                      ! REMOVE SMALL CIRCUMCENTRE DISTANCES
@@ -10659,7 +10722,7 @@ numka:DO K0 = 1,NUMK                 ! ATTRACTION PARAMETERS
    USE M_FLOWGEOM
    use unstruc_messages
    use m_sferic
-   use geometry_module, only: getdxdy 
+   use geometry_module, only: getdxdy
    use gridoperations
    implicit none
 
@@ -10744,7 +10807,7 @@ numka:DO K0 = 1,NUMK                 ! ATTRACTION PARAMETERS
    use geometry_module, only: dlinedis
    use m_sferic
    use m_missing
-   
+
    implicit none
    double precision :: X0,Y0,X1,Y1,X2,Y2,DIS,XN,YN
    integer :: JA
@@ -10758,11 +10821,11 @@ numka:DO K0 = 1,NUMK                 ! ATTRACTION PARAMETERS
    END SUBROUTINE MIRRORLINE
 
    SUBROUTINE MIRRORLINE2(X0,Y0,X1,Y1,X2,Y2,JA,DIS,XN,YN)  ! 2*ZO VER
-   
+
    use geometry_module, only: dlinedis
    use m_missing,       only: dmiss
    use m_sferic,        only: jsferic, jasfer3D
-      
+
    implicit none
    double precision :: X0,Y0,X1,Y1,X2,Y2,DIS,XN,YN
    integer :: JA
@@ -10843,14 +10906,14 @@ numka:DO K0 = 1,NUMK                 ! ATTRACTION PARAMETERS
       double precision :: yi
 
       if (jaconfirm == -1) then
-         if (nsmax > 0) then 
+         if (nsmax > 0) then
             nsmax = 0 ; ns = 0
             if ( allocated(xs)    ) deallocate (xs, ys, zs)
             if ( allocated(ipsam) ) deallocate(ipsam)
-         endif 
+         endif
          return
       endif
-      
+
       IF (Npl .LE. 2) THEN
          if ( JACONFIRM.eq.1 ) then
             CALL CONFRM('NO POLYON, SO DELETE all SAMPLE POINTS ? ',JA)
@@ -10973,158 +11036,158 @@ numka:DO K0 = 1,NUMK                 ! ATTRACTION PARAMETERS
    USE m_fixedweirs, ONLY : SILLHEIGHTMIN
    use geometry_module, only: dbdistance, normalout
    use m_sferic, only: jsferic, jasfer3D
-   
+
    implicit none
    integer                    :: k, n, KD, KU, KUU, KKN, KK
    DOUBLE PRECISION           :: RX1, RY1, RX2, RY2, V, R, DDX, A, B, DL, DR, WIDL, WIDR
 
 !  interpolate missing zpl values in polylines, if possible
    call interpolate_zpl_in_polylines()
-   
+
    N = NS
    CALL INCREASESAM(NS+NPL)
    DO K  = 1, NPL-1
       KU = K + 1 ; KUU = MIN(NPL, K+2)
       IF (XPL(K) .NE. DMISS .AND. XPL(KU) .NE. DMISS) THEN
-         
-         if (jakol45 == 0) then   
+
+         if (jakol45 == 0) then
             N     = N + 1
-            IF (N > NSMAX) THEN 
+            IF (N > NSMAX) THEN
                 CALL INCREASESAM(2*N)
-            ENDIF    
+            ENDIF
             XS(N) = XPL(K)
             YS(N) = YPL(K)
             ZS(N) = ZPL(K)  ; IF (ZS(N) == DMISS) ZS(N) = 1D0
          endif
-            
-         IF (JAKOL45 > 0 .AND. ZPL(K) .NE. DMISS) THEN 
-             IF (.NOT. (XPL(K) == XPL(KU) .AND. YPL(K) == YPL(KU) ) ) THEN 
-                 call normalout(XPL(K), YPL(K), XPL(KU), YPL(KU), rx1, ry1, jsferic, jasfer3D, dmiss, dxymis)  
+
+         IF (JAKOL45 > 0 .AND. ZPL(K) .NE. DMISS) THEN
+             IF (.NOT. (XPL(K) == XPL(KU) .AND. YPL(K) == YPL(KU) ) ) THEN
+                 call normalout(XPL(K), YPL(K), XPL(KU), YPL(KU), rx1, ry1, jsferic, jasfer3D, dmiss, dxymis)
                  RX2 = RX1 ; RY2 = RY1
-                 IF (K > 1) THEN 
-                    IF (XPL(K-1) .NE. DMISS ) THEN 
-                       call normalout(XPL(K-1), YPL(K-1), XPL(K), YPL(K), rx2, ry2, jsferic, jasfer3D, dmiss, dxymis)  
-                       RX2 = 0.5D0*(RX1 + RX2) 
-                       RY2 = 0.5D0*(RY1 + RY2) 
+                 IF (K > 1) THEN
+                    IF (XPL(K-1) .NE. DMISS ) THEN
+                       call normalout(XPL(K-1), YPL(K-1), XPL(K), YPL(K), rx2, ry2, jsferic, jasfer3D, dmiss, dxymis)
+                       RX2 = 0.5D0*(RX1 + RX2)
+                       RY2 = 0.5D0*(RY1 + RY2)
                     ENDIF
-                 ENDIF   
-                 
+                 ENDIF
+
                  N     = N + 1
-                 IF (N > NSMAX) THEN 
+                 IF (N > NSMAX) THEN
                     CALL INCREASESAM(2*N)
-                 ENDIF    
-                
+                 ENDIF
+
                  WIDL = 0.1D0
                  WIDR = 0.1D0
-                 IF (DZR(K) > Sillheightmin .AND. DZL(K) > Sillheightmin) THEN 
+                 IF (DZR(K) > Sillheightmin .AND. DZL(K) > Sillheightmin) THEN
                      WIDL = 2D0*DZL(K)
                      WIDR = 2D0*DZR(K)
-                 ENDIF    
-                 
+                 ENDIF
+
                  XS(N) = XPL(K) - RX2*WIDL
                  YS(N) = YPL(K) - RY2*WIDL
-                 ZS(N) = ZPL(K) - DZL(K) 
+                 ZS(N) = ZPL(K) - DZL(K)
                  N     = N + 1
                  XS(N) = XPL(K) + RX2*WIDR
                  YS(N) = YPL(K) + RY2*WIDR
-                 ZS(N) = ZPL(K) - DZR(K) 
-             ENDIF         
+                 ZS(N) = ZPL(K) - DZR(K)
+             ENDIF
          ENDIF
-         
-         V = DBDISTANCE( XPL(K), YPL(K), XPL(KU), YPL(KU), jsferic, jasfer3D, dmiss)  
-         IF (V > 0D0 .AND. UNIDX1D > 0) THEN 
+
+         V = DBDISTANCE( XPL(K), YPL(K), XPL(KU), YPL(KU), jsferic, jasfer3D, dmiss)
+         IF (V > 0D0 .AND. UNIDX1D > 0) THEN
              R = V/UNIDX1D
-             IF ( R > 1D0) THEN 
+             IF ( R > 1D0) THEN
                  KKN = R + 1
                  DO KK = 1,KKN-1
                     A  = DBLE(KK)/DBLE(KKN) ; B = 1D0 - A
-                  
-                    if (jakol45 == 0) then 
-                       N  = N+1 
-                       IF (N > NSMAX) THEN 
+
+                    if (jakol45 == 0) then
+                       N  = N+1
+                       IF (N > NSMAX) THEN
                           CALL INCREASESAM(2*N)
-                       ENDIF    
-                       XS(N) = B*XPL(K) + A*XPL(KU)   
+                       ENDIF
+                       XS(N) = B*XPL(K) + A*XPL(KU)
                        YS(N) = B*YPL(K) + A*YPL(KU)
                        ZS(N) = B*ZPL(K) + A*ZPL(KU)
-                       IF (ZPL(K) == DMISS .OR. ZPL(KU) == DMISS) THEN 
+                       IF (ZPL(K) == DMISS .OR. ZPL(KU) == DMISS) THEN
                            ZS(N) = 1D0
-                       ENDIF 
+                       ENDIF
                     endif
-                       
-                    IF (JAKOL45 > 0 .AND. ZPL(K) .NE. DMISS .AND. ZPL(KU) .NE. DMISS) THEN 
-                
-                       WIDL   = 0.1D0 
+
+                    IF (JAKOL45 > 0 .AND. ZPL(K) .NE. DMISS .AND. ZPL(KU) .NE. DMISS) THEN
+
+                       WIDL   = 0.1D0
                        WIDR   = 0.1D0
                        DL     = B*DZL(K) + A*DZL(KU)
                        DR     = B*DZR(K) + A*DZR(KU)
                        IF (DL > Sillheightmin .AND. DR > Sillheightmin) THEN ! slope assumed
                           WIDL = 2D0*DL
                           WIDR = 2D0*DR
-                       ENDIF    
-                
-                       N     = N + 1
-                       IF (N > NSMAX) THEN 
-                          CALL INCREASESAM(2*N)
-                       ENDIF    
+                       ENDIF
 
-                       XS(N) = B*XPL(K) + A*XPL(KU) - RX1*WIDL   
+                       N     = N + 1
+                       IF (N > NSMAX) THEN
+                          CALL INCREASESAM(2*N)
+                       ENDIF
+
+                       XS(N) = B*XPL(K) + A*XPL(KU) - RX1*WIDL
                        YS(N) = B*YPL(K) + A*YPL(KU) - RY1*WIDL
-                       ZS(N) = B*ZPL(K) + A*ZPL(KU) 
+                       ZS(N) = B*ZPL(K) + A*ZPL(KU)
                        ZS(N) = ZS(N) - DL
-                       
-                       N     = N + 1
-                       IF (N > NSMAX) THEN 
-                          CALL INCREASESAM(2*N)
-                       ENDIF    
 
-                       XS(N) = B*XPL(K) + A*XPL(KU) + RX1*WIDR   
+                       N     = N + 1
+                       IF (N > NSMAX) THEN
+                          CALL INCREASESAM(2*N)
+                       ENDIF
+
+                       XS(N) = B*XPL(K) + A*XPL(KU) + RX1*WIDR
                        YS(N) = B*YPL(K) + A*YPL(KU) + RY1*WIDR
-                       ZS(N) = B*ZPL(K) + A*ZPL(KU) 
+                       ZS(N) = B*ZPL(K) + A*ZPL(KU)
                        ZS(N) = ZS(N) - DR
-                    ENDIF         
-                    
+                    ENDIF
+
                  ENDDO
-             ENDIF    
+             ENDIF
          ENDIF
-         IF (XPL(KUU) == DMISS .OR. KU == NPL) THEN 
-             
-             if (jakol45 == 0) then 
+         IF (XPL(KUU) == DMISS .OR. KU == NPL) THEN
+
+             if (jakol45 == 0) then
                 N     = N + 1
-                IF (N > NSMAX) THEN 
+                IF (N > NSMAX) THEN
                     CALL INCREASESAM(2*N)
-                ENDIF    
+                ENDIF
                 XS(N) = XPL(KU)
                 YS(N) = YPL(KU)
-                ZS(N) = ZPL(KU) ; IF (ZS(N) == DMISS) ZS(N) = 1D0  
+                ZS(N) = ZPL(KU) ; IF (ZS(N) == DMISS) ZS(N) = 1D0
              endif
-                
-             IF (JAKOL45 > 0 .AND. ZPL(KU) .NE. DMISS) THEN 
-                 
-                 WIDL   = 0.1D0 
+
+             IF (JAKOL45 > 0 .AND. ZPL(KU) .NE. DMISS) THEN
+
+                 WIDL   = 0.1D0
                  WIDR   = 0.1D0
                  DL     = DZL(KU)
                  DR     = DZR(KU)
-                 IF (DL > Sillheightmin .AND. DR > Sillheightmin) THEN 
+                 IF (DL > Sillheightmin .AND. DR > Sillheightmin) THEN
                     WIDL = 2D0*DL
                     WIDR = 2D0*DR
-                 ENDIF    
-                 
+                 ENDIF
+
                  N     = N + 1
-                 XS(N) = XPL(KU) - RX1*WIDL   
+                 XS(N) = XPL(KU) - RX1*WIDL
                  YS(N) = YPL(KU) - RY1*WIDL
-                 ZS(N) = ZPL(KU) - DZL(KU)  
+                 ZS(N) = ZPL(KU) - DZL(KU)
                  N     = N + 1
-                 XS(N) = XPL(KU) + RX1*WIDR   
+                 XS(N) = XPL(KU) + RX1*WIDR
                  YS(N) = YPL(KU) + RY1*WIDR
-                 ZS(N) = ZPL(KU) - DZR(KU)  
-             ENDIF 
-                  
-         ENDIF    
-         
+                 ZS(N) = ZPL(KU) - DZR(KU)
+             ENDIF
+
+         ENDIF
+
       ENDIF
-   ENDDO    
- 
+   ENDDO
+
    NS = N
    call delpol()
    END SUBROUTINE COPYPOLYGONTOSAMPLES
@@ -11274,49 +11337,49 @@ numka:DO K0 = 1,NUMK                 ! ATTRACTION PARAMETERS
       RETURN
 
    END SUBROUTINE deleteSelectedCrossSections
-   
-!  copy dots to samples   
+
+!  copy dots to samples
    subroutine copy_dots2sam()
       use m_samples
       use m_plotdots
       implicit none
-      
+
       integer :: i
-      
+
       if ( numdots.lt.1 ) return
-      
+
       call increasesam(Ns+numdots)
-      
+
       do i=1,numdots
          Ns = Ns+1
          xs(Ns) = xdots(i)
          ys(Ns) = ydots(i)
          zs(Ns) = zdots(i)
       end do
-      
-!     clear dots      
+
+!     clear dots
       numdots = 0
-      
+
       return
    end subroutine copy_dots2sam
-   
+
 !  copy samples to dots
    subroutine copy_sam2dots()
       use m_samples
       use m_plotdots
       implicit none
-      
+
       integer :: i
-      
+
       if ( NS.lt.1 ) return
-      
+
       do i=1,Ns
          call adddot(xs(i),ys(i),zs(i))
       end do
-      
+
 !     clear samples
       Ns = 0
-      
+
       return
    end subroutine copy_sam2dots
 
@@ -11340,19 +11403,19 @@ numka:DO K0 = 1,NUMK                 ! ATTRACTION PARAMETERS
    END SUBROUTINE ALLIN
 
    SUBROUTINE Triangulatesamplestonetwork(JADOORLADEN)
-   use m_netw
+   use m_netw, only : numk, numl, kn, xk, yk, zk, nb, LMAX, KMAX
    USE M_SAMPLES
    use m_ec_triangle
-   USE M_POLYGON
    USE M_ALLOC
    use m_missing, only: dmiss, JINS
    use m_ec_basic_interpolation, only: dlaun
    use geometry_module, only: pinpok, dbpinpol, get_startend
    use gridoperations
+   use m_polygon ! , only: savepol, restorepol
 
    implicit none
-   integer :: jadoorladen
-
+   integer :: jadoorladen ! ,npl
+   !double precision :: xpl(npl),ypl(npl)
    double precision :: af
    integer :: in
    integer :: ja
@@ -11397,7 +11460,7 @@ numka:DO K0 = 1,NUMK                 ! ATTRACTION PARAMETERS
       L0 = NUML
    ENDIF
 
-   CALL SAVEPOL()
+   ! CALL SAVEPOL()
    CALL SAVESAM()
 
    N = 0
@@ -11456,11 +11519,11 @@ numka:DO K0 = 1,NUMK                 ! ATTRACTION PARAMETERS
          N = N+1
          XS(N) = XPL(K)
          YS(N) = YPL(K)
-         ZS(N) = ZPL(K)
+         ! ZS(N) = ZPL(K)
 
          XK(K) = XS(N)
          YK(K) = YS(N)
-         ZK(K) = ZS(N)
+         ! ZK(K) = ZS(N)
          KS(N) = K
       end do
 
@@ -11494,7 +11557,7 @@ numka:DO K0 = 1,NUMK                 ! ATTRACTION PARAMETERS
       K1 = KS (K1)   ; K2 = KS (K2)   ; K3 = KS (K3)
       XP = THIRD*( XK(K1) + XK(K2) + XK(K3) )
       YP = THIRD*( YK(K1) + YK(K2) + YK(K3) )
-      CALL DBPINPOL(XP, YP, IN, dmiss, JINS, NPL, xpl, ypl, zpl)
+      CALL DBPINPOL(XP, YP, IN, dmiss, JINS, NPL, xpl, ypl, ypl)
       IF (IN == 0) THEN
          CYCLE
       ELSE
@@ -11541,30 +11604,30 @@ numka:DO K0 = 1,NUMK                 ! ATTRACTION PARAMETERS
    NUMK = K0 + NSIN
    NUML = L
 
-!  merge nodes in polygon
-   call mergenodesinpolygon()
+   ! merge nodes in polygon
+   !call mergenodesinpolygon()
 
-   call delsam(1)
-   call delpol()
+   ns  = 0 ! call delsam(1)
+   npl = 0 ! call delpol()
    CALL SETNODADM(0) ! No cross checks for now.
 
    DEALLOCATE (KS,NB)
    IF (ALLOCATED(TRIEDGE) ) THEN
        DEALLOCATE(TRIEDGE, EDGEINDX)
    ENDIF
+
    RETURN
    END SUBROUTINE Triangulatesamplestonetwork
 
 
-
    SUBROUTINE externaltrianglestoouterquads()
-   
+
    use m_netw
    use m_polygon
-   use m_missing, only: jins, dmiss 
+   use m_missing, only: jins, dmiss
    use geometry_module, only: dpinpok
    use gridoperations
-   
+
    implicit none
 
    integer :: in
@@ -11613,7 +11676,7 @@ numka:DO K0 = 1,NUMK                 ! ATTRACTION PARAMETERS
    use m_missing, only: dmiss, jins
    use m_sferic, only: jsferic, jasfer3D
    use gridoperations
-   
+
    implicit none
 
    double precision :: a
@@ -11846,7 +11909,7 @@ numka:DO K0 = 1,NUMK                 ! ATTRACTION PARAMETERS
    END SUBROUTINE REFINEPOLYGONUSINGNETWORK
 
    SUBROUTINE in_flowcell(xp,yp,kk)
-   
+
    use m_flowgeom
    use unstruc_display
    use m_missing, only: jins, dmiss
@@ -11857,7 +11920,7 @@ numka:DO K0 = 1,NUMK                 ! ATTRACTION PARAMETERS
    integer          :: inn, k, kk, nn
 
    kk = 0
-    
+
    DO K = 1,ndx2D
       if (.not. allocated(nd(K)%x)) cycle
       NN = size(nd(K)%x)
@@ -11866,8 +11929,8 @@ numka:DO K0 = 1,NUMK                 ! ATTRACTION PARAMETERS
          KK = K ; RETURN
       ENDIF
    ENDDO
-   
-   END SUBROUTINE in_flowcell 
+
+   END SUBROUTINE in_flowcell
 
    SUBROUTINE isflownode1D2D(xp,yp,kk)
    use m_flowgeom
@@ -11877,18 +11940,18 @@ numka:DO K0 = 1,NUMK                 ! ATTRACTION PARAMETERS
    use m_sferic, only: jsferic, jasfer3D
 
    implicit none
-   
+
    double precision :: xp, yp, dis
    integer          :: inn, k, kk, nn
 
    kk = 0
    DO K = ndx2D+1, ndx
-      dis = dbdistance(xz(k), yz(k), xp, yp, jsferic, jasfer3D, dmiss)  
-      if (dis < rcir) then 
+      dis = dbdistance(xz(k), yz(k), xp, yp, jsferic, jasfer3D, dmiss)
+      if (dis < rcir) then
          kk = k ; return
-      endif   
-   enddo   
-   
+      endif
+   enddo
+
    if ( .not.allocated(nd) ) then
       return
    end if
@@ -11901,7 +11964,7 @@ numka:DO K0 = 1,NUMK                 ! ATTRACTION PARAMETERS
          KK = K ; RETURN
       ENDIF
    ENDDO
-   
+
    END SUBROUTINE isflownode1D2D
 
    SUBROUTINE CLOSEIN(XA,YA,INNUMP,KIN,NKIN,KK)  ! KK IS HET MEEST DICHTBIJ GELEGEN POINT VAN INNUMP
@@ -11942,16 +12005,62 @@ numka:DO K0 = 1,NUMK                 ! ATTRACTION PARAMETERS
    END SUBROUTINE CLOSEIN
 
    SUBROUTINE CREATESAMPLESINPOLYGON()
+   use m_polygon
+   use m_missing
+   use m_samples
+   use geometry_module, only: get_startend   ! zijn er nog meer startends zodat dit afgeschermd moet worden?
+
+   integer :: jpoint, jstart,jend,jadoall, nplsav
+   double precision, allocatable :: xplsav(:), yplsav(:)
+
+   allocate(xplsav(npl) , yplsav(npl)) ; xplsav = xpl(1:npl) ; yplsav = ypl(1:npl) ; nplsav = npl
+
+   jpoint = 1; jadoall = 0
+   do while ( jpoint.lt.NPLsav )
+
+      !get subpolyline
+      call get_startend(NPLsav-jpoint+1,xplsav(jpoint:NPLsav),yplsav(jpoint:NPLsav),jstart,jend, dmiss)
+      xpl(1:jend-jstart+1) = xplsav(jstart+jpoint-1:jend+jpoint-1)
+      ypl(1:jend-jstart+1) = yplsav(jstart+jpoint-1:jend+jpoint-1)
+      npl = jend-jstart+1
+
+      if (nplsav > jend) then
+         jadoall = 1
+      endif
+
+      jstart = jstart+jpoint-1
+      jend   = jend+jpoint-1
+      jpoint = jend+2
+
+      call CREATESAMPLESINPOLYGON2()
+
+      if (jadoall == 1) then
+         call Triangulatesamplestonetwork(1)
+      endif
+
+   enddo
+
+   deallocate (xplsav, yplsav)
+
+   END SUBROUTINE CREATESAMPLESINPOLYGON
+
+
+   SUBROUTINE CREATESAMPLESINPOLYGON2()
    use m_ec_triangle
-   USE M_POLYGON
-   use m_netw
+   !use m_netw
    USE M_SAMPLES
    use M_MISSING
    use m_sferic
    use m_alloc
    use geometry_module, only: dbpinpol, get_startend
-   
+   use m_polygon
+
    implicit none
+
+   !integer          :: NPL
+   !double precision :: XPL(NPL), YPL(NPL)
+
+
    integer :: ierr
    integer :: in
    integer :: n
@@ -11994,8 +12103,8 @@ numka:DO K0 = 1,NUMK                 ! ATTRACTION PARAMETERS
    ENDIF
 
    !NTX = 10
-   
-!  start pointer   
+
+!  start pointer
    NS1 = NS + 1
 
    numtri=-1
@@ -12010,11 +12119,9 @@ numka:DO K0 = 1,NUMK                 ! ATTRACTION PARAMETERS
       call realloc(EDGEINDX, (/ 2,Ntx /), keepExisting=.false., fill=0, stat=ierr)
       call realloc(TRIEDGE , (/ 3,Ntx /), keepExisting=.false., fill=0, stat=ierr)
 
-
-
       NN = NTX
       CALL increasesam(NS1 + NN)
-      zs(ns1:ubound(zs,1)) = zkuni ! SPvdP: used to be DMISS, but then the samples are not plotted
+      zs(ns1:ubound(zs,1)) = 0d0 ! zkuni ! SPvdP: used to be DMISS, but then the samples are not plotted
 
       TRIAREA = TRIANGLESIZEFAC*TRIANGLESIZEFAC*TRIAREA
       NPL1 = NPL
@@ -12024,7 +12131,6 @@ numka:DO K0 = 1,NUMK                 ! ATTRACTION PARAMETERS
             exit
          end if
       end do
-
 
       numtri = ntx ! Input value should specify max nr of triangles in indx.
       NN = ntx ! used to check array size of xs, ys in tricall
@@ -12036,19 +12142,15 @@ numka:DO K0 = 1,NUMK                 ! ATTRACTION PARAMETERS
    IN = -1  ! EN BIJPLUGGEN
    DO N = NS1, NS1 + NN
       XP = XS(N) ; YP = YS(N)
-      CALL DBPINPOL( XP, YP, IN, dmiss, JINS, NPL, xpl, ypl, zpl)
+      CALL DBPINPOL( XP, YP, IN, dmiss, JINS, NPL, xpl, ypl, ypl)
       IF (IN == 1) THEN
          NS = NS + 1
          XS(NS) = XP ; YS(NS) = YP
       ENDIF
    ENDDO
 
-   ! CALL REMOVESAMPLESONTOPOFNETPOINTS(XS(NS1), YS(NS1), NN )
-
-   ! CALL DELPOL()
-
    RETURN
-   END SUBROUTINE CREATESAMPLESINPOLYGON
+   END SUBROUTINE CREATESAMPLESINPOLYGON2
 
    SUBROUTINE REMOVESAMPLESONTOPOFNETPOINTS(XS, YS, NS)
    use m_netw
@@ -12082,13 +12184,13 @@ numka:DO K0 = 1,NUMK                 ! ATTRACTION PARAMETERS
    END SUBROUTINE REMOVESAMPLESONTOPOFNETPOINTS
 
    SUBROUTINE CHECKTRIANGLE(N,JA,phimin,phimax)
-   
+
    use m_samples
    use m_ec_triangle
    use m_sferic
    use geometry_module, only: dcosphi
    use m_missing, only : dmiss, dxymis
-   
+
    implicit none
    double precision :: phimin,phimax
    integer          :: n,ja
@@ -12122,7 +12224,7 @@ numka:DO K0 = 1,NUMK                 ! ATTRACTION PARAMETERS
    use m_ec_triangle
    use m_missing, only : dxymis
    use geometry_module, only: dcosphi
-   
+
    implicit none
    double precision :: phimin,phimax
    integer          :: n,ja
@@ -12152,171 +12254,171 @@ numka:DO K0 = 1,NUMK                 ! ATTRACTION PARAMETERS
    RETURN
    END SUBROUTINE CHECKTRIANGLEnetcell
 
-   
+
    subroutine regrid1D(jaregrid)  ! based on 1D net itself, 1 = regrid, otherwise 1dgrid to pol
-   
+
    use m_flowgeom
    use m_flow
    use m_netw
    use m_polygon
    use m_missing
    use gridoperations
-   
+
    implicit none
    integer                       :: jaregrid
    double precision              :: dxa, dxb, xlb
-   double precision, allocatable :: xh(:), yh(:), zh(:) 
+   double precision, allocatable :: xh(:), yh(:), zh(:)
    integer                       :: L, LL, k, n, nh, ibr, LA, k1, k2, ium
-   
-   if (jaregrid == 1) then 
+
+   if (jaregrid == 1) then
        call savepol()
    endif
    call SAVENET()
-  
+
    npl = 0
-   
+
    CALL SETBRANCH_LC(ium)
-   
+
    numk = 0; numl = 0; n = 0
    do ibr = 1,mxnetbr                                    ! SET UP BRANCH DISTANCE COORDINATE
       XLB = 0d0
-      do LL = 1, netbr(ibr)%NX  
+      do LL = 1, netbr(ibr)%NX
          L  = netbr(ibr)%ln(LL); LA = iabs(L)
          if (L > 0) then
              k1 = kn0(1,La); k2 = kn0(2,LA)
          else
              k2 = kn0(1,La); k1 = kn0(2,LA)
          endif
-         if (LL == 1) then 
-             if (jaregrid == 1) then 
+         if (LL == 1) then
+             if (jaregrid == 1) then
                 n = 1
-             else 
-                n = n + 1 
-             endif   
-             xpl(n) = xk0(k1) ; ypl(n) = yk0(k1) ; zpl(n) = zk0(k1)  
+             else
+                n = n + 1
+             endif
+             xpl(n) = xk0(k1) ; ypl(n) = yk0(k1) ; zpl(n) = zk0(k1)
          endif
          n = n + 1
-         if (n > maxpol) then 
+         if (n > maxpol) then
             CALL INCREASEPOL(int(1.5*n), 1)
          endif
-         xpl(n) = xk0(k2) ; ypl(n) = yk0(k2) ; zpl(n) = zk0(k2) 
+         xpl(n) = xk0(k2) ; ypl(n) = yk0(k2) ; zpl(n) = zk0(k2)
       enddo
-      
-      if (jaregrid == 1) then 
+
+      if (jaregrid == 1) then
          call accumulateDistance(XPL,YPL,ZPL,N)
-      
+
          nh    = zpl(n)/Unidx1D + 1
          dxa   = zpl(n)/nh
-         nh    = nh + 1   
-         allocate(xh(nh), yh(nh), zh(nh)) 
+         nh    = nh + 1
+         allocate(xh(nh), yh(nh), zh(nh))
          zh(1) = 0d0
          do k = 2,nh
-            zh(k) = zh(k-1) + dxa 
-         enddo    
+            zh(k) = zh(k-1) + dxa
+         enddo
          CALL mapToPolyline(XPL, YPL, ZPL, N, XH, YH, ZH, NH) ! HAAL HUIDIGE PUNTEN OP
-      
-         numk = numk + 1   
+
+         numk = numk + 1
          xk(numk) = xh(1) ; yk(numk) = yh(1)
          do k = 2,nh
             numk       = numk + 1
             numL       = numL + 1
-         
-            if (numk > numk0 .or. numL > numL0) then 
+
+            if (numk > numk0 .or. numL > numL0) then
                 call increasenetw(2*numk,2*numl)
             endif
-         
+
             xk(numk)   = xh(k) ; yk(numk)   = yh(k)
             kn(2,numl) = numk  ; kn(1,numl) = numk - 1 ; kn(3,numl) = 1  ! NOTE: regridded 1D now does not have kn(3,L)=4 at end points.
-         enddo    
-      
+         enddo
+
          deallocate (xh,yh,zh)
-    
-      else    
-   
+
+      else
+
          n = n + 1
-         xpl(n) = dmiss ; ypl(n) = dmiss ; zpl(n) = dmiss 
-          
-      endif   
-         
+         xpl(n) = dmiss ; ypl(n) = dmiss ; zpl(n) = dmiss
+
+      endif
+
    enddo
- 
-   if (jaregrid == 1) then 
+
+   if (jaregrid == 1) then
       CALL SETNODADM(0)
       call restorepol()
-   else 
-       npl = n - 1 
+   else
+       npl = n - 1
        call restore()
-   endif   
-   
+   endif
+
    end subroutine regrid1D
-   
+
    SUBROUTINE SHRINKYZPROF(Y,Z,N,NX)
    USE M_MISSING
    IMPLICIT NONE
    INTEGER          :: N, NX, NACT
    DOUBLE PRECISION :: Y(N), Z(N)
-   
+
    DOUBLE PRECISION, ALLOCATABLE :: YH(:), ZH(:)
-   
+
    INTEGER          :: NH, K, KM
-   DOUBLE PRECISION :: ZMIN, D01, D02, Z01, AT, ZD, ZDMIN, A,B   
-   
-   ALLOCATE ( YH(N), ZH(N) ) 
-  
-   IF (NX > N) THEN 
+   DOUBLE PRECISION :: ZMIN, D01, D02, Z01, AT, ZD, ZDMIN, A,B
+
+   ALLOCATE ( YH(N), ZH(N) )
+
+   IF (NX > N) THEN
        RETURN
-   ENDIF     
-   
+   ENDIF
+
    NACT = N                                       ! MAX NR
-   NH   = N ; YH(1:N) = Y(1:N) ; ZH(1:N) = Z(1:N)     
+   NH   = N ; YH(1:N) = Y(1:N) ; ZH(1:N) = Z(1:N)
 
    ZMIN = 9D9
    DO K = 1,NACT
-      ZMIN = MIN(ZMIN, Z(K)) 
-   ENDDO     
-   
-   DO K = 1,NACT
-      Z(K) = Z(K) - ZMIN   
-   ENDDO     
-   
-   AT   = 0D0 
-   DO K = 2,NACT
-      D01 =  Y(K) - Y(K-1) 
-      Z01 =  0.5D0*(Z(K) + Z(K-1)) 
-      AT  = AT + D01*Z01 
+      ZMIN = MIN(ZMIN, Z(K))
    ENDDO
-      
-     
+
+   DO K = 1,NACT
+      Z(K) = Z(K) - ZMIN
+   ENDDO
+
+   AT   = 0D0
+   DO K = 2,NACT
+      D01 =  Y(K) - Y(K-1)
+      Z01 =  0.5D0*(Z(K) + Z(K-1))
+      AT  = AT + D01*Z01
+   ENDDO
+
+
    DO WHILE ( NACT > NX + 1)
-       
+
        ZDMIN = 9D9 ; KM = 0
        DO K  = 2,NACT - 1
-          D01 =  Y(K) - Y(K-1) 
-          IF (D01 == 0D0) THEN 
+          D01 =  Y(K) - Y(K-1)
+          IF (D01 == 0D0) THEN
               Y(K) = DMISS
               EXIT
           ENDIF
-          D02 =  Y(K+1) - Y(K-1)  
+          D02 =  Y(K+1) - Y(K-1)
           A   =  D01/D02 ; B = 1D0 - A
-          ZD  = ( A*Z(K+1) + B*Z(K-1) )*D02 
-          IF ( ABS(ZD) < ZDMIN ) THEN 
+          ZD  = ( A*Z(K+1) + B*Z(K-1) )*D02
+          IF ( ABS(ZD) < ZDMIN ) THEN
              KM = K ; ZDMIN = ZD
-          ENDIF   
-       ENDDO    
-       
-       IF (ZDMIN < 0.01*AT) THEN 
-       
+          ENDIF
+       ENDDO
+
+       IF (ZDMIN < 0.01*AT) THEN
+
           DO K = 2,NACT - 1
-              
-              
+
+
           ENDDO
-          
-       ENDIF    
-       
-   ENDDO     
-    
+
+       ENDIF
+
+   ENDDO
+
    END SUBROUTINE SHRINKYZPROF
-   
+
       !> Find a point on a polyline at a certain distance from the start.
       !! The distance is measured along the consecutive polyline segments.
       SUBROUTINE interpolateOnPolyline(X,Y,Z,T,MMAX,XP,YP,ZP,TP,JA)
@@ -12351,11 +12453,11 @@ numka:DO K0 = 1,NUMK                 ! ATTRACTION PARAMETERS
 
       !> Stop afstand tussen polygoonpunten vanaf begin in array
       SUBROUTINE accumulateDistance(X,Y,T,MMAX)
-      
+
       use geometry_module, only: dbdistance
       use m_missing, only: dmiss
       use m_sferic, only: jsferic, jasfer3D
-      
+
       implicit none
 
       integer :: mmax
@@ -12371,14 +12473,76 @@ numka:DO K0 = 1,NUMK                 ! ATTRACTION PARAMETERS
       RETURN
       END SUBROUTINE accumulateDistance
 
-      !> Refine entire current polygon from start to end.
+!> Refine entire current polyline from start to end.
       subroutine refinepolygon()
-      use m_polygon, only: npl
+      use m_polygon  !, only: npl, dxuni
+      use m_tpoly
+      use m_sferic
+      use m_missing
+      use geometry_module, only: dbdistance, half
       implicit none
-        integer :: i1, i2
-        i1 = 1
-        i2 = npl
-        call refinepolygonpart(i1,i2,0)
+      integer :: i1, i2
+      integer :: key
+
+      type(tpoly), dimension(:), allocatable :: pli, pliout              ! tpoly-type polygons
+
+      double precision                       :: dl, xnew, ynew, znew
+
+      integer                                :: numpols, numpolsout      ! number of tpoly-type polygons
+      integer                                :: i
+      integer                                :: iter, j
+      integer                                :: M, NPUT
+
+      i1 = 1
+      i2 = npl
+      call refinepolygonpart(i1,i2,0)
+
+      call TYPEVALUE(dxuni,key)
+
+      call pol_to_tpoly(numpols, pli, keepExisting=.false.)
+      call delpol()
+
+      write(6,*) numpols
+      do i=1,numpols
+         write(6,*) i
+         call tpoly_to_pol(pli,iselect=i)
+!         i1 = 1
+!         i2 = NPL
+!         call refinepolygonpart(i1,i2,1)
+
+!        loop over polygon points
+         j = 1
+         do while ( j.lt.NPL )
+!           get length
+            dl = dbdistance(xpl(j), ypl(j), xpl(j+1), ypl(j+1), jsferic, jasfer3D, dmiss)
+
+!           check length
+            if ( dl.gt.dxuni ) then
+!              compute new point coordinates
+               call half(xpl(j), ypl(j), xpl(j+1), ypl(j+1),xnew,ynew,jsferic,jasfer3D)
+               znew = DMISS
+               if ( zpl(j).ne.DMISS .and. zpl(j+1).ne.DMISS ) then
+                  znew = 0.5*(zpl(j)+zpl(j+1))
+               end if
+!              add point
+               call increasepol(NPL+1, 1)
+               NPUT = -1
+               M = j
+               CALL MODLN2(XPL, YPL, ZPL, MAXPOL, NPL, M, xnew, ynew, NPUT)
+               ZPL(M) = znew
+            else
+               j = j+1
+            end if
+         end do
+
+         call pol_to_tpoly(numpolsout, pliout, keepExisting=.true.)
+         call delpol()
+      end do
+
+      call tpoly_to_pol(pliout)
+      call dealloc_tpoly(pli)
+      call dealloc_tpoly(pliout)
+
       end subroutine refinepolygon
 
       !> Refine part of a polygon, indicated by start and end index.
@@ -12473,7 +12637,7 @@ numka:DO K0 = 1,NUMK                 ! ATTRACTION PARAMETERS
 
       CALL accumulateDistance(XPLO, YPLO, DPL, NO)  ! OORSPRONKELIJKE LENGTECOORDINAAT
       CALL averageDiff       (DPL , DXA , NO)       ! OORSPRONKELIJKE SEGMENTSIZE
-      
+
       if ( jauniform.ne.1 ) then
         DXS1        = 1d0*DXA(1)                      ! Start segment
         DXS2        = 1d0*DXA(NO)                     ! Eind segment
@@ -12605,9 +12769,9 @@ numka:DO K0 = 1,NUMK                 ! ATTRACTION PARAMETERS
       use m_samples
       use m_sferic, only: jsferic, jasfer3D
       use m_polygon, only: NPL, xpl, ypl, zpl
-      use m_ec_basic_interpolation, only: triinterp2 
+      use m_ec_basic_interpolation, only: triinterp2
       use m_flowexternalforcings, only: transformcoef
-      
+
       implicit none
       DOUBLE PRECISION :: XH(NPH), YH(NPH), DXS(NPH)
       integer :: nph, jdla
@@ -12618,7 +12782,7 @@ numka:DO K0 = 1,NUMK                 ! ATTRACTION PARAMETERS
 
       DXS = DXYMIS
 
-      CALL triinterp2(XH,YH,DXS,NPH,JDLA, & 
+      CALL triinterp2(XH,YH,DXS,NPH,JDLA, &
                       XS, YS, ZS, NS, dmiss, jsferic, jins, jasfer3D, NPL, MXSAM, MYSAM, XPL, YPL, ZPL, transformcoef)
 
       NN = 0
@@ -12660,8 +12824,8 @@ numka:DO K0 = 1,NUMK                 ! ATTRACTION PARAMETERS
       ENDDO
 
       END SUBROUTINE mapToPolyline
-   
- 
+
+
       SUBROUTINE SMODPLA(DPLA, DXS, NPL)                   ! SMOOTH WITH DESIRED
       USE M_ALLOC
       implicit none
@@ -12848,14 +13012,14 @@ numka:DO K0 = 1,NUMK                 ! ATTRACTION PARAMETERS
       END SUBROUTINE SPLINT
 
       SUBROUTINE POLTONET(L1,L2)   ! PULL POLYGON TO NETWORK, KEEPING SUITABLE TRIANGLES TO OUTSIDE
-      
+
       use m_netw
       use m_polygon
       use m_missing
       use m_wearelt
       use m_sferic, only: jsferic, jasfer3D, dtol_pole
       use gridoperations
-      
+
       implicit none
       integer :: l1
       integer :: l2
@@ -12979,7 +13143,7 @@ numka:DO K0 = 1,NUMK                 ! ATTRACTION PARAMETERS
       use m_missing, only: dmiss
       use m_sferic, only: jsferic, jasfer3D
       use geometry_module, only: dbdistance, dlinedis
-      
+
       implicit none
       integer          :: n1
       double precision :: XP1, YP1
@@ -13019,16 +13183,16 @@ numka:DO K0 = 1,NUMK                 ! ATTRACTION PARAMETERS
 
       END SUBROUTINE CLOSETO1DORBND
 
-      SUBROUTINE CLOSEdefinedflownode(XP1,YP1,N1)  ! 
-      
+      SUBROUTINE CLOSEdefinedflownode(XP1,YP1,N1)  !
+
       use m_flowgeom
-      use m_flow 
+      use m_flow
       use geometry_module, only: dbdistance
       use m_missing, only: dmiss
       use m_sferic, only: jsferic, jasfer3D
-                                             
+
       implicit none
-      
+
       integer          :: n1
       double precision :: XP1, YP1
       double precision :: dismin, dis
@@ -13037,22 +13201,22 @@ numka:DO K0 = 1,NUMK                 ! ATTRACTION PARAMETERS
       N1 = 0
       DISMIN = 9d33
       DO n = 1,ndxi
-         if (laydefnr(n) > 0) then 
+         if (laydefnr(n) > 0) then
             dis =  dbdistance(XP1,YP1,XZ(n),YZ(n), jsferic, jasfer3D, dmiss)
-            IF (dis < dismin) then 
+            IF (dis < dismin) then
                n1 = n ; dismin = dis
             endif
          endif
       enddo
       end subroutine CLOSEdefinedflownode
 
-      
+
       SUBROUTINE CLOSENETBNDLINK(XP1,YP1,N1)
       use m_netw
       use geometry_module, only: dlinedis
       use m_missing, only: dmiss
       use m_sferic, only: jsferic, jasfer3D
-      
+
       implicit none
       integer :: n1
       double precision :: xp1
@@ -13087,12 +13251,12 @@ numka:DO K0 = 1,NUMK                 ! ATTRACTION PARAMETERS
       END SUBROUTINE CLOSENETBNDLINK
 
       SUBROUTINE CLOSETO1Dnetlink(XP1,YP1,N1,XN1,YN1,DIST) !
-      
+
       use m_netw
       use geometry_module, only: dbdistance, dlinedis
       use m_missing, only: dmiss, imiss
       use m_sferic, only: jsferic, jasfer3D
-      
+
       implicit none
       integer          :: n1
       double precision :: XP1, YP1, XN1,YN1
@@ -13105,13 +13269,14 @@ numka:DO K0 = 1,NUMK                 ! ATTRACTION PARAMETERS
       N1 = 0
       DISMIN = 9E+33
       DO L = 1,numl
-         IF (kn(3,L) == 1 .or. kn(3,L) == 6) then !  .or. kn(3,L) == 4) THEN
+         IF (kn(3,L) == 1 .or. kn(3,L) == 6  .or. kn(3,L) == 5 .or. kn(3,L) == 7) then !  .or. kn(3,L) == 4) THEN
              K1 = kn(1,L) ; K2 = kn(2,L)
              XA = Xk(K1)
              YA = Yk(K1)
              XB = Xk(K2)
              YB = Yk(K2)
              CALL dLINEDIS(XP1,YP1,XA,YA,XB,YB,JA,DIS,XN,YN, jsferic, jasfer3D, dmiss)
+             !IF (JA .EQ. 1 .AND. DIS < 0.5D0*DBDISTANCE(XA,YA,XB,YB,jsferic, jasfer3D, dmiss)) THEN
              IF (JA .EQ. 1) THEN
                 IF (DIS .LT. DISMIN) THEN
                    N1     = L
@@ -13135,18 +13300,18 @@ numka:DO K0 = 1,NUMK                 ! ATTRACTION PARAMETERS
    END SUBROUTINE CLOSETO1Dnetlink
 
    SUBROUTINE CLOSETO1Dnetnode(XP1,YP1,N1,dist) !
-      
+
       use m_netw
       use geometry_module, only: dbdistance
       use m_sferic
       use m_missing
-      
+
       implicit none
       double precision, intent(in)  :: XP1, YP1
-      double precision, intent(out) :: dist     ! find 1D point close to x,y: 
+      double precision, intent(out) :: dist     ! find 1D point close to x,y:
       integer         , intent(out) :: n1       ! 1D point found
 
-      
+
       double precision :: dismin
       integer          :: ja, k, k1, k2, L
       double precision :: dis,dis1,dis2
@@ -13157,11 +13322,11 @@ numka:DO K0 = 1,NUMK                 ! ATTRACTION PARAMETERS
          IF (kn(3,L) == 1 .or. kn(3,L) == 6) then !  .or. kn(3,L) == 4) THEN
              K1 = kn(1,L) ; K2 = kn(2,L)
              dis1 = dbdistance(XP1,YP1,Xk(K1),Yk(K1),jsferic, jasfer3D, dmiss)
-             dis2 = dbdistance(XP1,YP1,Xk(K2),Yk(K2),jsferic, jasfer3D, dmiss) 
+             dis2 = dbdistance(XP1,YP1,Xk(K2),Yk(K2),jsferic, jasfer3D, dmiss)
              if (dis1 < dis2) THEN
-                k = k1 ; dis = dis1 
-             else   
-                k = k2 ; dis = dis2 
+                k = k1 ; dis = dis1
+             else
+                k = k2 ; dis = dis2
              endif
              IF (DIS .LT. DISMIN) THEN
                 N1 = k
@@ -13297,17 +13462,17 @@ subroutine copynetwtopol( )
 use m_polygon
 use m_missing
 use network_data
-implicit none      
+implicit none
 integer :: n, L, k1, k2
-      
+
 call increasepol(3*numl+1000, 0)
 
 n = 0
 do L = 1,numL
-   n = n + 1 ; k1 = kn(1,L) ; xpl(n) = xk(k1) ; ypl(n) = yk(k1) ; zpl(n) = zk(k1)  
-   n = n + 1 ; k2 = kn(2,L) ; xpl(n) = xk(k2) ; ypl(n) = yk(k2) ; zpl(n) = zk(k2)  
-   n = n + 1 ; k2 = kn(2,L) ; xpl(n) = dmiss  ; ypl(n) = dmiss  ; zpl(n) = dmiss  
-enddo    
+   n = n + 1 ; k1 = kn(1,L) ; xpl(n) = xk(k1) ; ypl(n) = yk(k1) ; zpl(n) = zk(k1)
+   n = n + 1 ; k2 = kn(2,L) ; xpl(n) = xk(k2) ; ypl(n) = yk(k2) ; zpl(n) = zk(k2)
+   n = n + 1 ; k2 = kn(2,L) ; xpl(n) = dmiss  ; ypl(n) = dmiss  ; zpl(n) = dmiss
+enddo
 npl = n
 
    end subroutine copynetwtopol
@@ -13974,6 +14139,11 @@ subroutine crosssections_on_flowgeom()
     use m_flowgeom, only: Lnx
     use m_missing
     use kdtree2Factory
+    use unstruc_messages
+    use dfm_error
+    use unstruc_channel_flow
+    use m_inquire_flowgeom
+    use unstruc_caching, only: copyCachedCrossSections, saveLinkList
     implicit none
 
     integer                                       :: ic, icmod
@@ -13988,49 +14158,72 @@ subroutine crosssections_on_flowgeom()
     integer                                       :: istart, iend
 
     integer                                       :: jakdtree=1
+    double precision                              :: t0, t1
+    character(len=128)                            :: mesg
+    integer                                       :: linknr, ii, branchIdx
+    type(t_observCrossSection), pointer           :: pCrs
+    logical                                       :: success
+
 
     if ( ncrs.lt.1 ) return
+
+    numcrossedlinks = 0
 
 !   allocate
     allocate(istartcrs(ncrs+1))
     istartcrs = 1
-    
+
     allocate(idum(1))
     idum = 0
-    
+
     if ( jakdtree.eq.1 ) then
-        num = 0
-!       determine polyline size
-        do ic=1,ncrs
-           num = num+crs(ic)%path%np+1 ! add space for missing value
-           istartcrs(ic+1) = num+1
-        end do
+        call klok(t0)
 
-!       allocate
-        allocate(xx(num), yy(num))
+        call copyCachedCrossSections( iLink, ipol, success )
 
-!       determine paths to single polyline map
-        num = 0
-        do ic=1,ncrs
-           do i=1,crs(ic)%path%np
-              num = num+1
-              xx(num) = crs(ic)%path%xp(i)
-              yy(num) = crs(ic)%path%yp(i)
-           end do
-!          add missing value
-           num = num+1
-           xx(num) = DMISS
-           yy(num) = DMISS
-        end do
+        if ( success ) then
+            numcrossedlinks = size(iLink)
+            ierror          = 0
+        else
+            num = 0
+!           determine polyline size
+            do ic=1,ncrs
+               if (crs(ic)%loc2OC == 0) then  ! only for crs which are polyline-based
+                  num = num+crs(ic)%path%np+1 ! add space for missing value
+                  istartcrs(ic+1) = num+1
+               end if
+            end do
 
-!       allocate
-        allocate(iLink(Lnx))
-        iLink = 0
-        allocate(ipol(Lnx))
-        ipol = 0
-        allocate(dSL(Lnx))
-        dSL = 0d0
-        call find_crossed_links_kdtree2(treeglob,num,xx,yy,2,Lnx,1,numcrossedlinks, iLink, ipol, dSL, ierror)
+!           allocate
+            allocate(xx(num), yy(num))
+
+!           determine paths to single polyline map
+            num = 0
+            do ic=1,ncrs
+               if (crs(ic)%loc2OC == 0) then
+                  do i=1,crs(ic)%path%np
+                     num = num+1
+                     xx(num) = crs(ic)%path%xp(i)
+                     yy(num) = crs(ic)%path%yp(i)
+                  end do
+!              add missing value
+                  num = num+1
+                  xx(num) = DMISS
+                  yy(num) = DMISS
+               end if
+            end do
+
+!           allocate
+            allocate(iLink(Lnx))
+            iLink = 0
+            allocate(ipol(Lnx))
+            ipol = 0
+            allocate(dSL(Lnx))
+            dSL = 0d0
+            call find_crossed_links_kdtree2(treeglob,num,xx,yy,2,Lnx,1,numcrossedlinks, iLink, ipol, dSL, ierror)
+
+            call saveLinklist( numcrossedlinks, iLink, ipol )
+        endif
 
         if ( ierror.eq.0 .and. numcrossedlinks.gt.0 ) then
 
@@ -14042,21 +14235,23 @@ subroutine crosssections_on_flowgeom()
 
            do i=1,numcrossedlinks
               do ic=1,ncrs
-                 istart  = istartcrs(ic)
-                 iend    = istartcrs(ic+1)-1
-                 if ( ipol(i).ge.istart .and. ipol(i).le.iend ) then
-                    numlist(ic) = numlist(ic)+1
-                    linklist(numlist(ic),ic) = iLink(i)
+                 if (crs(ic)%loc2OC == 0) then
+                    istart  = istartcrs(ic)
+                    iend    = istartcrs(ic+1)-1
+                    if ( ipol(i).ge.istart .and. ipol(i).le.iend ) then
+                       numlist(ic) = numlist(ic)+1
+                       linklist(numlist(ic),ic) = iLink(i)
+                    end if
                  end if
               end do
            end do
 
         else
 !          disable kdtree
-           jakdtree = 0  
+           jakdtree = 0
            ! allocate(idum(1))
            ! idum = 0
-  
+
 
 !          deallocate
            if ( allocated(iLink) ) deallocate(iLink)
@@ -14067,20 +14262,51 @@ subroutine crosssections_on_flowgeom()
 !       deallocate
         if ( allocated(istartcrs) ) deallocate(istartcrs)
         if ( allocated(xx)        ) deallocate(xx,yy)
+
+        call klok(t1)
+        write(mesg,"('cross sections with kdtree2, elapsed time: ', G15.5, 's.')") t1-t0
+        call mess(LEVEL_INFO, trim(mesg))
     end if
 
     icMOD = MAX(1,ncrs/100)
+
+    call realloc(numlist, ncrs, keepExisting = .true., fill = 0) ! In case pli-based cross sections have not allocated this yet.
+    call realloc(linklist, (/ max(numcrossedlinks, 1), ncrs /), keepExisting = .true., fill = 0)  ! In addition to pli-based cross sections (if any), also support 1D branchid-based cross sections.
+
+    call copyCachedCrossSections( iLink, ipol, success )
 
     CALL READYY('Enabling cross sections on grid', 0d0)
     do ic=1,ncrs
         if (mod(ic,icMOD) == 0) then
             CALL READYY('Enabling cross sections on grid', dble(ic)/dble(ncrs))
         end if
-        if ( jakdtree.eq.0 ) then
-           call crspath_on_flowgeom(crs(ic)%path,0,0,1,idum)
-        else
-           call crspath_on_flowgeom(crs(ic)%path,0,1,numlist(ic),linklist(1,ic))
-        end if        
+        if (crs(ic)%loc2OC == 0) then
+          if ( .not. success ) then
+             if ( jakdtree.eq.0 ) then
+                call crspath_on_flowgeom(crs(ic)%path,0,0,1,idum, 0)
+             else
+                call crspath_on_flowgeom(crs(ic)%path,0,1,numlist(ic),linklist(1,ic), 0)
+             end if
+          end if
+        else  ! snap to only 1d flow link
+          ii = crs(ic)%loc2OC
+          pCrs => network%observcrs%observcross(ii)
+          branchIdx = pCrs%branchIdx
+          if (branchIdx > 0) then
+             ierror = 1
+             ierror = findlink(branchIdx, pCrs%chainage, linknr) ! find flow link given branchIdx and chainage
+             if (ierror == DFM_NOERR) then
+                numlist(ic) = 1
+				    linklist(1,ic) = linknr
+                call crspath_on_flowgeom(crs(ic)%path,0,1,numlist(ic),linklist(1,ic), 1)
+             else
+                call SetMessage(LEVEL_ERROR, 'Error occurs when snapping Observation cross section '''//trim(crs(ic)%name)//''' to a 1D flow link.')
+             end if
+          else
+             write(msgbuf, '(a)') "Observation cross section "//trim(crs(ic)%name)//" does not have a valide branch index."
+             call mess(LEVEL_ERROR, msgbuf)
+          end if
+        end if
     end do
 
     CALL READYY('Enabling cross sections on grid', -1d0)
@@ -14095,9 +14321,9 @@ subroutine crosssections_on_flowgeom()
        if ( allocated(numlist)  ) deallocate(numlist)
        if ( allocated(linklist) ) deallocate(linklist)
     endif
-    
+
     if ( allocated(idum)     ) deallocate(idum)
-    
+
    return
 end subroutine crosssections_on_flowgeom
 
@@ -14134,7 +14360,7 @@ subroutine thindams_on_netgeom()
        integer                                       :: jakdtree = 1 ! use kdtree (1) or not (0)
 
        if (nthd == 0) return
-       
+
        ierror = 1
 
        if ( jakdtree.eq.1 ) then
@@ -14145,7 +14371,7 @@ subroutine thindams_on_netgeom()
           allocate(iPol(numL))
           allocate(dSL(numL))
           allocate(idum(3*nthd))
-          
+
           call delpol()
 
 !         copy all paths to a DMISS-separated polyline
@@ -14175,7 +14401,7 @@ subroutine thindams_on_netgeom()
              do ic=1,nthd
                 thd(ic)%lnx = 0
              end do
-             
+
              do iL=1,numcrossedlinks
 !               get link number
                 L = iLink(iL)
@@ -14198,7 +14424,7 @@ subroutine thindams_on_netgeom()
           write(mesg,"('thin dams with kdtree2, elapsed time: ', G15.5, 's.')") t1-t0
           call mess(LEVEL_INFO, trim(mesg))
        end if
-       
+
        if ( jakdtree.eq.0 ) then ! no kdtree, or kdtree gave error
           call klok(t0)
           do ic=1,nthd
@@ -14217,7 +14443,7 @@ subroutine thindams_on_netgeom()
 
       ierror = 0
  1234 continue
-      
+
       if ( allocated(iLink) ) deallocate(iLink)
       if ( allocated(iPol)  ) deallocate(iPol)
       if ( allocated(dSL)   ) deallocate(dSL)
@@ -14226,7 +14452,7 @@ subroutine thindams_on_netgeom()
       if ( NPL.gt.0 ) call delpol()
 
       return
-      
+
 end subroutine thindams_on_netgeom
 
 
@@ -14243,7 +14469,7 @@ subroutine fixedweirs_on_flowgeom()
     idum = 0
 
     do ic=1,nfxw
-        call crspath_on_flowgeom(fxw(ic),1,0,1,idum)
+        call crspath_on_flowgeom(fxw(ic),1,0,1,idum, 0)
     end do
 end subroutine fixedweirs_on_flowgeom
 
@@ -14256,7 +14482,7 @@ end subroutine fixedweirs_on_flowgeom
 !! coordinates in xk,yk.
 !!
 !! \see crspath_on_netgeom, crosssections_on_flowgeom, fixedweirs_on_flowgeom
-subroutine crspath_on_flowgeom(path,includeghosts,jalinklist,numlinks,linklist)
+subroutine crspath_on_flowgeom(path,includeghosts,jalinklist,numlinks,linklist, jaloc3)
     use m_crspath
     use m_flowgeom
     use network_data
@@ -14265,7 +14491,7 @@ subroutine crspath_on_flowgeom(path,includeghosts,jalinklist,numlinks,linklist)
     use sorting_algorithms, only: indexx
     use geometry_module, only: dbdistance, normalout
     use m_missing, only: dmiss, dxymis
-    
+
     implicit none
 
     type(tcrspath),               intent(inout) :: path          !< Cross section path that must be imposed on flow geometry.
@@ -14273,6 +14499,7 @@ subroutine crspath_on_flowgeom(path,includeghosts,jalinklist,numlinks,linklist)
     integer,                      intent(in)    :: jalinklist    !< use link list (1) or not (0)
     integer,                      intent(in)    :: numlinks      !< number of links in list
     integer, dimension(numlinks), intent(in)    :: linklist      !< list of flowlinks crossed by path
+    integer,                      intent(in   ) :: jaloc3        !< If it has locationtype==3, then jaloc3>0, for Crs defined by branchID and chainage
 
     integer                       :: i, iend, iLf, L, Lf, n1, n2, kint
 
@@ -14334,11 +14561,20 @@ subroutine crspath_on_flowgeom(path,includeghosts,jalinklist,numlinks,linklist)
             x2 = .5d0*(xz(n1)+xz(n2)) + .5d0*xn
             y2 = .5d0*(yz(n1)+yz(n2)) + .5d0*yn
         end if
-
-        call crspath_on_singlelink(path, Lf, x1, y1, x2, y2, xz(n1), yz(n1), xz(n2), yz(n2))
+        if (jaloc3 > 0) then ! for Crs defined by branchID and chainage
+           call increaseCrossSectionPath(path, 0, 1)
+           path%xk(1,1) = x1
+           path%yk(1,1) = y1
+           path%xk(2,1) = x2
+           path%yk(2,1) = y2
+           path%lnx = 1
+           path%ln(1) = Lf
+        else
+           call crspath_on_singlelink(path, Lf, x1, y1, x2, y2, xz(n1), yz(n1), xz(n2), yz(n2))
+        end if
    enddo
 
-   if ( path%lnx.gt.0 ) then
+   if ( path%lnx.gt.0 .and. jaloc3 == 0) then
 
    !  determine permutation array of flowlinks by increasing arc length order
       do i=1,path%lnx
@@ -14464,8 +14700,8 @@ implicit none
     if (.not. allocated(sumvalcum_timescale)) then
        allocate(sumvalcum_timescale(numvals))
        sumvalcum_timescale = 1d0
-    endif   
-    
+    endif
+
     if (.not. allocated(sumvalcur_tmp)) then
        allocate(sumvalcur_tmp(numvals,ncrs))
        sumvalcur_tmp = 0d0
@@ -14495,9 +14731,9 @@ implicit none
       do icrs=1,ncrs
          do iv = 1, numvals ! Nu nog "5+ Numconst" standaard grootheden, in buitenlus
             crs(icrs)%sumvalcur(iv) = sumvalcur_tmp(iv,icrs)
-            crs(icrs)%sumvalcum(iv) = crs(icrs)%sumvalcum(iv) + sumvalcum_timescale(iv)*timstep*sumvalcur_tmp(iv,icrs)
+            crs(icrs)%sumvalcum(iv) = crs(icrs)%sumvalcum(iv) + max(sumvalcum_timescale(iv),1d0)*timstep*sumvalcur_tmp(iv,icrs)
             if (timtot > 0d0) then
-                crs(icrs)%sumvalavg(iv) = crs(icrs)%sumvalcum(iv)/timtot/sumvalcum_timescale(iv)
+                crs(icrs)%sumvalavg(iv) = crs(icrs)%sumvalcum(iv)/timtot/max(sumvalcum_timescale(iv),1d0)
             else
                 crs(icrs)%sumvalavg(iv) = crs(icrs)%sumvalcur(iv)
             end if
@@ -14505,10 +14741,10 @@ implicit none
       end do
     else
        do icrs=1,ncrs ! Compute time-integrated discharge in current history output interval
-          sumvalcumQ_mpi(icrs) = sumvalcumQ_mpi(icrs) + sumvalcum_timescale(IPNT_Q1C)*timstep*sumvalcur_tmp(IPNT_Q1C,icrs)
+          sumvalcumQ_mpi(icrs) = sumvalcumQ_mpi(icrs) + max(sumvalcum_timescale(IPNT_Q1C),1d0)*timstep*sumvalcur_tmp(IPNT_Q1C,icrs)
        enddo
     endif
-    
+
     timprev = tim1
 end subroutine updateValuesOnCrossSections
 
@@ -14524,8 +14760,8 @@ subroutine sumvalueOnCrossSections(resu, numvals)
     use m_timer
     use m_transport, only: NUMCONST_MDU, ISALT, ITEMP, ISED1, ITRA1, constituents
     use m_sediment, only: jased, stmpar, sedtra
-    
-    
+
+
     implicit none
     integer, intent(in)           :: numvals             !< Which values to sum (1=discharge)
     double precision, intent(out) :: resu(numvals,ncrs)  !< cross-section data, note: ncrs from module m_monitoring_crosssections
@@ -14534,7 +14770,7 @@ subroutine sumvalueOnCrossSections(resu, numvals)
     integer                       :: icrs
     double precision              :: val
     integer                       :: lsed
-    
+
     if ( ncrs.lt.1 ) return   ! nothing to do
 
     resu = 0d0
@@ -14549,29 +14785,29 @@ subroutine sumvalueOnCrossSections(resu, numvals)
            resu(IPNT_Q1C,icrs) = resu(IPNT_Q1C,icrs) + dble(sign(1, Lf)) * q1(L)                     ! discharge
 
            resu(IPNT_AUC,icrs) = resu(IPNT_AUC,icrs) + au(L)                                         ! area
-           
+
            ! NOTE: IPNT_U1A is now not included.
 
            resu(IPNT_S1A,icrs) = resu(IPNT_S1A,icrs) + 0.5d0*( s1(k1) + s1(k2) ) * au(L)             ! weigted waterlevel
 
            resu(IPNT_HUA,icrs) = resu(IPNT_HUA,icrs) + hu(L) * au(L)                                 ! upwind waterdepth
-           
-           if( jatransportmodule == 1 ) then
+
+           if( jatransportmodule.ne.0 ) then
               IP = IPNT_HUA
               do num = 1,NUMCONST_MDU
                  IP = IP + 1
-                 do LL = Lbot(L), Ltop(L) 
+                 do LL = Lbot(L), Ltop(L)
                     k1 = ln(1,LL); k2 = ln(2,LL)
                     resu(IP,icrs) = resu(IP,icrs) + dble(sign(1, Lf)) * ( max(q1(LL),0d0) * constituents(num,k1) &
                                                                         + min(q1(LL),0d0) * constituents(num,k2) )
                  enddo
               enddo
            endif
-           
+
            if( jased == 4 .and. stmpar%lsedtot > 0 ) then ! todo, loop korter tot lsedsus.
               IP = IPNT_HUA + NUMCONST_MDU + 1 ! TODO: mourits/dam_ar: check whether all uses of NUMCONST versus NUMCONST_MDU are now correct.
               do lsed = 1,stmpar%lsedtot
-                 resu(IP,icrs) = resu(IP,icrs) + sedtra%e_sbn(L,lsed) * wu(L) * dble(sign(1, Lf))
+                 resu(IP,icrs) = resu(IP,icrs) + sedtra%e_sbn(L,lsed) * wu_mor(L) * dble(sign(1, Lf))
               enddo
               if( stmpar%lsedsus > 0 ) then
                  IP = IP + 1
@@ -14582,16 +14818,16 @@ subroutine sumvalueOnCrossSections(resu, numvals)
            endif
        end do
     end do   ! do icrs=1,ncrs
-    
-    if( jased == 4 .and. stmpar%lsedtot > 0 ) then 
+
+    if( jased == 4 .and. stmpar%lsedtot > 0 ) then
        IP = IPNT_HUA + NUMCONST_MDU + 1
        sumvalcum_timescale(IP) = stmpar%morpar%morfac
        if( stmpar%lsedsus > 0 ) then
-          IP = IP + 1; 
+          IP = IP + 1;
           sumvalcum_timescale(IP) = stmpar%morpar%morfac
        endif
     endif
-    
+
     if (jampi == 0 ) then
       ! NOTE: if jampi==1, it is incorrect to compute quantities that require division by AU values
       ! since these are not mpi_reduced yet. So, don't compute them at all in parallel runs.
@@ -14612,7 +14848,7 @@ subroutine sumvalueOnCrossSections(resu, numvals)
 
 end subroutine sumvalueOnCrossSections
 
-   
+
 !> Sums all monitored data on all cross sections, including time-integrated values.
 !! for sequential/non-MPI models: stored in crs()%sumvalcur/sumvalcum
 !! for parallel/MPI models: stored in sumvalcur_tmp, and needs later mpi_allreduce:
@@ -14672,16 +14908,16 @@ subroutine updateValuesOnCrossSections_mpi(tim1)
             ! TODO: AvD/JZ: UNST-1281: cumulative Q fort MPI runs is now correct, but:
             ! * jampi==1 code is quite different from jampi==0 for the sumvalcum.
             ! * And: sumvalcum for all other quantities than Q1C are wrong:
-            crs(icrs)%sumvalcum(iv) = crs(icrs)%sumvalcum(iv) + sumvalcum_timescale(iv)*ti_his*sumvalcur_tmp(iv, icrs) 
+            crs(icrs)%sumvalcum(iv) = crs(icrs)%sumvalcum(iv) + max(sumvalcum_timescale(iv),1d0)*ti_his*sumvalcur_tmp(iv, icrs)
          end if
          if (timtot > 0d0) then
-             crs(icrs)%sumvalavg(iv) = crs(icrs)%sumvalcum(iv)/timtot/sumvalcum_timescale(iv)
+             crs(icrs)%sumvalavg(iv) = crs(icrs)%sumvalcum(iv)/timtot/max(sumvalcum_timescale(iv),1d0)
          else
              crs(icrs)%sumvalavg(iv) = crs(icrs)%sumvalcur(iv)
          endif
        end do
    end do
-  
+
    ! Total sums are now correctly in crs(:)%sumval*. Prepare for a new ti_his time interval with partial sums:
    sumvalcur_tmp = 0d0
    sumvalcumQ_mpi= 0d0
@@ -14694,13 +14930,15 @@ subroutine obs_on_flowgeom(iobstype)
     use unstruc_messages
     use m_partitioninfo
     use m_flowgeom, only : xz,yz,ndx2D,ndxi
+    use unstruc_caching
 
     implicit none
 
     integer, intent(in) :: iobstype !< Which obs stations to update: 0=normal, 1=moving, 2=both
     integer :: i, k, n, n1, n2, k1b, iobs
     double precision           :: d1, d2
-    
+    logical                    :: cache_success
+
     integer                    :: jakdtree
     jakdtree = 1  ! use kdtree (1) or not (other)
 
@@ -14716,35 +14954,43 @@ subroutine obs_on_flowgeom(iobstype)
         n2 = numobs+nummovobs
     else
         n2 = numobs
-    end if 
-    
-    call find_flownode(n2-n1+1, xobs(n1:n2), yobs(n1:n2), namobs(n1:n2), kobs(n1:n2), jakdtree, 1)
-    
-    if (loglevel_StdOut == LEVEL_DEBUG) then 
+    end if
+
+    if ( cacheRetrieved() ) then
+        call copyCachedObservations( cache_success )
+    else
+        cache_success = .false.
+    endif
+    if ( .not. cache_success ) then
+    call find_flownode_for_obs(n1, n2)
+    endif
+
+    if (loglevel_StdOut == LEVEL_DEBUG) then
        do iobs = n1,n2
           if (kobs(iobs)<ndx2D) then
              write(msgbuf, '(a,i0,a,i0,a)') "Obs #",iobs,":"//trim(namobs(iobs))//" on node ",kobs(iobs)," (2D)"
-          else if (kobs(iobs)<=ndxi) then 
+          else if (kobs(iobs)<=ndxi) then
              write(msgbuf, '(a,i0,a,i0,a)') "Obs #",iobs,":"//trim(namobs(iobs))//" on node ",kobs(iobs)," (1D)"
-          endif 
+          endif
           call mess(LEVEL_INFO, msgbuf)
        enddo
-    endif 
+    endif
 
     return
 end subroutine obs_on_flowgeom
 
 
 !> Finds the flow nodes/cell numbers for each given x,y point (e.g., an observation station)
-subroutine find_flownode(N, xobs, yobs, namobs, kobs, jakdtree, jaoutside)
+subroutine find_flownode(N, xobs, yobs, namobs, kobs, jakdtree, jaoutside, iLocTp)
    use unstruc_messages
    use m_partitioninfo
    use m_flowgeom
+   use m_GlobalParameters, only: INDTP_1D, INDTP_2D, INDTP_ALL
    use kdtree2Factory
    use geometry_module, only: dbdistance
    use m_missing, only: dmiss
    use m_sferic, only: jsferic, jasfer3D
-   
+
    implicit none
 
    integer,                         intent(in)     :: N           !< number of points
@@ -14753,28 +14999,28 @@ subroutine find_flownode(N, xobs, yobs, namobs, kobs, jakdtree, jaoutside)
    integer,           dimension(N), intent(inout)  :: kobs        !< associated flow nodes, if found.
    integer,                         intent(inout)  :: jakdtree    !< use kdtree (1) or not (other)
    integer,                         intent(in)     :: jaoutside   !< allow outside cells (for 1D) (1) or not (0)
-   
+   integer,                         intent(in)     :: iLocTp      !< Node type, one of INDTP_1D/2D/ALL.
    integer                                         :: ierror      !  error (1) or not (0)
    integer                                         :: i, k, k1b
    integer,           dimension(1)                 :: idum
    double precision                                :: d1, d2
 
    ierror = 1
-   
+
    if ( jakdtree.eq.1 ) then
-      call find_flowcells_kdtree(treeglob,N,xobs,yobs,kobs,jaoutside,ierror)
-      
+      call find_flowcells_kdtree(treeglob,N,xobs,yobs,kobs,jaoutside,iLocTp, ierror)
+
       if ( jampi.eq.1 ) then
 !        globally reduce ierror
          idum(1) = ierror
          call reduce_int_max(1, idum)
          ierror = idum(1)
       end if
-      
+
       if ( ierror.ne.0 ) then
          jakdtree = 0   ! retry without kdtree
       end if
-      
+
 !     disable observation stations without attached flowlinks
       do i=1,N
          k=kobs(i)
@@ -14784,20 +15030,20 @@ subroutine find_flownode(N, xobs, yobs, namobs, kobs, jakdtree, jaoutside)
             end if
          end if
       end do
-   end if   
-   
+   end if
+
    if ( jakdtree.ne.1 ) then
       do i=1,N
-         call inflowcell(xobs(i),yobs(i),k,jaoutside)
-         if ( jaoutside.eq.1 ) then
+         call inflowcell(xobs(i),yobs(i),k,jaoutside, iLocTp)
+         if ( jaoutside.eq.1 .and. (iLocTp == INDTP_1D .or. iLocTp == INDTP_ALL)) then
             call CLOSETO1DORBND(xobs(i),yobs(i),k1B)
-            IF (K .ne. 0 .and. k1b .ne. 0) THEN 
+            IF (K .ne. 0 .and. k1b .ne. 0) THEN
                 D1 = DBDISTANCE(XZ(K1B), YZ(K1B), XOBS(I), YOBS(I), jsferic, jasfer3D, dmiss)
                 D2 = DBDISTANCE(XZ(K  ), YZ(K  ), XOBS(I), YOBS(I), jsferic, jasfer3D, dmiss)
-                IF ( D1 < D2 ) THEN 
+                IF ( D1 < D2 ) THEN
                    K = K1B
-                ENDIF    
-            ELSE IF (K1B .NE. 0) THEN 
+                ENDIF
+            ELSE IF (K1B .NE. 0) THEN
                 K = K1B
             ENDIF
          end if
@@ -14813,20 +15059,181 @@ subroutine find_flownode(N, xobs, yobs, namobs, kobs, jakdtree, jaoutside)
    if ( jampi.eq.1 .and. N.gt.0 ) then
 !     check if this subdomain owns the observation station
       call reduce_kobs(N,kobs,xobs,yobs,jaoutside)
-   end if 
-   
+   end if
+
    do i=1,N
       if ( kobs(i).eq.0 ) then
           write(msgbuf, '(a,i0,a,a,a)') 'Could not find flowcell for point #', i, ' (', trim(namobs(i)), '). Discarding.'
           call msg_flush()
       endif
    end do
-   
+
    ierror = 0
 1234 continue
-     
+
    return
-end subroutine find_flownode
+   end subroutine find_flownode
+
+
+!> Finds the flow nodes/cell numbers for all observation points. There are four kinds of obs, treated differently:
+!! obs that are defined in *.xyn file, to be snaped to 1D+2D flow nodes (Locationtype == 0), use kdtree
+!! obs that are defined in *.ini file by xy coordinate, to be snaped to only 1D flow node (Locationtype == 1), use kdtree
+!! obs that are defined in *.ini file by xy coordinate, to be snaped to only 2D flow node (Locationtype == 2), use kdtree
+!! obs that are defined in *.ini file by branchID and chainage, to be snaped to only 1D flow node (Locationtype == 3), do not use kdtree
+subroutine find_flownode_for_obs(nstart, nend)
+   use MessageHandling
+   use m_network
+   use m_ObservationPoints
+   use m_observations
+   use unstruc_channel_flow
+   use m_inquire_flowgeom
+   use m_GlobalParameters, only: INDTP_1D, INDTP_2D, INDTP_ALL
+   use dfm_error
+   use m_alloc
+   use m_flowgeom
+   implicit none
+   integer, intent(in)               :: nstart ! starting index of obs for snapping to a flow node
+   integer, intent(in)               :: nend   ! ending index of obs for snapping to a flow node
+   integer                           :: i, nodenr, branchIdx, ntotal, nobsini, ierr, jakdtree, jabybranch
+   integer, allocatable              :: ixy2obs0(:), ixy2obs1(:), ixy2obs2(:)
+   integer, allocatable              :: kobs_tmp0(:), kobs_tmp1(:), kobs_tmp2(:)
+   double precision, allocatable     :: xobs_tmp0(:), xobs_tmp1(:), xobs_tmp2(:)
+   double precision, allocatable     :: yobs_tmp0(:), yobs_tmp1(:), yobs_tmp2(:)
+   character(len=40), allocatable    :: namobs_tmp0(:), namobs_tmp1(:), namobs_tmp2(:)
+   integer                           :: nloctype1D, nloctype2D, nloctypeAll
+   type(t_ObservationPoint), pointer :: pOPnt
+
+   ntotal = nend - nstart + 1
+   if (ntotal <= 0) then
+      return
+   end if
+
+
+   ! realloc temperary arrays for searching
+   call realloc(ixy2obs0,    ntotal, keepExisting=.false.)
+   call realloc(xobs_tmp0,   ntotal, keepExisting=.false.)
+   call realloc(yobs_tmp0,   ntotal, keepExisting=.false.)
+   call realloc(kobs_tmp0,   ntotal, keepExisting=.false.)
+   call realloc(namobs_tmp0, ntotal, keepExisting=.false.)
+
+   nobsini = network%obs%Count
+   call realloc(ixy2obs1,    nobsini, keepExisting=.false.)
+   call realloc(xobs_tmp1,   nobsini, keepExisting=.false.)
+   call realloc(yobs_tmp1,   nobsini, keepExisting=.false.)
+   call realloc(kobs_tmp1,   nobsini, keepExisting=.false.)
+   call realloc(namobs_tmp1, nobsini, keepExisting=.false.)
+
+   call realloc(ixy2obs2,    nobsini, keepExisting=.false.)
+   call realloc(xobs_tmp2,   nobsini, keepExisting=.false.)
+   call realloc(yobs_tmp2,   nobsini, keepExisting=.false.)
+   call realloc(kobs_tmp2,   nobsini, keepExisting=.false.)
+   call realloc(namobs_tmp2, nobsini, keepExisting=.false.)
+
+   nloctype1D = 0
+   nloctype2D = 0
+   nloctypeAll = 0
+
+   ! loop over obs
+   do i = nstart, nend
+      if (locTpObs(i) == INDTP_ALL) then ! obs to be snapped to a nearest 1D or 2D flow node (obs that are defined in *.xyn file)
+         if (ndx <= 0) then
+               write(msgbuf, '(a)') "Observation point "//trim(namobs(i))//" requires to snap to a flow node, but there is no flow node to be snapped to."
+               call mess(LEVEL_ERROR, msgbuf)
+         end if
+         nloctypeAll = nloctypeAll + 1
+         ixy2obs0(nloctypeAll)    = i
+         xobs_tmp0(nloctypeAll)   = xobs(i)
+         yobs_tmp0(nloctypeAll)   = yobs(i)
+         namobs_tmp0(nloctypeAll) = namobs(i)
+      else if (locTpObs(i) == INDTP_1D) then ! obs to be snapped to only 1D flow node (obs that are defined in *.ini file (either by branchid+chainage, or xy coordinate), and locationtype ==1)
+         if (ndx - ndx2d <= 0) then
+            write(msgbuf, '(a)') "Observation point "//trim(namobs(i))//" requires to snap to a 1D flow node, but there is no 1D flow node to be snapped to."
+            call mess(LEVEL_ERROR, msgbuf)
+         end if
+         jabybranch = 0
+         ! 1D, option a: Try to handle branchid+chainage input directly:
+         if (obs2OP(i) > 0) then
+            pOPnt => network%obs%OPnt(obs2OP(i))
+            branchIdx = pOPnt%branchIdx
+            if (branchIdx > 0) then
+               jabybranch = 1
+               ierr = findnode(branchIdx, pOPnt%chainage, nodenr) ! find flow node given branchIDx and chainage
+               if (ierr == DFM_NOERR) then
+                  kobs(i)   = nodenr
+               else
+                  call SetMessage(LEVEL_ERROR, 'Error when snapping Observation Point '''//trim(namobs(i))//''' to a 1D flow node.')
+               end if
+            end if
+         end if
+
+         ! 1D, option b: via x/y coords, prepare input
+         if (jabybranch == 0) then
+            nloctype1D = nloctype1D + 1
+            ixy2obs1(nloctype1D)    = i
+            xobs_tmp1(nloctype1D)   = xobs(i)
+            yobs_tmp1(nloctype1D)   = yobs(i)
+            namobs_tmp1(nloctype1D) = namobs(i)
+         end if
+      else if (locTpObs(i) == INDTP_2D) then ! obs to be snapped to only 2D flow node (obs that are defined in *.ini file by xy coordinate, and locationtype ==2)
+         if (ndx2d <= 0) then
+            write(msgbuf, '(a)') "Observation point "//trim(pOPnt%name)//" requires to snap to a 2D flow node, but there is no 2D flow node to be snapped to."
+            call mess(LEVEL_ERROR, msgbuf)
+         end if
+         nloctype2D = nloctype2D + 1
+         ixy2obs2(nloctype2D)    = i
+         xobs_tmp2(nloctype2D)   = xobs(i)
+         yobs_tmp2(nloctype2D)   = yobs(i)
+         namobs_tmp2(nloctype2D) = namobs(i)
+      end if
+   end do
+
+
+   ! find flow nodes
+   jakdtree = 1
+   if (nloctypeAll > 0) then
+      call find_flownode(nloctypeAll, xobs_tmp0(1:nloctypeAll), yobs_tmp0(1:nloctypeAll), namobs_tmp0(1:nloctypeAll), kobs_tmp0(1:nloctypeAll), jakdtree, 1, INDTP_ALL)
+      do i = 1, nloctypeAll
+         kobs(ixy2obs0(i)) = kobs_tmp0(i)
+      end do
+   end if
+
+   jakdtree = 1
+   if (nloctype1D > 0) then
+      call find_flownode(nloctype1D, xobs_tmp1(1:nloctype1D), yobs_tmp1(1:nloctype1D), namobs_tmp1(1:nloctype1D), kobs_tmp1(1:nloctype1D), jakdtree, 0, INDTP_1D)
+      do i = 1, nloctype1D
+         kobs(ixy2obs1(i)) = kobs_tmp1(i)
+      end do
+   end if
+
+   jakdtree = 1
+   if (nloctype2D > 0) then
+      call find_flownode(nloctype2D, xobs_tmp2(1:nloctype2D), yobs_tmp2(1:nloctype2D), namobs_tmp2(1:nloctype2D), kobs_tmp2(1:nloctype2D), jakdtree, 0, INDTP_2D)
+       do i = 1, nloctype2D
+         kobs(ixy2obs2(i)) = kobs_tmp2(i)
+      end do
+   end if
+
+
+   if (allocated(ixy2obs0))    deallocate(ixy2obs0)
+   if (allocated(xobs_tmp0))   deallocate(xobs_tmp0)
+   if (allocated(yobs_tmp0))   deallocate(yobs_tmp0)
+   if (allocated(yobs_tmp0))   deallocate(yobs_tmp0)
+   if (allocated(namobs_tmp0)) deallocate(namobs_tmp0)
+
+   if (allocated(ixy2obs1))    deallocate(ixy2obs1)
+   if (allocated(xobs_tmp1))   deallocate(xobs_tmp1)
+   if (allocated(yobs_tmp1))   deallocate(yobs_tmp1)
+   if (allocated(yobs_tmp1))   deallocate(yobs_tmp1)
+   if (allocated(namobs_tmp1)) deallocate(namobs_tmp1)
+
+   if (allocated(ixy2obs2))    deallocate(ixy2obs2)
+   if (allocated(xobs_tmp2))   deallocate(xobs_tmp2)
+   if (allocated(yobs_tmp2))   deallocate(yobs_tmp2)
+   if (allocated(yobs_tmp2))   deallocate(yobs_tmp2)
+   if (allocated(namobs_tmp2)) deallocate(namobs_tmp2)
+
+   return
+   end subroutine find_flownode_for_obs
 
 
       SUBROUTINE curvilinearGRIDfromsplines()
@@ -14895,7 +15302,7 @@ end subroutine find_flownode
       integer                       :: npc(5)
       integer                       :: ierror
 
-      if (npl < 4) return  
+      if (npl < 4) return
 
 !     create O-type pillar grid if the pillar radius .ne. 0d0
       if ( pil_rad.ne.0d0 ) then
@@ -15479,7 +15886,7 @@ end subroutine find_common_node
 
 
  SUBROUTINE copylandboundaryto1Dnetwork()
- 
+
  use m_polygon
  use m_landboundary
  use m_netw
@@ -15497,7 +15904,7 @@ end subroutine find_common_node
      call regrid1D(1) ! based on 1D net
      return
  endif
- 
+
  ALLOCATE  ( DLan(MXLAN) ,STAT=IERR)
  CALL aerr ('DLan(MXLAN)',IERR,mxlan)
  ALLOCATE  ( XH(MX),YH(MX),DH(MX) ,STAT=IERR)
@@ -16138,16 +16545,16 @@ SUBROUTINE ORTHOGONALISENET(jarerun)
    integer                                       :: ik
 
    integer                                       :: ioutfile = 666
-   
+
 !   double precision                              :: xx0, yy0, zz0, xx1, yy1, zz1
    double precision                              :: Dx0, Dy0
-   
+
    double precision, allocatable, dimension(:)   :: xloc, yloc ! local coordinates
-   
+
    integer,          allocatable, dimension(:)   :: iloc ! startpointers in local coordinate arrays, dim(numk+1)
-   
+
    integer                                       :: NN
-   
+
    double precision, dimension(1)                :: dumx, dumy
 
 
@@ -16223,7 +16630,7 @@ SUBROUTINE ORTHOGONALISENET(jarerun)
          call qnerror('net-to-land administration out of date: falling back to ''netbound to orig. netbound''', ' ', ' ')
          JAPROJECT = 1
       else
-         call snap_to_landboundary()
+         !if (japroject <= 4) call snap_to_landboundary()
       end if
    end if
 
@@ -16313,7 +16720,7 @@ SUBROUTINE ORTHOGONALISENET(jarerun)
 !      end do
 !   end if
 !-------------------------------------------------
-   
+
 !-------------------------
 !  for local coordinates
 !-------------------------
@@ -16325,18 +16732,18 @@ SUBROUTINE ORTHOGONALISENET(jarerun)
          call orthonet_comp_ops(ops, ierror) ! will make kk2 administration
          if ( ierror.ne.0 ) goto 1234
       end if
-      
+
 !     make startpointers
       iloc(1) = 1
       do k=1,numk
          iloc(k+1) = iloc(k) + max(nmk(k)+1,nmk2(k))   ! include own node
       end do
-      
+
 !     allocate local coordinate arrays
       N = iloc(numk+1)-1
       allocate(xloc(N), yloc(N))
    end if
-   
+
 !----------------------
 !  iterations
 !----------------------
@@ -16346,7 +16753,7 @@ tp:do no = 1,itatp
 
       xk1(1:numk) = xk(1:numk)
       yk1(1:numk) = yk(1:numk)
-      
+
 !     compute local coordinates
       if ( jsferic.eq.1 .and. jasfer3D.eq.1 ) then
          call comp_local_coords(iloc,kk1,xk,yk,iloc(numk+1)-1,xloc,yloc)
@@ -16375,7 +16782,7 @@ tp:do no = 1,itatp
          do k=1,Numk
             if ( nb(k).ne.1 .and. nb(k).ne.2 .and. nb(k).ne.3 .and. nb(k).ne.4 ) cycle
 !            if ( nb(k).ne.1 .and. nb(k).ne.2 ) cycle
-            
+
             if ( jsferic.eq.1 .and. jasfer3D.eq.1 ) then
                J(1) = sum( ops(ktopo(k))%Jxi( 1:nmk2(k)) * xloc(iloc(k):iloc(k+1)-1) )
                J(2) = sum( ops(ktopo(k))%Jxi( 1:nmk2(k)) * yloc(iloc(k):iloc(k+1)-1) )
@@ -16387,7 +16794,7 @@ tp:do no = 1,itatp
                J(3) = sum( ops(ktopo(k))%Jeta(1:nmk2(k)) * xk(kk2(1:nmk2(k),k)) )
                J(4) = sum( ops(ktopo(k))%Jeta(1:nmk2(k)) * yk(kk2(1:nmk2(k),k)) )
             end if
-            
+
 !           set z-value at netnodes to intended sample value
             zk(k) = abs(J(1)*J(2) - J(3)*J(4))
             smpminn = min(zk(k), smpminn)
@@ -16439,12 +16846,12 @@ tp:do no = 1,itatp
 
 !     inverse-map smoother
       if ( ATPF.lt.1d0 .or. smoothorarea.lt.1d0) then    ! we also need administration for volume-based smoother
-      
+
          if ( jsferic.eq.1 .and. jasfer3D.eq.1 ) then
 !           compute local coordinates
             call comp_local_coords(iloc,kk1,xk,yk,iloc(numk+1)-1,xloc,yloc)
          end if
-             
+
          call orthonet_compweights_smooth(ops, smp_mu, ww2, ierror)
       else
          ierror = 0
@@ -16571,7 +16978,7 @@ tp:do no = 1,itatp
                   end if
 
 !                  if (ww2(kk,k) .ne. 0) then
-                  
+
                      if ( JSFERIC.eq.1 ) then
                         if ( jasfer3D.eq.1 ) then
                            DUM(1) = wwx * Ra * dg2rd
@@ -16586,7 +16993,7 @@ tp:do no = 1,itatp
                         DUM(2) = wwy
                      end if
                      w0 = w0 + DUM
-                     
+
                      if ( jsferic.eq.1 .and. jasfer3D.eq.1 ) then
                         Dx0 = Dx0 + DUM(1) * xloc(iloc(k)+kk-1) ! (xk(k1)-x0)
                         Dy0 = Dy0 + DUM(2) * yloc(iloc(k)+kk-1) ! (yk(k1)-y0)
@@ -16604,7 +17011,7 @@ tp:do no = 1,itatp
                if ( (abs(w0(1)).gt.1E-8) .and. (abs(w0(2)).gt.1E-8) ) then
                   Dx0 = (Dx0 + righthandside(1)) / w0(1)
                   Dy0 = (Dy0 + righthandside(2)) / w0(2)
-                  
+
                   if ( jsferic.eq.1 .and. jasfer3D.eq.1 ) then
                      dumx(1) = relaxin*Dx0
                      dumy(1) = relaxin*Dy0
@@ -16612,7 +17019,7 @@ tp:do no = 1,itatp
                   else
                      x0 = xk(k) + Dx0
                      y0 = yk(k) + Dy0
-            
+
                      xk1(k) = relaxin * x0 + relax1 * xk(k)
                      yk1(k) = relaxin * y0 + relax1 * yk(k)
                   end if
@@ -16624,7 +17031,7 @@ tp:do no = 1,itatp
 !                  iexit = 1
                end if
             enddo ndki
-            
+
             xk(1:numk) = xk1(1:numk)
             yk(1:numk) = yk1(1:numk)
 
@@ -16633,16 +17040,16 @@ tp:do no = 1,itatp
 !               call adddot(xk1(11),yk1(11),dble(no))
                call orthonet_project_on_boundary(nmkx, kk1, k_bc, xkb, ykb)
             end if
-            
+
 !           snap to nearest land boundary
-            if ( JAPROJECT.ge.2 ) call snap_to_landboundary() 
+            if ( JAPROJECT.ge.2 ) call snap_to_landboundary()
 
 !           update local coordinates
             if ( jsferic.eq.1 .and. jasfer3D.eq.1 ) then
 !              compute local coordinates
                call comp_local_coords(iloc,kk1,xk,yk,iloc(numk+1)-1,xloc,yloc)
             end if
-         
+
          enddo
 
 !  press left or middle mouse button to toggle net plotting on/off;
@@ -16723,7 +17130,7 @@ tp:do no = 1,itatp
 
    if ( allocated(ic) ) deallocate(ic)
    if ( allocated(jc) ) deallocate(jc)
-   
+
    if ( allocated(iloc) ) deallocate(iloc)
    if ( allocated(xloc) ) deallocate(xloc)
    if ( allocated(yloc) ) deallocate(yloc)
@@ -16775,28 +17182,28 @@ tp:do no = 1,itatp
 
       get_atpf = 1d0 ! disabled
    end function get_atpf
-   
-   
+
+
    subroutine comp_local_coords(iloc,kk1,x,y,Nloc,xloc,yloc)
       use m_sferic
       use network_data, only: numk, nmk
       use m_inverse_map
       implicit none
-      
+
       integer,          dimension(numk+1),    intent(in)  :: iloc       !< start pointer in local coordinate arrays
       integer,          dimension(nmkx,numk), intent(in)  :: kk1        !< link-connected nodes
       double precision, dimension(numk),      intent(in)  :: x, y       !< node coordinates
       integer,                                intent(in)  :: Nloc       !< size of arrays with local coordinates = iloc(numk+1)-1
       double precision, dimension(Nloc),      intent(out) :: xloc, yloc !< local coordinates
-      
-      double precision, dimension(:), allocatable         :: xx, yy      
 
-      
+      double precision, dimension(:), allocatable         :: xx, yy
+
+
       integer                                             :: k, k0, kk, N
-      
+
       N = max(nmkx+1,nmkx2)
       allocate(xx(N), yy(N))
-      
+
       do k0=1,numk
 !        store coordinates of nodes in stencil
          xx(1) = x(k0)
@@ -16821,9 +17228,9 @@ tp:do no = 1,itatp
                yy(kk) = yk(k0)
             end if
          end do
-         
+
          N = max(nmk(k0)+1,nmk2(k0))
-         
+
          if ( jsferic.eq.1 .and. jasfer3D.eq.1 ) then
             call spher2loc(x(k0),y(k0),N,xx,yy,xloc(iloc(k0):),yloc(iloc(k0):))
          else
@@ -16832,12 +17239,12 @@ tp:do no = 1,itatp
                yloc(iloc(k0)+k-1) = yy(kk)-y(k0)
             end do
          end if
-      
+
       end do
-      
+
       if ( allocated(xx) ) deallocate(xx)
       if ( allocated(yy) ) deallocate(yy)
-      
+
       return
    end subroutine comp_local_coords
 
@@ -16927,7 +17334,7 @@ tp:do no = 1,itatp
                   nn = netcell(kL)%n
 !                  x3 = SUM( xk(netcell(kL)%nod(1:nn)) ) / nn
 !                  y3 = SUM( yk(netcell(kL)%nod(1:nn)) ) / nn
-                  
+
                   x3 = xzw(kL)
                   y3 = yzw(kL)
 
@@ -16938,7 +17345,7 @@ tp:do no = 1,itatp
                                               atpf1 * SLR * xn * 0.5d0/mu)
                   rhs(2,k0)    = rhs(2,k0) + (atpf  * R01 * yn  / 2 + &
                                               atpf1 * SLR * yn * 0.5d0/mu)
-                    
+
                   ww(kk,k0)    = atpf  * 0.5d0 * SfR + &
                                  atpf1 * 0.5d0 * mu
    !-------------------------------------------------------------------------
@@ -17261,7 +17668,7 @@ tp:do no = 1,itatp
 
       double precision                               :: alpha      ! used for monotonicity correction
       double precision                               :: beta       ! defines the mesh refinement concentration; 0<=beta<=1
-      
+
       double precision                               :: dcosfac
 
       double precision,              dimension(4)    :: Gdum
@@ -17290,7 +17697,7 @@ tp:do no = 1,itatp
          if ( jsferic.eq.1 ) then
             dcosfac = cos(yk(k0)*dg2rd)
          end if
-      
+
 !         if ( nb(k0).ne.1 .and. nb(k0).ne.2 .and. nb(k0).ne.3 ) cycle
          if ( nb(k0).ne.1 .and. nb(k0).ne.2 .and. nb(k0).ne.4 ) cycle
          op = ops(ktopo(k0))
@@ -17298,7 +17705,7 @@ tp:do no = 1,itatp
  !        J(2,k0) = sum( op%Jxi( 1:nmk2(k0)) * yk(kk2(1:nmk2(k0),k0)) )
  !        J(3,k0) = sum( op%Jeta(1:nmk2(k0)) * xk(kk2(1:nmk2(k0),k0)) )
  !        J(4,k0) = sum( op%Jeta(1:nmk2(k0)) * yk(kk2(1:nmk2(k0),k0)) )
-         
+
           if ( jsferic.eq.1 .and. jasfer3D.eq.1 ) then
              J(1,k0) = sum( op%Jxi( 1:nmk2(k0)) * xloc(iloc(k0):iloc(k0+1)-1) )
              J(2,k0) = sum( op%Jxi( 1:nmk2(k0)) * yloc(iloc(k0):iloc(k0+1)-1) )
@@ -18994,7 +19401,7 @@ subroutine orthonet_project_on_boundary(nmkx, kk1, k_bc, xkb, ykb)
    double precision                  :: dis2, dis3, r2, r3
 
    integer                           :: k, kk, k0, kL, kR, nr, ja2, ja3
-   
+
    do k0 = 1,numk
       if ( nb(k0).eq.2 .and. nmk(k0).gt.0) then
          k  = k_bc(k0)        ! the nearest node in the original net, in previous iteration
@@ -19039,7 +19446,7 @@ subroutine orthonet_project_on_boundary(nmkx, kk1, k_bc, xkb, ykb)
 
       endif
    enddo
-   
+
 end subroutine orthonet_project_on_boundary
 
 
@@ -19626,7 +20033,7 @@ subroutine orthonet_compute_orientation(aspect, uu1, vv1, uu2, vv2, i)
 
    double precision, dimension(2,2)  :: UU, VV           ! left and right singular vectors
    double precision, dimension(2)    :: S                ! singular values
-   
+
    double precision                  :: xx, yy, zz
 
    integer                           :: j, k, link, N
@@ -19650,19 +20057,19 @@ subroutine orthonet_compute_orientation(aspect, uu1, vv1, uu2, vv2, i)
 !    and do a least-square fit through the nodes
 !  (x0,y0)' is the mean of the node coordinates
 !--------------------------------------------------------------
-      
+
       if ( jsferic.eq.1 .and. jasfer3D.eq.1 ) then
          x0 = xzw(i)
          y0 = yzw(i)
-         
+
          call spher2loc(x0,y0,N,xk(knodes(1:N)),yk(knodes(1:N)),xminx0(1:N),yminy0(1:N))
       else
          xminx0(1:N) = (/ (xk(knodes(j)), j=1,N) /)
          yminy0(1:N) = (/ (yk(knodes(j)), j=1,N) /)
-         
+
          x0 = sum(xminx0(1:N)) / N
          y0 = sum(yminy0(1:N)) / N
-         
+
          xminx0 = xminx0 - x0
          yminy0 = yminy0 - y0
       end if
@@ -19973,7 +20380,7 @@ end subroutine orthonet_compute_orientation
 
 !> snap network meshlines to nearest land boundary
 subroutine nettoland()
-   
+
    use M_netw
    use M_MISSING
    use m_observations
@@ -20208,7 +20615,7 @@ subroutine refinequads_casulli
             end if
          end do
       end do
-      
+
    !  keep corner nodes
       do k=1,numk
          if ( nb(k).eq.3 ) then
@@ -20755,7 +21162,7 @@ subroutine refinequads_casulli
 
       double precision                       :: xc, yc
       double precision                       :: vecprod, dx1, dx2
-      
+
       integer, external                      :: icommon
 
 !     if L1.eq.0 or L2.eq.0 or L1.eq.L2 and L1 or L2 is a boundary link, store at the "ghost"-side
@@ -21013,7 +21420,7 @@ subroutine fliplinks()
    use m_sferic, only: jsferic
    use m_missing, only: dmiss
    use gridoperations
-   
+
    implicit none
 
    integer                              :: L                 ! link number
@@ -21059,7 +21466,7 @@ subroutine fliplinks()
    integer,          external           :: nmk_opt
 
    double precision, external           :: rand
-   
+
    integer                              :: ja
 
 
@@ -21227,7 +21634,7 @@ it:do iter=1,MAXITER
 
         !   highlight new link
             call teklink(L, ncolhl)
-            
+
 !            ja = 1
 !            call confrm('continue', ja)
 !            if ( ja.eq.0 ) then
@@ -21285,7 +21692,7 @@ subroutine sort_flowlinks_ccw()
    use m_flowgeom, only: xz, yz, nd, Ndx, ln
    use m_sferic
    use m_alloc
-   use geometry_module, only: getdxdy, dcosphi, getdx, getdy 
+   use geometry_module, only: getdxdy, dcosphi, getdx, getdy
    use sorting_algorithms, only: indexx
 
    implicit none
@@ -21296,38 +21703,38 @@ subroutine sort_flowlinks_ccw()
    integer,          dimension(:), allocatable :: linnrs, inn                 ! dummy arrays
 
    integer                                     :: k1, k2, L, LL
-                                          
+
    integer                                     :: jDupLinks, jOverlapLinks, jSmallAng
    double precision                            :: sl, sm, xcr, ycr, phi0
-                                          
+
    double precision                            :: phi, dx, dy, dmaxcosp, dcosp, costriangleminangle
-                                          
+
    integer                                     :: lnxx
-   
- 
+
+
    maxlin = 6
-   
+
    allocate(linnrs(maxlin), arglin(maxlin), inn(maxlin))
-   
+
    do k=1,Ndx
       lnxx = nd(k)%lnx
-      
+
       if ( lnxx.le.1 ) cycle
-      
+
       if ( lnxx.gt.maxlin ) then
          maxlin = lnxx
          call realloc(linnrs, maxlin, keepExisting=.true.)
          call realloc(arglin, maxlin, keepExisting=.true.)
          call realloc(inn,    maxlin, keepExisting=.true.)
       end if
-      
+
       do L=1,lnxx
          K1 = ln(1,iabs(nd(K)%ln(L))); K2 = ln(2,iabs(nd(K)%ln(L)))
          if (K2 == K) then
             K2 = K1
             K1 = K
          end if
-         
+
          call getdxdy(xz(k1), yz(k1), xz(k2), yz(k2),dx,dy,jsferic)
          if (abs(dx) < 1d-14 .and. abs(dy) < 1d-14) then
             if (dy < 0) then
@@ -21341,20 +21748,20 @@ subroutine sort_flowlinks_ccw()
          if ( L.eq.1 ) then
             phi0 = phi
          end if
-      
+
          arglin(L) = phi-phi0
          if ( arglin(L).lt.0d0 ) arglin(L) = arglin(L) + 2d0*pi
       end do
-      
+
       call indexx(lnxx, arglin(1:lnxx), inn(1:lnxx))
-      
+
       linnrs(1:lnxx) = nd(k)%ln(1:lnxx)
       do L=1,lnxx
          nd(k)%ln(L) = linnrs(inn(L))
       end do
-   
+
    end do ! do k=1,Ndx
-   
+
    if ( allocated(linnrs) ) deallocate(linnrs)
    if ( allocated(arglin) ) deallocate(arglin)
    if ( allocated(inn) ) deallocate(inn)
@@ -21771,7 +22178,7 @@ end subroutine triangulate_cells
 
 !> netcell-based cell-coarsening information
 double precision function coarsening_info(k)
-   
+
    use m_netw
    use m_missing
    use m_sferic, only: jsferic, jasfer3D, dtol_pole
@@ -22652,7 +23059,7 @@ end subroutine killcell
 
 !> check and see if the cell is convex (1) or not (0)
 integer function isconvexcell(k)
-     
+
    use m_netw
    use geometry_module, only: dcosphi
    use m_sferic, only: jsferic, jasfer3D
@@ -23006,12 +23413,12 @@ contains
 
 !> mask the nodes that are considered in the shortest path algorithm
    subroutine masknodes(numseg)
-   
+
       use m_missing
       use m_polygon, only: NPL, xpl, ypl, zpl
       use geometry_module, only: dbpinpol
       use geometry_module, only: pinpok
-      
+
       implicit none
 
       integer, intent(in) :: numseg !< land boundary segment number
@@ -23301,7 +23708,7 @@ contains
 
 !> Dijkstra's shortest path algorithm
    subroutine shortest_path(numseg, jstart, jend, kstart, nodemask, netboundonly, klink)
-      
+
       use network_data
       use geometry_module, only: dbdistance, dlinedis
       use m_missing
@@ -23427,12 +23834,12 @@ contains
 !>       within a certain distance from the land boundary segment
 !>  note: will use jleft, jright, rLleft and rLright
    subroutine get_kstartend(jstart, jend, kstart, kend)
-   
+
       use m_missing, only: dmiss, imiss, JINS
       use m_polygon, only: NPL, xpl, ypl, zpl
       use geometry_module, only: dbpinpol, dbdistance
       use m_sferic, only: jsferic, jasfer3D
-      
+
       implicit none
 
       integer, intent(in)         :: jstart, jend !< land boundary segment start and end point
@@ -23540,13 +23947,13 @@ contains
 !>       on a link that is closest to the start and end node of the boundary segment respectively
 !>  note: will use jleft, jright, rLleft and rLright
    subroutine get_kstartend2(jstart, jend, kstart, kend)
-      
+
       use m_missing, only: dmiss, JINS
       use m_polygon, only: NPL, xpl, ypl, zpl
       use geometry_module, only: dbpinpol, dbdistance
       use m_sferic, only: jsferic, jasfer3D
-      
-      implicit none 
+
+      implicit none
 
       integer, intent(in)         :: jstart, jend !< land boundary segment start and end point
       integer, intent(out)        :: kstart, kend !< start and end node
@@ -23662,12 +24069,12 @@ contains
 
 !> compute typical mesh width for a node, which is the maximum length of the connected links
    double precision function dmeshwidth(k)
-      
+
       use m_missing
       use m_polygon, only: NPL, xpl, ypl, zpl
       use geometry_module, only: dbpinpol, dbdistance
       use m_sferic, only: jsferic, jasfer3D
-      
+
       implicit none
 
       integer, intent(in)        :: k              !< node number
@@ -23928,7 +24335,7 @@ end subroutine admin_landboundary_segments
 
 !> check if a link is close to a land boundary segment
 subroutine linkcrossedbyland(L, jstart, jend, netboundonly, jland, jacross)
-   
+
    use m_netw
    use m_landboundary
    use m_missing
@@ -24254,11 +24661,11 @@ kklp:do kk=1,nmk(k)
 
 !>  add new land boundary segment that connects two others
    subroutine add_land()
-   
+
       use geometry_module, only: dbdistance
       use m_missing, only: dmiss, imiss
       use m_sferic, only: jsferic, jasfer3D
-      
+
       implicit none
 
       integer                                     :: numseg1, numseg2
@@ -24333,7 +24740,7 @@ end subroutine connect_boundary_paths
 
 !> generate curvilinear grid from spline
 subroutine spline2curvi()
-   
+
    use m_grid
    use m_splines
    use m_gridsettings
@@ -24703,7 +25110,7 @@ subroutine comp_gridheights(mc, eheight, ierror)
    allocate(xlist(1), ylist(1), hlist(1), nlistL(1), nlistR(1), nlist_loc(1))
    allocate(ics(mcs), idx(mcs))
    allocate(t(mcs))
-   
+
    do is=1,mcs
       mfac = splineprops(is)%mfac
 !      if ( mfac.lt.1 ) cycle
@@ -25269,7 +25676,7 @@ end subroutine get_crosssplines
 
 !> derive center spline propererties from cross splines
 subroutine get_splineprops(mcs_old, id, iLRmfac)
-   
+
    use m_splines
    use m_spline2curvi
    use m_alloc
@@ -25810,7 +26217,7 @@ end subroutine make_wholegridline
 
 !> generate a gridline on a spline with a prescribed maximum mesh width
 subroutine make_gridline(num, xsp, ysp, dwidth, mfacmax, mfac, hmax, xg, yg, sc, jacurv)
-   
+
    use m_missing
    use m_alloc
    use geometry_module, only: dbdistance
@@ -25995,11 +26402,11 @@ end function comp_h
 
 !> approximate spline pathlength in interval
 double precision function splinelength_int(num, xspl, yspl, s0, s1)
-   
+
    use geometry_module, only: dbdistance
    use m_missing, only: dmiss
    use m_sferic, only: jsferic, jasfer3D
-   
+
    implicit none
 
    integer,                          intent(in) :: num          !< number of spline control points
@@ -26147,7 +26554,7 @@ end subroutine spline2poly
 !> remove skewed cells and cells whose aspect ratio exceeds a prescibed value
 !> note: latter not implemented yet
 subroutine postgrid()
-   
+
    use m_grid
    use m_spline2curvi, only: maxaspect
    use m_missing
@@ -26254,7 +26661,7 @@ end subroutine postgrid
 
 !> grow a gridlayer
 subroutine growlayer(mc, nc, mmax, nmax, idir, maxaspect, j, edgevel, dt, xc, yc, ifront, istop)
-   
+
    use m_alloc
    use m_missing
    use unstruc_colors, only: ncolrg, ncolln
@@ -26922,7 +27329,7 @@ end subroutine comp_vel
 subroutine comp_curv(num, xsp, ysp, xsp2, ysp2, s, curv, dnx, dny, dsx, dsy)
 
    use m_sferic
-   use geometry_module, only: dbdistance, getdxdy, normalout 
+   use geometry_module, only: dbdistance, getdxdy, normalout
    use m_missing, only: dmiss, dxymis
 
    implicit none
@@ -26991,9 +27398,9 @@ end subroutine comp_curv
 
 !> get left and right neighboring grid layer points
 subroutine get_LR(mc, xc, yc, i, iL, iR)
-   
+
    use m_missing
-   use m_spline2curvi   
+   use m_spline2curvi
    use geometry_module, only: dbdistance
    use m_sferic, only: jsferic, jasfer3D
 
@@ -27248,7 +27655,7 @@ end subroutine comp_tmax_other
 
 !> compute maximum allowable grid layer growth time; self crossings
 subroutine comp_tmax_self(mc, xc, yc, vel, tmax)
-   
+
    use m_missing
    use geometry_module, only: dbdistance
    use m_sferic, only: jsferic, jasfer3D
@@ -27388,7 +27795,7 @@ double precision function comp_cross_time_1(x1,x3,x4,v1,v3,v4,dclear)
 end function comp_cross_time_1
 
 double precision function comp_cross_time_2(x1,x3,x4,v1,v3,v4,dclear)
-   
+
    use m_missing
    use geometry_module, only: dlinedis
    use m_sferic, only: jsferic, jasfer3D
@@ -27559,15 +27966,15 @@ double precision function cross_prod(a,b)
    return
 end function cross_prod
 
-subroutine comp_rootshu(Eup,aa,hu) 
+subroutine comp_rootshu(Eup,aa,hu)
 double precision :: Eup, aa, hu
 double precision :: coeffs(5) !< coefficient vector (A,B,C,D,E)
 double precision :: x(4)      !< roots
-integer          :: i 
+integer          :: i
 
-coeffs(1) = 0d0 
-coeffs(2) = 1d0  
-coeffs(3) = -Eup 
+coeffs(1) = 0d0
+coeffs(2) = 1d0
+coeffs(3) = -Eup
 coeffs(4) = 0d0
 coeffs(5) = aa
 
@@ -27575,11 +27982,11 @@ call comp_roots4(coeffs,x)
 
 hu = 0d0
 do i = 1,4
-   hu = max(hu, x(i)) 
-enddo    
+   hu = max(hu, x(i))
+enddo
 
 end subroutine comp_rootshu
-    
+
 
 !> solves the quartic equation Ax^4+Bx^3+Cx^2+Dx+E=0
 subroutine comp_roots4(coeffs,x)
@@ -27657,7 +28064,7 @@ end subroutine comp_roots4
 
 !> derefine mesh
 subroutine derefine_mesh(xp,yp,Lconfirm)
-   
+
    use m_netw
    use m_alloc
    use geometry_module, only: pinpok
@@ -27942,7 +28349,7 @@ subroutine splitlink(xp, yp, L_, dcosmin, jatek, ierror)
    use m_sferic, only: jsferic, jasfer3D, dtol_pole
    use m_missing, only : dxymis
    use gridoperations
-   
+
    use m_alloc
 
    implicit none
@@ -28355,7 +28762,7 @@ end subroutine splitlink
 !> administer a cell
 !>    note: cell circumcenters are not updated (would require up-to-date lnn, lne)
 subroutine makecell(N, nodlist, linlist, ic, ierror)
-   
+
    use m_netw
    use m_alloc
    use network_data, only : xzw, yzw
@@ -28646,12 +29053,12 @@ subroutine refinecellsandfaces2()
    implicit none
 
    integer,          dimension(:), allocatable :: jarefine     ! refine cell (1) or not (0) or cell outside polygon (-1), dim(nump)
-   integer,          dimension(:), allocatable :: jalink       ! refine link (>0) or not (<=0), 
+   integer,          dimension(:), allocatable :: jalink       ! refine link (>0) or not (<=0),
    integer,          dimension(:), allocatable :: linkbrother  ! brotherlink, that shares a (hanging) node, dim: numL
 
    integer,          dimension(:), allocatable :: kc_sav       ! save of kc
 
-   double precision                            :: xboundmin, xboundmax, x1, x2, dxxmax, dxxmin, dl 
+   double precision                            :: xboundmin, xboundmax, x1, x2, dxxmax, dxxmin, dl
 
    integer                                     :: ierror       ! error (1) or not (0)
    integer                                     :: ja, jaCourantnetwork
@@ -28669,15 +29076,15 @@ subroutine refinecellsandfaces2()
 
    integer                                     :: k1, k2
    integer                                     :: num          ! number of removed isolated hangning noded
-   
+
    double precision, external                  :: getdy, dlinklength
-   
-   character(len = 64)                         :: tex 
+
+   character(len = 64)                         :: tex
 
 !  determine if the refinement needs to adapt to sample values
 !   jaCourantnetwork = 1
 !   if ( Ns.lt.3 .or. MXSAM*MYSAM.ne.NS ) jacourantnetwork = 0
-   
+
    jaCourantnetwork = 0
    if ( Ns.ge.1 .or. jaGUI.eq.0 ) then
        jacourantnetwork = 1
@@ -28685,7 +29092,7 @@ subroutine refinecellsandfaces2()
          irefinetype = ITYPE_WAVECOURANT
       end if
    end if
-   
+
    if ( jacourantnetwork.eq.1 ) then
        if ( IPSTAT.ne.IPSTAT_OK ) then
          write (6,"('tidysamples')")
@@ -28707,7 +29114,7 @@ subroutine refinecellsandfaces2()
           call delete_kdtree2(treeglob)
           jakdtree = 0
        end if
-      
+
    end if
 
 !  store original interpolation settings
@@ -28738,8 +29145,8 @@ subroutine refinecellsandfaces2()
    if ( jacourantnetwork.eq.1 ) then
 !     store samples
       call savesam()
-      
-      
+
+
 !     get the settings from a parameter screen
       if ( jaGUI.eq.1 ) then
       call change_samples_refine_param(jacancelled)
@@ -28751,9 +29158,9 @@ subroutine refinecellsandfaces2()
          if ( ierror.ne.0 ) goto 1234
       end if
    end if
-   
+
 !  take dry cells into account (after findcells)
-   call delete_drypoints_from_netgeom(dryptsfile, 0, 0)
+   call delete_dry_points_and_areas()
 
 !  try to find brother links in the original net
    linkbrother = 0
@@ -28832,10 +29239,10 @@ subroutine refinecellsandfaces2()
       if ( NPL.gt.0 ) call restore_kc()
 !      call findcells(0) ! update node mask (kc)
       call mess(LEVEL_INFO, 'refinement efficiency factor', real(dble(nump_virtual)/dble(max(nump,1))))
-      
+
 !     take dry cells into account (after findcells)
-      call delete_drypoints_from_netgeom(dryptsfile, 0, 0)
-           
+      call delete_dry_points_and_areas()
+
       if ( jagui.eq.1 ) then
          ja = 1
          dxxmax = -huge(1d0) ; dxxmin = - dxxmax
@@ -28843,7 +29250,7 @@ subroutine refinecellsandfaces2()
             dl = dlinklength(L)
             dxxmin = min(dxxmin, dl)
             dxxmax = max(dxxmax, dl)
-         enddo    
+         enddo
          write (tex,'(2F14.3,I14)') dxxmin, dxxmax, nump
          call confrm('Smallest and largest netlinks and number of cells: '//trim(tex)//' Continue? ', ja)
          if ( ja.ne.1 ) exit   ! done
@@ -28870,17 +29277,17 @@ subroutine refinecellsandfaces2()
       where( kc.eq.-1 ) kc=1
       if ( NPL.gt.0 ) call store_and_set_kc()
       call findcells(1000) !     take dry cells into account (after findcells)
-      call delete_drypoints_from_netgeom(dryptsfile, 0, 0)
+      call delete_dry_points_and_areas()
       if ( NPL.gt.0 ) call restore_kc()
-      
-!     remove isolated hanging nodes and update netcell administration (no need for setnodadm)      
+
+!     remove isolated hanging nodes and update netcell administration (no need for setnodadm)
       call remove_isolated_hanging_nodes(linkbrother,num)
-      
+
 !     check if illegal cells have been created by removing isolated hanging nodes, or by dry/cut-cells
       call write_illegal_cells_to_pol(0)
-      
+
       call connect_hanging_nodes(linkbrother)
-      
+
       netstat = netstat_cells_dirty
       keepcircumcenters = 0   ! do not keep circumcenters
    else
@@ -28908,7 +29315,7 @@ subroutine refinecellsandfaces2()
    IAV               = IAV_old
 
 !  deallocate kdtree if it was created
-   if ( Ns.ge. 1 .and. treeglob%itreestat.ne.ITREE_EMPTY ) call delete_kdtree2(treeglob) 
+   if ( Ns.ge. 1 .and. treeglob%itreestat.ne.ITREE_EMPTY ) call delete_kdtree2(treeglob)
 
    return
 
@@ -28918,42 +29325,42 @@ subroutine refinecellsandfaces2()
       implicit none
 
       integer :: k
-      
+
       if ( allocated(kc_sav) ) deallocate(kc_sav)
-      
+
       if ( numk.lt.1 ) goto 1234
-      
+
       allocate(kc_sav(numk))
-      
+
       do k=1,numk
          kc_sav(k) = kc(k)
          if ( kc(k).ne.0 ) kc(k) = 1
       end do
-      
+
  1234 continue
- 
+
       return
    end subroutine store_and_set_kc
-   
+
    subroutine restore_kc()
       implicit none
-      
+
       integer k
-      
+
       if ( .not.allocated(kc_sav) ) goto 1234
       if ( .not.allocated(kc)    ) goto 1234
-      
+
       if ( ubound(kc_sav,1).lt.numk ) goto 1234
       if ( ubound(kc,1)    .lt.numk ) goto 1234
-      
+
       do k=1,numk
          kc(k) = kc_sav(k)
       end do
-      
+
       deallocate(kc_sav)
-      
+
  1234 continue
-      
+
       return
    end subroutine restore_kc
 
@@ -29056,11 +29463,11 @@ subroutine refinecellsandfaces2()
       integer                                       :: L, LL
 
       integer,          parameter                   :: NDIM=4     ! sample vector dimension
-                        
+
       integer,          parameter                   :: MMAX = 6
       logical,          dimension(MMAX)             :: Lhang
       integer,          dimension(MMAX)             :: ishangingnod
-      
+
       integer                                       :: numhang, numhangnod, numrefine
 
       ierror = 1
@@ -29069,7 +29476,7 @@ subroutine refinecellsandfaces2()
       jarefine = 0
       jalink   = 0
 !      numdots  = 0
-      
+
       !if ( IPSTAT.ne.IPSTAT_OK ) then
       !   write (6,"('tidysamples')")
       !   call tidysamples(xs,ys,zs,IPSAM,NS,MXSAM,MYSAM) ! uses global kdtree
@@ -29090,18 +29497,18 @@ subroutine refinecellsandfaces2()
 !            yloc(kk) = yk(k)
 !         end do
 
-!        get the cell polygon that is safe for periodic, spherical coordinates, inluding poles         
+!        get the cell polygon that is safe for periodic, spherical coordinates, inluding poles
          call get_cellpolygon(ic,M,N,1d0,xloc,yloc,LnnL,Lorg,zz)
 
 !        compute orientation vectors of netcell
 !         call orthonet_compute_orientation(aspect, u(1), v(1), u(2), v(2), ic)
-         
+
 !        get hanging nodes (jalink, numrefine not used)
          call find_hangingnodes(ic, jalink, linkbrother, numhang, Lhang, numhangnod, ishangingnod, numrefine)
 
 !        compute refinement criterion
          call compute_jarefine_poly(N, xloc, yloc, jarefine(ic), jarefinelink, jakdtree, Lhang)
-         
+
 !        fill jalink from jarefinelink
          do kk=1,N
             if ( jarefinelink(kk).eq.1 ) then
@@ -29113,7 +29520,7 @@ subroutine refinecellsandfaces2()
                end if
             end if
          end do
-         
+
 !         N = netcell(ic)%N
 !         do kk=1,N
 !            kkp1 = kk+1; if ( kkp1.gt.N ) kkp1=kkp1-N
@@ -29149,7 +29556,7 @@ subroutine refinecellsandfaces2()
 !> compute refinement criterion in a polygon
 !>    always based on averaging2
    subroutine compute_jarefine_poly(N, x, y, jarefine, jarefinelink, jakdtree, Lhang)
-   
+
       use m_ec_interpolationsettings
       use m_samples, only: NS, xs, ys, zs
       use m_samples_refine
@@ -29160,7 +29567,7 @@ subroutine refinecellsandfaces2()
       use m_ec_basic_interpolation, only: averaging2
       use m_sferic, only: jsferic, jasfer3D
       use geometry_module, only: dbdistance, comp_masscenter
-      
+
 
       implicit none
 
@@ -29181,14 +29588,14 @@ subroutine refinecellsandfaces2()
       double precision                                  :: area, zsloc, DzsDx, DzsDy, diff
       double precision                                  :: dsize, dcellsize_wanted, dcellsize, dmincellsize, dmaxcellsize
       double precision, dimension(N)                    :: dlinklength ! link lengths
-      
+
       integer,          dimension(1)                    :: isam
-      
+
       double precision                                  :: dval, C, Courant, dlinklengthnew
 
       integer                                           :: ivar, k, kp1, num, ierror
       integer                                           :: jacounterclockwise          ! counterclockwise (1) or not (0) (not used here)
-      
+
       double precision, parameter                       :: FAC = 1d0
 !      double precision, parameter                       :: dtol = 1d-8
 
@@ -29204,7 +29611,7 @@ subroutine refinecellsandfaces2()
 !     initialization
       zc = DMISS
 
-   
+
       dmincellsize = 1d99
       dmaxcellsize = 0d0
       do k=1,N
@@ -29219,14 +29626,14 @@ subroutine refinecellsandfaces2()
       if ( irefinetype.eq.ITYPE_RIDGE ) then
 !------------------------------------------------------------------------
 !         ridge detection
-!------------------------------------------------------------------------ 
+!------------------------------------------------------------------------
 
           if ( interpolationtype.ne.INTP_AVG .or. IAV.ne.3) then
     !         call qnerror('Interpolation type is set to averaging and averaging type to maximum', ' ', ' ')
              interpolationtype = 2
              IAV = 3
           end if
-      
+
           zc = DMISS
           call averaging2(NDIM,NS,xs,ys,zss,ipsam,xc,yc,zc,1,x,y,N,nnn,jakdtree,&
                           dmiss, jsferic, jasfer3D, JINS, NPL, xpl, ypl, zpl)
@@ -29234,14 +29641,14 @@ subroutine refinecellsandfaces2()
           do ivar=1,3
              if ( zc(ivar).eq.DMISS ) goto 1234
           end do
-      
+
           zsloc = zc(1)
           DzsDx = zc(2)
           DzsDy = zc(3)
 
 !          diff = max(abs(DzsDx*u(1)+DzsDy*u(2)), abs(DzsDx*v(1)+DzsDy*v(2)))
 !          dcellsize = sqrt(max(u(1)*u(1), u(2)*u(2)))
-          
+
           dcellsize_wanted = threshold / ( abs(zc(4)) + 1d-8 )
 
           if ( dcellsize.gt.dcellsize_wanted .and. dcellsize.gt.2d0*hmin .and. abs(zc(4)).gt.thresholdmin ) then
@@ -29252,7 +29659,7 @@ subroutine refinecellsandfaces2()
              jarefine = 0
              jarefinelink = 0
           end if
-      
+
       else if ( irefinetype.eq.ITYPE_WAVECOURANT .or. &
                 irefinetype.eq.ITYPE_MESHWIDTH ) then
 !------------------------------------------------------------------------
@@ -29264,7 +29671,7 @@ subroutine refinecellsandfaces2()
              interpolationtype = 2
              IAV = 6    ! minabs
           end if
-          
+
 !        only interpolate samples if necessary
          if ( Dt_maxcour.gt.0d0 .or. irefinetype.eq.ITYPE_MESHWIDTH ) then
             zc = DMISS
@@ -29285,24 +29692,24 @@ subroutine refinecellsandfaces2()
          end if
 
          if ( dval.eq.DMISS ) goto 1234
-         
+
          jarefine = 0
 
          num = 0  ! number of links in cell to be refined
          do k=1,N
-            if ( dlinklength(k).lt.tooclose ) then  
+            if ( dlinklength(k).lt.tooclose ) then
                jarefinelink(k) = 0
                num = num + 1
                cycle
             end if
-            
+
             dlinklengthnew = 0.5d0*dlinklength(k)
-            
+
             if ( irefinetype.eq.ITYPE_WAVECOURANT ) then
 !              compute wave speed
                C = sqrt(AG*abs(dval))
 !               C = sqrt(AG*max(-dval,0d0))
-               
+
 !              compute wave Courant number
                Courant = C * Dt_maxcour / dlinklength(k)
                !if ( Courant.lt.1 .and. 0.5d0*dlinklength(k).gt.FAC*hmin ) then
@@ -29321,8 +29728,8 @@ subroutine refinecellsandfaces2()
                end if
             end if
          end do
-         
-         
+
+
 !        check if at least one link needs to be refined
          if ( num.gt.0 ) then
 !           count number of links to be refined, or that are already refined (i.e. have a hanging node)
@@ -29333,7 +29740,7 @@ subroutine refinecellsandfaces2()
                end if
             end do
          end if
-         
+
 !        check for non-directional refinement and refine all links without hanging nodes if so
          if ( jadirectional.eq.0 ) then
             if ( num.eq.N ) then
@@ -29349,7 +29756,7 @@ subroutine refinecellsandfaces2()
                jarefinelink = 0
             end if
          end if
-         
+
          if ( num.eq.0 ) then
             jarefine = 0
          else if ( num.eq.1 ) then
@@ -29388,12 +29795,12 @@ subroutine refinecellsandfaces2()
       integer                              :: iter, ic, k, kk, kkm1, kkp1, L, N
 
       if ( NUMITCOURANT.lt.1 ) return  ! nothing to do
-      
+
       if ( jadirectional.ne.0 ) then
          call qnerror('directional refinement not allowed in combination with smoothing', ' ', ' ')
          jadirectional = 0
       end if
-      
+
 !     allocate
 !      allocate(janode(numk)
       allocate(jalin(numL))
@@ -29401,10 +29808,10 @@ subroutine refinecellsandfaces2()
       do iter=1,NUMITCOURANT
 !        determine node refinement mask
 !         janode = 0
-      
+
 !        determine link refinement mask
          jalin = 0
-         
+
          do ic=1,nump
             if ( jarefine(ic).ne.1 ) cycle
 
@@ -29413,14 +29820,14 @@ subroutine refinecellsandfaces2()
 !               k = netcell(ic)%nod(kk)
 !               janode(k) = 1
 !            end do
-            
+
             do kk=1,N
                L = netcell(ic)%lin(kk)
-               
-!              do not pass on mask to already refined cells               
+
+!              do not pass on mask to already refined cells
                kkp1 = kk+1; if ( kkp1.gt.N ) kkp1=kkp1-N
                kkm1 = kk-1; if ( kkm1.lt.1 ) kkm1=kkm1+N
-               
+
                if ( linkbrother(L).ne.netcell(ic)%lin(kkp1) .and. linkbrother(L).ne.netcell(ic)%lin(kkm1) ) then
                   jalin(L) = 1
                end if
@@ -29443,7 +29850,7 @@ subroutine refinecellsandfaces2()
             end do
          end do
       end do
-      
+
 !     update link refinement mask
       do ic=1,nump
          if ( jarefine(ic).eq.1 ) then
@@ -29451,9 +29858,9 @@ subroutine refinecellsandfaces2()
             do kk=1,N
                kkm1 = kk-1; if ( kkm1.lt.1 ) kkm1=kkm1+N
                kkp1 = kk+1; if ( kkp1.gt.N ) kkp1=kkp1-N
-               
-               L = netcell(ic)%lin(kk)         
-               
+
+               L = netcell(ic)%lin(kk)
+
                if ( linkbrother(L).eq.netcell(ic)%lin(kkm1) .or. linkbrother(L).eq.netcell(ic)%lin(kkp1) ) then
                   ! link already refined with hanging node
                else
@@ -29473,7 +29880,7 @@ subroutine refinecellsandfaces2()
 
 !> refine the cells, based on a cell and link refinement mask
    subroutine refine_cells(jarefine, jalink, linkbrother, jahang, ierror)
-      
+
       use m_netw
       use m_alloc
       use network_data, only: dcenterinside
@@ -29506,21 +29913,21 @@ subroutine refinecellsandfaces2()
 
       logical                                           :: Lparentcross  ! original parent cell crossed by selecting polygon (.true.) or not (.false.)
       logical                                           :: Lrefine       ! refine cell (.true.) or not (.false.)
-      
+
       double precision                                  :: xmn, xmx    ! for spherical, periodic coordinates
-      
+
       integer                                           :: Np, kp
       integer,          dimension(MMAX)                 :: ishanging
       double precision                                  :: xz, yz
       double precision, dimension(MMAX)                 :: xp, yp
-      
-!     for spherical, periodic coordinates      
+
+!     for spherical, periodic coordinates
       double precision, dimension(MMAX)                 :: xv, yv
       integer,          dimension(MMAX)                 :: LnnL
       integer,          dimension(MMAX)                 :: Lorg
       double precision                                  :: zz
       integer                                           :: nn
-      
+
       logical                                           :: Lhanging
       logical                                           :: Lpole1, Lpole2
 
@@ -29539,7 +29946,7 @@ subroutine refinecellsandfaces2()
             k2 = kn(2,L)
             xnew = 0.5d0*(xk(k1)+xk(k2))
             ynew = 0.5d0*(yk(k1)+yk(k2))
-            
+
             if ( jsferic.eq.1 ) then
                call comp_middle_latitude(yk(k1),yk(k2),ynew,ierr)
             end if
@@ -29549,7 +29956,7 @@ subroutine refinecellsandfaces2()
                if ( abs(xk(k1)-xk(k2)).gt.180d0 ) then
                   xnew = xnew+180d0
                end if
-               
+
 !              fix at the poles (xk can have any value at the pole)
                Lpole1 = abs(abs(yk(k1))-90d0).lt.dtol_pole
                Lpole2 = abs(abs(yk(k2))-90d0).lt.dtol_pole
@@ -29559,7 +29966,7 @@ subroutine refinecellsandfaces2()
                   xnew = xk(k1)
                end if
             end if
-            
+
             call dsetnewpoint(xnew, ynew, knew)
             jalink(L) = knew
             if ( kc(k1).eq.0 .and. kc(k2).eq.0 ) then
@@ -29588,11 +29995,11 @@ subroutine refinecellsandfaces2()
                exit
             end if
          end do
-         
+
 !        fix for global. spherical coordinates
          call get_cellpolygon(k,MMAX,nn,1d0,xv,yv,LnnL,Lorg,zz)
-         
-           
+
+
 !          BEGIN DEBUG
 !           call tekpoly(nn,xv,yv,31)
 !           call toemaar()
@@ -29620,12 +30027,12 @@ subroutine refinecellsandfaces2()
             if ( Lm1.gt.0 ) Lm1 = netcell(k)%lin(Lm1)
             Lp1 = Lorg(kkp1)
             if ( Lp1.gt.0 ) Lp1 = netcell(k)%lin(Lp1)
-            
+
             if ( L.eq.0 ) then
 !              fictitious link at pole
                cycle
             end if
-            
+
             if ( linkbrother(L).eq.Lp1 .and. Lp1.gt.0 ) then
                numbrothers = numbrothers+1
                call find_common_node(L,linkbrother(L),knew)
@@ -29640,7 +30047,7 @@ subroutine refinecellsandfaces2()
                end if
             end if
             if ( num.gt.MMAX ) goto 1234
-            
+
 !           check if start of this link is hanging
             if ( Linkbrother(L).eq.Lm1 .and. Lm1.gt.0 ) then
                ishanging(kk) = 1
@@ -29649,7 +30056,7 @@ subroutine refinecellsandfaces2()
 
 !        check if this cell needs to be refined
          if ( .not.Lrefine ) cycle
-         
+
 !        compute new center node: circumcenter without hanging nodes for quads, c/g otherwise
          Np = 0
 !         do kk=1,N
@@ -29662,11 +30069,11 @@ subroutine refinecellsandfaces2()
 !             else
 !                L = netcell(k)%lin(L)
 !                kk = kk+1
-!             
+!
 !                if ( kk.gt.N ) then ! something wrong
 !                   call qnerror('refine_cells: numbering error', ' ', ' ')
 !                end if
-!             
+!
 !                kp = netcell(k)%nod(kk)
 !                Lhanging = .false.
 !                do i=1,num
@@ -29676,15 +30083,15 @@ subroutine refinecellsandfaces2()
 !                    end if
 !                end do
 !             end if
-             
+
 !             if ( .not.Lhanging ) then
-             
+
               if ( ishanging(kkk).eq.0 ) then
                  Np = Np+1
 !                 xp(Np) = xk(kp)
 !                 yp(Np) = yk(kp)
 !                 LnnL(Np) = 2
-                 
+
                  xp(Np) = xv(kkk)
                  yp(Np) = yv(kkk)
                  if ( L.gt.0 ) then
@@ -29694,7 +30101,7 @@ subroutine refinecellsandfaces2()
                  end if
              end if
          end do
-         
+
          if ( Np.eq.4 ) then
             if ( jsferic.eq.1 ) then
                ymin = 1d99
@@ -29708,10 +30115,10 @@ subroutine refinecellsandfaces2()
                   end if
                end do
             end if
-            
+
 !           compute circumcenter without hanging nodes
             call getcircumcenter(Np, xp, yp, LnnL, xz, yz, jsferic, jasfer3D, jglobe, jins, dmiss, dxymis, dcenterinside)
-            
+
             if ( jsferic.eq.1 ) then
                call comp_middle_latitude(ymin,ymax,ynew,ierr)
                if ( ierr.eq.0 .and. ymax-ymin.gt.1d-8 ) then
@@ -29723,7 +30130,7 @@ subroutine refinecellsandfaces2()
             xz = xzw(k)
             yz = yzw(k)
          end if
-         
+
 
          !call cirr(xz, yz, 211)
 
@@ -29797,9 +30204,9 @@ subroutine refinecellsandfaces2()
       integer, dimension(:), intent(inout) :: linkmask     !< new nodes on links
       integer, dimension(:), intent(inout) :: cellmask     !< refine cell without hanging nodes (1), refine cell with hanging nodes (2), do not refine cell at all (0) or refine cell outside polygon (-2)
       integer, dimension(:), intent(in)    :: linkbrother  !< brotherlink, that shares a (hanging) node
-      
+
       character(len=128)                   :: FNAM
-      
+
       integer                              :: jawritten
 
       integer                              :: ic, L, k, kk, N
@@ -29826,9 +30233,9 @@ subroutine refinecellsandfaces2()
             if ( cellmask(ic).ne.0 .and. cellmask(ic).ne.-1 ) cycle
 
             call find_hangingnodes(ic, linkmask, linkbrother, numhang, Lhang, numhangnod, ishangingnod, numrefine)
-            
+
             jasplit   = 0
-            
+
             N = netcell(ic)%N
             if ( N.gt.MMAX ) goto 1234
 
@@ -29865,12 +30272,12 @@ subroutine refinecellsandfaces2()
                   if ( linkmask(L).eq.0 .and. .not.Lhang(kk) ) then
                      linkmask(L) = 1
                      num = num+1
-                     
+
                      if ( iter.eq.MAXITER ) then
 !                        call adddot(xzw(ic),yzw(ic))
                         call adddot(0.5d0*(xk(kn(1,L)) + xk(kn(2,L))), 0.5d0*(yk(kn(1,L)) + yk(kn(2,L))))
                      end if
-                     
+
                   end if
                end do
             end if
@@ -29917,7 +30324,7 @@ subroutine refinecellsandfaces2()
       integer                              :: k, k1, k2, kk, kkp1, L, Lp1
       integer                              :: ic1L, ic1R, ic2L, ic2R
       integer                              :: ierr
-      
+
       logical                              :: Lpole1, Lpole2
 
 
@@ -29953,14 +30360,14 @@ subroutine refinecellsandfaces2()
            k2  = kn(1,Lp1) + kn(2,Lp1) - k
            xkc = 0.5d0*(xk(k1)+xk(k2))
            ykc = 0.5d0*(yk(k1)+yk(k2))
-           
+
             if ( jsferic.eq.1 ) then
                call comp_middle_latitude(yk(k1),yk(k2),ykc,ierr)
             end if
 
 !          check for periodic, spherical coordinates
            if ( jsferic.eq.1 ) then
-           
+
 !             check for poles
               Lpole1 = .false.
               Lpole2 = .false.
@@ -29970,7 +30377,7 @@ subroutine refinecellsandfaces2()
               if ( abs(abs(yk(k2))-90d0).lt.dtol_pole) then
                  Lpole2 = .true.
               end if
-              
+
               if ( Lpole1 .and. .not.Lpole2 ) then
                  xkc = xk(k2)
               else if ( Lpole2 .and. .not.Lpole1 ) then
@@ -29978,7 +30385,7 @@ subroutine refinecellsandfaces2()
               else
                  xmn = min(xk(k1),xk(k2))
                  xmx = max(xk(k1),xk(k2))
-               
+
                  if ( xmx-xmn.gt.180d0 ) then
                     xkc = xkc + 180d0
                  end if
@@ -30010,32 +30417,32 @@ subroutine refinecellsandfaces2()
       use m_netw
       use m_plotdots
       implicit none
-      
+
       integer, dimension(:), intent(inout) :: jarefine     !< refine cell (>0), or not
       integer, dimension(:), intent(in)    :: linkbrother  !< brotherlink, that shares a (hanging) node
       integer, dimension(:), intent(inout) :: jalink       !< in: refine link (<0) or not (0), out: refine link (1) or not (0)
-      
-      
+
+
       integer,               parameter     :: MMAX=10      ! maximum number of nodes and links per netcell
-      
+
       integer                              :: numhang      ! number of links with hanging node
       logical, dimension(MMAX)             :: Lhang        ! link with hanging node (true) or not (false)
       integer                              :: numhangnod   ! number of hanging nodes
       integer, dimension(MMAX)             :: ishangingnod ! hanging node (1) or not (0)
       integer                              :: numrefine    ! number of links to be refined
-      
+
       integer, dimension(MMAX)             :: numlink      ! link identifier for quads
       integer, dimension(4)                :: jaquadlink   ! refine quad edge (<>0) or not (0)
-      
+
       integer                              :: num, nump2, N_eff
-      
+
       integer                              :: k, kk, kkm1, kkp1, L, N, k1, k2
       integer                              :: numfirst, numnext
       integer                              :: jarepeat, ja_doall
-      
+
       integer                              :: iter
       integer, parameter                   :: MAXITER=6
-      
+
    !  compute the link refinement mask
       jarepeat = 1
       iter = 0
@@ -30046,17 +30453,17 @@ subroutine refinecellsandfaces2()
          do k=1,nump
             if ( jarefine(k).ne.0 ) then
                N = netcell(k)%N
-            
+
                call find_hangingnodes(k, jalink, linkbrother, numhang, Lhang, numhangnod, ishangingnod, numrefine)
                N_eff = N-numhangnod
-               
+
                if ( N_eff.ne.4 ) then  ! non-quads
                   do kk=1,N
                      kkp1 = kk+1; if ( kkp1.gt.N ) kkp1=kkp1-N
                      kkm1 = kk-1; if ( kkm1.lt.1 ) kkm1=kkm1+N
-                     
+
                      L = netcell(k)%lin(kk)
-                     
+
                      num = numlink(kk)
                      if ( linkbrother(L).eq.netcell(k)%lin(kkm1) .or. linkbrother(L).eq.netcell(k)%lin(kkp1) ) then
                         ! link already refined with hanging node
@@ -30065,7 +30472,7 @@ subroutine refinecellsandfaces2()
                      end if
                   end do
                else  ! quads
-               
+
 !                 number the links in the cell, links that share a hanging node will have the same number
                   num = 1
                   jaquadlink = 0
@@ -30073,7 +30480,7 @@ subroutine refinecellsandfaces2()
                      L = netcell(k)%lin(kk)
                      numlink(kk) = num
                      if ( jalink(L).ne.0 ) jaquadlink(num) = jalink(L)
-                     
+
                      kkp1 = kk+1; if ( kkp1.gt.N ) kkp1=kkp1-N
                      if ( kk.ne.N .and. linkbrother(L).ne.netcell(k)%lin(kkp1) ) then
                         num = num+1
@@ -30081,13 +30488,13 @@ subroutine refinecellsandfaces2()
                         jaquadlink(num) = 1  ! already refined (with hanging node)
                      end if
                   end do
-                  
+
 !                 check if we found all quad edges
                   if ( num.ne.4 ) then
                     call qnerror('comp_jalink: numbering error', ' ', ' ')
                     goto 1234
                   end if
-                  
+
 !                 quads may only be refined horizontally, vertically or both
                   numrefine = 0
                   numfirst  = 0
@@ -30102,7 +30509,7 @@ subroutine refinecellsandfaces2()
                         end if
                      end if
                   end do
-                  
+
                   num = numnext - numfirst
                   ja_doall = 0
                   if ( numrefine.eq.2 .and. ( num.eq.1 .or. num.eq.3 ) ) then
@@ -30112,53 +30519,53 @@ subroutine refinecellsandfaces2()
 !                        call adddot(xzw(k),yzw(k))
                      end if
                   end if
-               
+
                   do kk=1,N
                      kkp1 = kk+1; if ( kkp1.gt.N ) kkp1=kkp1-N
                      kkm1 = kk-1; if ( kkm1.lt.1 ) kkm1=kkm1+N
-                     
+
                      L = netcell(k)%lin(kk)
-               
+
                      if ( jalink(L).gt.0 ) cycle      ! link already marked for refinement
-               
+
                      if ( ja_doall.ne.1 .and. jalink(L).ne.-1 ) cycle
-                     
+
                      num = numlink(kk)
                      if ( num.eq.numlink(kkm1) .or. num.eq.numlink(kkp1) ) then
                         ! link already refined with hanging node
                      else
                         jalink(L) = 1
                      end if
-                     
+
                   end do
                end if
             end if
          end do
       end do
-      
+
       if ( jarepeat.eq.1 ) then
          call plotdots()
 !         write(6,*) "numdots=", numdots
 !         write(6,*) "iter=", iter
          call qnerror('comp_jalink: no convergence', ' ', ' ')
       end if
-      
+
 !     only keep jalink=1, set other values to 0
       do L=1,numL
          if ( jalink(L).ne.1 ) jalink(L) = 0
       end do
-      
+
  1234 continue
-      
+
       return
    end subroutine comp_jalink
-   
+
    subroutine find_hangingnodes(ic, linkmask, linkbrother, numhang, Lhang, numhangnod, ishangingnod, numrefine)
       use m_netw
       implicit none
-      
+
       integer,               parameter     :: MMAX=6       ! maximum number of nodes and links per netcell
-      
+
       integer,               intent(in)    :: ic           !< cell number
 
       integer, dimension(:), intent(inout) :: linkmask     !< new nodes on links
@@ -30168,10 +30575,10 @@ subroutine refinecellsandfaces2()
       integer,               intent(out)   :: numhangnod   !< number of hanging nodes
       integer, dimension(:), intent(out)   :: ishangingnod !< hanging node (1) or not (0)
       integer,               intent(out)   :: numrefine    !< number of links to be refined
-      
+
       integer                              :: i, k, kk, kkm1, kkp1, kknod
       integer                              :: L, Lm1, Lp1, N
-      
+
       N = netcell(ic)%N
       if ( N.gt.MMAX ) goto 1234
 
@@ -30191,8 +30598,8 @@ subroutine refinecellsandfaces2()
             kkp1 = kk+1; if ( kkp1.gt.N ) kkp1=kkp1-N
             Lm1  = netcell(ic)%lin(kkm1)
             Lp1  = netcell(ic)%lin(kkp1)
-               
-               
+
+
 !           find hanging node
             if ( linkbrother(L).eq.Lm1 ) then
                call find_common_node(L,Lm1,k)
@@ -30201,30 +30608,30 @@ subroutine refinecellsandfaces2()
             else
                k = 0
             end if
-               
+
             if ( k.ne.0 ) then
 !              hanging node found
                Lhang(kk) = .true.
                numhang   = numhang + 1
-               
+
 !              find node pointer in cell
                do i=1,N
                   kknod = kknod+1; if ( kknod.gt.N ) kknod=kknod-N
-                  
+
                   if ( netcell(ic)%nod(kknod).eq.k .and. ishangingnod(kknod).eq.0 ) then
                      numhangnod = numhangnod+1
                      ishangingnod(kknod) = 1
                      exit
                   end if
                end do
-               
+
             end if
-            
+
          end if
       end do
-      
+
  1234 continue
-   
+
       return
    end subroutine find_hangingnodes
 
@@ -30403,17 +30810,17 @@ subroutine remove_isolated_hanging_nodes(linkbrother, num)
 
    integer, dimension(numL), intent(inout) :: linkbrother   !< brotherlink, that shares a (hanging) node, dim: numL
    integer,                  intent(out)   :: num           !< number of removed isolated hanging nodes
-   
+
    integer                                 :: ierror  ! error (1) or not (0)
 
    integer                                 :: L, Lother, k, kother
    integer                                 :: ic, i, ii, ik, iL, kk, LL
-   
+
    character(len=128)                      :: msg
    ierror = 1
-   
+
    num = 0  ! number of removed hanging nodes
-   
+
    do L=1,numL
 !     check if link is 2D
       if ( kn(3,L).eq.2 ) then
@@ -30421,22 +30828,22 @@ subroutine remove_isolated_hanging_nodes(linkbrother, num)
          if ( Lother.gt.0 ) then
 !           check if other link is 2D
             if ( kn(3,L).eq.2 ) then
-            
+
 !              find common node
                call find_common_node(L,Lother,k)
-               
+
 !              check if node exists and if it is connected by two links only (an isolated hanging node)
                if ( k.gt.0 .and. nmk(k).eq.2 ) then
 !                 update netcell admin
                   do ii=1,lnn(L)
                      ic = lne(ii,L)
-                     
-!                    safety check                     
+
+!                    safety check
                      if ( ic.ne.lne(1,Lother) .and. ic.ne.lne(min(2,lnn(Lother)),Lother) ) then
                         call mess(LEVEL_ERROR,'remove_isolated_hanging_nodes: error')
                         goto 1234
                      end if
-                     
+
                      iL = 0
                      ik = 0
                      do i=1,netcell(ic)%N
@@ -30445,7 +30852,7 @@ subroutine remove_isolated_hanging_nodes(linkbrother, num)
                            iL = iL+1
                            netcell(ic)%lin(iL) = LL
                         end if
-                     
+
                         kk = netcell(ic)%nod(i)
                         if ( kk.ne.k ) then
                            ik = ik+1
@@ -30453,14 +30860,14 @@ subroutine remove_isolated_hanging_nodes(linkbrother, num)
                         end if
                      end do
                      netcell(ic)%N = netcell(ic)%N-1
-                  
+
    !                 safety check
                      if ( netcell(ic)%N.ne.iL .or. netcell(ic)%N.ne.ik ) then
                         call mess(LEVEL_ERROR,'remove_isolated_hanging_nodes: error')
                         goto 1234
                      end if
                   end do
-                  
+
 !                 update lin admin
                   kother = kn(1,Lother) + kn(2,Lother) - k
                   if ( kn(1,L).eq.k ) then
@@ -30468,7 +30875,7 @@ subroutine remove_isolated_hanging_nodes(linkbrother, num)
                   else
                      kn(2,L) = kother
                   end if
-                  
+
 !                 change nod adm of other node
                   do ii=1,nmk(kother)
                      if ( nod(kother)%lin(ii).eq.Lother ) then
@@ -30476,33 +30883,33 @@ subroutine remove_isolated_hanging_nodes(linkbrother, num)
                         exit
                      end if
                   end do
-                  
+
 !                 delete node
 !                  call delnode(k)
                   nmk(k) = 0
-                  
+
 !                 delete other link
                   kn(:,Lother) = 0
-                  linkbrother(Lother) = 0                  
+                  linkbrother(Lother) = 0
                   lnn(Lother) = 0
-                  
+
                   num = num+1
                end if
             end if
          end if
       end if
    end do
-   
+
    if ( num.gt.0 ) then
       write(msg,"('removed ', I0, ' isolated hanging nodes')") num
       call mess(LEVEL_INFO,trim(msg))
-   
+
    end if
-   
+
    ierror = 0
-   
+
 1234 continue
-   
+
    return
 end subroutine remove_isolated_hanging_nodes
 
@@ -30512,20 +30919,20 @@ subroutine write_illegal_cells_to_pol(jausekc)
    use m_polygon
    use m_missing
    use gridoperations
-   
+
    implicit none
-   
+
    integer, intent(in) :: jausekc   !<use existing kc (1), or not (0), kc=0 is inactive node, kc=-1 is active node on original netboundary, kc=1 is internal active node
-   
+
    integer, dimension(:), allocatable :: kc_sav
-   
+
    integer :: i, ic, ii, k, k1, k2, L
    integer :: isillegalcell
    integer :: ifil
-   
-   
+
+
    allocate(kc_sav(numk))
-   
+
 !  mark nodes to find the illegal cells: unmasked nodes
    if ( jausekc.eq.1 ) then
       do k=1,numk
@@ -30543,7 +30950,7 @@ subroutine write_illegal_cells_to_pol(jausekc)
          end if
       end do
    end if
-   
+
    call savepol()
    call savecells()
    NPL = 0
@@ -30551,10 +30958,10 @@ subroutine write_illegal_cells_to_pol(jausekc)
 !  find cells without node mask, no setnodadm
    kc = 1
    call findcells(11000)
-   
+
    NPL = 0
-   
-!  compare with stored node masked and detect illegal cells   
+
+!  compare with stored node masked and detect illegal cells
    do ic=1,nump
       isillegalcell = 1
       do ii=1,netcell(ic)%N
@@ -30562,7 +30969,7 @@ subroutine write_illegal_cells_to_pol(jausekc)
          if ( L.gt.0 ) then
             k1 = kn(1,L)
             k2 = kn(2,L)
-            
+
             if ( kc_sav(k1).ne.0 .or. kc_sav(k2).ne.0 ) then  ! link is active
                if (  lnn(L).eq.1 .or. (kc_sav(k1).ne.-1 .or. kc_sav(k2).ne.-1) ) then   ! not an original boundary link, or new boundary link
                   isillegalcell = 0
@@ -30571,7 +30978,7 @@ subroutine write_illegal_cells_to_pol(jausekc)
             end if
          end if
       end do
-            
+
       if ( isillegalcell.eq.1 ) then
          i = NPL
          NPL = NPL+netcell(ic)%N + 1
@@ -30587,17 +30994,17 @@ subroutine write_illegal_cells_to_pol(jausekc)
          ypl(i) = DMISS
       end if
    end do
-   
+
    if ( NPL.gt.0 ) then
       call newfil(ifil,'illegalcells.pol')
       call wripol(ifil)
    end if
-   
+
    call restorepol()
    call restorecells()
-   
+
    if ( allocated(kc_sav) ) deallocate(kc_sav)
-   
+
    return
 end subroutine write_illegal_cells_to_pol
 
@@ -30843,8 +31250,8 @@ end subroutine comp_samplegradi
       use m_samples_refine, only: NDIM
       use m_missing
       use m_sferic
-      use geometry_module, only: getdxdy, getdx, getdy, dprodout 
-      
+      use geometry_module, only: getdxdy, getdx, getdy, dprodout
+
       implicit none
       double precision, dimension(NDIM,MXSAM*MYSAM)     :: zss
       integer,                              intent(in)  :: ip0, ip1, ip0L, ip0R, ip1L, ip1R  !> node numbers
@@ -30884,14 +31291,14 @@ end subroutine comp_samplegradi
       yR = 0.25d0*(ys(ip0)+ys(ip1)+ys(ip0R)+ys(ip1R))
       zR = 0.25d0*(zss(1,ip0)+zss(1,ip1)+zss(1,ip0R)+zss(1,ip1R))
 
-      
+
       call getdxdy(xL,yL,xR,yR,cy1,cx1, jsferic) ; cx1 = -cx1
       call getdxdy(x0,y0,x1,y1,cyL,cxL, jsferic) ; cxL = -cxL
       !cx1 = -0.5d0*getdy(xL,yL,xR,yR)
       !cy1 =  0.5d0*getdx(xL,yL,xR,yR)
       !cxL = -0.5d0*getdy(x0,y0,x1,y1)
       !cyL =  0.5d0*getdx(x0,y0,x1,y1)
-      
+
       cx0 = -cx1
       cy0 = -cy1
       cxR = -cxL
@@ -30926,23 +31333,23 @@ subroutine smooth_samples(MXSAM, MYSAM, NS, NDIM, Nsamplesmooth, zs, zss)
    use m_missing
 
    implicit none
-   
+
    integer,                                       intent(in)    :: MXSAM, MYSAM  !< structured block sizes (>0) or not structured (0)
    integer,                                       intent(in)    :: NS            !< number of samples
    integer,                                       intent(in)    :: NDIM          !< number of variable per sample in zss
    integer,                                       intent(in)    :: Nsamplesmooth !< number of smoothing iterations
-   
+
    double precision, dimension(Ns),               intent(in)    :: zs            !< sample input variables, dim(NS)
    double precision, dimension(NDIM,MXSAM,MYSAM), intent(inout) :: zss           !< sample output variables, dim(NDIM,MXSAM,MYSAM), only first component will be smoothed
 
    double precision, dimension(:,:),              allocatable   :: zsdum
-                                                 
+
    integer                                                      :: iter, i, j
    integer                                                      :: ip0, ipiL, ipiR, ipjL, ipjR
    double precision                                             :: c0, ciL, ciR, cjL, cjR, af
-                                                 
+
    integer                                                      :: ierror
-                                                 
+
    double precision,                              parameter     :: sigma = 0.5d0
 
    ierror = 1
@@ -30977,7 +31384,7 @@ subroutine smooth_samples(MXSAM, MYSAM, NS, NDIM, Nsamplesmooth, zs, zss)
       do j=2,MYSAM-1       ! inner nodes only
          do i=2,MXSAM-1    ! inner nodes only
             if ( zsdum(i,j).eq.DMISS ) cycle
-            
+
 !           compute weights
             ciL = 1d0
             ciR = 1d0
@@ -31177,8 +31584,6 @@ subroutine make_orthocenters(dmaxnonortho,maxiter)
 !  allocate
    allocate(xc(nump), yc(nump))
 
-   open(6)
-
    call readyy(' ', -1d0)
    call readyy('Computing orthocenters (press right mouse button to cancel)', 0d0)
 
@@ -31263,8 +31668,6 @@ subroutine make_orthocenters(dmaxnonortho,maxiter)
 
 !  deallocate
    if ( allocated(xc)       ) deallocate(xc, yc)
-
-   close(6)
 
    return
 end subroutine make_orthocenters
@@ -31798,9 +32201,9 @@ end subroutine makestep_samplepath
 !>    eigenvectors of a. nrot returns the number of Jacobi rotations that were required.
 SUBROUTINE jacobi(a,n,np,d,v,nrot)
    implicit none
-   INTEGER, intent(in)                :: n, np 
+   INTEGER, intent(in)                :: n, np
    integer, intent(out)               :: nrot
-   double precision, intent(inout)    :: a(np,np),d(np),v(np,np)   
+   double precision, intent(inout)    :: a(np,np),d(np),v(np,np)
    integer                            :: NMAX
    PARAMETER (NMAX=500)
    INTEGER i,ip,iq,j
@@ -32351,17 +32754,17 @@ end subroutine sample_spline
 subroutine get_polstartend(NPL, XPL, YPL, ipol, jstart, jend)
 !   use m_polygon
    use m_missing, only: dmiss
-   use geometry_module, only: get_startend 
+   use geometry_module, only: get_startend
 
    implicit none
-   
+
    integer,                          intent(in)  :: NPL            !< polygon size
    double precision, dimension(NPL), intent(in)  :: XPL            !< polygon x-coordinates
    double precision, dimension(NPL), intent(in)  :: YPL            !< polygon y-coordinates
 
    integer,                          intent(in)  :: ipol           !< index of a polygon point
    integer,                          intent(out) :: jstart, jend   !< start and end indices of polygon
-                                 
+
    integer                                       :: jpoint
 
    jpoint = 1
@@ -32930,7 +33333,7 @@ subroutine sam2net_curvi(numk, xk, yk, zk)
 
 !  regularize the curvigrid
    call regularise_spline2curvigrid()
-   
+
 !  allocate
    allocate(xietak(2,numk))
    allocate(xietas(2,NS))
@@ -32966,10 +33369,10 @@ subroutine sam2net_curvi(numk, xk, yk, zk)
 ! find sample grid-coordinates
    jadl = 0
    jakdtree = 1
-   
-   call TRIINTfast(xc,yc,xietac,mmax*nmax,2,xs,ys,xietas,NS,jadl,jakdtree, & 
+
+   call TRIINTfast(xc,yc,xietac,mmax*nmax,2,xs,ys,xietas,NS,jadl,jakdtree, &
                    jsferic, NPL, jins, dmiss, jasfer3D, XPL,YPL,ZPL,transformcoef) ! will alter grid
-   
+
    do i=1,NS
 !     apply inside-curvigrid mask
       if ( imasks(i).ne.1 ) then
@@ -32997,10 +33400,10 @@ subroutine sam2net_curvi(numk, xk, yk, zk)
    jadl = 0
    jakdtree = 1
    if ( NPL.gt.0 ) call savegrd()
-   
+
    call TRIINTfast(xc,yc,xietac,mmax*nmax,2,xk,yk,xietak,numk,jadl, jakdtree, &
                    jsferic, NPL, jins, dmiss, jasfer3D, XPL, YPL, ZPL, transformcoef)
-   
+
    if ( NPL.gt.0 ) call restoregrd()
 
    do k=1,numk
@@ -33073,10 +33476,10 @@ subroutine sam2net_curvi(numk, xk, yk, zk)
    Ldeletedpol = .true.
 
    jadl = 0
-   jakdtree = 1 ! todo : 
+   jakdtree = 1 ! todo :
    call triintfast(xis,etas,zs,NS,1,xik,etak,zk,numk,jadl,jakdtree, &
                    jsferic, NPL, jins, dmiss, jasfer3D, XPL, YPL, ZPL, transformcoef)
-      
+
    ierror = 0
 
 !  error handling
@@ -33363,7 +33766,7 @@ subroutine copycurvigridboundstopol()
    use m_grid
    use m_polygon
    use gridoperations
-   
+
    implicit none
 
    integer :: ierror
@@ -33394,16 +33797,16 @@ end subroutine copycurvigridboundstopol
 !> write the network domains to file
 !>    it is assumed that the domain coloring "idomain" is available
    subroutine partition_write_domains(netfilename,icgsolver,jacells,japolygon)
-      
+
       use m_partitioninfo
-      use unstruc_netcdf, only: unc_write_net, unc_write_net_ugrid
+      use unstruc_netcdf, only: unc_write_net
       use m_polygon, only: NPL
       use dfm_error
 !      use m_missing, only: intmiss
       use network_data, only: lne, numl
       use m_flowparameters, only: japartdomain
       use gridoperations
-      
+
       implicit none
 
       character(len=*),                    intent(in) :: netfilename !< filename of whole network
@@ -33444,7 +33847,7 @@ end subroutine copycurvigridboundstopol
 !        use existing polygon
          else
             call generate_partition_pol_from_idomain(ierror)
-         end if 
+         end if
          filename = trim(netfilename(1:len)//'_part.pol')
          call newfil(MDEP,filename)
          call wripol(mdep)
@@ -33452,22 +33855,21 @@ end subroutine copycurvigridboundstopol
 !     Write a partition domain netfile with idomain
       if (japartdomain == 1) then
          i1 = max(index(netfilename,'\', .true.),index(netfilename,'/', .true.))
-         if (i1 == 0) then         
+         if (i1 == 0) then
             partfilename = "DFM_interpreted_idomain_"//trim(netfilename)
          else
             i2 = len_trim(netfilename)
             partfilename = netfilename(1:i1)//"DFM_interpreted_idomain_"//netfilename(i1+1:i2)
          endif
-         call unc_write_net(partfilename, janetcell = 1, janetbnd = 1, jaidomain = 1) 
+         call unc_write_net(partfilename, janetcell = 1, janetbnd = 1, jaidomain = 1)
       endif
-      ! call unc_write_net_ugrid(netfilename, janetcell = 1, janetbnd = 1, jaidomain = 1) 
-      
-      
+
+
 
 
 !     set ghostlevel parameters
       call partition_setghost_params(icgsolver)
-      
+
 !     loop over all domains
       do idmn=0,ndomains-1
 !        make the domain number string
@@ -33478,15 +33880,14 @@ end subroutine copycurvigridboundstopol
             goto 1234
          end if
          filename = trim(netfilename(1:len)//'_'//sdmn_loc//'_net.nc')
-         
+
 !        make the domain by deleting other parts of the net, and s
          call partition_make_domain(idmn, numlay_cellbased, numlay_nodebased, jacells, ierror)
          if (ierror /= DFM_NOERR) goto 1234
- 
+
 !        write partitioning net files, including cell info. and idomain
          call unc_write_net(filename, janetcell = 1, janetbnd = 1, jaidomain = jacells, jaiglobal_s = jacells) ! Save net bnds to prevent unnecessary open bnds
-         ! call unc_write_net_ugrid(filename, janetcell = 1, janetbnd = 1, jaidomain = 1) ! Save net bnds to prevent unnecessary open bnds
-       
+
 !        begin debug
 !        make and write the ghost lists
 !         filename = trim(netfilename(1:len)//'_'//sdmn_loc//'_gst.pli')
@@ -33499,7 +33900,7 @@ end subroutine copycurvigridboundstopol
          call restore()
          call restorecells() ! restore netcell, lne, lnn and idomain,xz, yz, xzw, yzw, ba
       end do
-      
+
      ! deallocate(xzw0, yzw0)
       ierror = 0
  1234 continue
@@ -33537,7 +33938,7 @@ subroutine make_dual_mesh()
    use network_data
    use m_flowgeom, only: xz, yz
    use gridoperations
-   
+
    implicit none
 
    double precision, dimension(:),   allocatable :: xk_new, yk_new, zk_new
@@ -33746,14 +34147,14 @@ end subroutine make_dual_mesh
 
 !>  perform partitioning from command line
 subroutine partition_from_commandline(fnam, md_Ndomains, md_jacontiguous, md_icgsolver, md_pmethod, md_dryptsfile, md_encfile, md_genpolygon)
-   
+
    use network_data
    use m_partitioninfo
    use m_polygon
    use dfm_error
    use gridoperations
-   
-   
+
+
    implicit none
 
    character(len=255), intent(in) :: fnam             !< filename
@@ -33764,12 +34165,12 @@ subroutine partition_from_commandline(fnam, md_Ndomains, md_jacontiguous, md_icg
    character(len=255), intent(in) :: md_dryptsfile    !< dry points file
    character(len=255), intent(in) :: md_encfile       !< Enclosure file to clip outer parts from the grid *.pol
    integer,            intent(in) :: md_genpolygon    !< make partition file (1) or not (0)
-   
+
    integer                        :: jacells
    integer                        :: japolygon
-   
+
    integer                        :: ierr = 0
-   
+
    if ( md_genpolygon.eq.1 ) then
       jacells = 0
       japolygon = 1
@@ -33777,23 +34178,19 @@ subroutine partition_from_commandline(fnam, md_Ndomains, md_jacontiguous, md_icg
       jacells = 1
       japolygon = 0
    end if
-   
+
    if ( netstat.eq.NETSTAT_CELLS_DIRTY ) then
       call preparecells(fnam, 0, 0, ierr)
    end if
    if (ierr /= DFM_NOERR) then
-     call findcells(0) 
+     call findcells(0)
      call find1dcells()
    end if
    netstat = NETSTAT_OK
-    
-!  set drypointsfile    
-   dryptsfile = md_dryptsfile
-   
-   call delete_drypoints_from_netgeom(dryptsfile, 0, 0)
 
-   gridencfile = md_encfile
-   call delete_drypoints_from_netgeom(gridencfile, 0, -1)
+!  delete dry points and dry areas
+   call delete_dry_points_and_areas()
+
    if ( nump1d2d.lt.1 ) return
 
    if ( md_Ndomains.gt.0 ) then ! use METIS
@@ -33823,7 +34220,7 @@ function read_commandline() result(istat)
    use unstruc_model
    use unstruc_display, only: jaGUI
    use unstruc_messages
-   use string_module, only: str_lower
+   use string_module, only: str_lower, str_tolower
    use m_samples_refine
    USE m_partitioninfo
    use unstruc_version_module
@@ -33831,7 +34228,8 @@ function read_commandline() result(istat)
    use unstruc_api
    use m_makenet
    use m_sferic, only: jsferic, jasfer3D
-   use network_data, only: dryptsfile, NUMITCOURANT
+   use network_data, only: NUMITCOURANT, CONNECT1DEND, imake1d2dtype, I1D2DTP_1TO1, I1D2DTP_1TON_EMB, I1D2DTP_1TON_LAT, I1D2DTP_LONG
+   use m_missing, only: jadelnetlinktyp
    use m_flowparameters, only: jalimnor
    implicit none
 
@@ -33850,13 +34248,14 @@ function read_commandline() result(istat)
    character(len=MAXSTRLEN),   dimension(MAXKEYS) :: svals      ! values as strings
    integer                                        :: ikey
 
-   character(len=MAXOPTLEN)                       :: md_identloc 
-   
+   character(len=MAXOPTLEN)                       :: md_identloc
+
    istat = DFM_NOERR
 
    ncount = command_argument_count()
 
-   iarg_autostart = -1
+   iarg_autostart  = -1
+   iarg_usecaching = -1
 
    k = 0
    numfiles = 0
@@ -33866,11 +34265,11 @@ function read_commandline() result(istat)
 !     read command line option and key-value pair(s)
       call read_commandline_option(inarg, Soption, Nkeys, Skeys, ivals, svals)
 
-      if (index(inarg,'batch') > 0) then 
-         jabatch = 1 
-      endif 
-  
-                        
+      if (index(inarg,'batch') > 0) then
+         jabatch = 1
+      endif
+
+
       select case (trim(Soption))
 !        Commandline switches
          case ('pressakey' )
@@ -33885,7 +34284,9 @@ function read_commandline() result(istat)
             jaGUI = 0
             if ( iarg_autostart.eq.-1 ) then ! unset
                iarg_autostart = MD_AUTOSTARTSTOP
-            end if        
+            end if
+         case ('no-geom-cache')
+            iarg_usecaching = 0
          case ('findcells')
             md_findcells = 1
          case ('partition')
@@ -33897,7 +34298,7 @@ function read_commandline() result(istat)
             md_jacontiguous = 0
             md_icgsolver = 0
             md_genpolygon = 0          ! default: no polygon
-            md_pmethod = 0             ! partition method using Metis: (=0)Recursive Bisection, (=1)K-way 
+            md_pmethod = 0             ! partition method using Metis: (=0)Recursive Bisection, (=1)K-way
 !           key-value pairs
             do ikey=1,Nkeys
                if (trim(Skeys(ikey)) == 'ndomains') then
@@ -33912,7 +34313,7 @@ function read_commandline() result(istat)
                   md_genpolygon  = ivals(ikey)
                end if
             end do
-                                  
+
          case ('t', 'threads')
             k = k+1
             inarg0 = inarg
@@ -33982,7 +34383,7 @@ function read_commandline() result(istat)
                else if (trim(Skeys(ikey)) == 'outsidecell') then
                   jaoutsidecell = max(min(ivals(ikey),1),0)
                else if (trim(Skeys(ikey)) == 'drypointsfile') then
-                 dryptsfile = trim(svals(ikey))
+                 md_dryptsfile = trim(svals(ikey))
                else if (trim(Skeys(ikey)) == 'smoothiters') then
                  NUMITCOURANT = ivals(ikey)
                end if
@@ -34017,57 +34418,65 @@ function read_commandline() result(istat)
             write (*,'(a)') trim(msgbuf)
             call get_unstruc_source(msgbuf)
             write (*,'(a)') 'Source: '//trim(msgbuf)
+#ifdef __INTEL_COMPILER
+            write  (*, '(a,f5.2)') "Compiled with Intel ifort, version ", (0.01*__INTEL_COMPILER)
+#endif
             write (*,'(a)') 'Compiled with support for:'
             if (jaGUI == 1) then
-               write (*,'(a)') 'IntGUI: yes'
+               write (*,'(a)') 'IntGUI   : yes'
             else
                ! Cheap trick for fast compilation of dflowfm-cli executable: it never included linking of Interacter, nor OpenGL,
                ! but since we don't want to completely recompile the kernel with HAVE_DISPLAY=0, we simply detect it at runtime with jaGUI==0.
-               write (*,'(a)') 'IntGUI: no'
+               write (*,'(a)') 'IntGUI   : no'
             end if
 #ifdef HAVE_OPENGL
             if (jaGUI == 1) then
-               write (*,'(a)') 'OpenGL: yes'
+               write (*,'(a)') 'OpenGL   : yes'
             else
                ! Cheap trick for fast compilation of dflowfm-cli executable: it never included linking of Interacter, nor OpenGL,
                ! but since we don't want to completely recompile the kernel with HAVE_DISPLAY=0, we simply detect it at runtime with jaGUI==0.
-               write (*,'(a)') 'OpenGL: no'
+               write (*,'(a)') 'OpenGL   : no'
             end if
 #else
-            write (*,'(a)') 'OpenGL: no'
+            write (*,'(a)') 'OpenGL   : no'
 #endif
 #ifdef _OPENMP
-            write (*,'(a)') 'OpenMP: yes'
+            write (*,'(a)') 'OpenMP   : yes'
 #else
-            write (*,'(a)') 'OpenMP: no'
+            write (*,'(a)') 'OpenMP   : no'
 #endif
 #ifdef HAVE_MPI
-            write (*,'(a)') 'MPI   : yes'
+            write (*,'(a)') 'MPI      : yes'
 #else
-            write (*,'(a)') 'MPI   : no'
+            write (*,'(a)') 'MPI      : no'
 #endif
 #ifdef HAVE_PETSC
-            write (*,'(a)') 'PETSc : yes'
+            write (*,'(a)') 'PETSc    : yes'
 #else
-            write (*,'(a)') 'PETSc : no'
+            write (*,'(a)') 'PETSc    : no'
 #endif
 #ifdef HAVE_METIS
-            write (*,'(a)') 'METIS : yes'
+            write (*,'(a)') 'METIS    : yes'
 #else
-            write (*,'(a)') 'METIS : no'
+            write (*,'(a)') 'METIS    : no'
 #endif
 #ifdef HAVE_PROJ
-            write (*,'(a)') 'PROJ : yes'
+            write (*,'(a)') 'PROJ     : yes'
 #else
-            write (*,'(a)') 'PROJ : no'
+            write (*,'(a)') 'PROJ     : no'
+#endif
+#ifdef HAVE_SHAPELIB
+            write (*,'(a)') 'Shapelib : yes'
+#else
+            write (*,'(a)') 'Shapelib : no'
 #endif
 
             istat = DFM_EXIT ! Exit without any error.
             return
-            
+
          case ('yolo')
             stop
-            
+
          case ('test')
             md_jatest = 1
 !           key-value pairs
@@ -34080,12 +34489,12 @@ function read_commandline() result(istat)
                   md_Nruns = ivals(ikey)
                end if
             end do
-            
+
             jaGUI = 0
             if ( iarg_autostart.eq.-1 ) then ! unset
                iarg_autostart = MD_AUTOSTARTSTOP
             end if
-            
+
             return
          case ('solvertest')
             md_soltest = 1
@@ -34116,16 +34525,66 @@ function read_commandline() result(istat)
 
          case ('convertnetcells')
             md_convnetcells = 1
-            
+
+         case ('make1d2dlinks')
+            md_jamake1d2dlinks = 1
+!           key-value pairs
+            do ikey=1,Nkeys
+               if (trim(Skeys(ikey)) == 'connect1dend') then
+                  read (Svals(ikey), *) connect1Dend
+               else if (trim(Skeys(ikey)) == 'method') then
+                  select case (str_tolower(trim(Svals(ikey))))
+                  case ('1to1')
+                     imake1d2dtype = I1D2DTP_1TO1
+                  case ('1ton_emb')
+                     imake1d2dtype = I1D2DTP_1TON_EMB
+                  case ('1ton_lat')
+                     imake1d2dtype = I1D2DTP_1TON_LAT
+                  case ('long')
+                     imake1d2dtype = I1D2DTP_LONG
+                  end select
+               else if (trim(Skeys(ikey)) == 'linktype') then
+                  if (imake1d2dtype == I1D2DTP_1TO1) then
+                     jadelnetlinktyp = ivals(ikey)
+                  else
+                     write (*,*) 'Warning: link type can only be selected for method=''1to1''. Ignoring.'
+                  end if
+               end if
+            end do
+
+         case ('o') ! '-o OUTPUTFILE
+            k = k+1
+            inarg0 = inarg
+            call get_command_argument(k, inarg, status=iastat)
+            if (iastat == 0) then
+               iarg_outfile = inarg
+            else
+               write (*,*) 'Error in commandline option: '''//trim(inarg0)//''', missing output filename.'
+            end if
+
          case ('savenet')
             md_jasavenet = 1
-            
+
          case ('jasfer3D')
             jasfer3D = 1
             jalimnor = 1
-            
+
          case ('cutcells')
             md_cutcells = 1
+            md_cutcelllist = 'cutcellpolygons.lst'
+
+         case ('processlibrary')
+!           read next argument as well for the filename:
+            k = k+1
+            call get_command_argument(k, inarg)
+            md_pdffile = inarg
+            call mess(LEVEL_INFO, 'Using process library file: '//trim(md_pdffile))
+
+         case ('bloomspecies')
+            k = k+1
+            call get_command_argument(k, inarg)
+            md_blmfile = inarg
+            call mess(LEVEL_INFO, 'Using bloom species definition file: '//trim(md_blmfile))
 
          case default
             INQUIRE(FILE = trim(inarg),EXIST = JAWEL)
@@ -34147,7 +34606,7 @@ function read_commandline() result(istat)
       istat = DFM_MISSINGARGS
       return
    end if
-   
+
 end function read_commandline
 
 subroutine print_help_commandline()
@@ -34203,9 +34662,9 @@ end if
    write (*,*) '      Only used when ndomains in OPTS is undefined or 0.'
    write (*,*) ' '
    write (*,*) '      OPTS is a colon-separated list opt1=val1:opt2=val2:...'
-   write (*,*) '        ndomains  = N     Number of partitions.'   
+   write (*,*) '        ndomains  = N     Number of partitions.'
    write (*,*) '        method    = [01]  Partition method: Recursive Bisection(0), K-Way(1).'
-   write (*,*) '        genpolygon= [01]  Generate partition polygon(1), or not (0).' 
+   write (*,*) '        genpolygon= [01]  Generate partition polygon(1), or not (0).'
    write (*,*) '        contiguous= [01]  Enforce contiguous grid cells in each domain.'
    write (*,*) '                          Only available when K-Way is enabled (method=1).'
    write (*,*) '        icgsolver = [67]  Parallel CG solver (When MDUFILE is specified).'
@@ -34214,6 +34673,11 @@ end if
    write (*,*) '  -t N, --threads N'
    write (*,*) '      Set maximum number of OpenMP threads. N must be a positive integer.'
    write (*,*) ' '
+   write (*,*) '  --processlibrary PROCESSLIBRARYFILE'
+   write (*,*) '      Specify the process library file to be used for water quality processes.'
+   write (*,*) ' '
+   write (*,*) '  --bloomspecies BLOOMSPECIESFILE'
+   write (*,*) '      Specify the BLOOM species definition file to be used for water quality processes.'
    write (*,*) ' '
 #ifdef HAVE_OPENGL
 if (jaGUI == 1) then ! Cheap trick at runtime instead of compiletime with HAVE_DISPLAY.
@@ -34233,14 +34697,27 @@ endif
    write (*,*) '          outsidecell=[01]'
    write (*,*) '          drypointsfile=<filename (*.pol, or cutcellpolygons.lst)>'
    write (*,*) ' '
+   write (*,*) '  --make1d2dlinks[:OPTS] NETFILE [-o OUTPUTFILE]'
+   write (*,*) '      Make 1d2d links for the given NETFILE and save the resulting net.'
+   write (*,*) '      OPTS is a colon-separated list opt1=val1:opt2=val2:...'
+   write (*,*) '        method       = (1to1 | 1ton_emb | 1ton_lat | long)  Coupling method.'
+   write (*,*) '        linktype     = N    The link type (kn3) that will be used for all links'
+   write (*,*) '                            (only for method=1to1).'
+   write (*,*) '        connect1dend = VAL  The search distance for coupling 1D endpoints.'
+   write (*,*) '      OUTPUTFILE is the name under which the file will be saved.'
+   write (*,*) '        When not specified, the original NETFILE will be overwritten.'
+   write (*,*) ' '
    write (*,*) ' --cutcells NETFILE'
    write (*,*) '      Cut the unstructured grid in NETFILE with the polygons specified'
    write (*,*) '      in a file called ''cutcellpolygons.lst''.'
    write (*,*) ' '
+   write (*,*) ' --no-geom-cache'
+   write (*,*) '      If you do not want to use the cache file with geometry information'
+   write (*,*) ' '
    write (*,*) '  -q, --quiet'
    write (*,*) '      Minimal output: Only (fatal) errors are shown.'
    write (*,*) ' '
-   write (*,*) '  --verbose:[level_stdout[:level_dia]], e.g., --verbose:INFO:DEBUG'
+   write (*,*) '  --verbose[:level_stdout[:level_dia]], e.g., --verbose:INFO:DEBUG'
    write (*,*) '      Set verbosity level of output on standard out and in diagnostics file.'
    write (*,*) '      where level is in: {DEBUG|INFO|WARNING|ERROR|FATAL}'
    write (*,*) '      Levels are optional, default is INFO on screen, DEBUG in dia file.'
@@ -34250,7 +34727,7 @@ endif
    write (*,*) ' '
    write (*,*) '  -v, --version'
    write (*,*) '      Output version information and exit.'
-   
+
 
 end subroutine print_help_commandline
 
@@ -34259,7 +34736,7 @@ end subroutine print_help_commandline
 subroutine get_meshbounds(xboundmin, xboundmax)
    use network_data
    implicit none
-   
+
    double precision, intent(out) :: xboundmin, xboundmax  !< mesh bounding box x-coordinates
 
    double precision              :: x1, x2
@@ -34296,11 +34773,11 @@ subroutine rearrange_worldmesh(xboundmin, xboundmax)
    integer                      :: k
 
    if ( jsferic.eq.1 .and. xboundmax-xboundmin.gt.180d0) then
-      do k=1,numk   
+      do k=1,numk
          if ( xk(k)-360d0.ge.xboundmin ) then
             xk(k) = xk(k)-360d0
          end if
-         
+
          if ( xk(k).lt.xboundmin ) then
             xk(k) = xk(k)+360d0
          end if
@@ -34313,7 +34790,7 @@ end subroutine rearrange_worldmesh
 
 
    subroutine fix_global_polygons(jaalwayscopyleftright, japartpols)
-      
+
       use m_sferic
       use m_polygon
       use m_missing
@@ -34322,30 +34799,30 @@ end subroutine rearrange_worldmesh
 
       use network_data, only: numk, nump, xk, xzw, yzw
       use unstruc_messages
-      
+
       implicit none
-      
+
       integer, intent(in)         :: jaalwayscopyleftright  !< always copy polygons to left and right (1) or not (0)
       integer, intent(in)         :: japartpols             !< partitioning polygons (1) or not (0)
-      
+
       integer                     :: i, j, k
-      
+
       double precision            :: x1, x2
       double precision            :: dist, dist1, dist2
       double precision            :: xmin, xmax
-                                  
+
       integer                     :: jpoint, jstart, jend
       integer                     :: i1, i2, num, NPLnew, NPLnewest
       integer                     :: im1, ip1, isign
       integer                     :: jaleft, jaright, japole
       integer                     :: numshifted   ! number of shifted polygon nodes
       integer                     :: in, idmn
-      
-!     check for spherical coordinates       
+
+!     check for spherical coordinates
       if ( jsferic.ne.1 .or. NPL.le.2 ) return
-      
+
       call mess(LEVEL_INFO, 'fixing global polygon... ')
-      
+
 !     fix the polygon nodes on the poles
       jpoint=1   ! first polygon node
       jstart = 1
@@ -34356,7 +34833,7 @@ end subroutine rearrange_worldmesh
          jstart = jstart + jpoint-1
          jend   = jend   + jpoint-1
          jpoint = max(jend+2,jpoint+1) ! min: make sure we advance the pointer
-      
+
          i = jstart-1
          do while ( i.lt.jend )
             i = i+1
@@ -34372,13 +34849,13 @@ end subroutine rearrange_worldmesh
                jend = jend+1
                jpoint = jpoint+1
                i = i+1
-               
+
                im1 = i-2; if ( im1.lt.jstart ) im1 = im1 +  jend-jstart+1
                ip1 = i+1; if ( ip1.gt.jend   ) ip1 = ip1 - (jend-jstart+1)
-               
-!              shift current node above previous node            
+
+!              shift current node above previous node
                xpl(i-1) = xpl(im1)
-               
+
 !              place new node above next node
                xpl(i) = xpl(ip1)
                ypl(i) = ypl(i)
@@ -34386,9 +34863,9 @@ end subroutine rearrange_worldmesh
             end if
          end do
       end do
-      
+
       numshifted = 0
-      
+
       jpoint = 1   ! first polygon node
       jstart = 1
       jend   = 0
@@ -34398,26 +34875,26 @@ end subroutine rearrange_worldmesh
          jstart = jstart + jpoint-1
          jend   = jend   + jpoint-1
          jpoint = max(jend+2,jpoint+1) ! min: make sure we advance the pointer
-         
+
          jaleft = 0
          jaright = 0
          japole = 0
          do i=jstart,jend
             ip1 = i+1
             if ( ip1.gt.jend ) ip1 = ip1 - (jend-jstart+1)
-            
+
 !           check if the linesegment (i,i+1) exists
             if ( xpl(i).eq.DMISS .or. ypl(i).eq.DMISS .or. xpl(ip1).eq.DMISS .or. ypl(ip1).eq.DMISS ) cycle
-            
+
 !           compute two other canditates for xpl(i+1)
             x1 = xpl(ip1)-360
             x2 = xpl(ip1)+360
-            
+
 !           select candidate that is closest to xpl(i)
             dist  = abs(xpl(ip1)-xpl(i))   ! did not use getdx intentionally
             dist1 = abs(x1-xpl(i))
             dist2 = abs(x2-xpl(i))
-            
+
             if ( dist1.lt.dist .and. dist1.lt.dist2 ) then
                if ( ip1.ne.jstart ) then
                   xpl(ip1) = x1  ! keep first polygon node, polygon around pole if it needs to be moved
@@ -34434,52 +34911,52 @@ end subroutine rearrange_worldmesh
                jaleft = 1
             end if
          end do
-         
+
          if ( jaalwayscopyleftright.eq.1 ) then
             jaleft = 1
             jaright = 1
          end if
-         
+
          if ( japole.eq.1 ) then ! special treatment
             jaleft = 0
             jaright = 0
          end if
-      
+
          if ( jaleft.eq.1 .or. jaright.eq.1 ) then
 !           copy polygons to the left and to the right
             num = jend-jstart+1
-            
+
             i1 = NPLnew+1
             if ( jaleft.eq.1 ) then
                i2 = i1 + num+1
             else
                i2 = i1
             end if
-            
-!           find new array size            
+
+!           find new array size
             if ( jaright.eq.1 ) then
                NPLnewest = i2 + num+1
             else
                NPLnewest = i2
             end if
-            
+
             call increasepol(NPLnewest,1)
-         
+
             xpl(NPLnew+1:) = DMISS
             ypl(NPLnew+1:) = DMISS
             zpl(NPLnew+1:) = DMISS
-         
+
             do i=jstart,jend
                if ( xpl(i).ne.DMISS .and. ypl(i).ne.DMISS ) then
                   i1 = i1+1
                   i2 = i2+1
-            
+
                   if ( jaleft.eq.1 ) then
                      xpl(i1) = xpl(i)-360
                      ypl(i1) = ypl(i)
                      zpl(i1) = zpl(i)
                   end if
-                  
+
                   if ( jaright.eq.1 ) then
                      xpl(i2) = xpl(i)+360
                      ypl(i2) = ypl(i)
@@ -34487,13 +34964,13 @@ end subroutine rearrange_worldmesh
                   end if
                end if
             end do
-            
+
             NPLnew = NPLnewest
          end if
       end do
-      
+
       NPL = NPLnew
-      
+
 !     check for poles
       jpoint=1   ! first polygon node
       jstart = 1
@@ -34503,7 +34980,7 @@ end subroutine rearrange_worldmesh
          jstart = jstart + jpoint-1
          jend   = jend   + jpoint-1
          jpoint = max(jend+2,jpoint+1) ! min: make sure we advance the pointer
-         
+
 !        check if a polygon covers a pole
          i = jend
          x1 = xpl(jstart)-360
@@ -34512,44 +34989,44 @@ end subroutine rearrange_worldmesh
          dist1 = abs(x1-xpl(jend))
          dist2 = abs(x2-xpl(jend))
          if ( dist1.lt.dist .or. dist2.lt.dist ) then
-         
+
            if ( dist1.lt.dist2 ) then
               isign = -1
            else
               isign = 1
            end if
-         
+
 !           copy to left, to right and add two points at pole
             num = jend-jstart+1
             call increasepol(NPL+2*num+2,1)
-            
+
             do i=NPL,jend+1,-1
                xpl(i+2*num+2) = xpl(i)
                ypl(i+2*num+2) = ypl(i)
                zpl(i+2*num+2) = zpl(i)
             end do
-            
+
             do i=jend,jstart,-1
 !              copy to right
                xpl(2*num+i) = xpl(i)+isign*360
                ypl(2*num+i) = ypl(i)
                zpl(2*num+i) = zpl(i)
-               
+
 !              move original to center
                xpl(num+i) = xpl(i)
                ypl(num+i) = ypl(i)
                zpl(num+i) = zpl(i)
-               
+
 !              copy to left
                xpl(i) = xpl(i)-isign*360
                ypl(i) = ypl(i)
                zpl(i) = zpl(i)
             end do
-            
+
 !           add two points at poles
             xpl(jend+2*num+1) = xpl(jend+2*num)
             xpl(jend+2*num+2) = xpl(jstart)
-            
+
             if ( ypl(jend+2*num).gt.0 ) then
                ypl(jend+2*num+1) = 90d0
                ypl(jend+2*num+2) = 90d0
@@ -34557,20 +35034,20 @@ end subroutine rearrange_worldmesh
                ypl(jend+2*num+1) = -90d0
                ypl(jend+2*num+2) = -90d0
             end if
-            
+
             zpl(jend+2*num+1) = zpl(jend+2*num)
             zpl(jend+2*num+2) = zpl(jstart)
-            
+
             NPL = NPL + 2*num+2
             jend = jend + 2*num+2
             jpoint = jpoint + 2*num+2
          end if
-         
+
          if ( jpoint.gt.NPL ) exit
       end do
-      
+
       if ( japartpols.eq.1 ) then
-!        check if the right areas are selected and add bounding polygon if not so      
+!        check if the right areas are selected and add bounding polygon if not so
          xmin = 1d99
          xmax = -xmin
          do k=1,numk
@@ -34579,34 +35056,34 @@ end subroutine rearrange_worldmesh
          end do
          xmin = 0.5d0*(xmin+xmax)-180d0
          xmax = xmin+360d0
-         
-!        clean up      
+
+!        clean up
          call dealloc_tpoly(partition_pol)
-!        copy back to tpoly-type again 
-         call pol_to_tpoly(npartition_pol, partition_pol) 
-         
+!        copy back to tpoly-type again
+         call pol_to_tpoly(npartition_pol, partition_pol)
+
          do idmn=1,Ndomains-1
 !           get polygons of this subdomain
 !            call delpol()
 !            call tpoly_to_pol(partition_pol,dble(idmn))
-         
+
 !           find a cell in this subdomain
             do i=1,nump
                if ( idomain(i).eq.idmn ) then
-            
+
 !                 check if cell is inside
 !                  in = -1
 !                  call dbpinpol(xzw(i), yzw(i), in)
                   call dbpinpol_tpolies(partition_pol, xzw(i), yzw(i), in, dble(idmn))
-                  
+
 !                  write(6,*) i, xzw(i), yzw(i), idomain(i)
-                  
+
 !                 if cell is not inside: add bounding polygon
                   if ( in.eq.0 ) then
-                     call mess(LEVEL_INFO, 'swapping in/out for partitioning polygons of subdomain ', idmn)               
-                     
+                     call mess(LEVEL_INFO, 'swapping in/out for partitioning polygons of subdomain ', idmn)
+
 !                     write(6,*) i, xzw(i), yzw(i), idomain(i)
-                     
+
                      call delpol()
                      NPL = 5
                      call increasepol(NPL, 0)
@@ -34615,23 +35092,23 @@ end subroutine rearrange_worldmesh
                      zpl(1:NPL) = dble(idmn)
                      call pol_to_tpoly(npartition_pol, partition_pol, keepExisting=.true.)
                   end if
-                  
+
                   exit
                end if
             end do
          end do
-            
+
 !        copy tpoly-type partition polygons to polygon
          call delpol()
          call tpoly_to_pol(partition_pol)
       end if
-     
-      call mess(LEVEL_INFO, 'done') 
-      
+
+      call mess(LEVEL_INFO, 'done')
+
       return
    end subroutine fix_global_polygons
-   
-   
+
+
    !> remove "dry"masked netcells (cellmask==1) from netcell administration
    !> typically used in combination with a drypoints file (samples or polygons)
    !> \see samples_to_cellmask and \see polygon_to_cellmask
@@ -34642,22 +35119,22 @@ end subroutine rearrange_worldmesh
       use m_alloc
       use m_partitioninfo, only: idomain, iglobal_s
       implicit none
-      
+
       integer, dimension(:), allocatable   :: numnew   ! permutation array
-      
+
       integer :: i, ic, icL, icR, icnew, isL, isR, L, num, N, numpnew
-      
+
       integer :: jaidomain
       integer :: jaiglobal_s
-      
+
       num = 0
-      
-!     check if cellmask array is allocated 
+
+!     check if cellmask array is allocated
       if ( .not.allocated(cellmask) ) goto 1234
-      
+
 !     check if cellmask array is sufficiently large
       if ( ubound(cellmask,1).lt.nump1d2d ) goto 1234
-      
+
 !     see if we can update idomain
       jaidomain = 0
       if ( allocated(idomain) ) then
@@ -34665,7 +35142,7 @@ end subroutine rearrange_worldmesh
            jaidomain = 1
         end if
       end if
-      
+
 !     see if we can update iglobal
       jaiglobal_s = 0
       if ( allocated(iglobal_s) ) then
@@ -34673,30 +35150,30 @@ end subroutine rearrange_worldmesh
            jaiglobal_s = 1
         end if
       end if
-      
+
       allocate(numnew(nump1d2d))
       numnew = 0
       numpnew = 0
-      
+
       do ic=1,nump1d2d
-         
+
          if ( cellmask(ic).eq.0 ) then ! keep cell
             num = num+1
             numnew(ic) = num
-            
+
 !           write entry in netcell, use property num<=ic
             if ( num.ne.ic ) then
                N = netcell(ic)%N
                netcell(num)%N = N
-               
-!              reallocate if necessary               
+
+!              reallocate if necessary
                if ( ubound(netcell(num)%nod,1).lt.N ) then
                   call realloc(netcell(num)%nod, N, keepExisting=.false.)
                end if
                if ( ubound(netcell(num)%lin,1).lt.N ) then
                   call realloc(netcell(num)%lin, N, keepExisting=.false.)
                end if
-               
+
 !              move data
                do i=1,N
                   netcell(num)%nod(i) = netcell(ic)%nod(i)
@@ -34710,28 +35187,28 @@ end subroutine rearrange_worldmesh
                end if
             end if
          end if
-         
+
          if ( ic.eq.nump) then
 !           determine new nump
             numpnew = num
          end if
       end do
-      
+
 !     clean up remainder of netcell
       do ic=num+1,nump1d2d
          netcell(ic)%N = 0
          deallocate(netcell(ic)%nod)
          deallocate(netcell(ic)%lin)
       end do
-      
+
       if ( jaidomain.eq.1 ) then
          call realloc(idomain, num, keepExisting=.true.)
       endif
-      
+
       if ( jaiglobal_s.eq.1 ) then
          call realloc(iglobal_s, num, keepExisting=.true.)
       end if
-      
+
 !     change lnn, lne
       do L=1,numL
          if ( lnn(L).gt.1 ) then
@@ -34739,7 +35216,7 @@ end subroutine rearrange_worldmesh
             icR = lne(2,L)
             isR = sign(1,icR)
             if ( numnew(iabs(icR)).eq.0 ) then
-!              remove right cell            
+!              remove right cell
                lnn(L)   = lnn(L)-1
                lne(2,L) = 0
             else
@@ -34747,7 +35224,7 @@ end subroutine rearrange_worldmesh
                lne(2,L) = isR*numnew(iabs(icR))
             end if
          end if
-         
+
 !        check if left cell still exists
          icL = lne(1,L)
          isL = sign(1,icL)
@@ -34768,8 +35245,8 @@ end subroutine rearrange_worldmesh
             end if
          end if
       end do
-      
-      
+
+
 !     update cell centers and bed areas
       do ic=1,nump1d2d
          icnew = numnew(ic)
@@ -34781,48 +35258,48 @@ end subroutine rearrange_worldmesh
             ba(icnew)  = ba(ic)
          end if
       end do
-      
+
 !     update number of cells
       nump1d2d = num
       nump = numpnew
-      
- 1234 continue       
-      
+
+ 1234 continue
+
 !     deallocate
       if ( allocated(numnew) ) deallocate(numnew)
-      
+
       return
    end subroutine remove_masked_netcells
-   
-   
-!  remove a netcell   
+
+
+!  remove a netcell
    subroutine removecell(xp,yp)
       use m_netw
       use m_missing, only: jins, dmiss
       use geometry_module, only: pinpok
       use gridoperations
-   
+
       implicit none
 
       integer, save                               :: NEEDFINDCELLS=1
-      
+
       double precision,                intent(in) :: xp, yp             !< coordinates of input point
-      
+
       integer                                     :: k, in
-      
+
       if ( nump.lt.1 ) NEEDFINDCELLS=1
-      
+
       if ( NEEDFINDCELLS.ne.0 .or. netstat.ne.NETSTAT_OK ) then
          call findcells(100)
          call makenetnodescoding()
          NEEDFINDCELLS = 0
       end if
-      
+
 !     (re)allocate
       if ( allocated(cellmask) ) deallocate(cellmask)
       allocate(cellmask(nump))
       cellmask = 0
-      
+
       !  find the cell
       in = 0
       do k = 1,nump
@@ -34830,27 +35307,27 @@ end subroutine rearrange_worldmesh
          call pinpok(xp, yp, netcell(k)%N, xk(netcell(k)%nod), yk(netcell(k)%nod), in, jins, dmiss)
          if ( in.gt.0 ) exit
       end do
-      
+
       if ( in.eq.0 ) then  ! no cell found
          call qnerror('removecell: no cell found', ' ', ' ')
          goto 1234
       end if
-      
+
 !     mask cell
       cellmask(k) = 1
-      
+
 !     remove masked cells
       call remove_masked_netcells()
 
- 1234 continue 
-      
-!     deallocate      
+ 1234 continue
+
+!     deallocate
       deallocate(cellmask)
-      
+
       return
    end subroutine removecell
-   
-   
+
+
 ! update cellmask from samples
 subroutine samples_to_cellmask()
 
@@ -34858,35 +35335,35 @@ subroutine samples_to_cellmask()
    use m_samples
    use m_missing, only: jins, dmiss
    use geometry_module, only: pinpok
-   
+
    implicit none
-   
+
    integer :: i, in, k, kk, n, nn
    double precision :: xx(6), yy(6)
-   
+
    if ( allocated(cellmask) ) deallocate(cellmask)
    allocate(cellmask(nump1d2d)) ; cellmask = 0
-  
+
    zs(1:ns) = 1
 
    do k = 1,nump
-      nn = netcell(k)%N 
+      nn = netcell(k)%N
       if (nn .lt.1 ) cycle
-   
+
       do n = 1,nn
          kk = netcell(k)%nod(n)
          xx(n) = xk(kk)
          yy(n) = yk(kk)
-      enddo     
+      enddo
 
-      in = -1 
- 
+      in = -1
+
       do i=1,NS    !  generate cell mask
-         
+
          if (zs(i) == -1) cycle
- 
+
          call pinpok(xs(i), ys(i), nn, xx, yy, in, jins, dmiss)
-         
+
          if ( in.gt.0 ) then
 !           mask cell
             cellmask(k) = 1; zs(i) = -1
@@ -34895,10 +35372,65 @@ subroutine samples_to_cellmask()
 
       end do
    end do
-   
-  
+
+
    return
 end subroutine samples_to_cellmask
+
+! update cellmask from samples
+subroutine samples_to_cellmask2()
+
+   use network_data
+   use m_samples
+   use m_missing, only: jins, dmiss
+   use geometry_module ! , only: pinpok
+
+   implicit none
+
+   integer :: i, in, k, kk, n, nn
+   double precision :: xx(6), yy(6)
+
+   if ( allocated(cellmask) ) deallocate(cellmask)
+   allocate(cellmask(nump1d2d)) ; cellmask = 0
+
+   zs(1:ns) = 1
+
+   call increasepol(6*nump, 0)
+   npl = 0
+
+   do k = 1,nump
+      nn = netcell(k)%N
+      if (nn .lt.1 ) cycle
+
+      do n = 1,nn
+         kk = netcell(k)%nod(n)
+         npl = npl + 1
+         xpl(npl) = xk(kk)
+         ypl(npl) = yk(kk)
+         zpl(npl) = 1d0
+      enddo
+      npl = npl + 1 ; xpl(npl) = dmiss ; ypl(npl) = dmiss ; zpl(npl) = dmiss
+
+   enddo
+
+   in = -1
+
+   do i=1,NS    !  generate cell mask
+
+      call dbpinpol(xs(i), ys(i), in, dmiss, 1, NPL, xpl, ypl, zpl) ! ALS JE VOOR VEEL PUNTEN MOET NAGAAN OF ZE IN POLYGON ZITTEN
+
+      ! call pinpok(xs(i), ys(i), nn, xx, yy, in, jins, dmiss)
+
+      if ( ipolyfound > 0 ) then
+           cellmask(ipolyfound) = 1
+      end if
+
+   end do
+
+
+   return
+end subroutine samples_to_cellmask2
+
 
 !> update cellmask from samples
 !> a cell is dry when it is:
@@ -34909,16 +35441,16 @@ subroutine pol_to_cellmask()
    use m_polygon
    use m_missing, only: dmiss, JINS
    use geometry_module, only: dbpinpol_optinside_perpol
-   
+
    implicit none
-   
+
    integer                                     :: i, ic, in, k, KMOD
    integer                                     :: num
-   
+
    if ( allocated(cellmask) ) deallocate(cellmask)
    allocate(cellmask(nump1d2d))
    cellmask = 0
-   
+
    if ( NPL.eq.0 ) return  ! no polygon
 
    CALL READYY('Applying polygon cellmask',0d0)
@@ -34927,15 +35459,15 @@ subroutine pol_to_cellmask()
    !  generate cell mask
    in = -1
    do k = 1,nump
-!     check if cell is in any "zpl>0" polygons   
+!     check if cell is in any "zpl>0" polygons
       call dbpinpol_optinside_perpol(xzw(k), yzw(k), 0, 1, in, num, dmiss, JINS, NPL, xpl, ypl, zpl)
-      
-      if ( in.eq.0 ) then      
+
+      if ( in.eq.0 ) then
 !        check if cell is outside all "zpl<0" polygons (enclosure)
          call dbpinpol_optinside_perpol(xzw(k), yzw(k), 0, -1, in, num, dmiss, JINS, NPL, xpl, ypl, zpl)   ! in=0: outside all "-1"-pol
          if ( num.gt.0) in = 1-in   ! only if at least one "-1"-type polygon was encountered
       end if
-         
+
       if ( in.gt.0 ) then
 !        mask cell
          cellmask(k) = 1
@@ -34945,12 +35477,13 @@ subroutine pol_to_cellmask()
       ENDIF
    end do
    CALL READYY(' ',-1d0)
-   
+
    return
 end subroutine pol_to_cellmask
 
 
-!> read drypoints file and delete dry points from net geometry (netcells)
+!> read drypoints files and delete dry points from net geometry (netcells)
+!! Grid enclosures are handled via the jinside=-1 option.
 subroutine delete_drypoints_from_netgeom(dryptsfilelist, jaconfirm, jinside)
    use unstruc_messages
    use m_sferic, only: jsferic
@@ -34959,74 +35492,74 @@ subroutine delete_drypoints_from_netgeom(dryptsfilelist, jaconfirm, jinside)
    use m_tpoly
    use m_samples
    implicit none
-   
-   character(*), intent(inout) :: dryptsfilelist
-   integer, intent(in)         :: jaconfirm
-   integer, intent(in)         :: jinside 
+
+   character(*), intent(inout) :: dryptsfilelist !< List of file names to process for deleting dry parts. (Supported formats: .xyz, .pol)
+   integer, intent(in)         :: jaconfirm      !< Whether (1) or not (0) to interactively prompt for inclusion of each individual file from the list.
+   integer, intent(in)         :: jinside        !< Override the inside check of polygon files. 0: use ZPL polygon (no override), 1: Always delete inside polygon, -1: always delete outside polygon.
    character(len=128)          :: ext
-                               
+
    character(len=255)          :: dryptsfile
-  
+
    character(len=128)          :: mesg
-   
+
    character(len=255), dimension(:), allocatable :: fnames
    integer                                       :: ifil
-   
+
    double precision            :: t0, t1
-                            
+
    integer                     :: minp, N1, N2
    integer                     :: ja
    integer                     :: ierror  ! error (1) or not (0)
    logical                     :: jawel
-   
+
    type(tpoly), dimension(:), allocatable :: pli      !< tpoly-type polygons
    integer                                :: numpols
-   
+
    type(tpoly), dimension(:), allocatable :: pli_save  !< tpoly-type polygons
    integer                                :: numpols_save
-   
+
 !  store global polygon
    numpols = 0
    if ( NPL.gt.0 ) then
       call pol_to_tpoly(numpols, pli, keepExisting=.false.)
    end if
-   
+
 !  store saved global polygon
    call restorepol()
    numpols_save = 0
    if ( NPL.gt.0 ) then
       call pol_to_tpoly(numpols_save, pli_save, keepExisting=.false.)
    end if
-   
-   
+
+
    if (len_trim(dryptsfilelist) > 0) then
       call strsplit(dryptsfilelist,1,fnames,1)
    else
       goto 1234
    end if
-   
+
    call mess(LEVEL_INFO, 'removing dry cells...')
-   
+
    call klok(t0)
- 
+
    do ifil=1,size(fnames)
-   
+
       ierror = 1
-   
+
       dryptsfile = fnames(ifil)
-   
+
       if (len_trim(dryptsfile) > 0) then
          inquire(FILE = trim(dryptsfile), exist = jawel)
          if (jawel) then
             if ( jaconfirm.eq.1 ) then
                ja = 0
                call confrm('Take drypointsfile ' // trim(dryptsfile) // ' into account?', ja)
-               if ( ja.ne.1 ) then 
+               if ( ja.ne.1 ) then
                   ierror = 0
                   return
                end if
             end if
-         
+
             ! Find file extention based on first full stop symbol '.' at the back of the string.
             N1  = index(trim(dryptsfile),'.', .true.)
             N2  = len_trim(dryptsfile)
@@ -35034,7 +35567,7 @@ subroutine delete_drypoints_from_netgeom(dryptsfilelist, jaconfirm, jinside)
             if ( N2.gt.N1 ) then
                EXT(1:N2-N1+1) = dryptsfile(N1:N2)
             end if
-            
+
             if ( ext(1:4).eq.'.lst' ) then
                call cutcell_list(6, 'dum', 3, 0)
                ierror = 0
@@ -35042,91 +35575,91 @@ subroutine delete_drypoints_from_netgeom(dryptsfilelist, jaconfirm, jinside)
                call oldfil(minp, dryptsfile)
                call savepol()
                call reapol(minp, 0)
-                
+
                if (jinside.ne.0) then
                   ZPL(1:NPL) = jinside
                endif
-      
-               if (jsferic == 1) then 
+
+               if (jsferic == 1) then
                   call fix_global_polygons(1,0)
                endif
-      
+
                if ( NPL.gt.100 ) then
-!                 split polygon               
+!                 split polygon
                   call mess(LEVEL_INFO, '  splitting polygons...')
                   call split_pol(2,2,100,100)
                   call mess(LEVEL_INFO, '  done')
                end if
-      
+
                call pol_to_cellmask() ! third column in pol-file may be used to specify inside (1), or outside (0) mode, only 0 or 1 allowed.
                call delpol()
                call restorepol()
-               
+
                ierror = 0
             else if ( ext(1:4).eq.'.xyz' .or. ext(1:4).eq.'.XYZ' ) then
                call oldfil(minp, dryptsfile)
                call savesam()
                call reasam(minp, 0)
-               call samples_to_cellmask()
+               call samples_to_cellmask2()
                call delsam(0)
-               
+
                ierror = 0
             end if
-         
+
             call remove_masked_netcells()
-            
+
          end if
       else
          ierror = 0  ! nothing to do
       end if
-      
+
       if ( ierror.ne. 0 ) then
          call mess(LEVEL_ERROR, 'error reading dry-points file '// trim(dryptsfile))
       end if
    end do
-   
+
    call klok(t1)
-   
+
    write(mesg, "('done in ', F12.5, ' sec.')") t1-t0
    call mess(LEVEL_INFO, trim(mesg))
-   
+
    if ( allocated(fnames) ) deallocate(fnames)
-   
+
 1234 continue
-   
+
 !  restore saved global polygon
    NPL = 0
    call tpoly_to_pol(pli_save)
    call dealloc_tpoly(pli_save)
    call savepol()
-   
+
 !  restore global polygon
    NPL = 0
    call tpoly_to_pol(pli)
    call dealloc_tpoly(pli)
-   
+
    return
 end subroutine delete_drypoints_from_netgeom
 
 !> copy samples to polygon (for further operations)
 subroutine copysamtopol()
-   
+
    use M_SAMPLES
    use m_missing, only: dmiss, JINS
    use m_polygon, only: NPL, xpl, ypl, zpl, increasepol, savepol
    use geometry_module, only: dbpinpol
 
    implicit none
-   
+
    integer, dimension(:), allocatable :: jacopy ! sample wil be copied (1) or not (0)
-   
+
    integer                            :: i, inside, numcopy
-   
+
 !  allocate
    allocate(jacopy(Ns))
    jacopy = 1
    numcopy = NS
-   
+
 !  check if selecting polygon exists
    if ( NPL.gt.2 ) then
 !     mark and count samples to be copied to polygon
@@ -35139,14 +35672,14 @@ subroutine copysamtopol()
          end if
       end do
    end if
-   
+
 !  check if samples were selected
    if ( numcopy.gt.0 ) then
 !     copy selected samples to polygon
       call savepol()
-      
+
       call increasepol(numcopy,0)
-      
+
       NPL = 0
       do i=1,NS
          if ( jacopy(i).eq.1 ) then
@@ -35157,10 +35690,10 @@ subroutine copysamtopol()
          end if
       end do
    end if
-   
+
 !  deallocate
    if ( allocated(jacopy) ) deallocate(jacopy)
-   
+
    return
 end subroutine copysamtopol
 
@@ -35175,44 +35708,44 @@ subroutine samdif()
    use m_missing
    use m_sferic, only: jsferic, jasfer3D
    use geometry_module, only: dbdistance
-   
+
    implicit none
-   
+
    double precision            :: dist
-   
+
    integer                     :: i, ipnt, ierror
    integer                     :: numnoval
-   
+
    double precision, parameter :: VAL_NOPNT = 1234d0
    double precision, parameter :: dtol = 1d-8
-   
+
    if ( NS.lt.1 .or. NS3.lt.2 ) goto 1234
-   
+
 !  build kdtree
    call build_kdtree(treeglob,NS3, xs3, ys3, ierror, jsferic, dmiss)
-   
+
 !  reallocate results vector (fixed size)
    call realloc_results_kdtree(treeglob,1)
-   
+
    if ( ierror.ne.0 ) goto 1234
-   
+
    call savesam()
-   
+
    numnoval = 0   ! count number of samples without a polygon node
    do i=1,Ns
 !     fill query vector
       call make_queryvector_kdtree(treeglob,xs(i),ys(i), jsferic)
-     
+
 !     find nearest polygon point
       call kdtree2_n_nearest(treeglob%tree,treeglob%qv,1,treeglob%results)
       ipnt = treeglob%results(1)%idx
-     
+
       if ( ipnt.gt.0 .and. ipnt.le.Ns3 ) then   ! safety
-!        check distance to nearest polygon node   
+!        check distance to nearest polygon node
          dist = dbdistance(xs(i),ys(i),xs3(ipnt),ys3(ipnt),jsferic, jasfer3D, dmiss)
          if ( dist.lt.tooclose .and. zs(i).ne.DMISS .and. zs3(ipnt).ne.DMISS ) then
             zs(i) = zs(i) - zs3(ipnt)
-            
+
 !           remove (nearly) zero values
             if ( abs(zs(i)).lt.dtol ) then
                zs(i) = DMISS
@@ -35226,13 +35759,13 @@ subroutine samdif()
          numnoval = numnoval+1
       end if
    end do
-   
+
    call delpol()
-   
+
    if ( numnoval.gt.0 ) then
 !     copy unassociated samples to polygon
       call increasepol(numnoval,0)
-      
+
       NPL = 0
       do i=1,NS
          if ( zs(i).eq.VAL_NOPNT ) then
@@ -35244,14 +35777,14 @@ subroutine samdif()
          end if
       end do
    end if
-   
+
    ierror = 0
-   
-1234 continue   
-   
+
+1234 continue
+
 !  deallocate kdtree if it was created
-   if ( treeglob%itreestat.ne.ITREE_EMPTY ) call delete_kdtree2(treeglob) 
-   
+   if ( treeglob%itreestat.ne.ITREE_EMPTY ) call delete_kdtree2(treeglob)
+
    return
 end subroutine samdif
 
@@ -35262,7 +35795,8 @@ subroutine preparecells(md_netfile, jaidomain, jaiglobal_s, ierr)
  use dfm_error
  use unstruc_display, only: jareinitialize
  use gridoperations
- 
+ use unstruc_messages
+
  implicit none
  character(len=*), intent(in) :: md_netfile  !< net filename
  integer,          intent(in) :: jaidomain   !< read subdomain numbers (1) or not (0)
@@ -35271,13 +35805,13 @@ subroutine preparecells(md_netfile, jaidomain, jaiglobal_s, ierr)
  integer                      ::k, L, nv, flag, c, i, k1, nc1, j
 
  ierr = DFM_NOERR
- 
+
  call readcells(md_netfile, ierr, jaidomain, jaiglobal_s, jareinitialize)
  if (ierr /= DFM_NOERR) then
     ! Cells could not be read, so make sure to call findcells on call site.
     return
  end if
- 
+
  ! generate lne and lnn
  if(allocated(lne)) deallocate(lne)
  allocate(lne(2, numl))
@@ -35294,7 +35828,7 @@ subroutine preparecells(md_netfile, jaidomain, jaiglobal_s, ierr)
          j = lnn(L) + 1
          lnn(L) = j
          lne(j, L) = c
-       endif             
+       endif
     enddo
  enddo
  ! 1D
@@ -35304,9 +35838,20 @@ subroutine preparecells(md_netfile, jaidomain, jaiglobal_s, ierr)
     do i = 1, nv
        L = nod(k)%lin(i)
        if (lne(1, L) .ne. -c .and. lne(2, L) .ne. -c ) then
-           j = lnn(L) + 1
-           lnn(L) = j
-           lne(j, L) = -c
+          if (lnn(L) >= 2) then
+             write (msgbuf, '(a,i0,a,i0,a)') 'Illegal: net link ', L, ' already has 2 2D cells, and is also connected to 1D netnode ', k, '.'
+             call qnerror(trim(msgbuf), '', '')
+          else
+             ! the orientation of lne(1:2,L) should be the same as net link orientation kn(1:2,L). See subroutine is_1d_boundary_candidate().
+             if (k == kn(1,L)) then
+                j = 1
+             else
+                j = 2
+             end if
+
+             lnn(L) = lnn(L)+1 ! Only #j is filled for now, but it will always end up to be 2.
+             lne(j, L) = -c
+          end if
        endif
        if (kn(3, L) == 3  .or. kn(3, L) == 4  .or. kn(3, L) == 5 .or. kn(3, L) == 7) then   ! If 1d link L enters a 2d cell
           k1 = kn(1, L)
@@ -35316,83 +35861,94 @@ subroutine preparecells(md_netfile, jaidomain, jaiglobal_s, ierr)
           nc1 = 0
           call incells(xk(k1), yk(k1), nc1)
           if (nc1 .ne. 0) then
-              j = lnn(L) + 1
-              lnn(L) = j
-              lne(j, L) =nc1
-          endif    
+             if (lnn(L) >= 2) then
+                write (msgbuf, '(a,i0,a,i0,a)') 'Illegal: net link ', L, ' already has 2 2D cells, and is also connected to 1D netnode ', k, '.'
+                call qnerror(trim(msgbuf), '', '')
+             else
+                ! the orientation of lne(1:2,L) should be the same as net link orientation kn(1:2,L).
+                if (k == kn(1,L)) then
+                   j = 2
+                else
+                   j = 1
+                end if
+
+                lne(j, L) = nc1 ! j here is the position of the 2D netcell.
+                lnn(L) = 2 ! Must always end up as 2 here.
+             end if
+          endif
        endif
     enddo
  enddo
-    
+
  call update_cell_circumcenters()
-  
+
  end subroutine preparecells
- 
+
  !> divide segment 1-3 (between latitudes y1 and y3) by y2,
  !> such that aspect ratios of the segments 1-2 and 2-3 are equal:
  !>   |y2-y1| / cos((y1+y2)/2) = |y3-y2| / cos((y2+y3)/2)
  subroutine comp_middle_latitude(y1_,y3_,y2,ierr)
     use m_sferic
     implicit none
-    
+
     double precision, intent(in)  :: y1_
     double precision, intent(in)  :: y3_
     double precision, intent(out) :: y2
     integer,          intent(out) :: ierr
-    
+
     double precision              :: y1, y3
     double precision              :: y2min, y2max
     double precision              :: A, dAdy2
-    
+
     integer                       :: iter
-    
+
     double precision, parameter   :: dtol = 1d-8
     double precision, parameter   :: deps = 1d-16
     integer,          parameter   :: MAXITER = 1000
-    
+
     y2 = 0.5d0*(y1_+y3_)
     return
-    
+
     if ( jsferic.eq.0 .or. y1_.eq.y3_ ) then
        y2 = 0.5d0*(y1_+y3_)
        ierr = 0
        return
     end if
-    
+
     y1 = dg2rd*y1_
     y3 = dg2rd*y3_
-    
+
     y2max = 0.5d0*pi - deps
     y2min = -y2max
-    
+
     ierr = 1
-    
+
     y2 = 0.5d0*(y1+y3)
     do iter=1,MAXITER
        A = abs(y3-y2) * cos(0.5d0*(y1+y2)) - abs(y2-y1) * cos(0.5d0*(y2+y3))
-       
+
        if ( abs(A)<dtol ) then
           ierr = 0
           exit
        end if
-       
+
        dAdy2 = -sign(1d0,y3-y2) * cos(0.5d0*(y1+y2)) - 0.5d0*abs(y3-y2) * sin(0.5d0*(y1+y2)) -  &
                 sign(1d0,y3-y2) * cos(0.5d0*(y2+y3)) + 0.5d0*abs(y2-y1) * sin(0.5d0*(y2+y3))
        y2 = y2 - A/dAdy2
        y2 = min(max(y2,y2min),y2max)
     end do
-    
+
     if ( ierr.ne.0 ) then
 !      error
        y2 = 0.5d0*(y1_+y3_)
     else
        y2 = y2/dg2rd
     end if
-    
+
     return
  end subroutine comp_middle_latitude
- 
- 
+
+
  !> remove netlinks to improve orthogonality
  subroutine del_badortholinks()
     use network_data
@@ -35402,51 +35958,51 @@ subroutine preparecells(md_netfile, jaidomain, jaiglobal_s, ierr)
     use sorting_algorithms, only: indexx
     use gridoperations
     implicit none
-    
+
     double precision, dimension(2)              :: xz_st,  yz_st
-    
+
     double precision, dimension(:), allocatable :: dortho
-    
+
     integer,          dimension(:), allocatable :: linkmask
     integer,          dimension(:), allocatable :: iperm
-    
+
     double precision                            :: dorthosum, dorthosumnew
     double precision                            :: dmaxorthop
     double precision                            :: zz
-                                                
+
     integer                                     :: LL, L, L1
     integer                                     :: k1, k2
     integer                                     :: kk, k
     integer                                     :: i, num, numnew
-                                                
+
     integer                                     :: jatek
-    
+
     double precision, external                  :: cosphiunet
-    
+
     integer,          parameter                 :: P=2
-    
+
     jatek = 1
-    
+
     dmaxorthop = cosphiutrsh**P
-    
+
     call savenet()
-    
+
     if ( netstat.ne.NETSTAT_OK ) then
        call findcells(0)
     end if
-   
+
 !   take dry cells into account (after findcells)
-    call delete_drypoints_from_netgeom(dryptsfile, 0, 0)
-    
+    call delete_dry_points_and_areas()
+
     call makenetnodescoding() ! need it for allocation nb
-    
+
 !   allocate
     allocate(linkmask(numL))
     allocate(dortho(numL))
     allocate(iperm(numL))
-    
+
     linkmask = 0
-    
+
 !   compute orthogonality
     do L=1,numL
        zz = cosphiunet(L)
@@ -35454,21 +36010,21 @@ subroutine preparecells(md_netfile, jaidomain, jaiglobal_s, ierr)
           dortho(L) = abs(zz)
        end if
     end do
-    
+
 !   get permutation array, increasing orthogonality
     call indexx(numL,dortho,iperm)
-    
+
     do i=numL,1,-1   ! decreasing order of orthogonality
        L = iperm(i)
        if ( lnn(L).eq.2 ) then   ! internal links only
           k1 = lne(1,L)
           k2 = lne(2,L)
-          
+
 !         check dimension of merged cell
           if ( netcell(k1)%N + netcell(k2)%N-1 .gt. maxnodespercell ) then
              cycle
           end if
-          
+
           dorthosum = 0d0
           num = 0
 !         compute current orthogonality
@@ -35476,7 +36032,7 @@ subroutine preparecells(md_netfile, jaidomain, jaiglobal_s, ierr)
              k = lne(kk,L)
              do LL=1,netcell(k)%N
                 L1 = netcell(k)%lin(LL)
-!               check with mask if this link already contributed                
+!               check with mask if this link already contributed
                 if ( linkmask(L1).ne.L ) then
                    zz = cosphiunet(L1)
                    if ( zz.ne.DMISS ) then
@@ -35487,20 +36043,20 @@ subroutine preparecells(md_netfile, jaidomain, jaiglobal_s, ierr)
                 end if
              end do
           end do
-          
+
           if ( dorthosum.gt.dmaxorthop ) then
 !            store neighboring cell administration
              call local_netstore( (/ k1, k2 /) )
              xz_st = (/ xz(k1), xz(k2) /)
              yz_st = (/ yz(k1), yz(k2) /)
-             
+
 !            merge cells
              call mergecells(k1,k2,jatek)
-             
-!            compute new circumcenters          
+
+!            compute new circumcenters
              call getcellcircumcenter(k1, xz(k1), yz(k1), zz)
              call getcellcircumcenter(k2, xz(k2), yz(k2), zz)
-             
+
 !            compute new orthogonality
              numnew = 0
              dorthosumnew = 0d0
@@ -35508,7 +36064,7 @@ subroutine preparecells(md_netfile, jaidomain, jaiglobal_s, ierr)
                 k = lne(kk,L)
                 do LL=1,netcell(k)%N
                    L1 = netcell(k)%lin(LL)
-!                  check with mask if this link already contributed                
+!                  check with mask if this link already contributed
                    if ( linkmask(L1).ne.-L ) then
                       zz = cosphiunet(L1)
                       if ( zz.ne.DMISS ) then
@@ -35519,40 +36075,40 @@ subroutine preparecells(md_netfile, jaidomain, jaiglobal_s, ierr)
                    end if
                 end do
              end do
-             
+
 !            restore if orthogonality increased
              if ( dorthosumnew.ge.dorthosum ) then
 !               restore
                 call local_netrestore()
                 xz(k1) = xz_st(1)
                 yz(k1) = yz_st(1)
-                
+
                 xz(k2) = xz_st(2)
                 yz(k2) = yz_st(2)
              end if
           end if
        end if
     end do
-    
+
 1234 continue
 
 !   deallocate
     call local_netdealloc()
-    
+
     if ( allocated(linkmask) ) deallocate(linkmask)
     if ( allocated(dortho)   ) deallocate(dortho)
     if ( allocated(iperm)    ) deallocate(iperm)
-    
+
     return
  end subroutine del_badortholinks
- 
+
  !> copy disabled netcells to samples (for dry points later)
  subroutine copy_drycells_to_samples()
     implicit none
-    
+
     return
  end subroutine
- 
+
 !> split polygon recursively into (Ni X Nj) smaller polygons, at most MAXsplit times, until polygons have at most NPLmax nodes
  subroutine split_pol(Ni,Nj,NPLmax,MAXsplit)
     use m_polygon
@@ -35561,85 +36117,86 @@ subroutine preparecells(md_netfile, jaidomain, jaiglobal_s, ierr)
     use m_missing
     use unstruc_messages
     implicit none
-    
+
     integer,                   intent(in)  :: Ni
     integer,                   intent(in)  :: Nj
     integer,                   intent(in)  :: NPLmax     !< maximum polygon dimension for splitting
     integer,                   intent(in)  :: MAXsplit   !< maximum number of split levels in recursion
-    
+
     type(tpoly), dimension(:), allocatable :: pli
-    
+
     character(len=128)                     :: FNAM
-    
+
     double precision                       :: xmin, ymin, xmax, ymax
     double precision                       :: xa, ya, xb, yb
-                                           
+
     integer                                :: i, j, ipol, N, numpols
-    
+
     double precision, dimension(:), allocatable :: rwrk
     integer,          dimension(:), allocatable :: iwrk
     integer                                     :: lrwk
-    
+
     integer                                     :: isplit, numsplit, mpol
     integer                                     :: NPL_prev
-    
+
     integer                                     :: ierr
-    
+
     integer, parameter                           :: NCCP=5
     double precision, dimension(NCCP)            :: xccp, yccp
-    
+
     integer,          dimension(0)               :: nclan
-    
+
     integer,                        parameter    :: MAXLRWK = 1E9
-    
+
     external                                     :: addtopol
-    
+
     if ( NPL.lt.3 ) return
-    
+
     call savepol()
-    
+
 !   polypack: based on Vatti polygon clipping algorithm
     lrwk = NPL
     allocate(rwrk(lrwk))
     allocate(iwrk(lrwk))
-    
+
     numsplit = 0
-    
+
 ilp:do isplit=1,MAXSPLIT
        call pol_to_tpoly(numpols, pli, keepExisting=.false.)
        NPL=0
        numsplit = 0
-       
+
        do ipol=1,numpols
           if ( pli(ipol)%len.lt.NPLmax .and. NPLmax.gt.0 ) then
              ierr = 0   ! skip, just copy
              call tpoly_to_pol(pli,iselect=ipol)
           else
              numsplit = numsplit+1
-             
+
              N = pli(ipol)%len
              xmin = pli(ipol)%xmin
              xmax = pli(ipol)%xmax
              ymin = pli(ipol)%ymin
              ymax = pli(ipol)%ymax
-             
+
              xa = xmin
              do i=1,Ni
                 xb = xa
                 xa = xmin + dble(i)/dble(Ni)*(xmax-xmin)
                 xccp = (/ xa, xb, xb, xa, xa /)
-                
+
                 ya = ymin
                 do j=1,Nj
                    yb = ya
                    ya = ymin + dble(j)/dble(Nj)*(ymax-ymin)
                    yccp = (/ ya, ya, yb, yb, ya /)
-                
+
                    ierr = 1
                    do while ( ierr.ne.0 .and. lrwk.le.MAXLRWK )
                       NPL_prev = NPL
-                      call PPINPO (XCCP,YCCP,NCCP,pli(ipol)%x, pli(ipol)%y, pli(ipol)%len, rwrk, iwrk, lrwk, addtopol, ierr) 
+                      call PPINPO (XCCP,YCCP,NCCP,pli(ipol)%x, pli(ipol)%y, pli(ipol)%len, rwrk, iwrk, lrwk, addtopol, ierr)
                       if ( ierr.ne.0 ) then
+                         NPL = NPL_prev               ! Restore the counter that was modified by callback addtopol().
                          lrwk = int(1.2d0*dble(lrwk))+1
                          call realloc(rwrk,lrwk,keepExisting=.false.)
                          call realloc(iwrk,lrwk,keepExisting=.false.)
@@ -35650,7 +36207,7 @@ ilp:do isplit=1,MAXSPLIT
                          end if
                       end if
                    end do
-                   
+
                    if ( ierr.ne.0 ) then
                       write(FNAM, "('error_', I0, '_', I0, '.pol')") isplit, ipol
                       call mess(LEVEL_WARN, 'POLYPACK error, falling back to Sutherland-Hodgman, saving polygon ' // trim(FNAM))
@@ -35664,20 +36221,20 @@ ilp:do isplit=1,MAXSPLIT
              end do
           end if
        end do
-       
+
        if ( numsplit.eq.0 ) then
-!         no polygons were split  
+!         no polygons were split
           exit
        end if
-    
+
     end do ilp
-    
+
     deallocate(rwrk)
     deallocate(iwrk)
     call dealloc_tpoly(pli)
 
     if ( ierr.ne.0 ) then ! fallback
-    
+
        xmin = huge(1d0)
        xmax = -xmin
        ymin = huge(1d0)
@@ -35690,70 +36247,70 @@ ilp:do isplit=1,MAXSPLIT
              ymax = max(ypl(i),ymax)
           end if
        end do
-    
+
 !      this turned out to be based on the Sutherland-Hodgman polygon clipping algorithm
        do i=1,Ni-1
           call savepol()
           xa = xmin + dble(i)/dble(Ni)*(xmax-xmin)
           call split_pol_with_line(xa, ymin, xa, ymax, 1)
           call pol_to_tpoly(numpols, pli, keepExisting=.false.)
-          
+
           call restorepol()
           call split_pol_with_line(xa, ymin, xa, ymax, 2)
           call tpoly_to_pol(pli)
        end do
-       
+
        do j=1,Nj-1
           call savepol()
           ya = ymin + dble(j)/dble(Nj)*(ymax-ymin)
           call split_pol_with_line(xmin, ya, xmax, ya, 1)
           call pol_to_tpoly(numpols, pli, keepExisting=.false.)
-          
+
           call restorepol()
           call split_pol_with_line(xmin, ya, xmax, ya, 2)
           call tpoly_to_pol(pli)
        end do
-       
+
        call dealloc_tpoly(pli)
     end if
-    
+
     return
  end subroutine split_pol
- 
- 
+
+
  !> add polygon to global polygons
  subroutine addtopol(XCRA,YCRA,NCRA)
     use m_polygon
     use m_alloc
     use m_missing
     implicit none
-    
+
     integer, intent(in) :: NCRA
     double precision, dimension(NCRA), intent(in) :: XCRA, YCRA
-    
+
     integer :: i
-    
+
     if ( NCRA.le.0 ) return
-    
+
     call increasepol(NPL+NCRA+1,1)
-    
+
     if ( NPL.gt.0 .and. NCRA.gt.0 ) then
        NPL = NPL+1
        xpl(NPL) = DMISS
        ypl(NPL) = DMISS
        zpl(NPL) = DMISS
     end if
-    
+
     do i=1,NCRA
        NPL = NPL+1
        xpl(NPL) = XCRA(i)
        ypl(NPL) = YCRA(i)
        zpl(NPL) = DMISS
     end do
-   
+
    return
  end subroutine addtopol
- 
+
  !> split polygon with line through two points (xa,ya) and (xb,yb)
  subroutine split_pol_with_line(xa,ya,xb,yb,idir)
     use m_polygon
@@ -35761,33 +36318,33 @@ ilp:do isplit=1,MAXSPLIT
     use m_missing
     use m_tpoly
     implicit none
-    
+
     double precision,      intent(in)  :: xa, ya, xb, yb  !< of two point on line
     integer,               intent(in)  :: idir            !< left (1), or right (2)
-    
+
     double precision                   :: sx, sy         ! vector perpendicular to line
-    
+
     integer                            :: imask
     integer                            :: i, ip1, ipol, numpols, num, numadd
-    
+
     logical                            :: L, Lprev
-    
+
     type(tpoly), dimension(:), allocatable :: pli
-    
-    if ( NPL.lt.3 ) return    
-    
+
+    if ( NPL.lt.3 ) return
+
 !   copy to tpoly-type polygons
     call pol_to_tpoly(numpols, pli, keepExisting=.false.)
-    
+
 !   compute a vector perpendicular to the line through (xa,ya) and (xb,yb)
     sx = -(yb-ya)
     sy = xb-xa
-    
+
     if ( idir.eq.2 ) then
        sx = -sx
        sy = -sy
     end if
-    
+
     NPL=0
     do ipol=1,numpols
        num = pli(ipol)%len
@@ -35809,7 +36366,7 @@ ilp:do isplit=1,MAXSPLIT
           else
              imask = 0
           end if
-          
+
           if ( imask.ne.0 ) then
 !            active segment, add start point
              if ( numadd.eq.0 .and. NPL.gt.0 ) then
@@ -35820,7 +36377,7 @@ ilp:do isplit=1,MAXSPLIT
                 ypl(NPL) = DMISS
                 zpl(NPL) = DMISS
              end if
-             
+
              numadd = numadd+1
              NPL=NPL+1
              call increasepol(NPL,1)
@@ -35835,7 +36392,7 @@ ilp:do isplit=1,MAXSPLIT
                 zpl(NPL) = pli(ipol)%z(i)
              end if
           end if
-          
+
           if ( imask.eq.3 ) then
 !            outgoing, add intersection
              NPL=NPL+1
@@ -35845,48 +36402,48 @@ ilp:do isplit=1,MAXSPLIT
           end if
        end do
     end do
-    
+
 !   deallocate
     call dealloc_tpoly(pli)
-    
+
     return
-    
+
     contains
-    
+
     logical function isleft(x,y)  !< is left-hand side of line (given some orientation)
        double precision, intent(in) :: x, y
-       
+
        isleft = .false.
-       
+
        if ( x.ne.DMISS .and. y.ne.DMISS ) then
           if ( (x-xa)*sx + (y-ya)*sy.ge.0d0 ) then
              isleft = .true.
           end if
        end if
-       
-       return 
+
+       return
     end function isleft
-    
+
 !>  intersect line segment 1-2 with line through points a and b
     subroutine intersect(x1,y1,x2,y2,xi,yi)
        implicit none
-       
+
        double precision, intent(in)  :: x1, y1, x2, y2   !< line start and end coordinates
        double precision, intent(out) :: xi, yi           !< intersection coordinates
-       
+
        double precision :: alpha, dx12, dy12, dxab, dyab
-       
+
        dx12 = x2-x1
        dy12 = y2-y1
-       
+
        dxab = xb-xa
        dyab = yb-ya
-       
+
        alpha = ( (xa-x1)*dyab - (ya-y1)*dxab ) / ( dx12*dyab - dy12*dxab )
-       
+
        xi = x1 + alpha*dx12
        yi = y1 + alpha*dy12
-    
+
        return
     end subroutine
  end subroutine split_pol_with_line
@@ -35898,25 +36455,25 @@ ilp:do isplit=1,MAXSPLIT
     use geometry_module, only :half
     use m_missing
     implicit none
-    
+
     double precision, dimension(:,:), allocatable :: x, y ! original grid coordinates
-    
+
     integer                                       :: i,j
     integer                                       :: M, N ! original grid dimensions
     integer                                       :: Mnew, Nnew ! new grid dimensions
-    
+
     integer                                       :: orient
     integer                                       :: ja
-    
+
     if ( MC*NC.eq.0 ) return  ! nothing to do
-    
+
     call savegrd()
-    
+
     orient = 1
-    
-!   whip out grid
+
+!   whipe out grid
     call cleargrid()
-    
+
     do
 !      allocate and copy original grid
        if ( orient.eq.1 ) then
@@ -35964,75 +36521,267 @@ ilp:do isplit=1,MAXSPLIT
              end do
           end do
        end if
-       
+
 !      compute new grid dimensions
-       Mnew = 2*M-2
+       Mnew = 2*M
        Nnew = N
-       
+
 !      increase grid
        MC = Mnew
        NC = Nnew
        call increasegrid(MC,NC)
        xc = DMISS
        yc = DMISS
-       
+
 !      odd j-lines: copy
        do j=1,N,2
-          do i=1,M-1
-!            odd i-lines                
-             xc(2*i-1,j) = x(i,j)
-             yc(2*i-1,j) = y(i,j)
-             
+          do i=1,M
 !            even i-lines
-             xc(2*i,j) = x(i+1,j)
-             yc(2*i,j) = y(i+1,j)
+             xc(2*i,j) = x(i,j)
+             yc(2*i,j) = y(i,j)
+
+!            odd i-lines
+             xc(2*i-1,j) = xc(2*i,j)
+             yc(2*i-1,j) = yc(2*i,j)
           end do
        end do
-       
+
 !      even j-lines: shift
        do j=2,N,2
+!         boundaries
+          xc(1,j) = x(1,j)
+          yc(1,j) = y(1,j)
+
+          xc(2*M,j) = x(M,j)
+          yc(2*M,j) = y(M,j)
+
           do i=1,M-1
+!            even i-lines
+             call half(x(i,j),y(i,j),x(i+1,j),y(i+1,j),xc(2*i,j),yc(2*i,j),jsferic,jasfer3D)
+
 !            odd i-lines
-             call half(x(i,j),y(i,j),x(i+1,j),y(i+1,j),xc(2*i-1,j),yc(2*i-1,j),jsferic,jasfer3D)
-             
-!            even i-lines               
-             xc(2*i,j) = xc(2*i-1,j)
-             yc(2*i,j) = yc(2*i-1,j)
+             xc(2*i+1,j) = xc(2*i,j)
+             yc(2*i+1,j) = yc(2*i,j)
           end do
        end do
-    
+
 !      deallocate
        if ( allocated(x) ) deallocate(x)
        if ( allocated(y) ) deallocate(y)
-       
-!      plot grid          
+
+!      plot grid
        call tekgrid(i)
-       
+
        ja = 0
        call confrm('Shift orientation?', ja)
        if ( ja.eq.1 ) then
 !         whip out grid
           call cleargrid()
-          
+
           call restoregrd()
-          
+
           orient = orient+1; if ( orient.gt.4 ) orient=orient-4
        else
           exit
        end if
-    
+
     end do
-    
+
     call confrm('Are you satisfied?', ja)
     if ( ja.ne.1 ) then
 !      whip out grid
        call cleargrid()
-       
+
        call restoregrd()
-       
-!      plot grid          
+
+!      plot grid
        call tekgrid(i)
     end if
-    
+
     return
  end subroutine maketrigrid
+
+
+ ! Delete dry points from netgeom based on drypoints files and grid enclosure file
+ subroutine delete_dry_points_and_areas()
+   use unstruc_model, only: md_dryptsfile, md_encfile
+   use gridoperations, only: update_cell_circumcenters
+   implicit none
+
+   call delete_drypoints_from_netgeom(md_dryptsfile, 0, 0)
+   call delete_drypoints_from_netgeom(md_encfile, 0, -1)
+!   call delete_drypoints_from_netgeom(md_cutcelllist, 0, 0)
+
+   ! for issue UNST-3381, compute circumcenter after deleting dry areas
+   ! TODO: UNST-3436 must be done as a better solution
+   if (len_trim(md_dryptsfile) > 0 .or. len_trim(md_encfile) > 0) then
+      call update_cell_circumcenters()
+   end if
+
+   return
+ end subroutine delete_dry_points_and_areas
+
+ !> get uniform curvilinear grid parameters in "makenet" from polygon
+ subroutine pol2netparams()
+   use m_makenet
+   use m_polygon
+   use m_sferic
+   use m_missing
+   use  geometry_module
+   implicit none
+
+   double precision :: ximin, ximax
+   double precision :: etamin, etamax
+   double precision :: xref, yref, Dx, Dy
+   double precision :: xi, eta, csa, sna
+
+   integer          :: i
+
+   integer          :: ierror ! error (1) or not (0)
+
+   ierror = 0
+
+!  check if polygon exists
+   if ( NPL.lt.3 ) return
+
+   ierror = 1
+
+!  get reference point: first non-missing
+   i = 1;
+   do while ( i.le. NPL .and. ( xpl(i).eq.DMISS .or. ypl(i).eq.DMISS ) )
+      i = i+1
+   end do
+
+!  check if point was found
+   if ( i.gt.NPL ) goto 1234
+
+   xref = xpl(i)
+   yref = ypl(i)
+
+   csa = cos(dg2rd*ANGLE)
+   sna = sin(dg2rd*ANGLE)
+
+!  get polygon min/max in rotated (xi,eta) coordinaes
+   ximin = huge(1d0)
+   ximax = -ximin
+   etamin = huge(1d0)
+   etamax = -etamin
+   do i=1,NPL
+      if ( xpl(i).ne.DMISS ) then
+         call getdxdy(xref,yref,xpl(i),ypl(i),Dx,Dy, jsferic)
+         xi  =  Dx*csa + Dy*sna
+         eta = -Dx*sna + Dy*csa
+         ximin = min(ximin, xi)
+         ximax = max(ximax, xi)
+         etamin = min(etamin, eta)
+         etamax = max(etamax, eta)
+      end if
+   end do
+
+!  get x0, y0, NRX, NRY
+   Dx = ximin*csa - etamin*sna
+   Dy = ximin*sna + etamin*csa
+   if ( jsferic.eq.1	) then
+      Dx = Dx/Ra*rd2dg
+      Dy = Dy/(Ra*cos(yref*dg2rd))*rd2dg
+   end if
+   x0 = xref + Dx
+   y0 = yref + Dy
+
+   NRX = ceiling((ximax-ximin)/DX0)
+   NRY = ceiling((etamax-etamin)/DY0)
+
+   ierror = 0
+1234 continue
+
+   return
+ end subroutine pol2netparams
+
+ ! delete curviliniar grid outside polygon(s)
+ subroutine del_grid_outside_pol()
+   use m_grid
+   use m_polygon
+   use m_tpoly
+   use m_missing
+   implicit none
+
+   type(tpoly), dimension(:),   allocatable :: pols
+
+   integer,		 dimension(:,:), allocatable :: kn  ! grid node-based mask
+   integer,		 dimension(:,:), allocatable :: kc  ! grid cell-based mask
+
+   integer                                  :: numpols, inpol
+   integer                                  :: i, j
+   integer                                  :: ipol
+
+   integer                                  :: ierror ! error (1) or not (0)
+
+   ierror = 0
+   if ( NPL.lt.2 .or. MC.lt.1 .or. NC.lt.1 ) goto 1234 ! nothing to do
+
+   ierror = 1
+
+!  allocate
+   allocate(kn(MC,NC))
+   kn = 0
+   allocate(kc(MC-1,NC-1))
+   kc = 0
+
+!  convert global polygon to array of tpoly-type polygons
+   call pol_to_tpoly(numpols, pols, keepExisting=.false.)
+
+!	loop over polygons
+   do ipol=1,numpols
+!     mask grid points that are inside a polygon
+      inpol = 0  ! do not initialize (already in pol_to_tpoly)
+      do j=1,NC
+         do i=1,MC
+            call dbpinpol_tpoly(pols(ipol), xc(i,j),yc(i,j),inpol)
+            if ( inpol.eq.1 ) then
+               kn(i,j) = 1
+            end if
+         end do
+      end do
+   end do
+
+!  mark grid cells inside oudside polygons when at least one of its nodes is inside
+   do j=1,NC-1
+      do i=1,MC-1
+         if ( kn(i,j).eq.1 .or. kn(i+1,j).eq.1 .or. kn(i,j+1).eq.1 .or. kn(i+1,j+1).eq.1 ) then
+            kc(i,j) = 1
+         end if
+      end do
+   end do
+
+!  mark nodes that are member of a cell inside the polygon(s)
+   kn = 0
+   do j=1,NC-1
+      do i=1,MC-1
+         if ( kc(i,j).eq.1 ) then
+            kn(i,j)     = 1
+            kn(i+1,j)   = 1
+            kn(i,j+1)   = 1
+            kn(i+1,j+1) = 1
+         end if
+      end do
+   end do
+
+!  remove grid cells outside polygon
+   do j=1,NC
+      do i=1,MC
+         if ( kn(i,j).eq.0 ) then
+            xc(i,j)     = DMISS
+            yc(i,j)     = DMISS
+         end if
+      end do
+   end do
+
+   ierror = 0
+1234 continue
+
+   call dealloc_tpoly(pols)
+   if ( allocated(kn) ) deallocate(kn)
+   if ( allocated(kc) ) deallocate(kc)
+
+   return
+ end subroutine del_grid_outside_pol

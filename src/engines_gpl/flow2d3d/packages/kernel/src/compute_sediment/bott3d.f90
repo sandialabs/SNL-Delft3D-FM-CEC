@@ -12,7 +12,7 @@ subroutine bott3d(nmmax     ,kmax      ,lsed      ,lsedtot  , &
                 & nto       ,volum0    ,volum1    ,dt        ,gdp       )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
+!  Copyright (C)  Stichting Deltares, 2011-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -36,8 +36,8 @@ subroutine bott3d(nmmax     ,kmax      ,lsed      ,lsedtot  , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: bott3d.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/flow2d3d/packages/kernel/src/compute_sediment/bott3d.f90 $
+!  $Id: bott3d.f90 65844 2020-01-23 20:56:06Z platzek $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/kernel/src/compute_sediment/bott3d.f90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: Computes suspended sediment transport correction
@@ -808,7 +808,9 @@ subroutine bott3d(nmmax     ,kmax      ,lsed      ,lsedtot  , &
              !
              dbodsd(l, nm) = dbodsd(l, nm) + dsdnm
              !
-             call updwaqflxsed(nst, nm, l, trndiv, sedflx, eroflx, gdp)
+             if (.not. bedload) then
+                call updwaqflxsed(nst, nm, l, trndiv, sedflx, eroflx, gdp)
+             endif
           enddo    ! nm
        enddo       ! l
        if (bedchangemesscount > bedchangemessmax) then
@@ -1141,7 +1143,7 @@ subroutine bott3d(nmmax     ,kmax      ,lsed      ,lsedtot  , &
        enddo
        if (scour) then
           !
-          ! -Check bottom slopes and apply an avalance effect if needed
+          ! -Check bottom slopes and apply an avalanche effect if needed
           ! -Depths at waterlevel points (dps) will be updated,
           !  to be used for dpu and dpv
           ! -Depth changes will be added to depchg,to be used for dp

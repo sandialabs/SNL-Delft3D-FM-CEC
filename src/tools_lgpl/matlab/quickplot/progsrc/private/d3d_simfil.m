@@ -18,7 +18,7 @@ function varargout=d3d_simfil(FI,idom,field,cmd,varargin)
 
 %----- LGPL --------------------------------------------------------------------
 %                                                                               
-%   Copyright (C) 2011-2018 Stichting Deltares.                                     
+%   Copyright (C) 2011-2020 Stichting Deltares.                                     
 %                                                                               
 %   This library is free software; you can redistribute it and/or                
 %   modify it under the terms of the GNU Lesser General Public                   
@@ -43,8 +43,8 @@ function varargout=d3d_simfil(FI,idom,field,cmd,varargin)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/private/d3d_simfil.m $
-%   $Id: d3d_simfil.m 62259 2018-10-04 21:08:01Z jagers $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/private/d3d_simfil.m $
+%   $Id: d3d_simfil.m 65778 2020-01-14 14:07:42Z mourits $
 
 %========================= GENERAL CODE =======================================
 T_=1; ST_=2; M_=3; N_=4; K_=5;
@@ -237,24 +237,26 @@ switch FI.FileType(9:end)
                 Ans.Y = FI.obsXY(idx{M_},2);
                 Ans.Val = lId(idx{M_});
             case 'boundary points'
-                F=inifile('geti',FI.bndLoc,'Boundary','type');
+                F=inifile('cgeti',FI.bndLoc,'Boundary','type');
                 BT = [F{:}];
                 BT = find(BT==Props.varid);
                 %
-                F=inifile('getstringi',FI.bndLoc,'Boundary','nodeId');
-                BI = F(BT(idx{M_}));
+                F=inifile('cgeti',FI.bndLoc,'Boundary','nodeId');
+                BNI = F(BT(idx{M_}));
                 %
-                NI = inifile('getstringi',FI.ntw,'Node','id');
-                ni = find(ismember(NI,BI));
-                ni = ni(idx{M_});
+                NI = inifile('cgetstringi',FI.ntw,'Node','id');
+                [~,iBNI,iNI] = intersect(BNI,NI);
+                ni = zeros(size(BNI));
+                ni(iBNI)=iNI;
+                %
                 x = inifile('geti',FI.ntw,'Node','x');
                 y = inifile('geti',FI.ntw,'Node','y');
                 Ans.X   = [x{ni}]';
                 Ans.Y   = [y{ni}]';
                 Ans.Val = NI(ni);
             case 'structure points'
-                sId = inifile('geti',FI.strucLoc,'Structure','id');
-                ST = inifile('geti',FI.strucLoc,'Structure','type');
+                sId = inifile('cgeti',FI.strucLoc,'Structure','id');
+                ST = inifile('cgeti',FI.strucLoc,'Structure','type');
                 ST = find(strcmp(ST,Props.varid));
                 iM = ST(idx{M_});
                 %
@@ -362,7 +364,8 @@ switch FI.FileType(9:end)
                 Ans.X(1:nM,1:nN) = FI.grd.X(idx{M_},idx{N_});
                 Ans.Y(1:nM,1:nN) = FI.grd.Y(idx{M_},idx{N_});
             case 'bed levels'
-                F = FI.grd;
+                F.X = FI.grd.X;
+                F.Y = FI.grd.Y;
                 F.X(end+1,:) = NaN;
                 F.Y(end+1,:) = NaN;
                 F.X(:,end+1) = NaN;
@@ -445,14 +448,37 @@ switch FI.FileType(9:end)
                 Ans = netcdffil(FI.mesh.nc_file,idom,FI.mesh.quant,'grid',idx{M_});
                 Ans.Val = repmat(FI.BedLevel,size(Ans.X));
             case 'bed level samples'
-                Ans.XY = FI.BedLevel(idx{M_},1:2);
+                Ans.XY  = FI.BedLevel(idx{M_},1:2);
                 Ans.Val = FI.BedLevel(idx{M_},3);
             case 'observation points'
-                Ans.XY = FI.Obs{1}(idx{M_},1:2);
-                Ans.Val = FI.Obs{2}(idx{M_});
+                Ans.XY  = zeros(sz(M_),2);
+                Ans.Val = cell(sz(M_),1);
+                offset = 0;
+                for i = 1:length(FI.Obs)
+                    % switch file type
+                    nobj = size(FI.Obs{i}{1},1);
+                    Mask = idx{M_}>offset & idx{M_}<=offset+nobj;
+                    if any(Mask)
+                        iObj = idx{M_}(Mask)-offset;
+                        Ans.XY(Mask,:) = FI.Obs{i}{1}(iObj,1:2);
+                        Ans.Val(Mask)  = FI.Obs{i}{2}(iObj);
+                    end
+                    offset = offset+nobj;
+                end
             case 'observation cross sections'
-                Ans.XY = {FI.Crs.Field(idx{M_}).Data};
-                Ans.Val = {FI.Crs.Field(idx{M_}).Name};
+                Ans.XY  = cell(sz(M_),1);
+                Ans.Val = cell(sz(M_),1);
+                offset = 0;
+                for i = 1:length(FI.Crs)
+                    % switch file type
+                    nobj = length(FI.Crs{i}.Field);
+                    Mask = idx{M_}>offset & idx{M_}<=offset+nobj;
+                    if any(Mask)
+                        iObj = idx{M_}(Mask)-offset;
+                        Ans.XY(Mask)  = {FI.Crs{i}.Field(iObj).Data};
+                        Ans.Val(Mask) = {FI.Crs{i}.Field(iObj).Name};
+                    end
+                end
             otherwise
                 if ~isempty(strfind(Props.Name,'open boundaries'))
                     ibtp = strcmp(FI.ExtForceNew.Bnd.Types,strtok(Props.Name));
@@ -549,7 +575,7 @@ switch FI.FileType
         nBT=length(uBT);
         %
         if isfield(FI,'strucLoc') && inifile('exists',FI.strucLoc,'Structure')
-            ST=inifile('getstringi',FI.strucLoc,'Structure','type');
+            ST=inifile('cgetstringi',FI.strucLoc,'Structure','type');
             uST=unique(ST);
         else
             uST={};
@@ -567,7 +593,7 @@ switch FI.FileType
         % CrossSection types have been copied from their definition records
         % to the location record in MDF.
         if isfield(FI,'crsLoc')
-            CT=inifile('getstringi',FI.crsLoc,'CrossSection','type');
+            CT=inifile('cgetstringi',FI.crsLoc,'CrossSection','type');
             uCT=unique(CT);
         else
             uCT = {};
@@ -576,7 +602,7 @@ switch FI.FileType
         hasCxyz = any(strcmp('xyz',uCT));
         %
         try
-            LAT=inifile('getstringi',FI.latLoc,'LateralDischarge','id');
+            LAT=inifile('cgetstringi',FI.latLoc,'LateralDischarge','id');
             hasLAT=1;
         catch
             hasLAT=0;
@@ -883,7 +909,7 @@ switch FI.FileType
                     case 'mesh'
                         ifld = ifld+1;
                         Out(ifld).Name = 'mesh';
-                        Out(ifld).Geom = 'UGRID-NODE';
+                        Out(ifld).Geom = 'UGRID1D-NODE';
                         Out(ifld).Coords = 'xy';
                         Out(ifld).DimFlag(M_) = 6;
                     case 'BedLevel'
@@ -892,14 +918,14 @@ switch FI.FileType
                         if isstruct(BL) % quantity on mesh
                             Out(ifld).Name = 'bed levels';
                             Out(ifld).Units = 'm';
-                            Out(ifld).Geom = 'UGRID-FACE';
+                            Out(ifld).Geom = 'UGRID1D-NODE';
                             Out(ifld).Coords = 'xy';
                             Out(ifld).DimFlag(M_) = 6;
                             Out(ifld).NVal = 1;
                         elseif isscalar(BL)
                             Out(ifld).Name = 'bed level';
                             Out(ifld).Units = 'm';
-                            Out(ifld).Geom = 'UGRID-NODE';
+                            Out(ifld).Geom = 'UGRID1D-NODE';
                             Out(ifld).Coords = 'xy';
                             Out(ifld).DimFlag(M_) = 6;
                             Out(ifld).NVal = 1;
@@ -1110,9 +1136,19 @@ switch FI.FileType
             case 'bed level samples'
                 sz(M_) = size(FI.BedLevel,1);
             case 'observation points'
-                sz(M_) = size(FI.Obs{1},1);
+                szM = 0;
+                for i = 1:length(FI.Obs)
+                    % switch based ob Obs file type
+                    szM = szM + size(FI.Obs{i}{1},1);
+                end
+                sz(M_) = szM;
             case 'observation cross sections'
-                sz(M_) = length(FI.Crs.Field);
+                szM = 0;
+                for i = 1:length(FI.Crs)
+                    % switch based ob Obs file type
+                    szM = szM + length(FI.Crs{i}.Field);
+                end
+                sz(M_) = szM;
             otherwise
                 if ~isempty(strfind(Props.Name,'open boundaries'))
                     ibtp = strcmp(FI.ExtForceNew.Bnd.Types,strtok(Props.Name));
@@ -1135,7 +1171,7 @@ xy = NaN(nPnt,2);
 [uBId,ia,ic] = unique(bId);
 G = inifile('cgeti',NTWini,'Branch','geometry');
 GId = inifile('cgetstringi',NTWini,'Branch','id');
-GgpO = inifile('geti',NTWini,'Branch','gridPointOffsets');
+GgpO = inifile('cgeti',NTWini,'Branch','gridPointOffsets');
 for i = 1:length(uBId)
     Branch = uBId(i);
     iBranch = ustrcmpi(Branch,GId);

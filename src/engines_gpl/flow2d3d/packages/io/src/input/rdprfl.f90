@@ -4,7 +4,7 @@ subroutine rdprfl(lunmd     ,lundia    ,nrrec     ,mdfrec    ,tstprt    , &
                 & selhis    ,lsed      ,gdp       )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
+!  Copyright (C)  Stichting Deltares, 2011-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -28,8 +28,8 @@ subroutine rdprfl(lunmd     ,lundia    ,nrrec     ,mdfrec    ,tstprt    , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: rdprfl.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/flow2d3d/packages/io/src/input/rdprfl.f90 $
+!  $Id: rdprfl.f90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/io/src/input/rdprfl.f90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: - Reads the output selection options from the MD-
@@ -67,6 +67,8 @@ subroutine rdprfl(lunmd     ,lundia    ,nrrec     ,mdfrec    ,tstprt    , &
     logical,               pointer :: htur2d
     integer,               pointer :: io_fp
     integer,               pointer :: io_prec
+    integer,               pointer :: nc_deflate
+    integer,               pointer :: nc_mode
     logical,               pointer :: mergemap
 !
 ! Global variables
@@ -91,6 +93,7 @@ subroutine rdprfl(lunmd     ,lundia    ,nrrec     ,mdfrec    ,tstprt    , &
 !
 ! Local variables
 !
+    logical                            :: any_netcdf
     integer                            :: i
     integer                            :: icount
     integer                            :: istat
@@ -116,9 +119,12 @@ subroutine rdprfl(lunmd     ,lundia    ,nrrec     ,mdfrec    ,tstprt    , &
     itis       => gdp%gdrdpara%itis
     io_fp      => gdp%gdpostpr%io_fp
     io_prec    => gdp%gdpostpr%io_prec
+    nc_deflate => gdp%gdpostpr%nc_deflate
+    nc_mode    => gdp%gdpostpr%nc_mode
     mergemap   => gdp%gdpostpr%mergemap
     newkw = .true.
     cdef  = 'YYYYYYYYYY'
+    any_netcdf = .false.
     !
     ! initialize parameters that are to be read
     !
@@ -135,18 +141,22 @@ subroutine rdprfl(lunmd     ,lundia    ,nrrec     ,mdfrec    ,tstprt    , &
     call str_lower(inputstring)
     if (index(inputstring,'map') > 0) then
        gdp%iofiles(FILOUT_MAP)%filetype = FTYPE_NETCDF
+       any_netcdf = .true.
        write (lundia, '(a)') '*** MESSAGE map-file format is NetCDF'
     endif
     if (index(inputstring,'fou') > 0) then
        gdp%iofiles(FILOUT_FOU)%filetype = FTYPE_NETCDF
+       any_netcdf = .true.
        write (lundia, '(a)') '*** MESSAGE fourier-file format is NetCDF'
     endif
     if (index(inputstring,'his') > 0) then
        gdp%iofiles(FILOUT_HIS)%filetype = FTYPE_NETCDF
+       any_netcdf = .true.
        write (lundia, '(a)') '*** MESSAGE history-file format is NetCDF'
     endif
     if (index(inputstring,'dro') > 0) then
        gdp%iofiles(FILOUT_DRO)%filetype = FTYPE_NETCDF
+       any_netcdf = .true.
        write (lundia, '(a)') '*** MESSAGE drogue-file format is NetCDF'
     endif
     if (index(inputstring,'com') > 0) then
@@ -156,6 +166,27 @@ subroutine rdprfl(lunmd     ,lundia    ,nrrec     ,mdfrec    ,tstprt    , &
     if (index(inputstring,'all') > 0) then
        call prterr(lundia, 'U021', "All files in NetCDF format is currently not supported.")
        call d3stop(1, gdp)
+    endif
+    !
+    ! set cmode flag for netCDF nf90_create calls
+    !
+    i = 3 ! by default netCDF3 format
+    if (any_netcdf) call prop_get(gdp%mdfile_ptr, '*', 'ncFormat', i)
+    if (i==3) then
+        nc_mode = NF90_64BIT_OFFSET
+        if (any_netcdf) write (lundia, '(a)') '*** MESSAGE Creating output files in NetCDF3 format'
+    elseif (i==4) then
+        nc_mode = NF90_NETCDF4
+        if (any_netcdf) write (lundia, '(a)') '*** MESSAGE Creating output files in NetCDF4 format'
+    else
+        call prterr(lundia,'U021', "Unknown netCDF format version specified. ncFormat should equal 3 or 4.")
+        call d3stop(1, gdp)
+    endif
+    !
+    nc_deflate = 0
+    if (any_netcdf .and. i==4) then
+        call prop_get(gdp%mdfile_ptr, '*', 'ncDeflate', nc_deflate)
+        write (lundia, '(a,i0)') '*** MESSAGE Using deflation level ',nc_deflate
     endif
     !
     ! set the numerical precision of the output to the map and his files.

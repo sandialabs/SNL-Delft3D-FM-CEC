@@ -1,6 +1,6 @@
 !----- AGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2017-2018.                                
+!  Copyright (C)  Stichting Deltares, 2017-2020.                                
 !                                                                               
 !  This file is part of Delft3D (D-Flow Flexible Mesh component).               
 !                                                                               
@@ -27,8 +27,8 @@
 !                                                                               
 !-------------------------------------------------------------------------------
 
-! $Id: xbeach_filefunctions.F90 62193 2018-09-27 10:13:21Z dam_ar $
-! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/dflowfm/packages/dflowfm_kernel/src/xbeach_filefunctions.F90 $
+! $Id: xbeach_filefunctions.F90 65778 2020-01-14 14:07:42Z mourits $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/dflowfm/packages/dflowfm_kernel/src/xbeach_filefunctions.F90 $
 module m_xbeach_filefunctions
 !! Contains logging functions and file administration functions
 !! Merge of logging_module and filefunctions_module
@@ -1346,7 +1346,7 @@ subroutine start_logfiles(error)
    read(fid,*,iostat=iost)(((dat(i,j,k),i=1,d1),j=1,d2),k=1,d3)
    if (iost .ne. 0) then
       call writelog('esl','Error processing file ''',trim(fname),'''. File may be too short or contains invalid values.', & 
-      ' Terminating simulation')
+                          ' Terminating simulation')
       call xbeach_errorhandler()
    endif
    close(fid)
@@ -1354,7 +1354,7 @@ subroutine start_logfiles(error)
 
    end subroutine check_file_length_3D
 
-   subroutine checkbcfilelength(tstop,instat,filename,filetype,nonh)
+   subroutine checkbcfilelength(tstop,instat,filename,nspectrumloc,filetype,nonh)
 
    use m_xbeach_errorhandling
 
@@ -1364,14 +1364,15 @@ subroutine start_logfiles(error)
       integer          :: nlines
    end type
 
-   real*8, intent(in) :: tstop
-   character(slen), intent(in):: instat
-   character(slen)     :: filename,dummy
-   character(slen)     :: testc
-   character(len=1)    :: ch
-   integer           :: i,ier=0,nlines,filetype,fid,nlocs,ifid,fid2
-   real*8            :: t,dt,total,d1,d2,d3,d4,d5
+   real*8, intent(in)          :: tstop
+   character(slen), intent(in) :: instat
+   character(slen)             :: filename,dummy
+   character(slen)             :: testc
+   character(len=1)            :: ch
+   integer                     :: i,ier=0,nlines,filetype,fid,nlocs,ifid,fid2
+   real*8                      :: t,dt,total,d1,d2,d3,d4,d5
    type(fileinfo),dimension(:),allocatable :: bcfiles
+   integer, intent(in)         :: nspectrumloc
    logical,intent(in),optional :: nonh
    logical                     :: lnonh
 
@@ -1399,6 +1400,10 @@ subroutine start_logfiles(error)
       call report_file_read_error(filename)
    endif
    if (trim(testc)=='LOCLIST') then
+      if (nspectrumloc<2) then
+         call writelog('sle',' ','Error: LOCLIST found in file, but nspectrumloc<2. Change value in surfbeat input file, or change bc specification.')
+         call xbeach_errorhandler()
+      endif
       nlocs = nlines-1
       allocate(bcfiles(nlocs))
       do ifid = 1,nlocs

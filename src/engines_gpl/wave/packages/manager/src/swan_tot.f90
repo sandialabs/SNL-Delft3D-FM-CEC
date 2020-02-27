@@ -1,7 +1,7 @@
 subroutine swan_tot (n_swan_grids, n_flow_grids, wavedata, selectedtime)
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
+!  Copyright (C)  Stichting Deltares, 2011-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -25,8 +25,8 @@ subroutine swan_tot (n_swan_grids, n_flow_grids, wavedata, selectedtime)
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: swan_tot.f90 59747 2018-08-03 16:52:40Z j.reyns $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/wave/packages/manager/src/swan_tot.f90 $
+!  $Id: swan_tot.f90 65790 2020-01-15 13:52:06Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/wave/packages/manager/src/swan_tot.f90 $
 !!--description-----------------------------------------------------------------
 ! NONE
 !!--pseudo code and references--------------------------------------------------
@@ -121,7 +121,7 @@ subroutine swan_tot (n_swan_grids, n_flow_grids, wavedata, selectedtime)
       !
       ! Set time in case of standalone run
       !
-      if (wavedata%mode == stand_alone) call settimmin(wavedata%time, swan_run%timwav(itide), swan_run%modsim, swan_run%deltcom)
+      if (wavedata%mode == stand_alone) call settimmin(wavedata%time, swan_run%timwav(itide), swan_run%modsim, swan_run%nonstat_interval)
       !
       ! Update wave and wind conditions
       !
@@ -153,7 +153,7 @@ subroutine swan_tot (n_swan_grids, n_flow_grids, wavedata, selectedtime)
          if (swan_run%useflowdata) then
             do i_flow = 1, n_flow_grids
                write(*,'(a,i0,a)') '  Get flow fields, domain ',i_flow,' :'
-               call get_flow_fields (i_flow, swan_input_fields, flow_grids(i_flow), swan_grids(i_swan), &
+               call get_flow_fields (i_flow, i_swan, swan_input_fields, flow_grids(i_flow), swan_grids(i_swan), &
                                    & flow2swan_maps(i_swan,i_flow), wavedata, &
                                    & swan_run, dom%flowVelocityType)
             enddo

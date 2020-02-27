@@ -1,6 +1,6 @@
 !----- AGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2017-2018.                                
+!  Copyright (C)  Stichting Deltares, 2017-2020.                                
 !                                                                               
 !  This file is part of Delft3D (D-Flow Flexible Mesh component).               
 !                                                                               
@@ -27,8 +27,8 @@
 !                                                                               
 !-------------------------------------------------------------------------------
 
-! $Id: gui.F90 62178 2018-09-27 09:19:40Z mourits $
-! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/dflowfm/packages/dflowfm_kernel/src/gui.F90 $
+! $Id: gui.F90 65778 2020-01-14 14:07:42Z mourits $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/dflowfm/packages/dflowfm_kernel/src/gui.F90 $
 ! Copyright notice:
 ! Several of the graphical user interface routines below make use of the INTERACTER libraries
 ! (only when run on Windows platforms with display mode on).
@@ -51,6 +51,8 @@
    use m_partitioninfo
    use m_ec_interpolationsettings
    use gridoperations
+   use m_oned_functions, only: convert_cross_to_prof
+   use unstruc_model, only: md_ident
 
    implicit none
    integer :: ja, L, n12, ikey, mnx
@@ -144,7 +146,7 @@
          call findcells(100)        ! include folded cells
          call find1dcells()
 !         call findcells(0)          ! do not include folded cells
-         call delete_drypoints_from_netgeom(dryptsfile,0,0)
+         call delete_dry_points_and_areas()
          call makenetnodescoding()  ! killcell relies on node codes
       ELSE IF (NWHAT .EQ. 22) THEN
          call interpdivers(2) ! Network zk flow bathy
@@ -394,6 +396,8 @@
          call del_badortholinks()
       ELSE iF (NWHAT .EQ.34) THEN   
          call shift1Dnetnodestoduikers()
+      ELSE iF (NWHAT .EQ.35) THEN   
+         call convert_cross_to_prof(md_ident)
       ENDIF
       NUM  = 0
       KEY  = 3
@@ -596,8 +600,10 @@
       OPTION(37)= 'tracers                                 '
       OPTION(38)= 'Display Sources & Sinks                 '
       OPTION(39)= 'Display dots                            '
-
-      MAXOPT    = 39
+      OPTION(40)= 'Display structures                      '
+      
+      MAXOPT    = 40
+     
       if ( get_japart() ) then
          MAXOPT = MAXOPT+1
          OPTION(MAXOPT) = 'particles                               '
@@ -611,8 +617,9 @@
       OPTION(3) = 'Edit splines                            '
       OPTION(4) = 'Edit curvilinear grid                   '
       OPTION(5) = 'Edit samples                            '
-      OPTION(6) = 'Show flow nodes/links                   '
-      MAXOPT    = 6
+      OPTION(6) = 'Show flow nodes                         '
+      OPTION(7) = 'Show flow links                         '
+      MAXOPT    = 7
    ELSE IF (NUM .EQ. 5) THEN
       EXP(1)    = 'MENU 5                                  '
       EXP(2)    = 'ADDSUBDEL                               '
@@ -650,7 +657,8 @@
       OPTION(32)= 'Delete netnodes with ZK > ZKuni         '
       OPTION(33)= 'Delete netlinks to improve orthogonality'
       OPTION(34)= 'Shift 1D netnodes to duikers.pliz (5col)'
-      MAXOPT    =  34
+      OPTION(35)= 'Convert crsdef/loc to profdef/loc files '
+      MAXOPT    =  35
    ELSE IF (NUM .EQ. 6) THEN
       EXP(1)     = 'MENU 6                                  '
       EXP(2)     = 'VARIOUS                                 '
@@ -1088,12 +1096,13 @@
          if (filnam(i-6:i) == '_rst.nc' .or. filnam(i-6:i) == '_RST.NC') then
             call doclose(mlan) ! TODO: change... [AvD] 
             call read_restart_from_map(FILNAM, ierr)
-            call setucxucyucxuucyu() ! reconstruct cell center velocities
             if (ierr /= DFM_NOERR) then
+               call qnerror('Error occurs when reading the restart file.',' ', ' ')
                JA = 0
             else
                JA = 1
-            end if
+            end if 
+            call setucxucyucxuucyunew() ! reconstruct cell center velocities
          else 
             call rearst(MLAN,JA)
          endif   
@@ -1593,6 +1602,8 @@
       endif
       
       call plotdots()
+   
+      call plotStructures()
             
    ELSE IF (METDRAW .EQ. 2) THEN
 
@@ -1617,6 +1628,10 @@
    CALL DISPOS()
 
    CALL TEXTFLOW()
+   if (idisLink /= 0) then ! Display info. screen for a 1D flowlink if it has been clicked
+      call disln(idisLink)
+      call dis_info_1d_link(idisLink)
+   end if
   
    CALL IMouseCursorShow()
 
@@ -2416,7 +2431,7 @@
       OPTION(18)= 'Squ sum of q out of cell          (m3/s)'
       OPTION(19)= 'Sqi sum of q in to  cell          (m3/s)'
       OPTION(20)= 'Sqi-squ                           (m3/s)'
-      OPTION(21)= 'QW vertical interface flux        (m3/s)'
+      OPTION(21)= 'QW vertical interface velocity    (m /s)'
       OPTION(22)= 'Equilibrium Transport conc.      (kg/m3)'
       OPTION(23)= 'Qin                               (m3/s)'
       OPTION(24)= 'Erodable Lay. Thickn.                (m)'
@@ -2452,7 +2467,7 @@
       
       OPTION(45)= 'Constituents                            '
 
-      OPTION(46)= 'bz'
+      OPTION(46)= 'turkinws                                '
          
       if (jagrw > 0) then 
          OPTION(47)= 'ground water pressure                (m)'
@@ -2527,7 +2542,7 @@
       else if (ndraw(28).eq.numoptwav) then
          if (jawave>0) then
             ndraw(28) = 1
-            nwhat     = 41 ! WAVE submenu
+            nwhat     = 42 ! WAVE submenu
             goto 1234
          else
             ndraw(28) = 0
@@ -2535,7 +2550,7 @@
       else if (ndraw(28).eq.numoptsf) then
          if (jasecflow>0) then
             ndraw(28) = 1
-            nwhat     = 42 ! SECF submenu
+            nwhat     = 43 ! SECF submenu
             goto 1234
          else
             ndraw(28) = 0
@@ -2543,7 +2558,7 @@
       else if (ndraw(28).eq.numoptsed) then
          if (stm_included) then
             ndraw(28) = 1
-            nwhat     = 44 ! STM flow nodes submenu
+            nwhat     = 45 ! STM flow nodes submenu
             goto 1234
          else
             ndraw(28) = 0
@@ -2603,10 +2618,19 @@
       OPTION(42)= 'tureps0                          (1/s  )'
       OPTION(43)= 'vicwwu                           (m2/s )'
       OPTION(44)= 'ustb                             (     )'
-      OPTION(45)= 'womegu                           (m/s  )'
+      if (jawind > 0) then 
+         OPTION(45)= 'ustw                             (m/s  )'
+      else 
+         OPTION(45)= 'womegu                           (m/s  )'
+      endif
       OPTION(46)= 'Layer Thickness at u             (m    )'
       OPTION(47)= 'Linear friction coefficient      (m/s  )'
-      numopt = 47
+      OPTION(48)= '                                        '
+      OPTION(49)= 'Number of active layers          (     )'
+      OPTION(50)= 'Maximum nr of layers             (     )'
+      OPTION(51)= 'Lbot                             (     )'
+      OPTION(52)= 'Ttop                             (     )'
+      numopt = 52
       if ( stm_included ) then
          numopt = numopt+1
          numoptsed = numopt
@@ -2628,7 +2652,7 @@
       if (ndraw(29).eq.numoptsed) then
          if (stm_included) then
             ndraw(29) = 1
-            nwhat     = 43 ! STM flow links submenu
+            nwhat     = 44 ! STM flow links submenu
             goto 1234
          else
             ndraw(28) = 0
@@ -2987,7 +3011,19 @@
          NDRAWDOTS = NWHAT2
       end if
       KEY = 3
-   ELSE IF (NWHAT .EQ. 40 ) THEN
+   else if (NWHAT == 40) then
+      EXP(1)    = 'MENU                                    '
+      EXP(2)    = 'SHOW STRUCTURES YES/NO                '
+      OPTION(1) = 'DO NOT SHOW STRUCTURES                '
+      OPTION(2) = 'SHOW STRUCTURES SYMBOLS ONLY          '
+      OPTION(3) = 'SHOW STRUCTURES SYMBOLS AND IDS       '
+      MAXOPT    = 3
+      NWHAT2    = 1
+      CALL MENUV3(NWHAT2,OPTION,MAXOPT,EXP,MAXEXP)
+      ndrawStructures = NWHAT2
+      KEY = 3
+      
+   ELSE IF (NWHAT .EQ. 41 ) THEN
       EXP(1)    = 'MENU                                    '
       EXP(2)    = 'SHOW PARTICLES YES/NO                   '
       OPTION(1) = 'DO NOT SHOW PARTICLES                   '
@@ -2997,9 +3033,24 @@
       CALL MENUV3(NWHAT2,OPTION,MAXOPT,EXP,MAXEXP)
       NDRAWPART = NWHAT2
       KEY = 3
-   ELSE IF (NWHAT.EQ.41) THEN          ! wave stuff
+   ELSE IF (NWHAT.EQ.42) THEN          ! wave stuff     
       EXP(1)     = 'MENU                                    '
       EXP(2)     = 'SHOW WAVEPARS YES/NO                    '
+  
+
+      if (jawave == 1 .or. jawave == 2) then 
+      OPTION(1)  = 'RMS wave height  (~ 0.7*Hsig)        (m)'
+      OPTION(2)  = 'Wave length                          (m)'
+      OPTION(3)  = 'Peak wave period                     (s)'
+      OPTION(4)  = 'Orbital velocity at bed            (m/s)'
+      OPTION(5)  = 'Ustar(w)                           (m/s)'
+      OPTION(6)  = 'Ustar(w+c)                         (m/s)'
+      OPTION(7)  = 'Taus(w+c)                         (N/m2)'
+      OPTION(8)  = 'Ustokes                            (m/s)'
+      OPTION(9)  = 'Fetchlength                          (m)'
+      OPTION(10) = 'Fetchdepth                           (m)'
+      MAXOPT     = 10
+      else
       OPTION(1)  = 'RMS wave height                      (m)'
       OPTION(2)  = 'Peak waveperiod                      (s)'
       OPTION(3)  = 'Total shear stress (c+w)          (N/m2)'
@@ -3027,18 +3078,16 @@
       OPTION(25) = 'Wind source term             (J/rad/m/s)'
       OPTION(26) = 'Wave frequency                   (rad/s)'
       OPTION(27) = 'Wave group speed            (m/s in bin)'
-      if (jawave == 1 .or. jawave == 2) then
-         OPTION(28)= 'Fetch lenght dir1                    (m)'
-      else
-         OPTION(28)= ''
-      end if
+      OPTION(28)= ''
       OPTION(29) = 'egradcg                       (J/m/s) '
       OPTION(30) = 'SwT                             (s/s) '
       OPTION(31) = 'SwE                          (J/m2/s) '
       OPTION(32) = 'horadvec                              '      
       OPTION(33) = 'horadvec2                             '
-      OPTION(34) = 'ma                                    '      
+      OPTION(34) = 'ma                                    ' 
       MAXOPT     = 34
+      endif     
+      
       NWHAT2     = NDRAW(28)
       CALL MENUV3(NWHAT2,OPTION,MAXOPT,EXP,MAXEXP)
       NDRAW(28) = NWHAT2
@@ -3049,7 +3098,7 @@
       end if
       NDRAW(28) = numoptwav
       
-   ELSE IF (NWHAT .EQ. 42) THEN     ! Spiral flow parameters
+   ELSE IF (NWHAT .EQ. 43) THEN     ! Spiral flow parameters 
       EXP(1)    = 'MENU                                    '
       EXP(2)    = 'SHOW Spiral Flow Parameters YES/NO      '
       OPTION(1) = 'Streamlines curvature              (1/m)'
@@ -3068,7 +3117,7 @@
          CALL PARAMTEXT(option(nwhat2),1)
       end if
       
-   ELSE IF (NWHAT .EQ. 43) THEN     ! Sed trsp on flow links
+   ELSE IF (NWHAT .EQ. 44) THEN     ! Sed trsp on flow links 
       EXP(1)    = 'MENU                                    '
       EXP(2)    = 'SHOW Mophology Parameters YES/NO        '
       OPTION(1) = 'Curr. rel. bedload transport    (kg/s/m)'
@@ -3089,7 +3138,7 @@
          CALL PARAMTEXT(option(nwhat2),2)
       end if
 
-   ELSE IF (NWHAT .EQ. 44) THEN     ! Sed trsp on flow nodes
+   ELSE IF (NWHAT .EQ. 45) THEN     ! Sed trsp on flow nodes 
       EXP(1)    = 'MENU                                    '
       EXP(2)    = 'SHOW Mophology Parameters YES/NO        '
       OPTION(1) = 'Bottom level change in last timestep (m)'
@@ -3116,11 +3165,12 @@
 
 
    SUBROUTINE changenetworkPARAMETERS()
-   use m_netw
+   use network_data
    use unstruc_display
    use m_ec_triangle
    use m_missing
    use unstruc_version_module, only : unstruc_company, unstruc_program
+   use unstruc_model, only: md_dryptsfile
 
    implicit none
    integer :: i
@@ -3143,7 +3193,7 @@
    integer :: iselect, minp
    CHARACTER*128 select(3)
 
-   integer, parameter :: NUMPAR = 19, NUMFLD = 2*NUMPAR
+   integer, parameter :: NUMPAR = 21, NUMFLD = 2*NUMPAR
    INTEGER  IX(NUMFLD),IY(NUMFLD),IS(NUMFLD),IT(NUMFLD)
    CHARACTER WRDKEY*40, OPTION(NUMPAR)*40, HELPM(NUMPAR)*60
    COMMON /HELPNOW/ WRDKEY,NLEVEL
@@ -3173,12 +3223,14 @@
    OPTION(17)= 'snap-to-landbdy tolerance, inner network' ; IT(17*2)  = 6
    OPTION(18)= 'max nr of faces allowed in removesmallfl' ; IT(18*2)  = 2
 !   OPTION(19)= 'dry/illegal/cutcells file (*.pol, *.lst)' ; IT(19*2)  = 4
-   if ( len_trim(dryptsfile).eq.0 ) then
+   if ( len_trim(md_dryptsfile).eq.0 ) then
       OPTION(19) = 'DRY CELL FILE (none)'
    else
-      OPTION(19) = 'DRY CELL FILE (' // trim(dryptsfile(1:min(len_trim(dryptsfile),25))) // ')'
+      OPTION(19) = 'DRY CELL FILE (' // trim(md_dryptsfile(1:min(len_trim(md_dryptsfile),25))) // ')'
    end if
    IT(19*2) = 4
+   OPTION(20)= '1D2D link generation algorithm          ' ; IT(20*2)  = 2
+   OPTION(21)= 'Lateral algorithm search radius         ' ; IT(21*2)  = 6
 
 
 
@@ -3225,6 +3277,8 @@
    'max nr of faces allowed in removesmallflowlinks             '
    HELPM (19)= &
    'choose                                                      '
+   WRITE(HELPM (20), '(I0,A,I0,A,I0,A)') &
+   I1D2DTP_1TO1, ': default (1-to-1), ', I1D2DTP_1TON_EMB, ': embedded 1-to-n, ', I1D2DTP_1TON_LAT, ': lateral 1-to-n.'
 
 
    CALL SAVEKEYS()
@@ -3303,12 +3357,15 @@
    CALL IFormputDouble  (2*17, DCLOSE_whole         ,'(F7.3)')
    CALL IFormputinteger (2*18, maxfaceallow)
    
-   CALL IFORMPUTSTRING  (2*19, dryptsfile)
+   CALL IFORMPUTSTRING  (2*19, md_dryptsfile)
    iselect=1
    select(1) = 'use'
    select(2) = 'new'
    select(3) = 'none'
    CALL IFORMPUTMENU(2*19, select,3,iselect)
+
+   CALL IFormputinteger (2*20, imake1d2dtype)
+   call IFormputDouble  (2*21, searchRadius1D2DLateral,'(F7.3)')
 
    ! Display the form with numeric fields left justified and set the initial field to number 2
    CALL IOUTJUSTIFYNUM('L')
@@ -3369,15 +3426,18 @@
            CALL IFormGetDouble  (2*17, DCLOSE_WHOLE)
            CALL IFormGetinteger (2*18, maxfaceallow)
            
-           CALL IFORMGETSTRING(2*19, dryptsfile)
+           CALL IFORMGETSTRING(2*19, md_dryptsfile)
            CALL IFORMGETMENU(2*19, iselect)
            if ( iselect.eq.2 ) then
               minp = 2  ! select file only
-              call filemenu(minp,dryptsfile)
+              call filemenu(minp,md_dryptsfile)
            else if ( iselect.eq.3 ) then
-              dryptsfile = ''
+              md_dryptsfile = ''
            end if
            iselect = 1
+
+           CALL IFormGetinteger (2*20, imake1d2dtype)
+           call IFormGetDouble  (2*21, searchRadius1D2DLateral)
    
        ENDIF
        CALL IWinClose(1)
@@ -3462,7 +3522,7 @@
    HELPM (7) = &
    'Balance between smoothing and cell-area homogenization      '
    HELPM (8) = &
-   '0:no, 1:to orig. netbdy, 2:netbound to landbound 3:''2''+inner net to landbound 4:whole net'
+   '0:no, 1:to org netb, 2:netb to Ldb, 3:''2''+inner net to Ldb, 4:whole net, 5:ok'
    HELPM (9) = &
    'corner if cosine of boundary edge angle < -threshold        '
    HELPM (10)= &
@@ -4911,7 +4971,7 @@
    USE M_MISSING
    use unstruc_display
    use m_sediment
-   use m_flow, only : kplotfrombedorsurface 
+   use m_flow, only : kplotfrombedorsurface, kplotordepthaveraged 
 
    use unstruc_version_module, only : unstruc_company, unstruc_program
    use unstruc_opengl,         only : jaOpenGL
@@ -4963,7 +5023,7 @@
    double precision :: tsize
    integer :: JQN
 
-   integer, parameter :: NUMPAR = 32, NUMFLD = 2*NUMPAR
+   integer, parameter :: NUMPAR = 33, NUMFLD = 2*NUMPAR
    INTEGER  IX(NUMFLD),IY(NUMFLD),IS(NUMFLD),IT(NUMFLD)
    CHARACTER WRDKEY*40, OPTION(NUMPAR)*40, HELPM(NUMPAR)*60
    COMMON /HELPNOW/ WRDKEY,NLEVEL
@@ -5014,7 +5074,7 @@
    OPTION(30)= 'show bedlevels (0:no, 1:yes)            ' ; IT(2*30) = 2
    OPTION(31)= 'show waterbal. on screen (0:no, 1:yes)  ' ; IT(2*31) = 2
    OPTION(32)= 'kplotfrombedorsurface (1:bed, 2:surf)   ' ; IT(2*32) = 2
-
+   OPTION(33)= 'kplotordepthaveraged  (1:kplot, 2:averg)' ; IT(2*33) = 2
 
 !   123456789012345678901234567890123456789012345678901234567890
 !            1         2         3         4         5         6
@@ -5050,6 +5110,8 @@
    HELPM (30) = '1=yes , 0=no                                                '
    HELPM (31) = '1=yes , 0=no                                                '
    HELPM (32) = '1=bed ,-1=surf                                              '
+   HELPM (33) = '1=kplot , 2=depth averaged                                  '
+
 
    NUMPARACTUAL = NUMPAR
    NUMFLDACTUAL = 2*NUMPARACTUAL
@@ -5154,6 +5216,7 @@
    CALL IFORMPUTINTEGER(2*30, ndraw(39)) ! 1/0
    CALL IFORMPUTINTEGER(2*31, ndraw(40)) ! show waterbal 
    CALL IFORMPUTINTEGER(2*32, kplotfrombedorsurface) ! kplotupordown 
+   CALL IFORMPUTINTEGER(2*33, kplotordepthaveraged)  !  
 
    !  Display the form with numeric fields left justified
    !  and set the initial field to number 2
@@ -5223,6 +5286,7 @@
            CALL IFORMGETINTEGER(2*30, ndraw(39) ) 
            CALL IFORMGETINTEGER(2*31, ndraw(40) ) 
            CALL IFORMGETINTEGER(2*32, kplotfrombedorsurface ) 
+           CALL IFORMGETINTEGER(2*33, kplotordepthaveraged  ) 
 
            RCIR  = CR*(X2 - X1)
            VFAC  = MAX( 0d0, VFAC)
@@ -5271,6 +5335,17 @@ subroutine getktoplot(kk,k)
  endif   
  end subroutine getktoplot 
 
+subroutine getLtoplot(kk,k)
+ use m_flowgeom
+ use m_flow
+ if (kplotfrombedorsurface == 1) then  
+     k = Lbot(kk) - 1 + min( kplot, kmxL(kk) )
+     k = min(k, Ltop(kk) )
+ else
+     k = Lbot(kk) + kmxL(kk) - kplot
+     k = max(k, Lbot(kk) )
+ endif   
+ end subroutine getLtoplot 
 
      SUBROUTINE KPLOTPLUSMIN(IPM)
       USE M_FLOWGEOM
@@ -6080,7 +6155,7 @@ subroutine getktoplot(kk,k)
 !
       END SUBROUTINE EDITNETW
 
-     SUBROUTINE EDITflow(MODE,KEY)
+     SUBROUTINE EDITflow(MODE,KEY,NL)
       use m_netw
       use m_flowgeom, only : iadv
       use m_flow
@@ -6091,12 +6166,14 @@ subroutine getktoplot(kk,k)
       use dfm_error
       use unstruc_messages
       use gridoperations
+      use unstruc_display, only: idisLink, dis_info_1d_link, nhlFlowLink
+      use m_inquire_flowgeom
       implicit none
-      integer :: MODE, KEY, kb , kt ,k
+      integer :: MODE, KEY, kb , kt ,k, NL
       integer :: newmode
       integer :: ncol, nput
       integer :: nlevel
-      integer :: KK=0, LL
+      integer :: KK=0, LL, L
       integer :: num
       integer :: numb
       integer :: nwhat
@@ -6115,6 +6192,7 @@ subroutine getktoplot(kk,k)
       COMMON /HELPNOW/ WRDKEY,NLEVEL
 
       CHARACTER TEX*26, WRDKEY*40
+      character(len=IdLen) :: strucid
       integer :: iresult
    
       TEX    = ' Edit FLOW            '
@@ -6122,9 +6200,10 @@ subroutine getktoplot(kk,k)
       NLEVEL =  2
       NUM    =  0
       NWHAT  =  0
-      NPUT   =  51
+      NPUT   =  NL
       NUMB   =  16
       NCOL   =  NCOLDN
+      L      =  0
 
       CALL SAVENET()
 
@@ -6164,12 +6243,23 @@ subroutine getktoplot(kk,k)
             CALL DISND(KK)
          ELSE IF (NPUT .EQ. 52 .or. NPUT .EQ. 57 ) THEN   ! LINK mode
             call isflowlink(xp, yp, LL)
+            
             if (nput == 57 .and. LL > 0 ) then
                 zp = iadv(LL)
                 CALL TYPEVALUE(zp,KEY)
                 iadv(LL) = int(zp)
             endif
-            if ( nput.eq.52 .and. LL.gt.0 ) call plotklnup(LL)
+            if ( nput.eq.52 .and. LL.gt.0 ) then
+               call plotklnup(LL)
+
+               if (abs(kcu(LL)) /= 2) then
+                  idisLink = LL ! Save the link index for later display
+                  call dis_info_1d_link(LL)
+                  nhlFlowLink = LL
+                  call highlight_nodesnlinks()
+               end if
+            end if
+
          ENDIF
 
          IF ( NPUT .EQ. 53 ) THEN ! Click flow node to set min value for isocol
@@ -6227,6 +6317,23 @@ subroutine getktoplot(kk,k)
          NPUT = 54
       ELSE IF (KEY .EQ. 86 .OR. KEY .EQ. 86+32) THEN    ! V-key
          CALL VIEWCYCLE(KEY)
+      ELSE IF (KEY .EQ. 81 .OR. KEY .EQ. 81+32) THEN    ! Q-key stop flow info screen display for 1D flowlink
+         idisLink = 0
+         nhlFlowLink = 0
+         key = 3
+      else if (KEY == 72 .or. KEY == 72+32) then        ! H-key search for a hydraulic structure
+         call getstring(' SEARCH: structure id = ', strucid)
+         iresult = findlink(strucid, L)
+         if (L > 0 .and. L <= lnx) then
+            nhlFlowLink = L
+            call highlight_nodesnlinks()
+         end if
+      else if (KEY == 70 .or. KEY == 70+32) then        ! F-key search for a flowlink
+         call GETINT(' SEARCH: flowlink =  ', L)
+         if (L > 0 .and. L <= lnx) then
+            nhlFlowLink = L
+            call highlight_nodesnlinks()
+         end if
       ELSE IF (KEY .EQ. 83 .OR. KEY .EQ. 83+32) THEN    ! S-key add salt
          if (jasal > 0) then
             call getkbotktop(nplot,kb , kt )
@@ -7484,7 +7591,7 @@ SUBROUTINE DISPFLOWNODEVALS(KP)
   end if 
   
 ! refresh netcell administartion, based on module variable netstat
-  if ( netstat /= NETSTAT_OK ) then
+  if ( netstat /= NETSTAT_OK .and. (met == 4 .or. met == 5 .or. (met >= 7 .and. met <= 9) .or. met >= 12)) then
      call findcells(100)
      call find1dcells()
      netstat = NETSTAT_OK
@@ -9872,7 +9979,6 @@ subroutine change_samples_refine_param(jacancelled)
    use unstruc_display
    use unstruc_version_module, only : unstruc_company, unstruc_program
    use m_samples_refine
-   use network_data, only: dryptsfile
 
    implicit none
    integer, intent(out) :: jacancelled !< Whether or not (1/0) user has pressed 'Esc' in parameter screen.
@@ -10008,7 +10114,6 @@ subroutine change_samples_refine_param(jacancelled)
    CALL IFORMPUTDOUBLE(2*11, hmin,           '(F12.3)')
    CALL IFORMPUTINTEGER(2*12, jadirectional)
    CALL IFORMPUTINTEGER(2*13, jaoutsidecell)
-!   CALL IFORMPUTSTRING(2*15, dryptsfile)
 
    ! Display the form with numeric fields left justified and set the initial field to number 2
    CALL IOUTJUSTIFYNUM('L')
@@ -12675,6 +12780,7 @@ end subroutine plot_ridges
       SUBROUTINE ANCHOR(X,Y)
       use unstruc_colors
       use m_flow, only: nplot
+      use m_GlobalParameters, only: INDTP_ALL
       implicit none
       integer :: jashow
       integer :: jmouse
@@ -12703,7 +12809,7 @@ end subroutine plot_ridges
          YA = Y
       ENDIF
 
-      call inflowcell(XA,YA,k,1) ! Use anchor for new nplot point (vertical profile)
+      call inflowcell(XA,YA,k,1,INDTP_ALL) ! Use anchor for new nplot point (vertical profile)
       if (k > 0) nplot = k
 
       CALL SETXOR(1)
@@ -13154,10 +13260,10 @@ end subroutine plot_ridges
       CHARACTER TEX*8
       COMMON /COLNOW/ NCOLNOW
       IF (NCOLNOW .GE. 0) THEN
-         IF (IVAL < 100) THEN
-            WRITE(TEX,'(I2)') IVAL
-         ELSE IF (IVAL < 10000) THEN
-            WRITE(TEX,'(I4)') IVAL
+         IF (abs(IVAL) < 100) THEN
+            WRITE(TEX,'(I3)') IVAL
+         ELSE IF (abs(IVAL) < 10000) THEN
+            WRITE(TEX,'(I5)') IVAL
          ELSE
             WRITE(TEX,'(I8)') IVAL
          ENDIF
@@ -14731,7 +14837,60 @@ end subroutine highlight_form_line
       CALL INPOPUP('OFF')
       CALL ITEXTCOLOURN(NFORGR,NBCKGR)
       RETURN
-      END
+   END
+
+   !> Get a string
+   subroutine getstring(text, string)
+   use m_devices
+   implicit none
+   character(len=*), intent(in)     :: text
+   character(len=*), intent(out)    :: string
+   
+   integer :: infoattribute
+   integer :: infoinput
+   integer :: ixp
+   integer :: iyp
+   integer :: key
+   integer :: nbckgr
+   integer :: nforgr
+   integer :: nlevel
+   integer :: lstring
+   character string_tmp*40
+   character wrdkey*40
+   common /helpnow/   wrdkey,nlevel
+   
+   ixp = iws/2
+   iyp = ihs/2
+   nforgr = InfoAttribute(13)
+   nbckgr = InfoAttribute(14)
+   
+   call inpopup('on')
+20 continue
+   call itextcolour('bwhite', 'red')
+   call inhighlight('blue', 'bwhite')
+   call timlin()
+   call InStringXYDef(ixp,iyp,text,1,string_tmp,lstring)
+   call timlin
+   key = InfoInput(55)
+   if (key >=24 .and. key <= 26) then
+      nlevel = 3
+      wrdkey = text
+      call fkeys(key)
+      if (key == 3) then
+         call inpopup('off')
+         call itextcolourn(nforgr, nbckgr)
+         return
+      end if
+      goto 20
+   else if (key == 21 .or. key ==22) then
+      string = string_tmp(1:lstring)
+   else
+      string = ''
+   end if
+   call inpopup('off')
+   call itextcolourn(nforgr, nbckgr)
+   return 
+   end subroutine getstring
 
       ! Now a double precision (double precision ::)
       SUBROUTINE SHOWREAL(TEXT,VALUE)
@@ -16147,7 +16306,9 @@ double precision :: value
          OPTION(4) =  'm = SET MIN;'
          OPTION(5) =  'M = SET MAX;'
          OPTION(6) =  'Z = ZOOMIN; '
-         MAXOPT    =  6
+         OPTION(7) =  'F = FIND link'
+         OPTION(8) =  'H = FIND stru'
+         MAXOPT    =  8
       ELSE IF (NUMB .EQ. 17) THEN    ! editgrid
          OPTION(1) =  'B = BELL; '
          OPTION(2) =  'D = DELETE; '
@@ -16355,6 +16516,7 @@ double precision :: value
       SUBROUTINE FILEMENU(MRGF,FILNAM)
       use unstruc_display
       use unstruc_version_module, only : unstruc_company, unstruc_program
+      use unstruc_files, only : filnammenu
       implicit none
       integer :: ih, ihl, imenuscroll, imp, infoinput, inp, iw, ixp, iyp, jatab, jazekr, keepstartdir, key, l, len
       integer :: maxfil, maxhlp, mrgf, nahead, nbut, nlevel, numdir, numf, numfil, numtop, numtxi, numtxt
@@ -16372,6 +16534,7 @@ double precision :: value
       
       integer jaopen ! open file (1) or not (0)
       
+      filnammenu = ' '  
       jaopen = 1
       if ( mrgf.eq.2 ) then
          mrgf = 0
@@ -16582,6 +16745,7 @@ double precision :: value
       CALL IWinClose(1)
       CALL IWinClose(1)
       CALL IWinClose(1)
+      filnammenu = filnam
       RETURN
       END
 
@@ -17289,6 +17453,7 @@ double precision :: value
   implicit none
   integer :: n1
   integer :: n2
+  integer :: n3 ! nr of digits behind decimal dot
   integer :: ndec
   double precision :: value
   character fmt*(*)
@@ -17304,15 +17469,21 @@ double precision :: value
 
   if (n1 .lt. 6 .and. n1 .gt. 0) then
      n2 = min(9,n1 + 3)
-     write (fmt(6:6),'(i1)') 9 - n2
+     n3 = 9 - n2
   else if (n1 .ge. -5 .and. n1 .lt. 0) then
-     write (fmt(6:6),'(i1)') 6
+     n3 = 6
   else if ( n1 .eq. 0) then
-     write (fmt(6:6),'(i1)') 6
+     n3 = 6
   else
      fmt ='(e10.3)'
+     return
   endif
-  IF (NDEC .GT. 0) write (fmt(6:6),'(i1)') NDEC ! -1
+
+  IF (NDEC .GT. 0) then
+     n3 = min(n3, NDEC) ! try ndec, but only if it fits
+  end if
+
+  write (fmt(6:6),'(i1)') n3
   return
   end
 
@@ -17466,7 +17637,7 @@ SUBROUTINE SETCOLTABFILE(FILNAM,JASECOND)
    implicit none
 
    integer :: numpar, numfld, numparactual, numfldactual
-   PARAMETER  (NUMPAR = 19, NUMFLD = 2*NUMPAR)
+   PARAMETER  (NUMPAR = 22, NUMFLD = 2*NUMPAR)
    INTEGER  IX(NUMFLD),IY(NUMFLD),IS(NUMFLD),IT(NUMFLD)
    CHARACTER WRDKEY*40, OPTION(NUMPAR)*40, HELPM(NUMPAR)*60
    integer :: nlevel
@@ -17493,10 +17664,14 @@ SUBROUTINE SETCOLTABFILE(FILNAM,JASECOND)
    OPTION(13) = 'Anti creep                          ( ) ' ; it(2*13) = 2
    OPTION(14) = '                                    ( ) ' ; it(2*14) = 6
    OPTION(15) = 'irov 0,1,2,3                        ( ) ' ; it(2*15) = 2
-   OPTION(16) = 'icorio, 0, 4, or 5                  ( ) ' ; it(2*16) = 2
+   OPTION(16) = 'icorio, 0, 5=org def., even=2D weigh( ) ' ; it(2*16) = 2
    OPTION(17) = 'jatidep tidal potential forcing 0/1 ( ) ' ; it(2*17) = 2
    OPTION(18) = 'EpsCG, CG solver stop criterion     ( ) ' ; it(2*18) = 6
    OPTION(19) = 'Epshu, flooding criterion           (m) ' ; it(2*19) = 6
+   OPTION(20) = 'JaExplicitsinks                     ( ) ' ; it(2*20) = 2
+   OPTION(21) = 'Corioadamsbashfordfac               ( ) ' ; it(2*21) = 6
+   OPTION(22) = 'Newcorio                            ( ) ' ; it(2*22) = 2
+ 
  
 !   123456789012345678901234567890123456789012345678901234567890
 !            1         2         3         4         5         6
@@ -17510,16 +17685,20 @@ SUBROUTINE SETCOLTABFILE(FILNAM,JASECOND)
    HELPM ( 7) = '2=implicit pressure, 1=no pressure, 0 = only transport      '
    HELPM ( 8) = '0.5 < teta =< 1.0                                           '
    HELPM ( 9) = '1 = GS_OMP, 2 = GS_OMPthreadsafe, 3 = GS, 4 = SaadILUD      '
-   HELPM (10) = '0=Herman transport, 1=transport module (default)            '
+   HELPM (10) = '0=Herman transport, 1=transport module (default), 2=no      '
    HELPM (11) = '0=no salinity, 1=yes salinity                               '
    HELPM (12) = 'Temperature model nr, 0=no temp, 5=heat flux 3=excess       '
    HELPM (13) = '0=No, 1=Yes anticreep  only in sigma layers                 '
    HELPM (14) = 'default 1d-8                                                '
    HELPM (15) = '0=free slip, 1 =partial slip, 2=no slip, 3 =hydraul. smooth '
-   HELPM (16) = '0=no coriolois, 4=coriolis, 5 = 4 limited below 1 m         '
+   HELPM (16) = '0=no 5=default, 3,4 no weights, 5-10 Olga, 25-30 Ham        '
    HELPM (17) = '0=no tidal potential, 1=yes tidal potential                 '
    HELPM (18) = 'Guus, if max(abs(r/rk) < epscg , or Saad L2norm < epscg     '
    HELPM (19) = 'hu > epshu: link flows                                      '
+   HELPM (20) = '1=expl, 0 = impl                                            '
+   HELPM (21) = '>0 = Adams Bashford, standard= 0.5, only for Newcorio=1     '
+   HELPM (22) = '0=prior to 27-11-2019, 1=no normal forcing on open bnds, 12#'
+   
    
    CALL SAVEKEYS()
    NUMPARACTUAL = NUMPAR
@@ -17607,6 +17786,10 @@ SUBROUTINE SETCOLTABFILE(FILNAM,JASECOND)
    CALL IFORMPUTinteger (2*17 ,jatidep          )           
    CALL IFormPutDouble  (2*18 ,epscg, '(e10.5)' )
    CALL IFormPutDouble  (2*19 ,epshu, '(e10.5)' )                                             
+   CALL IFORMPUTinteger (2*20 ,jaexplicitsinks  )     
+   CALL IFormputDouble  (2*21 ,Corioadamsbashfordfac,'(e10.5)')        
+   CALL IFormputinteger (2*22 ,Newcorio)        
+
 
    !  Display the form with numeric fields left justified
    !  and set the initial field to number 2
@@ -17664,6 +17847,8 @@ SUBROUTINE SETCOLTABFILE(FILNAM,JASECOND)
           CALL IFORMgeTinteger (2*17 ,jatidep         )        
           CALL IFormgetDouble  (2*18 ,epscg           )
           CALL IFormgetDouble  (2*19 ,epshu           )        
+          CALL IFORMgeTinteger (2*20 ,jaexplicitsinks )        
+          CALL IFormgetDouble  (2*21 ,Corioadamsbashfordfac)        
 
           epshs    = 0.2d0*epshu  ! minimum waterdepth for setting cfu
           if (niadvec .ne. iadvec) then
@@ -17743,7 +17928,7 @@ SUBROUTINE SETCOLTABFILE(FILNAM,JASECOND)
    HELPM ( 2) = '0123                                                        '
    HELPM ( 3) = '1 = expl, -2; abashford, -3 = ab3, -5 = adv rho             '
    HELPM ( 4) = '0 = NO, 3 = VERT IMPL, HOR EXPL                             '
-   HELPM ( 5) = '0 = no, 1 = eckardt                                         '
+   HELPM ( 5) = '0 = no, 1 = eckart                                          '
    HELPM ( 6) = '0 = no, 1 = YES                                             '
    HELPM ( 7) = '0=No, 1=Upwe, 2=Cente, 3=Upwi, 4=Centi, 5=4,3, 6=MCexpl     ' 
    HELPM ( 8) = '0=No, 6=subgrid, 7=rajaratnam, 8=Tabelb, 9=Willemontenotyet ' 
@@ -17834,7 +18019,7 @@ SUBROUTINE SETCOLTABFILE(FILNAM,JASECOND)
    CALL IFORMPUTINTEGER (2* 6 ,JARHOXU          )        
    CALL IFORMPUTINTEGER (2* 7 ,JAVASAL          )          
    CALL IFORMPUTINTEGER (2* 8 ,ifixedweirscheme )          
-   CALL IFORMPUTdouble  (2* 9 ,Tsigma           , '(F7.1)' )          
+   CALL IFORMPUTdouble  (2* 9 ,Tsigma           , '(F7.3)' )          
    CALL IFORMPUTINTEGER (2*10 ,JALTS            )            
    CALL IFORMPUTdouble  (2*11 ,Cffacver         , '(F7.3)' )          
    CALL IFORMPUTINTEGER (2*12 ,JAVATEM          )    
@@ -17927,6 +18112,7 @@ SUBROUTINE SETCOLTABFILE(FILNAM,JASECOND)
    use m_flowgeom
    USE m_sferic
    use m_wind
+   use m_sediment
    use unstruc_display
    use m_reduce
    use unstruc_version_module, only : unstruc_company, unstruc_program
@@ -17936,7 +18122,7 @@ SUBROUTINE SETCOLTABFILE(FILNAM,JASECOND)
    implicit none
 
    integer :: numpar, numfld, numparactual, numfldactual
-   PARAMETER  (NUMPAR = 21, NUMFLD = 2*NUMPAR)
+   PARAMETER  (NUMPAR = 22, NUMFLD = 2*NUMPAR)
    INTEGER  IX(NUMFLD),IY(NUMFLD),IS(NUMFLD),IT(NUMFLD)
    CHARACTER WRDKEY*40, OPTION(NUMPAR)*40, HELPM(NUMPAR)*60
    integer :: nlevel
@@ -17969,6 +18155,7 @@ SUBROUTINE SETCOLTABFILE(FILNAM,JASECOND)
    OPTION(19) = 'Jajipjan (Noderivedtypes in mdu)     ( )' ; it(2*19) = 2
    OPTION(20) = 'Maxdegree                            ( )' ; it(2*20) = 2
    OPTION(21) = 'Jaevap                               ( )' ; it(2*21) = 2
+   OPTION(22) = 'Jaseddenscoupling                    ( )' ; it(2*22) = 2
 
    
 !   123456789012345678901234567890123456789012345678901234567890
@@ -17995,6 +18182,7 @@ SUBROUTINE SETCOLTABFILE(FILNAM,JASECOND)
    HELPM (19) = '0=use der. types, 1 = less, 2 = lesser, 5 = also deallo der.'
    HELPM (20) = '6 = default, 666 = number of the devil                      '
    HELPM (21) = '1 = evaporation computed bij heatfluxmodel , 0= no evap     '
+   HELPM (22) = '0=no, 1 = yes                                               '
    
    
    CALL SAVEKEYS()
@@ -18084,6 +18272,7 @@ SUBROUTINE SETCOLTABFILE(FILNAM,JASECOND)
    CALL IFORMputinteger (2*19 ,Jajipjan                    )     
    CALL IFORMputinteger (2*20 ,maxdge                      )     
    CALL IFORMputinteger (2*21 ,Jaevap                      )     
+   CALL IFORMputinteger (2*22 ,Jaseddenscoupling           )     
 
    
    !  Display the form with numeric fields left justified
@@ -18144,6 +18333,7 @@ SUBROUTINE SETCOLTABFILE(FILNAM,JASECOND)
           CALL IFORMGETinteger (2*19 ,Jajipjan                )     
           CALL IFORMGETinteger (2*20 ,Maxdge                  )     
           CALL IFORMGETinteger (2*21 ,Jaevap                  )  
+          CALL IFORMgetinteger (2*22 ,Jaseddenscoupling            )      
           if (jaevap > 0) then
              if (.not. allocated (evap) ) then 
                 allocate (evap(ndx))   
@@ -18175,7 +18365,7 @@ SUBROUTINE SETCOLTABFILE(FILNAM,JASECOND)
    implicit none
 
    integer :: numpar, numfld, numparactual, numfldactual
-   PARAMETER  (NUMPAR = 11, NUMFLD = 2*NUMPAR)
+   PARAMETER  (NUMPAR = 17, NUMFLD = 2*NUMPAR)
    INTEGER  IX(NUMFLD),IY(NUMFLD),IS(NUMFLD),IT(NUMFLD), L
    CHARACTER WRDKEY*40, OPTION(NUMPAR)*40, HELPM(NUMPAR)*60
    integer :: nlevel
@@ -18188,8 +18378,9 @@ SUBROUTINE SETCOLTABFILE(FILNAM,JASECOND)
    double precision :: h1,h5,h7,w1,w5,w7 
 
    NLEVEL     = 4
-   OPTION( 1) = 'vicouv_filter                    (m2/s)' ; it(2* 1) = 6
-   OPTION( 2) = 'wu1DUNI                          (m)   ' ; it(2* 2) = 6
+!   OPTION( 1) = 'vicouv_filter                    (m2/s)' ; it(2* 1) = 6
+   OPTION( 1) = 'filter                           ( )   ' ; it(2* 1) = 2
+   OPTION( 2) = 'filter order                     ( )   ' ; it(2* 2) = 2
    OPTION( 3) = 'hh1DUNI                          (m)   ' ; it(2* 3) = 6
    OPTION( 4) = 'Uniformtyp1D                     (m)   ' ; it(2* 4) = 2
    OPTION( 5) = 'wu1DUNI5                         (m)   ' ; it(2* 5) = 6
@@ -18199,7 +18390,12 @@ SUBROUTINE SETCOLTABFILE(FILNAM,JASECOND)
    OPTION( 9) = 'hh1DUNI7                         (m)   ' ; it(2* 9) = 6
    OPTION(10) = 'Uniformtyp1D7                    (m)   ' ; it(2*10) = 2
    OPTION(11) = 'japiaczek33                      ( )   ' ; it(2*11) = 2
-
+   OPTION(12) = 'Expchistem                       ( )   ' ; it(2*12) = 6
+   OPTION(13) = 'Uchistem                         ( )   ' ; it(2*13) = 6
+   OPTION(14) = 'Expchileaf                       ( )   ' ; it(2*14) = 6
+   OPTION(15) = 'Uchileaf                         ( )   ' ; it(2*15) = 6
+   OPTION(16) = 'Cdleaf                           ( )   ' ; it(2*16) = 6
+   OPTION(17) = 'Arealeaf                         ( )   ' ; it(2*17) = 6
    
 !   123456789012345678901234567890123456789012345678901234567890
 !            1         2         3         4         5         6
@@ -18215,8 +18411,13 @@ SUBROUTINE SETCOLTABFILE(FILNAM,JASECOND)
    HELPM ( 9) = 'Uniform height of 1D2D connection type 7 roofgutterpipes( ) '
    HELPM (10) = 'Uniform proftyp kn3=7,  1=circle, 2=rect A/P, 3=rect K  ( ) '
    HELPM (11) = '0=no, 1 = yes                                           ( ) '
-
-   
+   HELPM (12) = '                                                        ( ) '
+   HELPM (13) = '                                                        ( ) '
+   HELPM (14) = '                                                        ( ) '
+   HELPM (15) = '                                                        ( ) '
+   HELPM (16) = '                                                        ( ) '
+   HELPM (17) = '                                                        ( ) '
+      
    CALL SAVEKEYS()
    NUMPARACTUAL = NUMPAR
    NUMFLDACTUAL = 2*NUMPARACTUAL
@@ -18283,11 +18484,13 @@ SUBROUTINE SETCOLTABFILE(FILNAM,JASECOND)
       CALL IFORMATTRIBUTEN(IR,0,0,7)
    ENDDO
 
-   CALL IFORMputdouble  (2* 1 ,vicouv_filter, '(F7.3)' ) 
+!   CALL IFORMputdouble  (2* 1 ,vicouv_filter, '(F7.3)' ) 
+   CALL IFORMputinteger  (2* 1, jafilter)
+   write(6,*) filterorder
+   CALL IFORMputinteger  (2* 2, filterorder)
    w1 = wu1DUNI  ;  h1 = hh1DUNI
    w5 = wu1DUNI5 ;  h5 = hh1DUNI5
    w7 = wu1DUNI7 ;  h7 = hh1DUNI7
-   CALL IFORMputdouble  (2* 2 , wu1DUNI , '(F7.3)' )       
    CALL IFORMputdouble  (2* 3 , hh1DUNI , '(F7.3)' )       
    CALL IFORMputinteger (2* 4 , iproftypuni)       
    CALL IFORMputdouble  (2* 5 , wu1DUNI5, '(F7.3)' )       
@@ -18297,8 +18500,13 @@ SUBROUTINE SETCOLTABFILE(FILNAM,JASECOND)
    CALL IFORMputdouble  (2* 9 , hh1DUNI7, '(F7.3)' )       
    CALL IFORMputinteger (2*10 , iproftypuni7)       
    CALL IFORMputinteger (2*11 , japiaczek33 )       
+   CALL IFORMputdouble  (2*12 , Expchistem, '(F7.3)' )    
+   CALL IFORMputdouble  (2*13 , Uchistem,   '(F7.3)' ) 
+   CALL IFORMputdouble  (2*14 , Expchileaf, '(F7.3)' )  
+   CALL IFORMputdouble  (2*15 , Uchileaf,   '(F7.3)' )  
+   CALL IFORMputdouble  (2*16 , Cdleaf,     '(F7.3)' ) 
+   CALL IFORMputdouble  (2*17 , Arealeaf,   '(F7.3)' ) 
 
-   
    !  Display the form with numeric fields left justified
    !  and set the initial field to number 2
    CALL IOUTJUSTIFYNUM('L')
@@ -18336,8 +18544,9 @@ SUBROUTINE SETCOLTABFILE(FILNAM,JASECOND)
    ELSE IF (KEY .EQ. 22 .OR. KEY .EQ. 23) THEN
        IF (KEY .EQ. 22) THEN
 
-          CALL IFORMGETdouble  (2* 1 , vicouv_filter)   
-          CALL IFORMgetdouble  (2* 2 , wu1DUNI  )       
+!          CALL IFORMGETdouble  (2* 1 , vicouv_filter)
+          CALL IFORMgetinteger (2* 1, jafilter)
+          CALL IFORMgetinteger (2* 2 , filterorder  )       
           CALL IFORMgetdouble  (2* 3 , hh1DUNI  )       
           CALL IFORMgetinteger (2* 4 , iproftypuni)        
           CALL IFORMgetdouble  (2* 5 , wu1DUNI5 )       
@@ -18346,7 +18555,13 @@ SUBROUTINE SETCOLTABFILE(FILNAM,JASECOND)
           CALL IFORMgetdouble  (2* 8 , wu1DUNI7 )       
           CALL IFORMgetdouble  (2* 9 , hh1DUNI7 ) 
           CALL IFORMgetinteger (2*10 , iproftypuni7)        
-          CALL IFORMgetinteger (2*11 , japiaczek33 )       
+          CALL IFORMgetinteger (2*11 , japiaczek33 )    
+          CALL IFORMgetdouble  (2*12 , Expchistem )    
+          CALL IFORMgetdouble  (2*13 , Uchistem   )
+          CALL IFORMgetdouble  (2*14 , Expchileaf )  
+          CALL IFORMgetdouble  (2*15 , Uchileaf   ) 
+          CALL IFORMgetdouble  (2*16 , Cdleaf     ) 
+          CALL IFORMgetdouble  (2*17 , Arealeaf   ) 
           do L = 1,Lnx1D
              if (prof1D(1,L) > 0) then  ! only direct profiles
                 if (kcu(L) == 1 ) then 
@@ -19024,7 +19239,7 @@ SUBROUTINE SETCOLTABFILE(FILNAM,JASECOND)
    CALL IFormPutDouble  (2*12 , frcuni1D,   '(F8.3)')
    CALL IFormPutDouble  (2*13 , frcuni1D2D, '(F8.3)')
    CALL IFormPutDouble  (2*14 , frcuni1Dgrounlay, '(F8.3)')
-   CALL IFormPutDouble  (2*15, rainuni   , '(F8.3)')
+   CALL IFormPutDouble  (2*15 , rainuni   , '(F8.3)')
  
    !  Display the form with numeric fields left justified
    !  and set the initial field to number 2
@@ -19377,10 +19592,10 @@ SUBROUTINE SETCOLTABFILE(FILNAM,JASECOND)
 
       SUBROUTINE CHANGEGRIDPARAMETERS()
       USE M_GRID
-
       USE M_GRIDSETTINGS
       use m_sferic
       use unstruc_display
+      use m_polygon
       use unstruc_version_module, only : unstruc_company, unstruc_program
       implicit none
 
@@ -19394,7 +19609,8 @@ SUBROUTINE SETCOLTABFILE(FILNAM,JASECOND)
       external :: highlight_form_line
 !
       integer :: ip,ir, il, iw, ixp, iyp, ih, i, iuvfieldorg, ifexit, ifinit, key
-      integer :: nbut, imp, inp
+      integer :: nbut, imp, inp, k
+      double precision :: phi
 
       NLEVEL    = 3
       OPTION(1) = 'M-REFINEMENT FACTOR                     '
@@ -19592,6 +19808,19 @@ SUBROUTINE SETCOLTABFILE(FILNAM,JASECOND)
               SPLFAC2=MAX(0d0, MIN(SPLFAC2,1d0) )
               FACMIR=MAX(0.1d0, MIN(FACMIR,10d0) )
               jsferic = max(0,min(jsferic,1)) 
+
+              if ( pil_rad < 0d0 ) then ! cre
+                 if (maxpol < mfac+1) then  
+                     call increasepol(mfac+1, 0)     
+                 endif
+                 pil_rad = abs(pil_rad)
+                 do k = 1,mfac+1
+                    phi = twopi* ( dble(k-1) / dble(mfac) )
+                    xpl(k) = pil_x + pil_rad*cos(phi)
+                    ypl(k) = pil_y + pil_rad*sin(phi)
+                 enddo
+                 npl = mfac+1 
+             endif  
           ENDIF
           CALL IWinClose(1)
           CALL IWinClose(1)
@@ -19946,7 +20175,7 @@ SUBROUTINE SETCOLTABFILE(FILNAM,JASECOND)
 
          CALL IGRCHARSIZE(2.0,1.0)
          tex = ' '
-         write(tex(2:10), '(F8.4)')  min(fy2 - fy1,99.9999)
+         write(tex(2:10), '(F8.1)')  fy2 - fy1
          CALL DRAWTEXT(real(X1),real(Y2+DYH),TITLE//tex)
 
          if (abs(x1) < 1d3) then 
@@ -19988,6 +20217,10 @@ SUBROUTINE SETCOLTABFILE(FILNAM,JASECOND)
                   xtx = x2 - (xtx - x1)
                endif
                ytx = Y(kp)
+               CALL GTEXT(TEX, xtx, ytx, NCOL)
+
+               WRITE (TEX,'(F13.5)') y(kp) - y1
+               ytx = ytx - 0.05d0*(y2-y1)
                CALL GTEXT(TEX, xtx, ytx, NCOL)
 
             endif
@@ -20791,25 +21024,22 @@ SUBROUTINE SETCOLTABFILE(FILNAM,JASECOND)
           k2 = kbndz(2,k)
           LL = kbndz(3,k)
           zn = znod(k1)
-       
-       
-              ja2 = 1
-              if (wetplot > 0d0 .and. hu(LL).gt.0d0 ) then
-                 if (hs(k1) < wetplot) then
-                    ja2 = 0
-                 endif
-                 if (ja2 == 1) then  ! nodewhat==3: always show bottom
-                    if (inview( xz(k1), yz(k1) ) ) then
-                       zn = znod(k1)
-                       call dhtext( zn, xz(k1), yz(k1), bl(k1) )
-                    endif
-                 endif
-              endif
-              
           call isocol(zn,ncol)
+       
+          ja2 = 1
+          if (wetplot > 0d0 .and. hu(LL).gt.0d0 ) then
+             if (hs(k1) < wetplot) then
+                ja2 = 0
+             endif
+             if (ja2 == 1) then  ! nodewhat==3: always show bottom
+                if (inview( xz(k1), yz(k1) ) ) then
+                   call dhtext( zn, xz(k1), yz(k1), bl(k1) )
+                endif
+             endif
+          endif
+              
           call dmovabs( xz(k1), yz(k1), bl(k1) )
           call  dlnabs( xz(k2), yz(k2), bl(k2) )
-!          call dhtext( zn, xz(k1), yz(k1), bl(k1) )
        enddo
        
        do k = 1, nbndu                               ! boundary points tekflowstuff
@@ -21227,6 +21457,7 @@ SUBROUTINE SETCOLTABFILE(FILNAM,JASECOND)
              zn = znod(k)
              if ( zn.eq.DMISS ) cycle
              if (nodemode .eq. 2) then
+                call isocol(zn,ncol)
                 call dhtext( zn, xz(k), yz(k), bl(k) )
              else if (nodemode == 3   .or. nodemode == 3 + 3) then    ! isolines within cell
                 if (k <= ndx2d) then
@@ -21348,7 +21579,7 @@ SUBROUTINE SETCOLTABFILE(FILNAM,JASECOND)
 
  double precision :: xmn, xmx, ymx, zmx, zmx2, bot, top, xx, yy, bup
  double precision :: xp(4), yp(4), zp(4), xxmn, xxmx, zn, dlay, dl, xp1, yp1, qsrck
- integer          :: mx, kb, kt, Lb, Lt, LL
+ integer          :: mx, kb, kt, Lb, Lt, LL, kplotfrombedorsurfacesav
  double precision, external    :: znod, zlin
 
  double precision, allocatable ::   plotlin2(:)
@@ -21356,6 +21587,9 @@ SUBROUTINE SETCOLTABFILE(FILNAM,JASECOND)
 
  if (ndx  < 1) return
 
+ kplotfrombedorsurfacesav = kplotfrombedorsurface 
+ kplotfrombedorsurface    = 1
+ 
  if (nsiz > 3) then
     call poiseuille(0)
     return
@@ -21664,15 +21898,17 @@ SUBROUTINE SETCOLTABFILE(FILNAM,JASECOND)
        enddo
     endif
 
-    call setcol(31)
-    do LL  = 1,lnxi
-       n1  = ln(1,LL)
-       n2  = ln(2,LL)
-       xx  = xz(n1)
-       xx2 = xz(n2)
-       call movabs(xx ,bl(n1))
-       call  lnabs(xx2,bl(n2))
-    enddo
+    if ( NDRAW(2) .ge. 1) then
+       call setcol(31)
+       do LL  = 1, lnxi
+          n1  = ln(1,LL)
+          n2  = ln(2,LL)
+          xx  = xz(n1)
+          xx2 = xz(n2)
+          call movabs(xx ,bl(n1))
+          call  lnabs(xx2,bl(n2))
+       enddo
+    endif
 
     CALL LINEWIDTH(1)
 
@@ -21697,10 +21933,11 @@ SUBROUTINE SETCOLTABFILE(FILNAM,JASECOND)
     kplot = kplotorg
  endif
 
+ if ( NDRAW(2) .ge. 1) then
+    call tekrailinesbathy(31,0,1) ! bl
+ endif   
 
- call tekrailinesbathy(31,0,1) ! bl
-
- if (jased > 0 .and. jased < 4 .and. .not. stm_included) then
+ if (jased > 0 .and. jased < 4) then
     do j = 1,mxgr
        call tekrailinesbathy(15,0,1+j) ! grainlay 1,2 etc
     enddo
@@ -21738,7 +21975,11 @@ SUBROUTINE SETCOLTABFILE(FILNAM,JASECOND)
  else if (md_IDENT(1:6) == 'drybed') then
      call drybed(time1-tstart_user)
  else if (md_IDENT(1:6) == 'wetbed') then
-     call wetbed(time1-tstart_user)
+     call wetbed(time1-tstart_user)      
+ else if (md_IDENT(1:12) == 'coriolistilt') then
+     call coriolistilt(time1-tstart_user)
+ else if (md_IDENT(1:14) == 'corioliskelvin') then
+     call corioliskelvin(time1-tstart_user)
  else if (index(md_ident,'thacker1d') > 0) then
     call thacker1d(0,xz,yz,s1,bl,ndx,time1-tstart_user)
  else if (md_IDENT == 'equator1d') then
@@ -21840,6 +22081,7 @@ SUBROUTINE SETCOLTABFILE(FILNAM,JASECOND)
     call htext_rai( x2-10d0*rcir, x2-12d0*rcir, zmn-2d0*zz,rcir,zz,2)
  endif
 
+kplotfrombedorsurface = kplotfrombedorsurfacesav
  call setwor(x1,y1,x2,y2)
 
  return
@@ -22182,10 +22424,11 @@ SUBROUTINE SETCOLTABFILE(FILNAM,JASECOND)
  SUBROUTINE DISLN(LL)   ! print link values
  use m_flowgeom
  use m_devices
+ use network_data, only:kn
+ use unstruc_display
  implicit none
 
  integer :: LL
-
  CHARACTER TEX*23
  DOUBLE PRECISION :: ZLIN
 
@@ -22275,6 +22518,7 @@ SUBROUTINE SETCOLTABFILE(FILNAM,JASECOND)
 subroutine tekbanfs()
 use m_netw
 use m_flowgeom
+use m_flow, only: kbot
 use m_sediment
 implicit none
 double precision :: x, y, z, v, hsk
@@ -22302,7 +22546,8 @@ do kk = 1,mxban
     if (ndraw(34) == 2) then
        CALL dHTEXT(seq(jgrtek),X,Y,Z)
     else if (ndraw(34) == 3) then
-       CALL dHTEXT(seq(jgrtek)-sed(jgrtek,k),X,Y,Z)
+       !CALL dHTEXT(seq(jgrtek)-sed(jgrtek,kbot(k)),X,Y,Z)
+       CALL dHTEXT(seq(jgrtek)-sed(jgrtek,kbot(k)),X,Y,Z)
     else if (ndraw(34) == 4) then
        z = n
        CALL dHTEXT(z,X,Y,Z)
@@ -22424,7 +22669,7 @@ subroutine isosmoothflownode2(k) ! smooth isolines in flow cells use depmax2
  character, save :: TEX1*210 = '@'
  character, save :: TEX2*210 = ''
  character, save :: TEX3*210 = ''
- character(len=3) :: c_nsubsteps
+ character(len=4) :: c_nsubsteps
  character(len=7) :: c_numnonglobal
  character(len=15) :: c_lts
  integer, save :: mout = 0
@@ -22496,7 +22741,7 @@ subroutine isosmoothflownode2(k) ! smooth isolines in flow cells use depmax2
        write(c_lts(9:), '(i4)') min(9999, nums1mit)  
     endif   
  else
-    write(c_nsubsteps, "(i3)") min(nsubsteps,999)   ! min: safe text width
+    write(c_nsubsteps, "(i4)") min(nsubsteps,9999)   ! min: safe text width
     write(c_numnonglobal, "(i7)") min(numnonglobal,9999999)   ! min: safe text width
     c_lts = 'lts:' // trim(adjustl(c_nsubsteps)) // '|' // trim(adjustl(c_numnonglobal))
  end if
@@ -22508,7 +22753,7 @@ subroutine isosmoothflownode2(k) ! smooth isolines in flow cells use depmax2
  else
     call getlink1(nn,LL) 
     WRITE (TEX,'( A,i8,  A,I8,  A,I4,  A, F8.5, A, F8.5,  A,I4, A, I2.0, I1, I1, I1, I1, A, A, A14)')    &
-    '#ndx: ' , ndx, ' #lnx: ', lnx, ' #kmx : ', kmx, ' ustB ', ustb(LL), ' ustW ', ustw(LL),    &
+    '#ndx: ' , ndx, ' #lnx: ', lnx, ' #kmx : ', kmx, ' ustB ', min(ustb(LL),1d2), ' ustW ', ustw(LL),    &
     ' #s1it: ', min(9999,nums1it), ' iad: ', iadvec, limtypmom, limtypsa, javasal, javau,  ' runid: '//trim(md_ident), ' ', c_lts
  endif
  
@@ -22783,22 +23028,23 @@ subroutine isosmoothflownode2(k) ! smooth isolines in flow cells use depmax2
 
   if (iturbulencemodel >= 3 .and. LL > 0) then
 
-  vmin = 0d0
-  vmax = 0d0
-  vmax = max(vmax, maxval(turkin1(Lb0:Lt)), vmin+1d-5 )
-  if (frcuni > 0  .and. ndraw(35) == 1 ) then
-     if (jaref > 0) call TEKFN(4, 7, 0, tkin1ref    , hwref   , km1, vmin, vmax, zmin, zmax,  31, 'tkin1'      , 0, 1 , 0d0,0)   ! interfaces
-     call TEKFN(4, 8, 1, turkin1(Lb0:Lt), hwref  , Lm1, vmin, vmax, zmin, zmax, KLPROF, 'tkin1'      , 0, 2 , 0d0,kplot+1)
-  endif
+     if (frcuni > 0  .and. ndraw(35) == 1 ) then
+        vmin = 0d0 ; vmax = 0d0 ; vmax = max(vmax, maxval(turkin1(Lb0:Lt)), vmin+1d-5 )
+        if (jaref > 0) call TEKFN(4, 7, 0, tkin1ref    , hwref   , km1, vmin, vmax, zmin, zmax,  31, 'tkin1'      , 0, 1 , 0d0,0)   ! interfaces
+        call TEKFN(4, 8, 1, turkin1(Lb0:Lt), hwref  , Lm1, vmin, vmax, zmin, zmax, KLPROF, 'tkin1'      , 0, 2 , 0d0,kplot+1)
+     endif
 
-  vmin = 0d0
-  vmax = 0.d0
-  vmax = max(vmax, maxval(tureps1(Lb0:Lt)), vmin+1d-5 )
-  if (frcuni > 0 .and. ndraw(35) == 1 ) then
-    if (jaref > 0)call TEKFN(5, 9, 0, teps1ref    , hwref   , km1, vmin, vmax, zmin, zmax,  31, 'teps1'      , 0, 1 , 0d0,0)   ! interfaces
-    call TEKFN(5,10, 1, tureps1(Lb0:Lt), hwref  , Lm1, vmin, vmax, zmin, zmax, KLPROF, 'teps1'      , 0, 2 , 0d0,kplot+1)
-  endif
-  
+     if (jasal > 0 .and. jatem > 0 .and. idensform > 0)  then 
+        call getvminmax(6,vmin,vmax,rho(kb:), kt-kb+1) 
+        call TEKFN(5,10, 1, rho(kb:kt)  , hcref  , km, vmin, vmax, zmin, zmax, KLPROF, 'rho' , 1, 2 , 0d0,kplot)
+     else
+        if (frcuni > 0 .and. ndraw(35) == 1 ) then
+           vmin = 0d0 ; vmax = 0.d0 ; vmax = max(vmax, maxval(tureps1(Lb0:Lt)), vmin+1d-5 )
+           if (jaref > 0)call TEKFN(5, 9, 0, teps1ref    , hwref   , km1, vmin, vmax, zmin, zmax,  31, 'teps1'      , 0, 1 , 0d0,0)   ! interfaces
+           call TEKFN(5,10, 1, tureps1(Lb0:Lt), hwref  , Lm1, vmin, vmax, zmin, zmax, KLPROF, 'teps1'      , 0, 2 , 0d0,kplot+1)
+        endif
+     endif  
+
   endif
 
   if (jasal > 0) then
@@ -23013,39 +23259,30 @@ end subroutine unstruc_guimessage
       use unstruc_display, only: jaGUI
       implicit none
 
+      character(len=*), intent(in) :: W1, W2, W3
+
       integer :: infoattribute
-      integer :: k
       integer :: key
       integer :: nbck
       integer :: nfor
-      integer :: L1, L2, L3
       integer :: nLEVEL
+      character(len=600) :: REC, rec2
 
       COMMON /HELPNOW/   WRDKEY,NLEVEL
       CHARACTER WRDKEY*40
-      CHARACTER W1*(*),W2*(*),W3*(*),REC*600, rec2*600
-      REC =                                                               &
-      '                                                             '//   &
-      '                                                             '//   &
-      '          '
-      L1 = MAX(1,len_trim(W1))
-      L2 = MAX(1,len_trim(W2))
-      L3 = MAX(1,len_trim(W3))
-      WRITE(REC(1:),'(A)') W1(:L1)
-      WRITE(REC(2+L1:),'(A)') W2(:L2)
-      WRITE(REC(3+L1+L2:),'(A)') W3(:L3)
-      
-      if (len_trim(W2) == 0) then 
-         WRITE(rec2,'(A)') msgbuf(1: min(600, len_trim (msgbuf) )  )
-      endif       
-      WRITE(msgbuf,'(A)') REC(1:3+L1+L2+L3)
-         
-      call warn_flush()
+
+      REC = trim(W1) // ' ' // trim(W2) // ' ' // trim(W2)
+
+      if (len_trim(W2) == 0) then
+         rec2 = msgbuf
+      else
+         rec2 = ' '
+      endif
+      msgbuf = REC
 
       ! No user dialog in batchmode runs:
-      if (md_jaAutoStart == MD_AUTOSTARTSTOP) return
-
-      if ( jaGUI.eq.1 ) then
+      if ( jaGUI == 1 .and. md_jaAutoStart /= MD_AUTOSTARTSTOP) then
+         call warn_flush()
    !     inquire current colors
          NFOR = InfoAttribute(13)
          NBCK = InfoAttribute(14)
@@ -23056,11 +23293,11 @@ end subroutine unstruc_guimessage
          CALL IWINOUTSTRINGXY(IWS-15,3,'press any key')
          CALL OKAY(0)
          CALL ITEXTCOLOUR('BLUE','BWHITE')
-         CALL IWINOutCentre   (2,REC(1:3+L1+L2+L3))
+         CALL IWINOutCentre   (2,trim(REC))
          
          if (len_trim(rec2) > 0) then 
             CALL IWINOutCentre   (3, trim(rec2) )
-         endif            
+         endif
 
       10 CONTINUE
    !     CALL INFLUSH()
@@ -23070,8 +23307,7 @@ end subroutine unstruc_guimessage
          ELSE
             CALL GETKEY2(KEY)
             IF (KEY .GE. 24 .AND. KEY .LE. 26) THEN
-               K = MIN(40,3+L1+L2+L3)
-               WRDKEY = REC(1:K)
+               WRDKEY = REC
                NLEVEL = 4
                CALL FKEYS(KEY)
                GOTO 10
@@ -23082,11 +23318,11 @@ end subroutine unstruc_guimessage
    !                            reset colors
          CALL ITEXTCOLOURN(NFOR, NBCK)
 
-      else    
-         
-         call mess (LEVEL_ERROR, trim(msgbuf) )  
-      
-      endif   ! if ( jaGUI.eq.1 )
+      else
+
+         call mess (LEVEL_ERROR, trim(msgbuf) )
+
+      endif
 
       RETURN
       END
@@ -23448,3 +23684,4 @@ do n = 1,numsrc ! teksorsin
 enddo
 
 end subroutine teksorsin 
+

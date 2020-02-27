@@ -1,6 +1,6 @@
 !----- LGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
+!  Copyright (C)  Stichting Deltares, 2011-2020.                                
 !                                                                               
 !  This library is free software; you can redistribute it and/or                
 !  modify it under the terms of the GNU Lesser General Public                   
@@ -23,8 +23,8 @@
 !  are registered trademarks of Stichting Deltares, and remain the property of  
 !  Stichting Deltares. All rights reserved.                                     
 
-!  $Id: ec_module.f90 62276 2018-10-08 11:15:49Z pijl $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_lgpl/ec_module/packages/ec_module/src/ec_module.f90 $
+!  $Id: ec_module.f90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/ec_module/packages/ec_module/src/ec_module.f90 $
 
 !> This module contains the interfaces of the EC-module.
 !! It is the main access point to the EC-module.
@@ -33,7 +33,8 @@
 !!
 !! @author adri.mourits@deltares.nl
 !! @author stef.hummel@deltares.nl
-!! @author edwin.bos@deltares.nl
+!! @author edwin.spee@deltares.nl
+!! @author robert.leander@deltares.nl
 module m_ec_module
    use m_ec_typedefs
    use m_ec_connection
@@ -43,6 +44,7 @@ module m_ec_module
    use m_ec_item
    use m_ec_quantity
    use m_ec_filereader
+   use m_ec_filereader_read
    use m_ec_bcreader
    use m_ec_bccollect
    use m_ec_instance
@@ -123,6 +125,7 @@ module m_ec_module
    
    !> 
    interface ecGetValues
+      module procedure ecItemGetValuesMJD
       module procedure ecItemGetValues
    end interface ecGetValues
 
@@ -141,11 +144,7 @@ module m_ec_module
    interface ecFindXthItemInFileReader
       module procedure ecFileReaderGetItem
    end interface ecFindXthItemInFileReader
-   
-   interface ecGetMessage
-      module procedure getECMessage
-   end interface ecGetMessage
-   
+
    ! ===== setters =====
    ! No convenience methods defined yet.
    
@@ -242,9 +241,9 @@ module m_ec_module
       module procedure ecElementSetSetXyen
    end interface ecSetElementSetXyen
 
-   interface ecSetElementSetKbotKtop      
+   interface ecSetElementSetKbotKtop
       module procedure ecElementSetSetKbotKtop
-   end interface ecSetElementSetKbotKtop      
+   end interface ecSetElementSetKbotKtop
 
    ! Field
    
@@ -262,6 +261,10 @@ module m_ec_module
    interface ecSetItemProperty
       module procedure ecItemSetProperty
    end interface ecSetItemProperty
+
+   interface ecCopyItemProperty
+      module procedure ecItemCopyProperty
+   end interface ecCopyItemProperty
    
    interface ecSetItemRole
       module procedure ecItemSetRole
@@ -294,7 +297,7 @@ module m_ec_module
    interface ecAddItemConnection
       module procedure ecItemAddConnection
    end interface ecAddItemConnection
-   
+
    interface ecEstimateItemresultSize
       module procedure ecItemEstimateResultSize
    end interface ecEstimateItemresultSize
@@ -308,6 +311,10 @@ module m_ec_module
    interface ecSetConverterOperand
       module procedure ecConverterSetOperand
    end interface ecSetConverterOperand
+
+   interface ecSetConverterInputPointer
+      module procedure ecConverterSetInputPointer
+   end interface ecSetConverterInputPointer
 
    interface ecSetConverterMask
       module procedure ecConverterSetMask
@@ -349,6 +356,10 @@ module m_ec_module
       module procedure ecProviderCreateTimeInterpolatedItem
    end interface ecCreateTimeInterpolatedItem
 
+   interface ecCreateInitializeBCFileReader
+      module procedure ecProviderCreateInitializeBCFileReader
+   end interface ecCreateInitializeBCFileReader
+
    ! Support
    interface ecFindItemByQuantityLocation
       module procedure ecSupportFindItemByQuantityLocation
@@ -357,25 +368,31 @@ module m_ec_module
       module procedure ecSupportFindFileReader
       module procedure ecSupportFindFileReaderByFileName
    end interface ecFindFileReader
+
    
-   
-   contains  
+    contains  
    
       ! ==========================================================================
       !> Replacement function for FM's meteo1 'addtimespacerelation' function.
+      !> Calls to this routine should be embedded as follows:
+      !> * Ensure that target items are created or re-used,
+      !> * Call this routine which includes 
+      !>      the array of TARGET ITEM ID's prepared on the caller site
+      !>      the array of SOURCE QUANTITY NAMES to be sought in the FileReader
       function ecModuleAddTimeSpaceRelation(instancePtr, name, x, y, vectormax, filename, filetype, &
                                             method, operand, tgt_refdate, tgt_tzone, tgt_tunit, &
-                                            jsferic, missing_value, itemIDs, &
+                                            jsferic, missing_value, qnames, itemIDs, &
                                             mask, xyen, z, pzmin, pzmax, pkbot, pktop, &
-                                            targetIndex, forcingfile, srcmaskfile, dtnodal, varname) &
+                                            targetIndex, forcingfile, srcmaskfile, dtnodal) &
                                             result (success)
    !     use m_ec_module, only: ecFindFileReader ! TODO: Refactor this private data access (UNST-703).
          use m_ec_filereader_read, only: ecParseARCinfoMask
          use m_ec_support
-   
+         use time_module, only: JULIAN, date2mjd
+ 
          type(tEcInstance), pointer :: instancePtr !< intent(in)
          character(len=*),                         intent(inout) :: name         !< Name for the target Quantity, possibly compounded with a tracer name.
-         real(hp), dimension(:),                   intent(in)    :: x            !< Array of x-coordinates for the target ElementSet.
+         real(hp), dimension(:),                   intent(in)    :: x            !< Array of x-coordinates for the .
          real(hp), dimension(:),                   intent(in)    :: y            !< Array of y-coordinates for the target ElementSet.
          logical,                                  intent(in)    :: jsferic      !< Sferic coordinates
          integer,                                  intent(in)    :: vectormax    !< Vector max (length of data values at each element location).
@@ -387,6 +404,7 @@ module m_ec_module
          real(kind=hp),                            intent(in)    :: tgt_tzone
          integer,                                  intent(in)    :: tgt_tunit
          real(kind=hp),                            intent(in)    :: missing_value
+         character(len=*), dimension(:),           intent(in)    :: qnames       !< list of quantity names 
          integer, dimension(:),                    intent(inout) :: itemIDs      !<  Connection available outside to which one can connect target items
    
          integer,  dimension(:), optional,         intent(in)    :: mask         !< Array of masking values for the target ElementSet.
@@ -400,11 +418,11 @@ module m_ec_module
          character(len=*),       optional,         intent(in)    :: forcingfile  !< file containing the forcing data for pli-file 'filename'
          character(len=*),       optional,         intent(in)    :: srcmaskfile  !< file containing mask applicable to the arcinfo source data 
          real(hp),               optional,         intent(in)    :: dtnodal      !< update interval for nodal factors
-         character(len=*),       optional,         intent(in)    :: varname      !< the variable name in the file
          !
          integer :: convtype !< EC-module's convType_ enumeration.
          !
          integer :: fileReaderId   !< Unique FileReader id.
+         integer :: sourceItemId   !< Unique SourceItem id.
          integer :: quantityId     !< Unique Quantity id.
          integer :: elementSetId   !< Unique ElementSet id.
          integer :: converterId    !< Unique Converter id.
@@ -416,8 +434,9 @@ module m_ec_module
          integer, external         :: findname
          type (tEcMask)            :: srcmask
          logical                   :: res
-         integer                   :: i, itgt
+         integer                   :: i, isrc, itgt
          integer                   :: fieldId
+         real(hp)                  :: tgt_mjd
    
          success = .False.
    
@@ -430,13 +449,14 @@ module m_ec_module
             fileReaderId = ecInstanceCreateFileReader(instancePtr)
             fileReaderPtr => ecSupportFindFileReader(instancePtr, fileReaderId)
             fileReaderPtr%vectormax = vectormax
-      
+            
+            tgt_mjd = JULIAN(tgt_refdate, 0) ! TODO: handle time zone (and time?)
+
             if (present(forcingfile)) then
                if (present(dtnodal)) then
-                  res = ecProviderInitializeFileReader(instancePtr, fileReaderId, filetype, filename, tgt_refdate, tgt_tzone, tgt_tunit, name, forcingfile=forcingfile, dtnodal=dtnodal)
-                  res = ecProviderInitializeFileReader(instancePtr, fileReaderId, filetype, filename, tgt_refdate, tgt_tzone, tgt_tunit, name, forcingfile=forcingfile, dtnodal=dtnodal)
+                  res = ecProviderInitializeFileReader(instancePtr, fileReaderId, filetype, filename, tgt_mjd, tgt_tzone, tgt_tunit, name, forcingfile=forcingfile, dtnodal=dtnodal)
                else
-                  res = ecProviderInitializeFileReader(instancePtr, fileReaderId, filetype, filename, tgt_refdate, tgt_tzone, tgt_tunit, name, forcingfile=forcingfile)
+                  res = ecProviderInitializeFileReader(instancePtr, fileReaderId, filetype, filename, tgt_mjd, tgt_tzone, tgt_tunit, name, forcingfile=forcingfile)
                end if
                if (.not. res) return
                if (ecAtLeastOnePointIsCorrection) then       ! TODO: Refactor this shortcut (UNST-180).
@@ -446,9 +466,9 @@ module m_ec_module
                end if
             else
                if (present(dtnodal)) then
-                  res = ecProviderInitializeFileReader(instancePtr, fileReaderId, filetype, filename, tgt_refdate, tgt_tzone, tgt_tunit, name, dtnodal=dtnodal, varname= varname)
+                  res = ecProviderInitializeFileReader(instancePtr, fileReaderId, filetype, filename, tgt_mjd, tgt_tzone, tgt_tunit, name, dtnodal=dtnodal)
                else
-                  res = ecProviderInitializeFileReader(instancePtr, fileReaderId, filetype, filename, tgt_refdate, tgt_tzone, tgt_tunit, name)
+                  res = ecProviderInitializeFileReader(instancePtr, fileReaderId, filetype, filename, tgt_mjd, tgt_tzone, tgt_tunit, name)
                end if
                if (.not. res) return
             end if
@@ -464,10 +484,10 @@ module m_ec_module
          if (filetype == provFile_poly_tim) then
                res = ecElementSetSetType(instancePtr, elementSetId, elmSetType_polytim)
          else
-            if (.not.jsferic) then
-               res = ecElementSetSetType(instancePtr, elementSetId, elmSetType_cartesian)
-            else
+            if (jsferic) then
                res = ecElementSetSetType(instancePtr, elementSetId, elmSetType_spheric)
+            else
+               res = ecElementSetSetType(instancePtr, elementSetId, elmSetType_cartesian)
             end if
          end if
          if (.not. res) return
@@ -497,7 +517,7 @@ module m_ec_module
          end if
          
          ! Construct a new Converter.
-         call ec_filetype_to_conv_type(filetype, convtype)
+         convtype = ec_filetype_to_conv_type(filetype, name)
          if (convtype == convType_undefined) then
             call setECMessage("Unsupported converter for file '"//filename//"'.")
             return
@@ -522,12 +542,6 @@ module m_ec_module
             if (.not.ecConverterInitialize(instancePtr, converterId, convtype, operand, method)) return
          end if
          
-         !! Construct a new Connection, and connect source Items to the connection. The connection is returned.
-         !call realloc(itemIDs,fileReaderPtr%nItems)
-         !do i = 1, fileReaderPtr%nItems
-         !   itemIDs(i) = fileReaderPtr%items(i)%ptr%id  ! THIS IS WRONG
-         !enddo   
-         
  ! ============================== Setting up the TARGET side of the connection ===================================
          
          quantityId = ecCreateQuantity(instancePtr)
@@ -538,7 +552,7 @@ module m_ec_module
          if (filetype == provFile_poly_tim) then
             if (.not.ecSetElementSetType(instancePtr, elementSetId, elmSetType_polytim)) return
          else
-            if (.not.jsferic) then
+            if (jsferic) then
                if (.not.ecSetElementSetType(instancePtr, elementSetId, elmSetType_cartesian)) return
             else
                if (.not.ecSetElementSetType(instancePtr, elementSetId, elmSetType_spheric)) return
@@ -579,14 +593,9 @@ module m_ec_module
             if (.not.ecSetFieldMissingValue(instancePtr, fieldId, ec_undef_hp)) return
 
             if (itemIDs(itgt) == ec_undef_int) then                ! if Target Item already exists, do NOT create a new one ... 
-               itemIDs(itgt) = ecCreateItem(instancePtr)
                if (.not.ecSetItemRole(instancePtr, itemIDs(itgt), itemType_target)) return
                if (.not.ecSetItemQuantity(instancePtr, itemIDs(itgt), quantityId)) return
             end if
-            ! ... but we would like to use the newest targetFIELD for this item, since old targetFIELDs can refer to the 
-            ! wrong data location (Arr1DPtr). This happens in the case that the demand-side arrays are reallocated while 
-            ! building the targets! Same is done for the elementset, so we are sure to always connect the latest 
-            ! elementset to this target.
             if (.not.ecSetItemElementSet(instancePtr, itemIDs(itgt), elementSetId)) return
             if (.not.ecSetItemTargetField(instancePtr, itemIDs(itgt), fieldId)) return    
          enddo
@@ -600,33 +609,53 @@ module m_ec_module
          if (.not. ecSetConnectionConverter(instancePtr, connectionId, converterId)) return
 
          ! Connect the source items to the connector
-         do i=1,fileReaderPtr%nItems
-            if (.not.ecAddConnectionSourceItem(instancePtr, connectionId, fileReaderPtr%items(i)%ptr%id)) return
+         ! Loop over the given quantity names for the SOURCE side 
+         do isrc = 1, size(qnames)
+            sourceItemId = ecFindItemInFileReader(instancePtr, fileReaderId, trim(qnames(isrc)))
+            if (sourceItemId==ec_undef_int) then
+               return
+            endif
+            if (.not.ecAddConnectionSourceItem(instancePtr, connectionId, sourceItemId)) return
          enddo
 
          ! Connect the target items to the connector
+         ! Loop over the given item id list for the TARGET side 
          do i=1,size(itemIDs)
             if (.not.ecAddConnectionTargetItem(instancePtr, connectionId, itemIDs(i))) return
-            if (.not.ecAddItemConnection(instancePtr, itemIDs(i), connectionId)) return
+            if (.not.ecAddItemConnection(instancePtr, itemIDs(i), connectionId)) return 
          enddo
+
+         if (.not. ecSetConnectionIndexWeights(InstancePtr, connectionId)) return
+
          success = .True.
-                                            end function ecModuleAddTimeSpaceRelation
-                                            
-                                                                                           
+      end function ecModuleAddTimeSpaceRelation
+                                               
+                                               
    !> Replacement function for FM's meteo1 'gettimespacevalue' function.
-   function ec_gettimespacevalue_by_itemID(instancePtr, itemId, timesteps, target_array) result(success)
+   function ec_gettimespacevalue_by_itemID(instancePtr, itemId, tgt_refdate, tgt_tzone, tgt_tunit, timesteps, target_array) result(success)
+      use time_module
+      use time_class
       logical                                                 :: success      !< function status
       type(tEcInstance),                        pointer       :: instancePtr  !< intent(in)
       integer,                                  intent(in)    :: itemID       !< unique Item id
+      integer,                                  intent(in)    :: tgt_refdate
+      real(kind=hp),                            intent(in)    :: tgt_tzone
+      integer,                                  intent(in)    :: tgt_tunit
       real(hp),                                 intent(in)    :: timesteps    !< time
       real(hp), dimension(:), target, optional, intent(inout) :: target_array !< kernel's data array for the requested values
+
+      type(c_time)                                            :: ecReqTime    !< time stamp for request to EC
+      real(hp)                                                :: tUnitFactor  !< factor for time step unit
+
       if (itemId == ec_undef_int) then       ! We isolate the case that itemId was uninitialized,
          success = .true.                    ! in which case we simply ignore the Get-request
          return
       else
          success = .false.
          call clearECMessage()
-         if (.not. ecGetValues(instancePtr, itemId, timesteps, target_array)) then
+         tUnitFactor = ecSupportTimeUnitConversionFactor(tgt_tunit)
+         call ecReqTime%set2(JULIAN(tgt_refdate, 0), timesteps * tUnitFactor / 86400.0_hp - tgt_tzone / 24.0_hp)
+         if (.not. ecGetValues(instancePtr, itemId, ecReqTime, target_array)) then
             return
          end if
          success = .true.
@@ -648,13 +677,45 @@ module m_ec_module
       end function ecModuleConnectItem
 
       ! ==========================================================================
+      
+      !> Given the quantity names and the filereader ID, search for source items provided by the filereader with these quantity names and associate them with the connection.
+      function ecModuleConnectSrc(instancePtr, fileReaderId, connectionId, qnames) result (success)
+         implicit none
+         logical                                     :: success      !< function status
+         type(tEcInstance),               pointer    :: instancePtr  !< instance of the EC module
+         integer,                         intent(in) :: fileReaderId !< identifier of the filereader
+         integer,                         intent(in) :: connectionId !< identifier of the connection
+         character(len=*), dimension(:),  intent(in) :: qnames       !< list of quantity names 
+         integer :: sourceItemId
+         integer :: n, i, isrc
+         !
+         success = .False. 
+         do isrc = 1, size(qnames)
+            sourceItemId = ecFindItemInFileReader(instancePtr, fileReaderId, trim(qnames(i)))
+            if (sourceItemId==ec_undef_int) then
+               return
+            endif
+            if (.not.ecAddConnectionSourceItem(instancePtr, connectionId, sourceItemId)) return
+         enddo
+         success = .True. 
+      end function ecModuleConnectSrc      
+      
+      ! ==========================================================================
 
       !> Translate EC's 'filetype' to EC's 'convType' enum.
-      subroutine ec_filetype_to_conv_type(filetype, convtype)
-      integer, intent(in)  :: filetype
-      integer, intent(out) :: convtype
+      function ec_filetype_to_conv_type(filetype, quantity) result (convtype)
+      integer                          :: convtype !< converter type number (m_ec_parameters)
+      integer, intent(in)              :: filetype !< file type (m_ec_parameters)
+      character(len=*), intent(in)     :: quantity !< quantity name
       !
       select case (filetype)
+      case (provFile_bc)
+         select case (quantity)
+         case ('qhbnd')    
+            convtype = convType_qhtable
+         case default    
+            convtype = convType_uniform
+         end select
       case (provFile_uniform)
          convtype = convType_uniform
       case (provFile_fourier)
@@ -677,10 +738,13 @@ module m_ec_module
          convtype = convType_polytim
       case (provFile_netcdf)
          convtype = convType_netcdf
-         case default
+      case (provFile_qhtable)
+         convtype = convType_qhtable
+      case default
          convtype = convType_undefined
       end select
-      end subroutine ec_filetype_to_conv_type
-   
-   
+      end function ec_filetype_to_conv_type
+
+      ! ==========================================================================
+
 end module m_ec_module

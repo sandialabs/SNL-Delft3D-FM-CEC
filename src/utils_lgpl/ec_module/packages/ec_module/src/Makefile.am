@@ -49,9 +49,10 @@ endif
 libECModule_la_SOURCES = \
          transform_shiftedpole.f90 \
          ec_module_version.F90 \
-         ec_parameters.f90 \
+         ec_parameters.F90 \
          ec_typedefs.f90 \
          ec_message.f90 \
+         ec_alloc.f90 \
          ec_support.f90 \
          ec_netcdf_timeseries.f90 \
          ec_bcreader.f90 \
@@ -59,7 +60,9 @@ libECModule_la_SOURCES = \
          ec_quantity.f90 \
          ec_elementset.f90 \
          ec_spatial_extrapolation.f90 \
+         ec_basic_interpolation.f90 \
          ec_converter.f90 \
+         ec_astro.f90 \
          ec_filereader_read.F90 \
          ec_filereader.F90 \
          ec_item.f90 \
@@ -67,8 +70,7 @@ libECModule_la_SOURCES = \
          ec_instance.f90 \
          ec_provider.F90 \
          ec_bccollect.f90 \
-         ec_module.f90 \
-         ec_basic_interpolation.f90
+         ec_module.f90
 
 
 # Version number generation (only when in SVN source dir, not for tar.gz dist)

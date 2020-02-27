@@ -17,7 +17,7 @@ function stl(cmd,varargin)
 % License of main routine ...
 %----- LGPL --------------------------------------------------------------------
 %                                                                               
-%   Copyright (C) 2011-2018 Stichting Deltares.                                     
+%   Copyright (C) 2011-2020 Stichting Deltares.                                     
 %                                                                               
 %   This library is free software; you can redistribute it and/or                
 %   modify it under the terms of the GNU Lesser General Public                   
@@ -42,8 +42,8 @@ function stl(cmd,varargin)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/private/stl.m $
-%   $Id: stl.m 7992 2018-01-09 10:27:35Z mourits $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/private/stl.m $
+%   $Id: stl.m 65778 2020-01-14 14:07:42Z mourits $
 
 switch lower(cmd)
     case 'write'
@@ -116,7 +116,7 @@ function stlwrite(filename, varargin)
 %     fCols8bit = fColsDbl*255; % Pass cols in 8bit (0-255) RGB triplets
 %     stlwrite('testCol.stl',fv,'FaceColor',fCols8bit) 
 
-% Copyright (c) 2015-2018. Holcombe
+% Copyright (c) 2015-2020. Holcombe
 % All rights reserved.
 % 
 % Redistribution and use in source and binary forms, with or without

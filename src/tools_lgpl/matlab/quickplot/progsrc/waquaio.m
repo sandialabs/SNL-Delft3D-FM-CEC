@@ -67,9 +67,11 @@ function varargout=waquaio(sds,exper,field,varargin)
 %
 %   * flowstat-wl : water level station names
 %   * xy-wl       : water level station xy coordinates
+%   * mn-wl       : water level station mn coordinates
 %   * wlstat      : water level at station
 %   * flowstat-uv : current station names
 %   * xy-uv       : current station xy coordinates
+%   * mn-uv       : current station mn coordinates
 %   * uv-stat     : velocity at current station
 %                   (U,V components in X,Y direction)
 %   * uv0-stat    : velocity at current station
@@ -88,7 +90,7 @@ function varargout=waquaio(sds,exper,field,varargin)
 
 %----- LGPL --------------------------------------------------------------------
 %
-%   Copyright (C) 2011-2018 Stichting Deltares.
+%   Copyright (C) 2011-2020 Stichting Deltares.
 %
 %   This library is free software; you can redistribute it and/or
 %   modify it under the terms of the GNU Lesser General Public
@@ -113,8 +115,8 @@ function varargout=waquaio(sds,exper,field,varargin)
 %
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/tools_lgpl/matlab/quickplot/progsrc/waquaio.m $
-%   $Id: waquaio.m 62253 2018-10-04 20:24:53Z jagers $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/waquaio.m $
+%   $Id: waquaio.m 65778 2020-01-14 14:07:42Z mourits $
 
 if nargin<3
     error('Not enough input arguments.')
@@ -297,6 +299,7 @@ elseif ismember(field,{'transtat','trancrs-u','trancrs-v', ...
         'wlstat','wl-stat','u-stat','v-stat','uv-stat','w-stat', ...
         'mq-stat','cq-stat','z-stat','z-stati','z-statc', ...
         'z-sbstat','z-sbstati','z-sbstatc','wl-xy','uv-xy', ...
+        'wl-mn'   ,'uv-mn',                                 ...
         'q-barp','wl-lbarp','vel-lbarp','wl-hbarp','vel-hbarp', ...
         'vel-barp','hg-barp','enl-barp','sl-bar','gl-bar','wd-bar', ...
         'barriers','barrierpoints','mn-transtat','mn-trancrs-u', ...
@@ -436,6 +439,7 @@ switch field
             'wl-stat','u-stat','v-stat','uv-stat','w-stat','mq-stat', ...
             'cq-stat','z-stat','z-stati','z-statc','uv0-stat', ...
             'z-sbstat','z-sbstati','z-sbstatc','wl-xy','uv-xy', ...
+            'wl-mn'   ,'uv-mn'    ,                             ...
             'q-barp','wl-lbarp','vel-lbarp','wl-hbarp','vel-hbarp', ...
             'vel-barp','hg-barp','enl-barp','sl-bar','gl-bar','wd-bar', ...
             'barriers','barrierpoints'}
@@ -495,7 +499,7 @@ switch field
                 statmax=dim.nsluv;
             case 'barrierpoints'
                 statmax=nbaruv;
-            case {'wlstat','wl-stat','wl-xy','uv-xy'}
+            case {'wlstat','wl-stat','wl-xy','uv-xy','wl-mn','uv-mn'}
                 stoffset=0;
                 krange=1;
                 statmax=nowl;
@@ -624,15 +628,27 @@ switch field
                 [zgx,zgy]=waqua_get_spatial(sds,exper,'zgrid',dim,refdate,{});
                 mn = sub2ind(size(zgx),MN(:,2),MN(:,1));
                 varargout={zgx(mn) zgy(mn)};
+            case {'wl-mn','uv-mn'}
+                switch field
+                    case 'wl-mn'
+                        ARRAY='CHECKPOINTS_FLOW_IWLPT';
+                    case 'uv-mn'
+                        ARRAY='CHECKPOINTS_FLOW_ICURPT';
+                end
+                stationi=local_argin(argin);
+                MN=waqua('readsds',sds,exper,ARRAY);
+                MN=reshape(MN,[length(MN)/2 2]);
+                varargout = {MN}; 
             case {'wlstat','wl-stat','umag-stat','u-stat','v-stat', ...
                     'mq-stat','cq-stat','w-stat','z-stat','z-stati','z-statc', ...
                     'z-sbstat','z-sbstati','z-sbstatc','barrierdata'}
                 data=waqua('readsds',sds,exper,ARRAY,tstep);
                 switch field
                     case {'z-stat','z-statc','z-sbstat','z-sbstatc'}
-                        z = (data.Data(:,stoffset+(stationi-1)+krange(k)) + ...
-                            data.Data(:,stoffset+(stationi-1)+krange(k+1)))/2;
-                        varargout={z refdate+data.SimTime/1440};
+                        z_int = data.Data(:,stoffset+(stationi-1)+krange(:));
+                        z     = (data.Data(:,stoffset+(stationi-1)+krange(1:kmax)) + ...
+                            data.Data(:,stoffset+(stationi-1)+krange(2:kmax+1)))/2;
+                        varargout={z refdate+data.SimTime/1440 z_int};
                     otherwise
                         varargout={factor*data.Data(:,stoffset+(stationi-1)+krange(k)) refdate+data.SimTime/1440};
                 end
@@ -1202,7 +1218,7 @@ if ~waqua('exists',sds,exper,'MESH_IDIMEN')
                 [x,y]=qp_proj_rotatepole(x,y,lonsp,latsp,0);
             end
             varargout = {x y};
-        case {'wind','press'}
+        case {'wind','press','charnock'}
             [tstep,n,m]=local_argin(argin);
             nmfull = reshape(1:dim.mmax*dim.nmax,dim.mmax,dim.nmax)';
             nm = nmfull(n,m);
@@ -1228,6 +1244,11 @@ if ~waqua('exists',sds,exper,'MESH_IDIMEN')
                     varargout = {windu windv time};
                 case 'press'
                     press = waqua('readsds',sds,exper,'SOLUTION_PRESS',tstep,1:nmmax);
+                    time = refdate+press.SimTime/1440;
+                    press = press.Data(nm);
+                    varargout = {press time};
+                case 'charnock'
+                    press = waqua('readsds',sds,exper,'SOLUTION_CHARNOCK',tstep,1:nmmax);
                     time = refdate+press.SimTime/1440;
                     press = press.Data(nm);
                     varargout = {press time};

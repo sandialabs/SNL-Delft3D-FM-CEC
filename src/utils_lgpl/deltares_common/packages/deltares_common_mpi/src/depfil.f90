@@ -2,7 +2,7 @@ subroutine depfil(lundia    ,error     ,fildep    ,fmttmp    ,array     , &
                 & nfld      ,ifld      ,dims      )
 !----- LGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
+!  Copyright (C)  Stichting Deltares, 2011-2020.                                
 !                                                                               
 !  This library is free software; you can redistribute it and/or                
 !  modify it under the terms of the GNU Lesser General Public                   
@@ -26,8 +26,8 @@ subroutine depfil(lundia    ,error     ,fildep    ,fmttmp    ,array     , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: depfil.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/utils_lgpl/deltares_common/packages/deltares_common_mpi/src/depfil.f90 $
+!  $Id: depfil.f90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/deltares_common/packages/deltares_common_mpi/src/depfil.f90 $
 !!--description----------------------------------------------------------------- 
 ! 
 !    Function: Reads the depth values from the attribute file 

@@ -24,6 +24,10 @@ function print_usage_info {
     echo "       number of nodes, default 1"
     echo "-q, --queue <qname>"
     echo "       queue, default normal-e3"
+    echo "--rtc"
+    echo "       Online with RTC. Not possible with parallel Delft3D-FLOW."
+    echo "-w, --wavefile <wname>"
+    echo "       name of mdw file"
     exit 1
 }
 
@@ -42,6 +46,8 @@ JOBNAME=Delft3D4-FLOW
 numnode=1
 queue=normal-e3
 runscript_extraopts=
+wavefile=runwithoutwaveonlinebydefault
+withrtc=false
 
 
 ulimit -s unlimited
@@ -69,6 +75,14 @@ case $key in
     ;;
     -q|--queue)
     queue="$1"
+    shift
+    ;;
+    --rtc)
+    withrtc=true
+    shift
+    ;;
+    -w|--wavefile)
+    wavefile="$1"
     shift
     ;;
     -j|--jobname)
@@ -128,6 +142,12 @@ echo
 
 
 runscript_opts="-m ${configfile} -c $corespernode --NNODES $numnode --D3D_HOME ${D3D_HOME}"
+if [ "$wavefile" != "runwithoutwaveonlinebydefault" ]; then
+    runscript_opts="$runscript_opts -w ${wavefile}"
+fi
+if $withrtc ; then
+    runscript_opts="$runscript_opts --rtc"
+fi
 runscript_opts="$runscript_opts $runscript_extraopts"
     echo "qsub -q $queue -pe distrib ${numnode} -N ${JOBNAME} ${RUNSCRIPT} ${runscript_opts}"
           qsub -q $queue -pe distrib ${numnode} -N ${JOBNAME} ${RUNSCRIPT} ${runscript_opts}
