@@ -1,7 +1,7 @@
 module wrtarray
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
+!  Copyright (C)  Stichting Deltares, 2011-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -25,8 +25,8 @@ module wrtarray
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: wrtarray.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/engines_gpl/flow2d3d/packages/io/src/output/wrtarray.f90 $
+!  $Id: wrtarray.f90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/io/src/output/wrtarray.f90 $
 !!--description-----------------------------------------------------------------
 !
 ! Method used:
@@ -2067,9 +2067,13 @@ subroutine wrtarray_nmkl(fds, filename, filetype, grpnam, &
           call dfgather_seq(var, rbuff4gl, 1-gdp%d%nlb, 1-gdp%d%mlb, gdp%gdparall%nmaxgl, gdp%gdparall%mmaxgl)
        endif
     endif
-    call wrtvar(fds, filename, filetype, grpnam, &
-              & itime, gdp, ierr, lundia, rbuff4gl, varnam)
-    if (allocated(rbuff4gl)) deallocate(rbuff4gl)
+    if (allocated(rbuff4gl)) then
+        call wrtvar(fds, filename, filetype, grpnam, &
+                  & itime, gdp, ierr, lundia, rbuff4gl, varnam)
+        deallocate(rbuff4gl)
+    else
+        ierr = 0
+    endif
 end subroutine wrtarray_nmkl
 
 
@@ -2123,9 +2127,13 @@ subroutine wrtarray_nmll(fds, filename, filetype, grpnam, &
     else
        call dfgather_seq(var, rbuff4gl, 1-gdp%d%nlb, 1-gdp%d%mlb, gdp%gdparall%nmaxgl, gdp%gdparall%mmaxgl)
     endif   
-    call wrtvar(fds, filename, filetype, grpnam, &
-              & itime, gdp, ierr, lundia, rbuff4gl, varnam)
-    if (allocated(rbuff4gl)) deallocate(rbuff4gl)
+    if (allocated(rbuff4gl)) then
+        call wrtvar(fds, filename, filetype, grpnam, &
+                  & itime, gdp, ierr, lundia, rbuff4gl, varnam)
+        deallocate(rbuff4gl)
+    else
+        ierr = 0
+    endif
 end subroutine wrtarray_nmll
 
 
@@ -2269,9 +2277,13 @@ subroutine wrtarray_nmk(fds, filename, filetype, grpnam, &
           call dfgather_seq(var, rbuff3gl, 1-gdp%d%nlb, 1-gdp%d%mlb, gdp%gdparall%nmaxgl, gdp%gdparall%mmaxgl)
        endif   
     endif
-    call wrtvar(fds, filename, filetype, grpnam, &
-              & itime, gdp, ierr, lundia, rbuff3gl, varnam)
-    if (allocated(rbuff3gl)) deallocate(rbuff3gl)
+    if (allocated(rbuff3gl)) then
+        call wrtvar(fds, filename, filetype, grpnam, &
+                  & itime, gdp, ierr, lundia, rbuff3gl, varnam)
+        deallocate(rbuff3gl)
+    else
+        ierr = 0
+    endif
 end subroutine wrtarray_nmk
 
 
@@ -2419,9 +2431,13 @@ subroutine wrtarray_nml(fds, filename, filetype, grpnam, &
     else
        call dfgather_seq(var, rbuff3gl, 1-gdp%d%nlb, 1-gdp%d%mlb, gdp%gdparall%nmaxgl, gdp%gdparall%mmaxgl)
     endif   
-    call wrtvar(fds, filename, filetype, grpnam, &
-              & itime, gdp, ierr, lundia, rbuff3gl, varnam)
-    if (allocated(rbuff3gl)) deallocate(rbuff3gl)
+    if (allocated(rbuff3gl)) then
+        call wrtvar(fds, filename, filetype, grpnam, &
+                  & itime, gdp, ierr, lundia, rbuff3gl, varnam)
+        deallocate(rbuff3gl)
+    else
+        ierr = 0
+    endif
 end subroutine wrtarray_nml
 
                     
@@ -2692,9 +2708,13 @@ subroutine wrtarray_nm_sp(fds, filename, filetype, grpnam, &
     else
        call dfgather_seq(var, rbuff2gl, 1-gdp%d%nlb, 1-gdp%d%mlb, gdp%gdparall%nmaxgl, gdp%gdparall%mmaxgl)
     endif       
-    call wrtvar(fds, filename, filetype, grpnam, &
-              & itime, gdp, ierr, lundia, rbuff2gl, varnam)
-    if (allocated(rbuff2gl)) deallocate(rbuff2gl)
+    if (allocated(rbuff2gl)) then
+        call wrtvar(fds, filename, filetype, grpnam, &
+                  & itime, gdp, ierr, lundia, rbuff2gl, varnam)
+        deallocate(rbuff2gl)
+    else
+        ierr = 0
+    endif
 end subroutine wrtarray_nm_sp
 
                    
@@ -2743,9 +2763,13 @@ subroutine wrtarray_nm_hp(fds, filename, filetype, grpnam, &
     else
        call dfgather_seq(var, rbuff2gl, 1-gdp%d%nlb, 1-gdp%d%mlb, gdp%gdparall%nmaxgl, gdp%gdparall%mmaxgl)
     endif
-    call wrtvar(fds, filename, filetype, grpnam, &
-              & itime, gdp, ierr, lundia, rbuff2gl, varnam)
-    if (allocated(rbuff2gl)) deallocate(rbuff2gl)
+    if (allocated(rbuff2gl)) then
+        call wrtvar(fds, filename, filetype, grpnam, &
+                  & itime, gdp, ierr, lundia, rbuff2gl, varnam)
+        deallocate(rbuff2gl)
+    else
+        ierr = 0
+    endif
 end subroutine wrtarray_nm_hp
 
                    
@@ -2794,9 +2818,13 @@ subroutine wrtarray_nm_int(fds, filename, filetype, grpnam, &
     else
        call dfgather_seq(var, ibuff2gl, 1-gdp%d%nlb, 1-gdp%d%mlb, gdp%gdparall%nmaxgl, gdp%gdparall%mmaxgl)
     endif
-    call wrtvar(fds, filename, filetype, grpnam, &
-              & itime, gdp, ierr, lundia, ibuff2gl, varnam)
-    if (allocated(ibuff2gl)) deallocate(ibuff2gl)
+    if (allocated(ibuff2gl)) then
+        call wrtvar(fds, filename, filetype, grpnam, &
+                  & itime, gdp, ierr, lundia, ibuff2gl, varnam)
+        deallocate(ibuff2gl)
+    else
+        ierr = 0
+    endif
 end subroutine wrtarray_nm_int
 
 end module wrtarray

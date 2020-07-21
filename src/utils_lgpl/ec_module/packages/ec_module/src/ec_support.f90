@@ -1,34 +1,35 @@
 !----- LGPL --------------------------------------------------------------------
-!                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
-!                                                                               
-!  This library is free software; you can redistribute it and/or                
-!  modify it under the terms of the GNU Lesser General Public                   
-!  License as published by the Free Software Foundation version 2.1.            
-!                                                                               
-!  This library is distributed in the hope that it will be useful,              
-!  but WITHOUT ANY WARRANTY; without even the implied warranty of               
-!  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU            
-!  Lesser General Public License for more details.                              
-!                                                                               
-!  You should have received a copy of the GNU Lesser General Public             
-!  License along with this library; if not, see <http://www.gnu.org/licenses/>. 
-!                                                                               
-!  contact: delft3d.support@deltares.nl                                         
-!  Stichting Deltares                                                           
-!  P.O. Box 177                                                                 
-!  2600 MH Delft, The Netherlands                                               
-!                                                                               
-!  All indications and logos of, and references to, "Delft3D" and "Deltares"    
-!  are registered trademarks of Stichting Deltares, and remain the property of  
-!  Stichting Deltares. All rights reserved.                                     
+!
+!  Copyright (C)  Stichting Deltares, 2011-2020.
+!
+!  This library is free software; you can redistribute it and/or
+!  modify it under the terms of the GNU Lesser General Public
+!  License as published by the Free Software Foundation version 2.1.
+!
+!  This library is distributed in the hope that it will be useful,
+!  but WITHOUT ANY WARRANTY; without even the implied warranty of
+!  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+!  Lesser General Public License for more details.
+!
+!  You should have received a copy of the GNU Lesser General Public
+!  License along with this library; if not, see <http://www.gnu.org/licenses/>.
+!
+!  contact: delft3d.support@deltares.nl
+!  Stichting Deltares
+!  P.O. Box 177
+!  2600 MH Delft, The Netherlands
+!
+!  All indications and logos of, and references to, "Delft3D" and "Deltares"
+!  are registered trademarks of Stichting Deltares, and remain the property of
+!  Stichting Deltares. All rights reserved.
 
-!  $Id: ec_support.f90 8071 2018-01-30 12:53:12Z spee $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_lgpl/ec_module/packages/ec_module/src/ec_support.f90 $
+!  $Id: ec_support.f90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/ec_module/packages/ec_module/src/ec_support.f90 $
 
 !> This module contains support methods for the EC-module.
 !! @author adri.mourits@deltares.nl
-!! @author edwin.bos@deltares.nl
+!! @author robert.leander@deltares.nl
+!! @author edwin.spee@deltares.nl
 module m_ec_support
    use m_ec_message
    use m_ec_typedefs
@@ -38,9 +39,9 @@ module m_ec_support
    use time_module
 
    implicit none
-   
+
    private
-   
+
    public :: ecTimeFrameRealHpTimestepsToModifiedJulianDate
    public :: ecTimeFrameRealHpTimestepsToDateTime
    public :: ecGetTimesteps
@@ -60,22 +61,29 @@ module m_ec_support
    public :: ecSupportFindBCBlock
    public :: ecSupportFindNetCDF
    public :: ecSupportFindNetCDFByFilename
+   public :: ecSupportFindBCFileByFilename
    public :: ecSupportNetcdfCheckError
    public :: ecSupportNCFindCFCoordinates
    public :: ecSupportTimestringToUnitAndRefdate
    public :: ecSupportTimeUnitConversionFactor
-   public :: ecSupportTimeToTimesteps
-   public :: ecSupportThisTimeToTimesteps
+   public :: ecSupportThisTimeToMJD
+   public :: ecSupportMJDToThisTime
+   public :: ecSupportMJDToTimeIndex
+   public :: ecSupportTimeIndexToMJD
    public :: ecSupportFindRelatedBCBlock
-   
+
    interface ecTimeFrameRealHpTimestepsToModifiedJulianDate
       module procedure ecTimeFrameRealHpTimestepsToModifiedJulianDate
    end interface ecTimeFrameRealHpTimestepsToModifiedJulianDate
-   
+
+   interface ecNFC
+      module procedure ecSupportNetcdfCheckError
+   end interface ecNFC
+
    contains
-      
+
       ! ==========================================================================
-      
+
       !> Calculate a Julian Date from the number of timesteps in seconds since reference_date.
       function ecTimeFrameRealHpTimestepsToModifiedJulianDate(timeFramePtr, steps, mjd) result(success)
          logical                                 :: success      !< function status
@@ -86,85 +94,102 @@ module m_ec_support
          success = .true.
          !
          mjd = timeFramePtr%k_refdate + (steps / 60.0_hp / 60.0_hp / 24.0_hp)
-         
+
       end function ecTimeFrameRealHpTimestepsToModifiedJulianDate
-      
+
       ! =======================================================================
-      
+
       !> Calculate a Gregorian date and hour-minutes-seconds integer since reference date
-      function ecTimeFrameRealHpTimestepsToDateTime(timeFramePtr, steps, yyyymmdd, hhmmss) result(success)
-         logical                                 :: success      !< function status
-         type(tEcTimeFrame), pointer             :: timeFramePtr !< intent(inout)
-         real(hp),                   intent(in)  :: steps        !< number of time steps
-         integer,                    intent(out) :: yyyymmdd     !< calculated Gregorian date
-         integer,                    intent(out) :: hhmmss     !< time of the day
-         real(hp)                                :: jd           !< julian date helper variable
-         real(hp)                                :: spd          !< seconds per day helper variable
-         real(hp)                                :: ssm          !< seconds since midnight helper variable
-         integer                                 :: hh, mm, ss   !< hours, minutes, seconds helper variables
-         !
+      function ecTimeFrameRealHpTimestepsToDateTime(timestamp_mjd, yyyymmdd, hhmmss) result(success)
+      use mathconsts, only : daysec_hp
+         logical                                 :: success             !< function status
+         real(hp),                   intent(in)  :: timestamp_mjd       !< number of time steps
+         integer,                    intent(out) :: yyyymmdd            !< calculated Gregorian date
+         integer,                    intent(out) :: hhmmss              !< time of the day
+         real(hp)                                :: dsec                !< fraction of seconds
+         integer                                 :: hh, mm, ss          !< hours, minutes, seconds helper variables
+         integer                                 :: iyear, imonth, iday !< year, month and day
+
+         !! TODO very ugly to add offset_reduced_jd here
+         call gregor(timestamp_mjd + offset_reduced_jd, iyear, imonth, iday, hh, mm, ss, dsec)
+
+         yyyymmdd = 10000 * iyear + 100 * imonth + iday
+         hhmmss = 10000 * hh + 100 * mm + ss
+
          success = .true.
-         !
-         spd = 60.0_hp * 60.0_hp * 24.0_hp
-!        jd = timeFramePtr%k_refdate + (steps / spd) + 2400001.0_hp  ! From Modified Jul day 
-         jd = timeFramePtr%k_refdate + (steps / spd) + 2400000.5_hp  ! From Reduced Jul day
-         call jul2ymd(int(jd), yyyymmdd)
-         ssm = mod(steps, spd)
-         hh = int(ssm) / 3600
-         mm = int(ssm) / 60 - hh * 60
-         ss = int(ssm) - hh * 3600 - mm * 60
-         hhmmss = hh*10000 + mm*100 + ss
-         
+
       end function ecTimeFrameRealHpTimestepsToDateTime
-      
+
       ! =======================================================================
-      
+
       !> Read and convert the timesteps to seconds.
       !! Takes a string of format: TIME = 0 hours since 2006-01-01 00:00:00 +00:00
-      !! or /* TIME (HRS)      6.0 20000101 6
+      !! or ... TIME (HRS)      6.0 20000101 6
       function ecGetTimesteps(rec, time_steps, convert) result(success)
-         logical                                :: success    !< function status
-         character(len=maxNameLen), intent(in)  :: rec        !< time information string
-         real(hp),                  intent(out) :: time_steps !< timesteps in seconds
-         logical, optional,         intent(in)  :: convert    !< convert to seconds or leave unconverted
+         logical                           :: success    !< function status
+         character(len=*),   intent(in)    :: rec        !< time information string
+         real(kind=hp),      intent(out)   :: time_steps !< timesteps in seconds
+         logical, optional,  intent(in)    :: convert    !< convert to mjd or leave unconverted
 
-         integer :: posSince !< position in string of 'since'
+         integer                       :: unit
+         real(kind=hp)                 :: ref_date, tzone, time_in
+         integer                       :: i, posTimeUnit !< position in string of 'since'
+         character(len=:), allocatable :: time_string
+         character(len=*), parameter   :: time_units(4) = ['seconds', 'minutes', 'hours  ', 'days   ']
          !
          success = .false.
          !
-         if (len(trim(rec)) == 0) then
-            call setECMessage("ERROR: ec_provider::ecGetTimesteps: Input string is empty.")
+         if (len_trim(rec) == 0) then
+            call setECMessage("ec_support::ecGetTimesteps: Input string is empty.")
             return
          end if
-         posSince = index(rec, 'since')
-         if (posSince > 0) then
-            read(rec(index(rec, '=')+1 : posSince-1), *) time_steps
-         else if ( .not. ecSupportTimestringArcInfo(rec, time_steps=time_steps)) then
-            call setECMessage("ERROR: ec_provider::ecGetTimesteps: can not find time step in: " // trim(rec) // ".")
+
+         time_string = trim(rec)
+         call str_lower(time_string)
+
+         do i = 1, size(time_units)
+            posTimeUnit = index(time_string, trim(time_units(i)))
+            if (posTimeUnit > 0) exit
+         end do
+
+         if (posTimeUnit > 0) then
+            if (.not.ecSupportTimestringToUnitAndRefdate(time_string(posTimeUnit:), unit, ref_date, tzone=tzone)) then
+               call setECMessage("ec_support::ecGetTimesteps: can not convert time unit string: " // time_string // ".")
+            endif
+         endif
+
+         if (posTimeUnit > 0) then
+            read(time_string(index(time_string, '=')+1 : posTimeUnit-1), *) time_in
+         else if ( .not. ecSupportTimestringArcInfo(time_string, time_steps=time_in)) then
+            call setECMessage("ec_support::ecGetTimesteps: can not find time step in: " // time_string // ".")
             return
          endif
-         call str_lower(rec)
+
          if (present(convert)) then
             if (.not. convert) then
+                time_steps = time_in
                 success = .true.
                 return
             end if
          end if
-         if (index(rec, 'seconds') /= 0) then
-            continue
-         else if (index(rec, 'minutes') /= 0) then
-            time_steps = time_steps * 60.0_hp
-         else if (index(rec, 'hours') /= 0 .or. index( rec, 'hrs') /= 0) then
-            time_steps = time_steps * 60.0_hp * 60.0_hp
-         else
-            call setECMessage("ERROR: ec_provider::ecGetTimesteps: Unable to identify the time unit.")
-            return
-         end if
+         select case (unit)
+             case (ec_second)
+                time_steps = ref_date + tzone / 24.0_hp + time_in / 86400.0_hp
+             case (ec_minute)
+                time_steps = ref_date + tzone / 24.0_hp + time_in / 1440.0_hp
+             case (ec_hour)
+                time_steps = ref_date + tzone / 24.0_hp + time_in / 24.0_hp
+             case (ec_day)
+                time_steps = ref_date + tzone / 24.0_hp + time_in
+             case default
+                call setECMessage("ec_support::ecGetTimesteps: Unable to identify the time unit.")
+                return
+         end select
          success = .true.
       end function ecGetTimesteps
-      
+
       ! ==========================================================================
-      
+
       !> Attempt to open an file for reading that might already have been opened under another handle.
       !> Workaround for GNU Fortran (which normally does not support multiple file openings of the same file)
       function ecSupportOpenExistingFileGnu(minp, filename) result(success)
@@ -177,91 +202,78 @@ module m_ec_support
          success = .false.
 
          minp = mf_open(filename)
-         if (minp<=0) then 
-            call setECMessage("ERROR: ec_support::ecSupportOpenExistingFileGnu: Opening "//trim(filename)//" failed.")
+         if (minp<=0) then
+            call setECMessage("ec_support::ecSupportOpenExistingFileGnu: Opening "//trim(filename)//" failed.")
             return
-         endif 
+         endif
          success = .true.
       end function ecSupportOpenExistingFileGnu
 
       ! ==========================================================================
-      
+
       !> Attempt to open an existing file.
       function ecSupportOpenExistingFile(minp, filename) result(success)
          use netcdf
          !
          logical                         :: success  !< function status
-         integer,          intent(inout) :: minp     !< IO unit number
+         integer,          intent(out)   :: minp     !< IO unit number
          character(len=*), intent(in)    :: filename !< relative path
          !
-         integer :: ierror   !< netcdf helper variable
-         integer :: i        !< loop counter
-         logical :: unitused !< IO unit number already in use
-         integer :: istat    !< status of file open operation
+         integer :: ierror         !< netcdf helper variable
+         logical :: unitused       !< IO unit number already in use
+         integer :: istat          !< status of file open operation
+         integer :: chunkSizeHint  !< chunk size for NetCDF
          !
          success = .false.
          unitused = .false.
          ! Sanity checks.
          if (len_trim(filename) == 0) then
-            call setECMessage("ERROR: ec_support::ecSupportOpenExistingFile: Name is empty")
+            call setECMessage("ec_support::ecSupportOpenExistingFile: Name is empty")
             return
          endif
          inquire(file = trim(filename), exist = success)
          if (.not. success) then
-            call setECMessage("ERROR: ec_support::ecSupportOpenExistingFile: File does not exist: ", trim(filename))
+            call setECMessage("ec_support::ecSupportOpenExistingFile: File does not exist: ", trim(filename))
             return
          endif
          ! Special case: NetCDF.
          if (index(filename, '.nc') > 0) then
-            ierror = nf90_open(filename, NF90_NOWRITE, minp)
-            if (ecSupportNetcdfCheckError(ierror, "opening file", filename)) then
-               success = .true.
-            else
-               success = .false.
-            end if
+            chunkSizeHint = 4096   ! maximum allowed value
+            ierror = nf90_open(trim(filename), NF90_NOWRITE, minp, chunkSizeHint)
+            success = ecSupportNetcdfCheckError(ierror, "opening file", filename)
             return
          endif
          ! Locate an unused file unit.
-         do i = 10, maxFileUnits
-            inquire (unit = i, opened = unitused) 
-            if (.not. unitused) exit
-         enddo
-         if (unitused) then
-            call setECMessage("ERROR: ec_support::ecSupportOpenExistingFile: No free unit number available")
-            success = .false.
-            return
-         endif
-         minp = i
-         ! Open the data file.
-         open(minp, file = trim(filename), action = 'READ', iostat = istat)
+         open(newunit=minp,file=trim(filename),iostat=istat)
          if (istat == 0) then
             success = .true.
          else
-            call setECMessage("ERROR: ec_support::ecSupportOpenExistingFile: opening file " // trim(filename) // " failed")
+            minp = ec_undef_int
+            call setECMessage("ec_support::ecSupportOpenExistingFile: opening file " // trim(filename) // " failed")
          endif
       end function ecSupportOpenExistingFile
-   
+
       ! ==========================================================================
-   
+
       !> Add an integer to a set of integers.
       function ecSupportAddUniqueInt(intArr, anInt) result(success)
-         logical                        :: success !< function status
+         logical                        :: success!< function status
          integer, dimension(:), pointer :: intArr !< array containing unique integers (a set)
          integer, intent(in)            :: anInt  !< integer to be added to the set of integers
-   
+
          integer                        :: i         !< loop counter
          integer                        :: istat     !< deallocate() status
          integer                        :: lenArr    !< lenght of intArr
          integer, dimension(:), pointer :: newIntArr !< larger version of intArr
-      
+
          success = .false.
          newIntArr => null()
          i = 0
          istat = 1
          lenArr = 0
-      
+
          if (.not. associated(intArr)) then
-            call setECMessage("ERROR: ec_support::ecSupportAddUniqueInt: Dummy argument pointer intArr is not associated.")
+            call setECMessage("ec_support::ecSupportAddUniqueInt: Dummy argument pointer intArr is not associated.")
          else
             lenArr = size(intArr)
             do i=1, lenArr
@@ -274,7 +286,7 @@ module m_ec_support
             ! This integer is not yet in intArr, so add it.
             allocate(newIntArr(lenArr+1), STAT = istat)
             if (istat /= 0 ) then
-               call setECMessage("ERROR: ec_support::ecSupportAddUniqueInt: Unable to allocate additional memory.")
+               call setECMessage("ec_support::ecSupportAddUniqueInt: Unable to allocate additional memory.")
             else
                do i=1, lenArr
                   newIntArr(i) = intArr(i) ! Copy existing integers.
@@ -289,9 +301,9 @@ module m_ec_support
             end if
          endif
       end function ecSupportAddUniqueInt
-   
+
       ! ==========================================================================
-   
+
       !> Add a char to a set of chars.
       function ecSupportAddUniqueChar(charArr, aChar) result(success)
          logical                                             :: success !< function status
@@ -314,11 +326,11 @@ module m_ec_support
          !   if (istat == 0) then
          !      charArr(1) = aChar
          !   else
-         !      call setECMessage("ERROR: ec_support::ecSupportAddUniqueChar: Unable to allocate additional memory.")
+         !      call setECMessage("ec_support::ecSupportAddUniqueChar: Unable to allocate additional memory.")
          !   end if
          !   return
          !end if
-         !! 
+         !!
          !lenArr = size(charArr)
          !do i=1, lenArr
          !   if (charArr(i) == aChar) then
@@ -333,14 +345,14 @@ module m_ec_support
          !   charArr(lenArr+1) = aChar
          !   success = .true.
          !else
-         !   call setECMessage("ERROR: ec_support::ecSupportAddUniqueChar: Unable to allocate additional memory.")
+         !   call setECMessage("ec_support::ecSupportAddUniqueChar: Unable to allocate additional memory.")
          !end if
       end function ecSupportAddUniqueChar
-      
+
       ! =======================================================================
       ! Find methods
       ! =======================================================================
-      
+
       !> Retrieve the pointer to the Quantity with id == quantityId.
       function ecSupportFindQuantity(instancePtr, quantityId) result(quantityPtr)
          type(tEcQuantity), pointer            :: quantityPtr !< Quantity corresponding to quantityId
@@ -358,16 +370,16 @@ module m_ec_support
                end if
             end do
          else
-            call setECMessage("ERROR: ec_support::ecSupportFindQuantity: Dummy argument instancePtr is not associated.")
+            call setECMessage("ec_support::ecSupportFindQuantity: Dummy argument instancePtr is not associated.")
          end if
       end function ecSupportFindQuantity
-      
+
       ! =======================================================================
-      !> Retrieve the pointer to a NetCDF object by filename 
-      function ecSupportFindNetCDFByFilename(instancePtr, ncname) result(netCDFPtr)
+      !> Retrieve the pointer to a NetCDF object by filename
+      function ecSupportFindNetCDFByFilename(instancePtr, ncfilename) result(netCDFPtr)
          type(tEcNetCDF), pointer            :: netCDFPtr   !< Quantity corresponding to quantityId
          type(tEcInstance), pointer          :: instancePtr !< intent(in)
-         character(len=*),  intent(in)       :: ncname      !< netCDF filename 
+         character(len=*),  intent(in)       :: ncfilename  !< netCDF filename
          !
          integer :: i !< loop counter
          !
@@ -375,7 +387,7 @@ module m_ec_support
          !
          if (associated(instancePtr)) then
             do i=1, instancePtr%nNetCDFs
-               if (instancePtr%ecNetCDFsPtr(i)%ptr%ncname == ncname) then
+               if (instancePtr%ecNetCDFsPtr(i)%ptr%ncfilename == ncfilename) then
                   netCDFPtr => instancePtr%ecNetCDFsPtr(i)%ptr
                end if
             end do
@@ -383,7 +395,26 @@ module m_ec_support
       end function ecSupportFindNetCDFByFilename
 
       ! =======================================================================
-      
+      !> Retrieve the pointer to a BC-File object by filename
+      function ecSupportFindBCFileByFilename(instancePtr, bcfilename) result(BCFilePtr)
+         type(tEcBCFile), pointer            :: BCFilePtr   !< Quantity corresponding to quantityId
+         type(tEcInstance), pointer          :: instancePtr !< intent(in)
+         character(len=*),  intent(in)       :: bcfilename  !< BC filename
+         !
+         integer :: i !< loop counter
+         !
+         BCFilePtr => null()
+         !
+         if (associated(instancePtr)) then
+            do i=1, instancePtr%nBCFiles
+               if (instancePtr%ecBCFilesPtr(i)%ptr%bcfilename == bcfilename) then
+                  BCFilePtr => instancePtr%ecBCFilesPtr(i)%ptr
+               end if
+            end do
+         end if
+      end function ecSupportFindBCFileByFilename
+      ! =======================================================================
+
       !> Retrieve the pointer to the ElementSet with id == elementSetId.
       function ecSupportFindElementSet(instancePtr, elementSetId) result(elementSetPtr)
          type(tEcElementSet), pointer            :: elementSetPtr !< ElementSet corresponding to elementSetId
@@ -401,12 +432,12 @@ module m_ec_support
                end if
             end do
          else
-            call setECMessage("ERROR: ec_support::ecSupportFindElementSet: Dummy argument instancePtr is not associated.")
+            call setECMessage("ec_support::ecSupportFindElementSet: Dummy argument instancePtr is not associated.")
          end if
       end function ecSupportFindElementSet
-      
+
       ! =======================================================================
-      
+
       !> Retrieve the pointer to the Field with id == fieldId.
       function ecSupportFindField(instancePtr, fieldId) result(fieldPtr)
          type(tEcField),    pointer            :: fieldPtr    !< Field corresponding to fieldId
@@ -424,40 +455,40 @@ module m_ec_support
                end if
             end do
          else
-            call setECMessage("ERROR: ec_support::ecSupportFindField: Dummy argument instancePtr is not associated.")
+            call setECMessage("ec_support::ecSupportFindField: Dummy argument instancePtr is not associated.")
          end if
       end function ecSupportFindField
 
 subroutine ecInstanceListSourceItems(instancePtr,dev)
          implicit none
          ! List source items by quantity and location
-         type(tEcInstance), pointer :: instancePtr           !< EC instance 
-         integer, intent(in)        :: dev 
+         type(tEcInstance), pointer :: instancePtr           !< EC instance
+         integer, intent(in)        :: dev
          type(tEcItem), pointer     :: sourceItemPtr
-         integer  :: ii 
-         do ii=1, instancePtr%nItems 
+         integer  :: ii
+         do ii=1, instancePtr%nItems
             sourceItemPtr => instancePtr%ecItemsPtr(ii)%ptr
             if (sourceItemPtr%role == itemType_source) then
                      write(dev,'(a,i5.5)') 'Source Item ',sourceItemPtr%id
                      write(dev,'(a)')      '  Quantity = '//trim(sourceItemPtr%quantityPtr%name)
                      write(dev,'(a)')      '  Location = '//trim(sourceItemPtr%elementsetPtr%name)
                      write(dev,*) ''
-            endif 
+            endif
          enddo
 end subroutine ecInstanceListSourceItems
-      
+
       !! =======================================================================
       !!> Retrieve the item ID given a quantitystring and locationstring
-      !!> Loop over all items in the EC instance qualified as 'source' 
+      !!> Loop over all items in the EC instance qualified as 'source'
       !function ecSupportFindItemByQuantityLocation(instancePtr, quantityname, locationname ) result(itemID)
       !   type(tEcInstance), pointer            :: instancePtr    !< EC-instance
-      !   character(len=*), intent(in)         :: quantityname   !< Desired quantity  
-      !   character(len=*), intent(in)         :: locationname   !< Desired location 
+      !   character(len=*), intent(in)         :: quantityname   !< Desired quantity
+      !   character(len=*), intent(in)         :: locationname   !< Desired location
       !   integer                               :: itemID         !< returned item ID
-      !   integer :: i                                            !< loop counter over items 
+      !   integer :: i                                            !< loop counter over items
       !   type (tEcItem), pointer               :: itemPtr
-      !   
-      !   itemID = -1 
+      !
+      !   itemID = -1
       !   if (associated(instancePtr)) then
       !      do i=1, instancePtr%nItems
       !         itemPtr => instancePtr%ecItemsPtr(i)%ptr
@@ -468,39 +499,39 @@ end subroutine ecInstanceListSourceItems
       !            end if
       !         end if
       !      end do
-      !   end if 
+      !   end if
       !end function ecSupportFindItemByQuantityLocation
 
       ! =======================================================================
       !> Retrieve the item ID given a quantitystring and locationstring
       !> Use the fact that each filereader is associated with ONE location, but possibly MULTIPLE quantities
-      !> i.e., select filereader first and check its items. 
+      !> i.e., select filereader first and check its items.
       function ecSupportFindItemByQuantityLocation(instancePtr, locationname, quantityname, isLateral) result(itemID)
          type(tEcInstance), pointer             :: instancePtr    !< EC-instance
-         character(len=*), intent(in)           :: quantityname   !< Desired quantity  
-         character(len=*), intent(in)           :: locationname   !< Desired location 
+         character(len=*), intent(in)           :: quantityname   !< Desired quantity
+         character(len=*), intent(in)           :: locationname   !< Desired location
          logical         , intent(in), optional :: isLateral      !< searching for lateral discharge?
          integer                                :: itemID         !< returned item ID
-         integer                                :: i, j           !< loop counter over filereader, items 
+         integer                                :: i, j           !< loop counter over filereader, items
          logical                                :: found          !< item found?
          type (tEcItem), pointer                :: itemPtr
          type (tEcFileReader), pointer          :: fileReaderPtr
          character(len=:), allocatable          :: quantity_requested, location_requested
          character(len=:), allocatable          :: quantity_supplied, location_supplied
 !        character(len=maxNameLen)         :: quantityname_upper, locationname_upper
-         
+
 
          quantity_requested = trim(quantityname)
          call str_upper(quantity_requested)
          location_requested = trim(locationname)
          call str_upper(location_requested)
-         itemID = -1 
+         itemID = -1
          if (associated(instancePtr)) then
            frs:do i=1, instancePtr%nFileReaders
                fileReaderPtr => instancePtr%ecFileReadersPtr(i)%ptr
-               if (fileReaderPtr%nItems<=0) cycle                                               ! No items to check 
+               if (fileReaderPtr%nItems<=0) cycle                                               ! No items to check
                location_supplied = fileReaderPtr%items(1)%ptr%elementSetPtr%name
-               if (location_supplied/=location_requested) cycle     ! Items have the wrong location 
+               if (location_supplied/=location_requested) cycle     ! Items have the wrong location
                do j=1, fileReaderPtr%nItems
                   itemPtr => fileReaderPtr%items(j)%ptr
                   quantity_supplied = itemPtr%quantityPtr%name
@@ -520,9 +551,9 @@ end subroutine ecInstanceListSourceItems
                         exit frs
                      endif
                   end if
-               end do 
+               end do
             end do frs
-         end if 
+         end if
       end function ecSupportFindItemByQuantityLocation
       ! =======================================================================
 
@@ -530,7 +561,7 @@ end subroutine ecInstanceListSourceItems
       !    use m_ec_item
       !    use m_ec_converter,  only: ecConverterSetType, ecConverterSetInterpolation, ecConverterSetOperand, ecConverterSetElement
       !    use m_ec_instance,   only: ecInstanceCreateConverter, ecInstanceCreateConnection, ecInstanceCreateItem, ecInstanceCreateField, ecInstanceCreateQuantity
-      !    use m_ec_connection, only: ecConnectionAddTargetItem, ecConnectionAddSourceItem, ecConnectionSetConverter 
+      !    use m_ec_connection, only: ecConnectionAddTargetItem, ecConnectionAddSourceItem, ecConnectionSetConverter
       !    use m_ec_quantity,   only: ecQuantitySetName
       !    use m_ec_field,      only: ecFieldCreate1dArray
       !    use m_ec_item
@@ -540,30 +571,30 @@ end subroutine ecInstanceListSourceItems
       !    integer, intent(in)           :: sourceItemId   !< Source item id, before temporal interpolation
       !    integer, intent(in), optional :: tgtNdx         !< Optional target index, 1 is assumed as default
       !    integer                       :: targetItemId   !< Target item id, after temporal interpolation
-      !    integer                       :: itemId         !< returned  target item ID, if successful, otherwise -1 
-      !    integer                       :: convertId 
-      !    type(tECItem), pointer        :: sourceItemPtr => null() 
+      !    integer                       :: itemId         !< returned  target item ID, if successful, otherwise -1
+      !    integer                       :: convertId
+      !    type(tECItem), pointer        :: sourceItemPtr => null()
       !    type(tECItem), pointer        :: targetItemPtr => null()
       !    character(len=:), allocatable :: quantityName
       !    integer                       :: arraySize
       !
-      !    integer :: targetIndex 
+      !    integer :: targetIndex
       !    integer :: converterId, connectionId, quantityId, elementSetId, fieldId
-      !    
-      !    if (present(tgtNdx)) then 
+      !
+      !    if (present(tgtNdx)) then
       !       targetIndex = tgtNdx
       !    else
       !       targetIndex = 1
-      !    end if 
+      !    end if
       !
       !    sourceItemPtr => ecSupportFindItem(instancePtr, sourceItemId)
       !
       !    ! TODO: create target item:
       !    !       . elementset-name = source_item's elementset-name
       !    !       . quantity-name = source_item's quantity-name + '-interpolated'
-      !    itemId = -1 
+      !    itemId = -1
       !
-      !    ! Set up the target item 
+      !    ! Set up the target item
       !    targetItemId = ecInstanceCreateItem(instancePtr)
       !    fieldId = ecInstanceCreateField(instancePtr)
       !
@@ -572,7 +603,7 @@ end subroutine ecInstanceListSourceItems
       !
       !    if (.not. ecItemSetRole(instancePtr, targetItemId, itemType_target)) return
       !    if (.not. ecItemSetTargetField(instancePtr, targetItemId, fieldId)) return
-      !    if (.not. ecItemSetType(instancePtr, targetItemId, accessType_evaluate)) return 
+      !    if (.not. ecItemSetType(instancePtr, targetItemId, accessType_evaluate)) return
       !    quantityId = ecInstanceCreateQuantity(instancePtr)
       !    quantityName = trim(sourceItemPtr%quantityPtr%name)
       !    if (.not. ecItemSetQuantity(instancePtr, targetItemId, quantityId)) return
@@ -601,7 +632,7 @@ end subroutine ecInstanceListSourceItems
       !end function ecSupportCreateTimeInterpolatedItem
       ! =======================================================================
 
-      
+
       !> Retrieve the pointer to the Item with id == itemId.
       function ecSupportFindItem(instancePtr, itemId) result(itemPtr)
          type(tEcItem),     pointer            :: itemPtr     !< Item corresponding to itemId
@@ -619,12 +650,12 @@ end subroutine ecInstanceListSourceItems
                end if
             end do
          else
-            call setECMessage("ERROR: ec_support::ecSupportFindItem: Dummy argument instancePtr is not associated.")
+            call setECMessage("ec_support::ecSupportFindItem: Dummy argument instancePtr is not associated.")
          end if
       end function ecSupportFindItem
-      
+
       ! =======================================================================
-      
+
       !> Retrieve the pointer to the Connection with id == connectionId.
       function ecSupportFindConnection(instancePtr, connectionId) result(connectionPtr)
          type(tEcConnection),     pointer            :: connectionPtr !< Item corresponding to connectionId
@@ -642,12 +673,12 @@ end subroutine ecInstanceListSourceItems
                end if
             end do
          else
-            call setECMessage("ERROR: ec_support::ecSupportFindConnection: Dummy argument instancePtr is not associated.")
+            call setECMessage("ec_support::ecSupportFindConnection: Dummy argument instancePtr is not associated.")
          end if
       end function ecSupportFindConnection
-      
+
       ! =======================================================================
-      
+
       !> Retrieve the pointer to the Converter with id == converterId.
       function ecSupportFindConverter(instancePtr, converterId) result(converterPtr)
          type(tEcConverter), pointer            :: converterPtr !< Item corresponding to converterId
@@ -665,12 +696,12 @@ end subroutine ecInstanceListSourceItems
                end if
             end do
          else
-            call setECMessage("ERROR: ec_support::ecSupportFindConverter: Dummy argument instancePtr is not associated.")
+            call setECMessage("ec_support::ecSupportFindConverter: Dummy argument instancePtr is not associated.")
          end if
       end function ecSupportFindConverter
-      
+
       ! =======================================================================
-      
+
       !> Retrieve the pointer to the FileReader with id == converterId.
       function ecSupportFindFileReader(instancePtr, fileReaderId) result(fileReaderPtr)
          type(tEcFileReader), pointer            :: fileReaderPtr !< FileReader corresponding to fileReaderId
@@ -688,10 +719,10 @@ end subroutine ecInstanceListSourceItems
                end if
             end do
          else
-            call setECMessage("ERROR: ec_support::ecSupportFindFileReader: Dummy argument instancePtr is not associated.")
+            call setECMessage("ec_support::ecSupportFindFileReader: Dummy argument instancePtr is not associated.")
          end if
       end function ecSupportFindFileReader
-      
+
       ! =======================================================================
       !> Retrieve the pointer to the FileReader with id == converterId.
       function ecSupportFindFileReaderByFilename(instancePtr, filename) result(fileReaderPtr)
@@ -716,7 +747,7 @@ end subroutine ecInstanceListSourceItems
                end if
             end do
          else
-            call setECMessage("ERROR: ec_support::ecSupportFindFileReader: Dummy argument instancePtr is not associated.")
+            call setECMessage("ec_support::ecSupportFindFileReader: Dummy argument instancePtr is not associated.")
          end if
       end function ecSupportFindFileReaderByFilename
 
@@ -739,13 +770,13 @@ end subroutine ecInstanceListSourceItems
                end if
             end do
          else
-            call setECMessage("ERROR: ec_support::ecSupportFindBCBlock: Dummy argument instancePtr is not associated.")
+            call setECMessage("ec_support::ecSupportFindBCBlock: Dummy argument instancePtr is not associated.")
          end if
       end function ecSupportFindBCBlock
 
       ! =======================================================================
 
-      !> Retrieve the pointer to the BCBlock with id == bcBlockId.
+      !> Retrieve the pointer to the NetCDF instance with id == netCDFId.
       function ecSupportFindNetCDF(instancePtr, netCDFId) result(netCDFPtr)
          type(tEcNetCDF), pointer                :: netCDFPtr     !< NetCDF instance for the given Id
          type(tEcInstance), pointer              :: instancePtr   !< intent(in)
@@ -762,7 +793,7 @@ end subroutine ecInstanceListSourceItems
                end if
             end do
          else
-            call setECMessage("ERROR: ec_support::ecSupportFindNetCDF: Dummy argument instancePtr is not associated.")
+            call setECMessage("ec_support::ecSupportFindNetCDF: Dummy argument instancePtr is not associated.")
          end if
       end function ecSupportFindNetCDF
 
@@ -774,39 +805,43 @@ end subroutine ecInstanceListSourceItems
          type(tEcFileReader), pointer :: corrFileReaderPtr !< intent(inout)
          character(len=*)             :: qname             !< quantity name
          character(len=*)             :: bcname            !< point on poly name
-         integer, intent(in)          :: func              !< function type                  
+         integer, intent(in)          :: func              !< function type
 
          integer                      :: iFileReader
-         type (tEcBCBlock), pointer   :: BCBlockptr 
+         type (tEcBCBlock), pointer   :: BCBlockptr
          !
          cmpFileReaderPtr => null()
          do iFileReader = 1, instancePtr%nFileReaders
             BCBlockptr => instancePtr%EcFileReadersPtr(iFileReader)%ptr%bc
-            if (associated(BCBlockptr)) then 
+            if (associated(BCBlockptr)) then
                if (trim(BCBlockptr%bcname)==trim(bcname) .and. (trim(BCBlockptr%qname)==trim(qname))  &
-                                                         .and. BCBlockptr%func == func) then 
-                  cmpFileReaderPtr => instancePtr%EcFileReadersPtr(iFileReader)%ptr 
-                  exit 
-               endif 
-            else 
-            endif 
-         enddo 
+                                                         .and. BCBlockptr%func == func) then
+                  cmpFileReaderPtr => instancePtr%EcFileReadersPtr(iFileReader)%ptr
+                  exit
+               endif
+            else
+            endif
+         enddo
       end function ecSupportFindRelatedBCBlock
 
-      
+
       !> Translate NetCDF error code into a NetCDF error message.
       function ecSupportNetcdfCheckError(ierror, description, filename) result(success)
          use netcdf
          !
-         logical                                   :: success     !< 
-         integer,                       intent(in) :: ierror      !< 
-         character(len=*),              intent(in) :: description !< 
-         character(len=maxFileNameLen), intent(in) :: filename    !< 
+         logical                                             :: success     !<
+         integer,                       intent(in)           :: ierror      !<
+         character(len=*),              intent(in), optional :: description !<
+         character(len=maxFileNameLen), intent(in), optional :: filename    !<
          !
          character(3000) :: message
          !
          if (ierror /= nf90_noerr) then
-            write (message,'(6a)') 'ERROR ', trim(description), '. NetCDF file : "', trim(filename), '". Error message:', nf90_strerror(ierror)
+            if (present(description) .and. present(filename)) then
+               write (message,'(6a)') trim(description), '. NetCDF file : "', trim(filename), '". Error message:', nf90_strerror(ierror)
+            else
+               write (message,'(2a)') 'NetCDF error : ', nf90_strerror(ierror)
+            endif
             call setECMessage(message)
             success = .false.
          else
@@ -819,82 +854,81 @@ end subroutine ecInstanceListSourceItems
       !> Extracts time unit and reference date from a standard time string.
       !! ASCII example: "TIME = 0 hours since 2006-01-01 00:00:00 +00:00"
       !! NetCDF example: "minutes since 1970-01-01 00:00:00.0 +0000"
-      function ecSupportTimestringToUnitAndRefdate(string, unit, ref_date, tzone, tzone_default) result(success)
-         use netcdf
-         use time_module
+      function ecSupportTimestringToUnitAndRefdate(rec, unit, ref_date, tzone) result(success)
          !
-         logical                           :: success       !< function status
-         character(len=*),   intent(inout) :: string        !< units string (at out in lowercase)
-         integer,  optional, intent(out)   :: unit          !< time unit enumeration
-         real(hp), optional, intent(out)   :: ref_date      !< reference date formatted as Modified Julian Date
-         real(hp), optional, intent(out)   :: tzone         !< time zone
-         real(hp), optional, intent(in)    :: tzone_default !< default for time zone
+         logical                                :: success       !< function status
+         character(len=*),        intent(in)    :: rec           !< units string (at out in lowercase)
+         integer,                 intent(out)   :: unit          !< time unit enumeration
+         real(kind=hp),           intent(out)   :: ref_date      !< reference date formatted as Modified Julian Date
+         real(kind=hp), optional, intent(out)   :: tzone         !< time zone
          !
-         integer :: i        !< helper index for location of 'since'
-         integer :: j        !< helper index for location of '+/-' in time zone
-         integer :: jplus    !< helper index for location of '+' in time zone
-         integer :: jmin     !< helper index for location of '-' in time zone
-         integer :: minsize  !< helper index for time zone
-         integer :: temp     !< helper variable
-         integer :: yyyymmdd !< reference date as Gregorian yyyymmdd
-         integer :: jdn      !< julian day number
-         logical :: ok       !< check of refdate is found
+         integer                       :: i        !< helper index for location of 'since'
+         integer                       :: j        !< helper index for location of '+/-' in time zone
+         integer                       :: jplus    !< helper index for location of '+' in time zone
+         integer                       :: jmin     !< helper index for location of '-' in time zone
+         integer                       :: jcomment !< helper index for location of '#'
+         integer                       :: minsize  !< helper index for time zone
+         real(kind=hp)                 :: temp     !< helper variable
+         logical                       :: ok       !< check of refdate is found
+         character(len=20)             :: date     !< parts of string for date
+         character(len=20)             :: time     !< parts of string for time
+         character(len=:), allocatable :: string   !< unit string without comments and in lowercase
          !
          success = .false.
-         yyyymmdd = 0
          !
+         ! copy only relevant part of rec into string:
+         jcomment = index(rec, '#')
+         if (jcomment == 1) then
+            call setECMessage("ec_support::ecSupportTimestringToUnitAndRefdate: only found comments.")
+            return
+         else if (jcomment > 1) then
+            string = trim(rec(:jcomment - 1))
+         else
+            string = trim(rec)
+         endif
+
          call str_lower(string)
+
          ! Determine the time unit.
-         if (present(unit)) then
-            if (index(string, 'seconds') /= 0) then
-               unit = ec_second
-            else if (index(string, 'minutes') /= 0) then
-               unit = ec_minute
-            else if (index(string, 'hours') /= 0 .or. index( string, 'hrs') /= 0) then
-               unit = ec_hour
-            else if (index(string, 'days') /= 0) then
-               unit = ec_day
-            else
-               call setECMessage("ERROR: unitstring = '"//trim(string)//"'.")
-               call setECMessage("ERROR: ec_support::ecSupportTimestringToUnitAndRefdate: Unable to identify the time unit.")
-               return
-            end if
+         if (index(string, 'seconds') /= 0) then
+            unit = ec_second
+         else if (index(string, 'minutes') /= 0) then
+            unit = ec_minute
+         else if (index(string, 'hours') /= 0 .or. index( string, 'hrs') /= 0) then
+            unit = ec_hour
+         else if (index(string, 'days') /= 0) then
+            unit = ec_day
+         else
+            call setECMessage("unitstring = '"//trim(string)//"'.")
+            call setECMessage("ec_support::ecSupportTimestringToUnitAndRefdate: Unable to identify the time unit.")
+            return
          end if
          ! Determine the reference date.
          i = index(string, 'since') + 6
-         if (present(ref_date)) then
-            if (i /= 6) then
-               ! Date
-               read(string(i : i+4), '(I4)') temp
-               yyyymmdd = yyyymmdd + 10000*temp
-               read(string(i+5 : i+7), '(I2)') temp
-               yyyymmdd = yyyymmdd + 100*temp
-               read(string(i+8 : i+10), '(I2)') temp
-               yyyymmdd = yyyymmdd + temp
-               jdn = ymd2jul(yyyymmdd)
-               if (jdn /= 0) then
-                  ref_date = real(jdn, hp) - 2400000.5_hp ! Julian Day to Reduced Julian Date (exact)
-                  ! Time
-                  if(len_trim(string)>=i+18) then
-                     read(string(i+11 : i+12), *) temp
-                     ref_date = ref_date + dble(temp) / 24.0_hp
-                     read(string(i+14 : i+15), *) temp
-                     ref_date = ref_date + dble(temp) / 24.0_hp / 60.0_hp
-                     read(string(i+17 : i+18), *) temp
-                     ref_date = ref_date + dble(temp) / 24.0_hp / 60.0_hp / 60.0_hp
-                  end if
-                  ok = .true.
-               else
-                  ref_date = -999.0_hp
-                  ok = .false.
-               endif
+         call split_date_time(string(i:), date, time)
+         if (i /= 6) then
+            ! Date
+            if (ymd2reduced_jul(date, ref_date)) then
+               ! Time
+               if(len_trim(time)>=8) then
+                  read(time(1 : 2), *) temp
+                  ref_date = ref_date + temp / 24.0_hp
+                  read(time(4 : 5), *) temp
+                  ref_date = ref_date + temp / 24.0_hp / 60.0_hp
+                  read(time(7 : 8), *) temp
+                  ref_date = ref_date + temp / 24.0_hp / 60.0_hp / 60.0_hp
+               end if
+               ok = .true.
             else
-               ok = ecSupportTimestringArcInfo(string, ref_date)
+               ref_date = -999.0_hp
+               ok = .false.
             endif
-            if (.not. ok) then
-               call setECMessage("ERROR: ec_support::ecSupportTimestringToUnitAndRefdate: Unable to identify keyword: since.")
-               return
-            end if
+         else
+            ok = ecSupportTimestringArcInfo(string, ref_date)
+         endif
+         if (.not. ok) then
+            call setECMessage("ec_support::ecSupportTimestringToUnitAndRefdate: Unable to identify keyword: since.")
+            return
          end if
 
          ! Determine the timezone
@@ -904,18 +938,9 @@ end subroutine ecInstanceListSourceItems
              jmin  = index(string, '-', back=.true.)
              j     = max(jplus, jmin)
              if (j > minsize) then
-                 if (present(tzone_default)) then
-                     success = parseTimezone(string(j:), tzone, tzone_default)
-                 else
-                     success = parseTimezone(string(j:), tzone)
-                 endif
+                 success = parseTimezone(string(j:), tzone)
              else
-                 call setECMessage("WARNING: ec_support::ecSupportTimestringToUnitAndRefdate: no timezone found; assume same as Kernel.")
-                 if (present(tzone_default)) then
-                     tzone = tzone_default
-                 else
-                     tzone = 0.0_hp
-                 endif
+                 tzone = 0.0_hp
                  success = .true.
              endif
          else
@@ -925,7 +950,7 @@ end subroutine ecInstanceListSourceItems
       end function ecSupportTimestringToUnitAndRefdate
 
       !> Extracts time unit and reference date from a time string in Arc Info format.
-      !! example: /* TIME (HRS)     18.0 20000101 18
+      !! example: ... TIME (HRS)     18.0 20000101 18
       function ecSupportTimestringArcInfo(rec, ref_date, time_steps) result (success)
          character(len=*)       , intent(in)  :: rec        !< input string
          real(kind=hp), optional, intent(out) :: ref_date   !< reference date found
@@ -938,7 +963,6 @@ end subroutine ecInstanceListSourceItems
          integer       :: posTime     !< position in a string of 'TIME' or 'time'
          integer       :: ierr        !< error code
          integer       :: i           !< loop counter
-         integer       :: jdn         !< julian day number
          real(kind=hp) :: time        !< time found
          integer       :: hh          !< hour in refdate found
 
@@ -970,11 +994,9 @@ end subroutine ecInstanceListSourceItems
             endif
 
             if (ierr == 0) then
-               jdn = ymd2jul(yyyymmdd)
-               if (jdn /= 0) then
-                  ref_date = real(jdn, hp) - 2400000.5_hp + real(hh, hp) / 24.0_hp
-                  success = .true.
-               endif
+               success = .true.
+               ref_date = JULIAN(yyyymmdd, 0)
+               ref_date = ref_date + real(hh, hp) / 24.0_hp
             endif
          endif
 
@@ -997,26 +1019,21 @@ end subroutine ecInstanceListSourceItems
 
       !> Extracts time zone from a standard time string.
       !! examples: "+01:00", "+0200", "-01:00", "-0200", "+5:30"
-      function parseTimezone(string, tzone, tzone_default) result(success)
-         logical                           :: success         !< function status
-         character(len=*),   intent(in)    :: string          !< units string
-         real(hp),           intent(out)   :: tzone           !< time zone
-         real(hp), optional, intent(in)    :: tzone_default   !< default value for time zone
+      function parseTimezone(string, tzone) result(success)
+         logical                              :: success         !< function status
+         character(len=*),        intent(in)  :: string          !< units string
+         real(kind=hp),           intent(out) :: tzone           !< time zone
 
          integer          :: ierr        !< error code
          integer          :: jcolon      !< helper index for location of ':' in timezone
          integer          :: jend        !< helper index
          integer          :: posNulChar  !< position of null char; end of string if from C
-         real(hp)         :: min         !< minutes part of time zone, as double
-         real(hp)         :: hour        !< hours part of time zone, as double
+         real(kind=hp)    :: min         !< minutes part of time zone, as double
+         real(kind=hp)    :: hour        !< hours part of time zone, as double
          character(len=2) :: cmin        !< minutes part of time zone, as character string
          character(len=3) :: chour       !< hours part of time zone, as character string
 
-         if (present(tzone_default)) then
-            tzone = tzone_default
-         else
-            tzone = 0.0_hp
-         endif
+         tzone = 0.0_hp
 
          jcolon = index(string, ':')
 
@@ -1043,83 +1060,101 @@ end subroutine ecInstanceListSourceItems
          endif
 
          success = (ierr == 0)
-         if (.not. success) call setECMessage("ERROR: ec_support::parseTimezone: error parsing time zone " // trim(string))
+         if (.not. success) call setECMessage("ec_support::parseTimezone: error parsing time zone " // trim(string))
       end function parseTimezone
 
       ! =======================================================================
 
       !> Calculate conversion factor from ec_timestep_unit to seconds
       function ecSupportTimeUnitConversionFactor(unit) result(factor)
-         integer             :: factor
+         real(kind=hp)       :: factor
          integer, intent(in) :: unit !< time unit enum
          !
-         factor = 1 ! default return value
+         factor = 1.0_hp ! default return value
          !
          if (unit == ec_second) then
-            factor = 1
+            factor = 1.0_hp
          else if (unit == ec_minute) then
-            factor = 60
+            factor = 60.0_hp
          else if (unit == ec_hour) then
-            factor = 3600
+            factor = 3600.0_hp
          else if (unit == ec_day) then
-            factor = 3600*24
+            factor = 3600.0_hp * 24.0_hp
          end if
       end function ecSupportTimeUnitConversionFactor
 
       ! =======================================================================
-      
-      !> Convert times(i) * ec_timestep_unit since ec_refdate to seconds since k_refdate.
-      function ecSupportTimeToTimesteps(tframe, index) result(timesteps)
-         real(hp)                       :: timesteps !< function result, seconds since k_refdate
+      !> Convert seconds since k_refdate to times(i) * ec_timestep_unit since ec_refdate to seconds since k_refdate.
+      function ecSupportMJDToTimeIndex(tframe, time_mjd) result(ndx)
+         integer                        :: ndx       !< function result, largest index with a time less than timesteps
          type(tEcTimeFrame), intent(in) :: tframe    !< TimeFrame containing input data for conversion
-         integer,            intent(in) :: index     !< index in times array, indicating which time needs to be converted
+         real(hp)          , intent(in) :: time_mjd  !< seconds since k_refdate representing time to be found
          !
-         integer :: factor !< conversion factor from ec_timestep_unit to seconds
+         real(hp):: srctime
+         integer :: i
          !
-         factor = ecSupportTimeUnitConversionFactor(tframe%ec_timestep_unit)
-         !
-         timesteps = tframe%times(index) * factor + (tframe%ec_refdate - tframe%k_refdate) * 60.0_hp*60.0_hp*24.0_hp
-         !
-         ! Correct for Kernel's timzone in seconds
-         timesteps = timesteps + (tframe%k_timezone-tframe%ec_timezone) * 60.0_hp*60.0_hp
-      end function ecSupportTimeToTimesteps
+         srctime = ecSupportMJDToThisTime(tframe, time_mjd)
+         do i=1,tframe%nr_timesteps
+            if (srctime<=tframe%times(i)) exit
+         enddo
+         if (i>tframe%nr_timesteps) then
+            i = -1
+         else
+            i = max(i - 1,1)
+         endif
+         ndx = i
+      end function ecSupportMJDToTimeIndex
+
 
       ! =======================================================================
-      
-      !> Convert thistime * ec_timestep_unit since ec_refdate to seconds since k_refdate.
-      function ecSupportThisTimeToTimesteps(tframe, thistime) result(timesteps)
-         real(hp)                       :: timesteps !< function result, seconds since k_refdate
+      !> Convert seconds since k_refdate to times(i) * ec_timestep_unit since ec_refdate to seconds since k_refdate.
+      function ecSupportTimeIndexToMJD(tframe, ndx) result(time_mjd)
+         real(hp)                       :: time_mjd  !< seconds since k_refdate representing time to be found
          type(tEcTimeFrame), intent(in) :: tframe    !< TimeFrame containing input data for conversion
-         real(hp),           intent(in) :: thistime  !< this time needs to be converted
+         integer                        :: ndx       !< function result, largest index with a time less than timesteps
          !
-         integer :: factor_in    !< conversion factor from ec_timestep_unit to seconds    (EC-module)
-         integer :: factor_out   !< conversion factor from k_timestep_unit to seconds     (Kernel)
-         integer :: factor       !< resulting conversion factor
+         time_mjd = ecSupportThisTimeToMJD(tframe, tframe%times(ndx))
+      end function ecSupportTimeIndexToMJD
+
+
+      !> Convert from MJD to timefrane
+      !> Convert thistime * ec_timestep_unit since ec_refdate to seconds since k_refdate.
+      function ecSupportMJDToThisTime(tframe, time_mjd) result(thistime)
+         real(hp)                       :: thistime  !< function result, time wrt timeframe
+         type(tEcTimeFrame), intent(in) :: tframe    !< TimeFrame containing input data for conversion
+         real(hp),           intent(in) :: time_mjd  !< this time in mjd needs to be converted
          !
-         if (tframe%k_refdate > (-1.0d+0 + 1.0d-10)) then
-            ! convert time stamp in file (*.tmp) to kernel time stamp
-            factor_in = ecSupportTimeUnitConversionFactor(tframe%ec_timestep_unit)
-            factor_out = ecSupportTimeUnitConversionFactor(tframe%k_timestep_unit)
-            factor = real(factor_in)/real(factor_out)
-            !
-            timesteps = thistime * factor + (tframe%ec_refdate - tframe%k_refdate) * 60.0_hp*60.0_hp*24.0_hp
-            !
-            ! Correct for difference in Kernel's timezone and EC's timezone.
-            timesteps = timesteps + (tframe%k_timezone - tframe%ec_timezone)*3600.0_hp
-         else
-            ! no kernel ref date defined, convert to modified julian day
-            factor_in = ecSupportTimeUnitConversionFactor(tframe%ec_timestep_unit)
-            timesteps = tframe%ec_refdate + factor_in * thistime / 86400.0_hp
-         endif
-      end function ecSupportThisTimeToTimesteps
-      
+         real(hp)                       :: factor       !< resulting conversion factor
+         !
+         factor = ecSupportTimeUnitConversionFactor(tframe%ec_timestep_unit) / 86400.0_hp    ! Converts to DAYS
+         thistime = (time_mjd + tframe%ec_timezone/24.0_hp - tframe%ec_refdate)/factor
+      end function ecSupportMJDToThisTime
+
+
+      ! =======================================================================
+
+      !> Convert from timeframe to MJD
+      function ecSupportThisTimeToMJD(tframe, thistime) result(time_mjd)
+         real(hp)                       :: time_mjd  !< function result, modified julian days
+         type(tEcTimeFrame), intent(in) :: tframe    !< TimeFrame containing input data for conversion
+         real(hp),           intent(in) :: thistime  !< time defined wrt timeframe to be converted
+         !
+         real(hp)                       :: factor       !< resulting conversion factor
+         !
+         factor = ecSupportTimeUnitConversionFactor(tframe%ec_timestep_unit) / 86400.0_hp    ! Converts to DAYS
+         time_mjd = tframe%ec_refdate + thistime * factor - tframe%ec_timezone/24.0_hp
+      end function ecSupportThisTimeToMJD
+
+      ! =======================================================================
 
       !> Find the CF-compliant longitude and latitude dimensions and associated variables
-      function ecSupportNCFindCFCoordinates(ncid, lon_varid, lon_dimid, lat_varid, lat_dimid,      &
-                                             grid_lon_varid, grid_lat_varid,                       &
-                                                    x_varid,   x_dimid,   y_varid,   y_dimid,      &
-                                                    z_varid,   z_dimid,                            &
-                                                  tim_varid, tim_dimid) result(success)
+      function ecSupportNCFindCFCoordinates(ncid, lon_varid, lon_dimid, lat_varid, lat_dimid,    &
+                                             grid_lon_varid, grid_lat_varid,                     &
+                                                    x_varid, x_dimid,   y_varid,   y_dimid,      &
+                                                    z_varid, z_dimid,                            &
+                                                  tim_varid, tim_dimid,                          &
+                                               series_varid, series_dimid,                       &
+                                          realization_varid, realization_dimid) result(success)
       use netcdf
       logical              :: success
       integer, intent(in)  :: ncid           !< NetCDF file ID
@@ -1131,15 +1166,19 @@ end subroutine ecInstanceListSourceItems
       integer, intent(out) ::   y_varid      !< One dimensional coordinate variable recognized as Y
       integer, intent(out) ::   z_varid      !< One dimensional coordinate variable recognized as Z
       integer, intent(out) :: tim_varid      !< One dimensional coordinate variable recognized as time
+      integer, intent(out) :: series_varid   !< Series variable dimensions
       integer, intent(out) :: lon_dimid      !< Longitude dimension
       integer, intent(out) :: lat_dimid      !< Latitude dimension
       integer, intent(out) ::   x_dimid      !< X dimension
       integer, intent(out) ::   y_dimid      !< Y dimension
       integer, intent(out) ::   z_dimid      !< Z dimension
       integer, intent(out) :: tim_dimid      !< Time dimension
+      integer, intent(out) :: series_dimid   !< Series dimension
+      integer, intent(out) :: realization_varid  !< realization varid
+      integer, intent(out) :: realization_dimid  !< realization dimension
       integer :: ndim, nvar, ivar, nglobatts, unlimdimid, ierr
-      integer :: dimids(1)
-      character(len=NF90_MAX_NAME)  :: units, axis, varname, stdname
+      integer, allocatable :: dimids(:)
+      character(len=NF90_MAX_NAME)  :: units, axis, varname, stdname, cf_role, std_name
 
       success = .False.
       lon_varid = -1
@@ -1148,19 +1187,39 @@ end subroutine ecInstanceListSourceItems
       y_varid = -1
       z_varid = -1
       tim_varid = -1
+      series_varid = -1
+      realization_varid = -1
+
       lon_dimid = -1
       lat_dimid = -1
       x_dimid = -1
       y_dimid = -1
       z_dimid = -1
       tim_dimid = -1
+      series_dimid = -1
+      realization_dimid = -1
+
+      allocate(dimids(NF90_MAX_VAR_DIMS))
+
       ierr = nf90_inquire(ncid, ndim, nvar, nglobatts, unlimdimid)
       do ivar=1,nvar
-         ierr = nf90_inquire_variable(ncid, ivar, ndims=ndim)                      ! number of variables
+         ierr = nf90_inquire_variable(ncid, ivar, ndims=ndim)                   ! number of dimensions of this variable
+         ierr = nf90_inquire_variable(ncid, ivar, dimids=dimids)
+         cf_role=''
+         ierr = nf90_get_att(ncid, ivar, 'cf_role', cf_role)
+         if (strcmpi(cf_role,'timeseries_id')) then 
+            series_varid = ivar                                                 ! store last timeseries_id variable
+            series_dimid = dimids(ndim)
+         end if
+         ierr = nf90_get_att(ncid, ivar, 'standard_name', std_name)
+         if (strcmpi(std_name,'realization')) then
+            realization_varid = ivar                                                 ! store last timeseries_id variable
+            realization_dimid = dimids(ndim)
+            cycle
+         end if
          units=''
          ierr = nf90_get_att(ncid, ivar, 'units', units)
          if (ndim==1) then
-            ierr = nf90_inquire_variable(ncid, ivar, dimids=dimids)                ! number of variables
             select case (trim(units))
                case ('degrees_east','degree_east','degree_E','degrees_E','degreeE','degreesE')
                   lon_varid = ivar
@@ -1172,7 +1231,7 @@ end subroutine ecInstanceListSourceItems
                    stdname = ''
                    ierr = nf90_get_att(ncid, ivar, 'standard_name', stdname)
                    if (ierr == 0) then
-                      select case (stdname) 
+                      select case (stdname)
                          case ('grid_longitude')
                             grid_lon_varid = ivar
                             lon_dimid = dimids(1)
@@ -1224,7 +1283,7 @@ end subroutine ecInstanceListSourceItems
                    stdname = ''
                    ierr = nf90_get_att(ncid, ivar, 'standard_name', stdname)
                    if (ierr == 0) then
-                      select case (stdname) 
+                      select case (stdname)
                          case ('grid_latitude')
                             grid_lat_varid = ivar
                          case ('grid_longitude')
@@ -1236,7 +1295,7 @@ end subroutine ecInstanceListSourceItems
                case ('m','meters','km','kilometers')
                    stdname = ''
                    ierr = nf90_get_att(ncid, ivar, 'standard_name', stdname)
-                   select case (stdname) 
+                   select case (stdname)
                       case ('projection_x_coordinate')
                          x_varid = ivar
                       case ('projection_y_coordinate')
@@ -1245,7 +1304,7 @@ end subroutine ecInstanceListSourceItems
                end select
          end if
       end do   !ivar
-      
+
       success = .True.
       end function ecSupportNCFindCFCoordinates
 
@@ -1256,332 +1315,11 @@ end subroutine ecInstanceListSourceItems
       !integer, intent(in)  :: ncid                      !< NetCDF file ID
       !integer, intent(in)  :: varid                     !< Variable file ID
       !
-      !integer, dimension(:), allocatable :: intent(out) !< array of dimension ID's for this variable 
-      !integer, dimension(:), allocatable :: intent(out) !< array of dimension s for this variable 
+      !integer, dimension(:), allocatable :: intent(out) !< array of dimension ID's for this variable
+      !integer, dimension(:), allocatable :: intent(out) !< array of dimension s for this variable
       !end function ecSupportNCGetVarDim
 
 end module m_ec_support
 
 ! =============================================================================
 
-!> This module contains the allocation methods for the EC-module's pointer arrays.
-module m_ec_alloc
-   use m_ec_typedefs
-   use m_ec_message
-   
-   implicit none
-   
-   private
-   
-   public :: ecArrayIncrease
-   
-   interface ecArrayIncrease
-      module procedure ecConnectionPtrArrayIncrease
-      module procedure ecConverterPtrArrayIncrease
-      module procedure ecElementSetPtrArrayIncrease
-      module procedure ecFieldPtrArrayIncrease
-      module procedure ecFileReaderPtrArrayIncrease
-      module procedure ecBCBlockPtrArrayIncrease
-      module procedure ecNetCDFPtrArrayIncrease
-      module procedure ecItemPtrArrayIncrease
-      module procedure ecQuantityPtrArrayIncrease
-   end interface ecArrayIncrease
-   
-   contains
-      
-      !> Increases the size of an array of tEcConnectionPtr instances by 10.
-      function ecConnectionPtrArrayIncrease(ptr, nConnections) result(success)
-         logical                                       :: success      !< function status
-         type(tEcConnectionPtr), dimension(:), pointer :: ptr          !< intent(inout)
-         integer                                       :: nConnections !< Number of tEcConnectionPtrs =< size(ptr)
-         !
-         integer                                       :: istat   !< allocate() status
-         type(tEcConnectionPtr), dimension(:), pointer :: new_ptr !< new array
-         integer                                       :: i       !< loop counter
-         !
-         success = .false.
-         istat = 1
-         !
-         if (.not. associated(ptr)) then
-            call setECMessage("ERROR: ec_alloc::ecConnectionPtrArrayIncrease: Dummy argument ptr is not associated.")
-         else
-            allocate(new_ptr(size(ptr)+10), STAT = istat)
-            if (istat == 0) then
-               do i=1, nConnections
-                  new_ptr(i)%ptr => ptr(i)%ptr
-                  ptr(i)%ptr => null()
-               end do
-               ptr => new_ptr
-               new_ptr => null()
-               success = .true.
-            else
-               call setECMessage("ERROR: ec_alloc::ecConnectionPtrArrayIncrease: Unable to allocate additional memory.")
-            end if
-         end if
-      end function ecConnectionPtrArrayIncrease
-      
-      ! =======================================================================
-      
-      !> Increases the size of an array of tEcConverterPtr instances by 10.
-      function ecConverterPtrArrayIncrease(ptr, nConverters) result(success)
-         logical                                      :: success      !< function status
-         type(tEcConverterPtr), dimension(:), pointer :: ptr          !< intent(inout)
-         integer                                      :: nConverters  !< Number of tEcConverterPtrs =< size(ptr)
-         !
-         integer                                      :: istat   !< allocate() status
-         type(tEcConverterPtr), dimension(:), pointer :: new_ptr !< new array
-         integer                                      :: i       !< loop counter
-         !
-         success = .false.
-         istat = 1
-         !
-         if (.not. associated(ptr)) then
-            call setECMessage("ERROR: ec_alloc::ecConverterPtrArrayIncrease: Dummy argument ptr is not associated.")
-         else
-            allocate(new_ptr(size(ptr)+10), STAT = istat)
-            if (istat == 0) then
-               do i=1, nConverters
-                  new_ptr(i)%ptr => ptr(i)%ptr
-                  ptr(i)%ptr => null()
-               end do
-               ptr => new_ptr
-               new_ptr => null()
-               success = .true.
-            else
-               call setECMessage("ERROR: ec_alloc::ecConverterPtrArrayIncrease: Unable to allocate additional memory.")
-            end if
-         end if
-      end function ecConverterPtrArrayIncrease
-      
-      ! =======================================================================
-      
-      !> Increases the size of an array of tEcElementSetPtr instances by 10.
-      function ecElementSetPtrArrayIncrease(ptr, nElementSets) result(success)
-         logical                                       :: success      !< function status
-         type(tEcElementSetPtr), dimension(:), pointer :: ptr          !< intent(inout)
-         integer                                       :: nElementSets !< Number of tEcElementSetPtrs =< size(ptr)
-         !
-         integer                                       :: istat   !< allocate() status
-         type(tEcElementSetPtr), dimension(:), pointer :: new_ptr !< new array
-         integer                                       :: i       !< loop counter
-         !
-         success = .false.
-         istat = 1
-         !
-         if (.not. associated(ptr)) then
-            call setECMessage("ERROR: ec_alloc::ecElementSetPtrArrayIncrease: Dummy argument ptr is not associated.")
-         else
-            allocate(new_ptr(size(ptr)+10), STAT = istat)
-            if (istat == 0) then
-               do i=1, nElementSets
-                  new_ptr(i)%ptr => ptr(i)%ptr
-                  ptr(i)%ptr => null()
-               end do
-               ptr => new_ptr
-               new_ptr => null()
-               success = .true.
-            else
-               call setECMessage("ERROR: ec_alloc::ecElementSetPtrArrayIncrease: Unable to allocate additional memory.")
-            end if
-         end if
-      end function ecElementSetPtrArrayIncrease
-      
-      ! =======================================================================
-      
-      !> Increases the size of an array of tEcFieldPtr instances by 10.
-      function ecFieldPtrArrayIncrease(ptr, nFields) result(success)
-         logical                                  :: success !< function status
-         type(tEcFieldPtr), dimension(:), pointer :: ptr     !< intent(inout)
-         integer                                  :: nFields !< Number of tEcFieldPtrs =< size(ptr)
-         !
-         integer                                  :: istat   !< allocate() status
-         type(tEcFieldPtr), dimension(:), pointer :: new_ptr !< new array
-         integer                                  :: i       !< loop counter
-         !
-         success = .false.
-         istat = 1
-         !
-         if (.not. associated(ptr)) then
-            call setECMessage("ERROR: ec_alloc::ecFieldPtrArrayIncrease: Dummy argument ptr is not associated.")
-         else
-            allocate(new_ptr(size(ptr)+10), STAT = istat)
-            if (istat == 0) then
-               do i=1, nFields
-                  new_ptr(i)%ptr => ptr(i)%ptr
-                  ptr(i)%ptr => null()
-               end do
-               ptr => new_ptr
-               new_ptr => null()
-               success = .true.
-            else
-               call setECMessage("ERROR: ec_alloc::ecFieldPtrArrayIncrease: Unable to allocate additional memory.")
-            end if
-         end if
-      end function ecFieldPtrArrayIncrease
-      
-      ! =======================================================================
-      
-      !> Increases the size of an array of tEcFileReaderPtr instances by 10.
-      function ecFileReaderPtrArrayIncrease(ptr, nFileReaders) result(success)
-         logical                                       :: success      !< function status
-         type(tEcFileReaderPtr), dimension(:), pointer :: ptr          !< intent(inout)
-         integer                                       :: nFileReaders !< Number of tEcFileReaderPtrs =< size(ptr)
-         !
-         integer                                       :: istat   !< allocate() status
-         type(tEcFileReaderPtr), dimension(:), pointer :: new_ptr !< new array
-         integer                                       :: i       !< loop counter
-         !
-         success = .false.
-         istat = 1
-         !
-         if (.not. associated(ptr)) then
-            call setECMessage("ERROR: ec_alloc::ecFileReaderPtrArrayIncrease: Dummy argument ptr is not associated.")
-         else
-            allocate(new_ptr(size(ptr)+10), STAT = istat)
-            if (istat == 0) then
-               do i=1, nFileReaders
-                  new_ptr(i)%ptr => ptr(i)%ptr
-                  ptr(i)%ptr => null()
-               end do
-               ptr => new_ptr
-               new_ptr => null()
-               success = .true.
-            else
-               call setECMessage("ERROR: ec_alloc::ecFileReaderPtrArrayIncrease: Unable to allocate additional memory.")
-            end if
-         end if
-      end function ecFileReaderPtrArrayIncrease
-
-      ! =======================================================================
-      
-      !> Increases the size of an array of tEcBCBlockPtr instances by 10.
-      function ecBCBlockPtrArrayIncrease(ptr, nBCBlocks) result(success)
-         logical                                       :: success      !< function status
-         type(tEcBCBlockPtr), dimension(:), pointer    :: ptr          !< intent(inout)
-         integer                                       :: nBCBlocks    !< Number of tEcBCBlockPtrs =< size(ptr)
-         !
-         integer                                       :: istat   !< allocate() status
-         type(tEcBCBlockPtr), dimension(:), pointer    :: new_ptr !< new array
-         integer                                       :: i       !< loop counter
-         !
-         success = .false.
-         istat = 1
-         !
-         if (.not. associated(ptr)) then
-            call setECMessage("ERROR: ec_alloc::ecBCBlockPtrArrayIncrease: Dummy argument ptr is not associated.")
-         else
-            allocate(new_ptr(size(ptr)+10), STAT = istat)
-            if (istat == 0) then
-               do i=1, nBCBlocks
-                  new_ptr(i)%ptr => ptr(i)%ptr
-                  ptr(i)%ptr => null()
-               end do
-               ptr => new_ptr
-               new_ptr => null()
-               success = .true.
-            else
-               call setECMessage("ERROR: ec_alloc::ecBCBlockPtrArrayIncrease: Unable to allocate additional memory.")
-            end if
-         end if
-      end function ecBCBlockPtrArrayIncrease
-      
-      ! =======================================================================
-      
-      !> Increases the size of an array of tEcNetCDFPtr instances by 10.
-      function ecNetCDFPtrArrayIncrease(ptr, nNetCDFs) result(success)
-         logical                                       :: success      !< function status
-         type(tEcNetCDFPtr), dimension(:), pointer     :: ptr          !< intent(inout)
-         integer                                       :: nNetCDFs     !< Number of tEcBCBlockPtrs =< size(ptr)
-         !
-         integer                                       :: istat   !< allocate() status
-         type(tEcNetCDFPtr), dimension(:), pointer     :: new_ptr !< new array
-         integer                                       :: i       !< loop counter
-         !
-         success = .false.
-         istat = 1
-         !
-         if (.not. associated(ptr)) then
-            call setECMessage("ERROR: ec_alloc::ecNetCDFPtrArrayIncrease: Dummy argument ptr is not associated.")
-         else
-            allocate(new_ptr(size(ptr)+10), STAT = istat)
-            if (istat == 0) then
-               do i=1, nNetCDFs
-                  new_ptr(i)%ptr => ptr(i)%ptr
-                  ptr(i)%ptr => null()
-               end do
-               ptr => new_ptr
-               new_ptr => null()
-               success = .true.
-            else
-               call setECMessage("ERROR: ec_alloc::ecNetCDFPtrArrayIncrease: Unable to allocate additional memory.")
-            end if
-         end if
-      end function ecNetCDFPtrArrayIncrease
-      
-      ! =======================================================================
-
-      !> Increases the size of an array of tEcItemPtr instances by 10.
-      function ecItemPtrArrayIncrease(ptr, nItems) result(success)
-         logical                                 :: success !< function status
-         type(tEcItemPtr), dimension(:), pointer :: ptr     !< intent(inout)
-         integer                                 :: nItems  !< Number of tEcItemPtrs =< size(ptr)
-         !
-         integer                                 :: istat   !< allocate() status
-         type(tEcItemPtr), dimension(:), pointer :: new_ptr !< new array
-         integer                                 :: i       !< loop counter
-         !
-         success = .false.
-         istat = 1
-         !
-         if (.not. associated(ptr)) then
-            call setECMessage("ERROR: ec_alloc::ecItemPtrArrayIncrease: Dummy argument ptr is not associated.")
-         else
-            allocate(new_ptr(size(ptr)+10), STAT = istat)
-            if (istat == 0) then
-               do i=1, nItems
-                  new_ptr(i)%ptr => ptr(i)%ptr
-                  ptr(i)%ptr => null()
-               end do
-               ptr => new_ptr
-               new_ptr => null()
-               success = .true.
-            else
-               call setECMessage("ERROR: ec_alloc::ecItemPtrArrayIncrease: Unable to allocate additional memory.")
-            end if
-         end if
-      end function ecItemPtrArrayIncrease
-      
-      ! =======================================================================
-      
-      !> Increases the size of an array of tEcQuantityPtr instances by 10.
-      function ecQuantityPtrArrayIncrease(ptr, nQuantitys) result(success)
-         logical                                     :: success    !< function status
-         type(tEcQuantityPtr), dimension(:), pointer :: ptr        !< intent(inout)
-         integer                                     :: nQuantitys !< Number of tEcQuantityPtrs =< size(ptr)
-         !
-         integer                                     :: istat   !< allocate() status
-         type(tEcQuantityPtr), dimension(:), pointer :: new_ptr !< new array
-         integer                                     :: i       !< loop counter
-         !
-         success = .false.
-         istat = 1
-         !
-         if (.not. associated(ptr)) then
-            call setECMessage("ERROR: ec_alloc::ecQuantityPtrArrayIncrease: Dummy argument ptr is not associated.")
-         else
-            allocate(new_ptr(size(ptr)+10), STAT = istat)
-            if (istat == 0) then
-               do i=1, nQuantitys
-                  new_ptr(i)%ptr => ptr(i)%ptr
-                  ptr(i)%ptr => null()
-               end do
-               ptr => new_ptr
-               new_ptr => null()
-               success = .true.
-            else
-               call setECMessage("ERROR: ec_alloc::ecQuantityPtrArrayIncrease: Unable to allocate additional memory.")
-            end if
-         end if
-      end function ecQuantityPtrArrayIncrease
-      
-end module m_ec_alloc

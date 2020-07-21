@@ -9,7 +9,7 @@ function [data,scalar,vpt]=computecomponent(data,Ops)
 
 %----- LGPL --------------------------------------------------------------------
 %                                                                               
-%   Copyright (C) 2011-2018 Stichting Deltares.                                     
+%   Copyright (C) 2011-2020 Stichting Deltares.                                     
 %                                                                               
 %   This library is free software; you can redistribute it and/or                
 %   modify it under the terms of the GNU Lesser General Public                   
@@ -34,8 +34,8 @@ function [data,scalar,vpt]=computecomponent(data,Ops)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_lgpl/matlab/quickplot/progsrc/private/computecomponent.m $
-%   $Id: computecomponent.m 7992 2018-01-09 10:27:35Z mourits $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/private/computecomponent.m $
+%   $Id: computecomponent.m 65778 2020-01-14 14:07:42Z mourits $
 
 if ischar(Ops)
     vpt=Ops;
@@ -166,11 +166,11 @@ for d=1:length(data)
             if strncmpi(Ops.angleconvention,'Nautical To',10)
                     data(d).Val=sf*atan2(data(d).XComp,data(d).YComp);
             elseif strncmpi(Ops.angleconvention,'Nautical From',12)
-                    data(d).Val=-sf*atan2(data(d).XComp,data(d).YComp);
+                    data(d).Val=sf*atan2(-data(d).XComp,-data(d).YComp);
             elseif strncmpi(Ops.angleconvention,'Cartesian To',12)
                     data(d).Val=sf*atan2(data(d).YComp,data(d).XComp);
             elseif strncmpi(Ops.angleconvention,'Cartesian From',14)
-                    data(d).Val=-sf*atan2(data(d).YComp,data(d).XComp);
+                    data(d).Val=sf*atan2(-data(d).YComp,-data(d).XComp);
             end
             if strfind(Ops.angleconvention,'[0 to')
                 neg = data(d).Val<0;

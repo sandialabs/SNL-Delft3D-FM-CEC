@@ -5,7 +5,7 @@ subroutine rstfil(lundia    ,error     ,restid    ,lturi     ,mmax      , &
                 & dp        ,namcon    ,coninit   ,gdp       )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
+!  Copyright (C)  Stichting Deltares, 2011-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -29,8 +29,8 @@ subroutine rstfil(lundia    ,error     ,restid    ,lturi     ,mmax      , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: rstfil.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/engines_gpl/flow2d3d/packages/io/src/input/rstfil.f90 $
+!  $Id: rstfil.f90 65926 2020-02-04 09:27:46Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/io/src/input/rstfil.f90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: Reads initial field condition records from an
@@ -162,7 +162,8 @@ subroutine rstfil(lundia    ,error     ,restid    ,lturi     ,mmax      , &
           ! Check new option: it may be a reference to a TRIM file.
           ! Use restid, because flow_nefis_restart will put it's value in gdp%gdrestart%restid
           !
-          write (restid, '(2a)') trim(filpath), trim(restid)
+          write (filtmp, '(2a)') trim(filpath), trim(restid)
+          restid = filtmp
           call restart_trim_flow(lundia    ,error     ,restid    ,lturi     ,mmax      , &
                                & nmaxus    ,kmax      ,lstsci    ,ltur      , &
                                & s1        ,u1        ,v1        ,r1        ,rtur1     , &
@@ -170,7 +171,8 @@ subroutine rstfil(lundia    ,error     ,restid    ,lturi     ,mmax      , &
                                & dp        ,ex_nfs    ,namcon    ,coninit   ,gdp       )
           if (error .and. .not.ex_nfs) then
              call prterr(lundia    ,'G004'    , &
-             & trim(filtmp) // trim(datetime) // ', ' // trim(filtmp) // ' and ' // trim(restid) // '.dat/.def')
+                 & 'tri-rst.' // trim(restid) // trim(datetime) // ', tri-rst.' // trim(restid) // &
+                 & ' and ' // trim(restid) // '.dat/.def')
           endif
        endif
     endif

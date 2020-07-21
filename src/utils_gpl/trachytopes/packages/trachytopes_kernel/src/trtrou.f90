@@ -1,7 +1,7 @@
 module m_trtrou
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
+!  Copyright (C)  Stichting Deltares, 2011-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -25,8 +25,8 @@ module m_trtrou
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: trtrou.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_gpl/trachytopes/packages/trachytopes_kernel/src/trtrou.f90 $
+!  $Id: trtrou.f90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_gpl/trachytopes/packages/trachytopes_kernel/src/trtrou.f90 $
 !-------------------------------------------------------------------------------
 !
 ! functions and subroutines
@@ -63,6 +63,7 @@ subroutine trtrou(lundia    ,kmax      ,nmmax   , &
     use precision_basics, only: comparereal
     use mathconsts
     use trachytopes_data_module
+    use m_calrou
     use message_module
     !
     implicit none
@@ -113,21 +114,21 @@ subroutine trtrou(lundia    ,kmax      ,nmmax   , &
 !
 ! Global variables
 !
-    integer                                                            , intent(in)  :: jdir      !  Flag for direction, 1=U, 2=V
+    integer                                                            , intent(in)  :: jdir          !< Flag for direction, 1=U, 2=V
     integer                                                            , intent(in)  :: kmax
     integer                                                                          :: lundia
     integer                                                            , intent(in)  :: nmmax
-    integer                                                            , intent(in)  :: nmlb      ! start space index (of edges)
-    integer                                                            , intent(in)  :: nmub      ! end space index   (of edges)
-    integer                                                            , intent(in)  :: nmlbc     ! start space index (flow nodes)
-    integer                                                            , intent(in)  :: nmubc     ! end space index   (flow nodes)
+    integer                                                            , intent(in)  :: nmlb          !< start space index (of edges)
+    integer                                                            , intent(in)  :: nmub          !< end space index   (of edges)
+    integer                                                            , intent(in)  :: nmlbc         !< start space index (flow nodes)
+    integer                                                            , intent(in)  :: nmubc         !< end space index   (flow nodes)
     integer, dimension(nmlb:nmub)                                                    :: kcuv
     logical                                                            , intent(in)  :: linit
     real(fp), dimension(kmax)                                          , intent(in)  :: sig
     !real(fp), dimension(nmlb:nmub)                                     , intent(in)  :: gdis_dp  !(not used) 
     real(fp), dimension(nmlb:nmub)                                     , intent(in)  :: gdis_zet
-    real(fp), dimension(nmlb:nmub)                                                   :: huv       ! water depth at u or v point 
-    real(fp), dimension(nmlb:nmub)                                                   :: z0rou
+    real(fp), dimension(nmlb:nmub)                                                   :: huv           !< water depth at u or v point 
+    real(fp), dimension(nmlbc:nmubc)                                                 :: z0rou
     real(fp), dimension(nmlb:nmub, 3)                                                :: cfrou
 !    real(fp), dimension(nmlb:nmub)              :: uvdir    (not used) 
 !    real(fp), dimension(nmlb:nmub), intent(in)  :: uvperp   (not used) 
@@ -143,17 +144,17 @@ subroutine trtrou(lundia    ,kmax      ,nmmax   , &
     real(fp)                                                            , intent(in) :: dryflc
     logical                                                                          :: assoc_dxx
     integer                                                                          :: nxx           ! cannot be optional
-    real(fp), dimension(nmlb:nmub, nxx) , optional                      , intent(in) :: dxx  
+    real(fp), dimension(nmlbc:nmubc, nxx) , optional                    , intent(in) :: dxx           !< sediment diameter corresponding to percentile xx (mud excluded)
     integer                             , optional                                   :: i50
     integer                             , optional                                   :: i90
     integer                                                                          :: lsedtot       ! dito
     real(fp), dimension(lsedtot)        , optional                                   :: rhosol
     logical                                                                          :: spatial_bedform
-    real(fp), dimension(:)                                                           :: bedformD50
-    real(fp), dimension(:)                                                           :: bedformD90
-    real(fp), dimension(:)                                                           :: rksr
-    real(fp), dimension(:)                                                           :: rksmr
-    real(fp), dimension(:)                                                           :: rksd
+    real(fp), dimension(nmlbc:nmubc)                                                 :: bedformD50    !< 50-percentile of sediment diameters
+    real(fp), dimension(nmlbc:nmubc)                                                 :: bedformD90    !< 90-percentile of sediment diameters
+    real(fp), dimension(nmlbc:nmubc)                                                 :: rksr          !< Ripple roughness height in zeta point
+    real(fp), dimension(nmlbc:nmubc)                                                 :: rksmr         !< Mega-ripple roughness height in zeta point
+    real(fp), dimension(nmlbc:nmubc)                                                 :: rksd          !< Dune roughness height in zeta point
     logical                                                             ,intent(out) :: error
     !
     !for debugging
@@ -216,10 +217,14 @@ subroutine trtrou(lundia    ,kmax      ,nmmax   , &
     real(fp)                    :: d50
     real(fp)                    :: d90
     real(fp)                    :: densit
+    real(fp)                    :: densitfoliage 
     real(fp)                    :: depth
     real(fp)                    :: drag
+    real(fp)                    :: dragfoliage  
     real(fp)                    :: dstar
     real(fp)                    :: e1
+    real(fp)                    :: expchistem
+    real(fp)                    :: expchifoliage
     real(fp)                    :: f
     real(fp)                    :: fracbu
     real(fp)                    :: fraccu
@@ -228,6 +233,7 @@ subroutine trtrou(lundia    ,kmax      ,nmmax   , &
     real(fp)                    :: kbed
     real(fp)                    :: kn_icode
     real(fp)                    :: kn_sum
+    real(fp)                    :: phi
     real(fp)                    :: rc0
     real(fp)                    :: rc3
     real(fp)                    :: rcgrn
@@ -257,6 +263,8 @@ subroutine trtrou(lundia    ,kmax      ,nmmax   , &
     real(fp)                    :: u2dh
     real(fp)                    :: ubsvg2
     real(fp)                    :: ucbsv2
+    real(fp)                    :: uchistem
+    real(fp)                    :: uchifoliage
     real(fp)                    :: umag
 !    real(fp)                    :: uuu
     real(fp)                    :: uv0
@@ -266,6 +274,7 @@ subroutine trtrou(lundia    ,kmax      ,nmmax   , &
     real(fp)                    :: vvv
     real(fp)                    :: vz0
     real(fp)                    :: zstemp
+    real(fp)                    :: z0rouL
     character(12), dimension(2) :: cnum
     character(132)              :: cmsg
     character(256)              :: errmsg
@@ -385,8 +394,8 @@ subroutine trtrou(lundia    ,kmax      ,nmmax   , &
             do mropar = 1, nropars
                 gdtrachy%gen%rttdef(ntrt_qzs, mropar) = gdtrachy%gen%rttdef_q(idx_start, mropar)
             end do     
-        elseif (gdtrachy%gen%crs(itrtcrs)%val > gdtrachy%gen%table_q(idx_end)) then 
-            ! value through cross-section is larger than last value in table, 
+        elseif (gdtrachy%gen%crs(itrtcrs)%val .ge. gdtrachy%gen%table_q(idx_end)) then 
+            ! value through cross-section is larger than or equal to last value in table, 
             ! so take last set of values from the table 
             do mropar = 1, nropars
                 gdtrachy%gen%rttdef(ntrt_qzs, mropar) = gdtrachy%gen%rttdef_q(idx_end, mropar)
@@ -427,8 +436,8 @@ subroutine trtrou(lundia    ,kmax      ,nmmax   , &
             do mropar = 1, nropars
                 gdtrachy%gen%rttdef(ntrt_qzs, mropar) = gdtrachy%gen%rttdef_zs(idx_start, mropar)
             end do     
-        elseif (gdtrachy%gen%obs(itrtobs)%val > gdtrachy%gen%table_zs(idx_end)) then 
-            ! value through cross-section is larger than last value in table, 
+        elseif (gdtrachy%gen%obs(itrtobs)%val .ge. gdtrachy%gen%table_zs(idx_end)) then 
+            ! value through cross-section is larger than or equal to last value in table, 
             ! so take last set of values from the table 
             do mropar = 1, nropars
                 gdtrachy%gen%rttdef(ntrt_qzs, mropar) = gdtrachy%gen%rttdef_zs(idx_end, mropar)
@@ -586,10 +595,11 @@ subroutine trtrou(lundia    ,kmax      ,nmmax   , &
           if (kmax==1) then
              u2dh = umag
           else
-             u2dh = (umag/depth*((depth + z0rou(nm))         &
-                  &              *log(1.0_fp + depth/max(z0rou(nm),1.0e-20_fp)) &
+             z0rouL = rttacLin(nm)*z0rou(nm1)  + (1d0-rttacLin(nm))*z0rou(nm2)
+             u2dh = (umag/depth*((depth + z0rouL)         &
+                  &              *log(1.0_fp + depth/max(z0rouL,1.0e-20_fp)) &
                   &              - depth)                         ) &
-                  & /log(1.0_fp + (1.0_fp + sig(kmax))*depth/max(z0rou(nm),1.0e-20_fp))
+                  & /log(1.0_fp + (1.0_fp + sig(kmax))*depth/max(z0rouL,1.0e-20_fp))
           endif
        endif
        !
@@ -973,6 +983,88 @@ subroutine trtrou(lundia    ,kmax      ,nmmax   , &
              !
              rgh_type = ch_type
              rgh_geom = area_rgh
+          elseif (ircod==155) then
+             !
+             ! Vaestilae & Jaervelae (2017) formula
+             !
+             
+             ! input parameters
+             vheigh         = rttdef(itrt, 1)
+             densit         = rttdef(itrt, 2)
+             drag           = rttdef(itrt, 3)
+             uchistem       = rttdef(itrt, 4)
+             expchistem     = rttdef(itrt, 5)
+             densitfoliage  = rttdef(itrt, 6)
+             dragfoliage    = rttdef(itrt, 7)
+             uchifoliage    = rttdef(itrt, 8)
+             expchifoliage  = rttdef(itrt, 9)
+             cbed           = rttdef(itrt, 10)
+			  
+             
+             ! Relative vegetation height
+             hk     = max(1.0_fp, depth/vheigh)
+             
+             ! Calculate roughness 
+             if (umag > 0) then 
+                ! Phi is a function of uc (flow velocity in vegetation layer), but
+                ! uc depends on phi. We approximate uc=u2dh
+                ! Dimensionless vegetation parameter with uc = u2dh
+                phi = drag*densit*(umag/uchistem)**expchistem + &
+                    & densitfoliage*dragfoliage*(u2dh/uchifoliage)**expchifoliage
+                    
+                ! Effective bed friction 
+                ch_icode = cbed + 1.0_fp/sqrt(1.0_fp + phi*cbed*cbed/(2.0_fp*ag)) * &
+                         & sqrt(ag)*log(hk)/vonkar
+                                    
+                ! Lambda 
+                rttfu(nm, 1) = rttfu(nm, 1) + fraccu * &
+                         & phi / depth * (cbed*cbed)/(ch_icode*ch_icode)
+                
+             else
+                 ! zero umag will through dividebyzero error (since expchi are expected to be negative)
+                 ! so for zero velocities, use cbed instead
+                 ch_icode = cbed
+             endif
+             rgh_type = ch_type
+             rgh_geom = area_rgh
+        elseif (ircod==156) then
+             !
+             ! Jaervelae (2014) formula
+             !
+             
+             ! input parameters
+             vheigh         = rttdef(itrt, 1)
+             densit         = rttdef(itrt, 2)
+             drag           = rttdef(itrt, 3)
+             uchistem       = rttdef(itrt, 4)
+             expchistem     = rttdef(itrt, 5)
+             cbed           = rttdef(itrt, 6)
+			  
+             
+             ! Relative vegetation height
+             hk     = max(1.0_fp,depth/vheigh)
+             
+             ! Calculate roughness
+             if (umag > 0) then 
+                ! Phi is a function of uc (flow velocity in vegetation layer), but
+                ! uc depends on phi. We approximate uc=u2dh
+                ! Dimensionless vegetation parameter with uc = u2dh
+                phi = drag*densit*(umag/uchistem)**expchistem
+                
+                ! Effective bed friction 
+                ch_icode = cbed + 1.0_fp/sqrt(1.0_fp + phi*cbed*cbed/(2.0_fp*ag)) * &
+                         & sqrt(ag)*log(hk)/vonkar
+                
+                ! Lambda 
+                rttfu(nm, 1) = rttfu(nm, 1) + fraccu * &
+                         & phi / depth * (cbed*cbed)/(ch_icode*ch_icode) 
+             else
+                 ! zero umag will through dividebyzero error (since expchi are expected to be negative)
+                 ! so for zero velocities, use cbed instead
+                 ch_icode = cbed
+             endif
+             rgh_type = ch_type
+             rgh_geom = area_rgh
           elseif (ircod==201) then
              !
              ! Get coefficients for hedges
@@ -1059,7 +1151,7 @@ subroutine trtrou(lundia    ,kmax      ,nmmax   , &
              if (rgh_type == ch_type) then
                 kn_icode = (12.0_fp*depth)/10.0_fp**(ch_icode/18.0_fp)
              elseif (rgh_type == kn_type) then
-                ch_icode = 18.0_fp*log10(12.0_fp*depth/kn_icode)
+                ch_icode = white_coolebrook(depth, kn_icode, iarea_avg)
              endif
              fracto     = fracto + fraccu
              kn_sum     = kn_sum + fraccu*kn_icode

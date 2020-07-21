@@ -1,7 +1,7 @@
 module datagroups
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
+!  Copyright (C)  Stichting Deltares, 2011-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -25,8 +25,8 @@ module datagroups
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: datagroups.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/engines_gpl/flow2d3d/packages/data/src/basics/datagroups.f90 $
+!  $Id: datagroups.f90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/data/src/basics/datagroups.f90 $
 !!--description-----------------------------------------------------------------
 !   NONE
 !!--declarations----------------------------------------------------------------
@@ -937,7 +937,7 @@ subroutine defnewgrp_core(fds, ifile, gname, gdp, filnam, grpdim, errlog)
           !
           ! Now define the variable
           !
-          error = nf90_def_var(fds, elm_name(ie), nctype, localdim, varid)
+          error = nf90_def_var(fds, elm_name(ie), nctype, localdim, varid, deflate_level = gdp%gdpostpr%nc_deflate)
           call nc_check_err(lundia, error, 'writing '//trim(elm_name(ie)), filnam)
           deallocate(localdim)
           !

@@ -1,7 +1,7 @@
 subroutine checklicense(success)
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
+!  Copyright (C)  Stichting Deltares, 2011-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -25,15 +25,14 @@ subroutine checklicense(success)
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: checklicense.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/engines_gpl/wave/packages/manager/src/checklicense.f90 $
+!  $Id: checklicense.f90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/wave/packages/manager/src/checklicense.f90 $
 !!--description-----------------------------------------------------------------
 !
 !!--pseudo code and references--------------------------------------------------
 ! NONE
 !!--declarations----------------------------------------------------------------
 use message_module
-use deltares_common_version_module
 !
 implicit none
 !
@@ -52,7 +51,7 @@ logical     , intent(out) :: success
 !
     ! get source code location
     !
-    txthlp = deltares_common_source_code
+    call getsourcecodelocation_WAVE(version_full)
     n = index(txthlp,'/src/utils_lgpl') ! regular checkout with src and examples level
     if (n==0) then
         n = index(txthlp,'/utils_lgpl') ! reduced checkout with src and examples level

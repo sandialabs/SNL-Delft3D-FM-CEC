@@ -1,7 +1,7 @@
 module m_Pump
 !----- AGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2017-2018.                                
+!  Copyright (C)  Stichting Deltares, 2017-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify              
 !  it under the terms of the GNU Affero General Public License as               
@@ -25,8 +25,8 @@ module m_Pump
 !  Stichting Deltares. All rights reserved.
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: Pump.f90 8044 2018-01-24 15:35:11Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_gpl/flow1d/packages/flow1d_core/src/Pump.f90 $
+!  $Id: Pump.f90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_gpl/flow1d/packages/flow1d_core/src/Pump.f90 $
 !-------------------------------------------------------------------------------
 
    use m_tables
@@ -35,7 +35,6 @@ module m_Pump
    implicit none
 
    public PrepareComputePump
-   public ComputePump
    public dealloc
 
    interface dealloc
@@ -60,21 +59,19 @@ module m_Pump
       logical         , dimension(:), pointer :: ds_trigger  => null()
       type(t_table), pointer                  :: reducfact   => null()
 
-      ! Actual Parameters
-      double precision                        :: computed_capacity
-      double precision                        :: oldcapacity
-      double precision                        :: capacitySetpoint
-      logical                                 :: isControlled
-
       ! Output Parameters for Pump History File
-      double precision                        :: ss_level
-      double precision                        :: ds_level
-      double precision                        :: pump_head
+      ! Terminology:
+      ! * Geometric orientation: handled by calling kernel, orientation of pump w.r.t. branch direction/polyline.
+      ! * Pump orientation: orientation of capacity w.r.t. structure's geometric orientation.
+      ! * Pumping direction: combined direction of pump orientation and sign of the capacity.
+      double precision                        :: ss_level         !< Suction side water level w.r.t. pumping direction.
+      double precision                        :: ds_level         !< Delivery side water level w.r.t. pumping direction.
+      double precision                        :: pump_head        !< Head difference in pumping direction.
       integer                                 :: actual_stage
       logical                                 :: is_active
-      double precision                        :: stage_capacity
+      double precision                        :: current_capacity !< Current capacity, w.r.t. pump orientation.
       double precision                        :: reduction_factor
-      double precision                        ::  discharge
+      double precision                        :: discharge        !< Current discharge, w.r.t. structure's geometric orientation.
 
    end type
 
@@ -120,32 +117,18 @@ contains
       
    end subroutine deallocPump
 
+   !> The discharge through a pump with different capacities
+   !! and possible control on suction and pressure side is calculated.
+   !! Result is stored in pump%discharge, for later use in some computePump.
+   !! Input and result are w.r.t. the *spatial* orientation of the pump,
+   !! i.e., the caller does not have to account for the *pumping* direction,
+   !! that is done by this subroutine.
    subroutine PrepareComputePump(pump, s1m1, s1m2)
-      !=======================================================================
-      !                       Deltares
-      !                One-Two Dimensional Modelling System
-      !                           S O B E K
-      !
-      ! Subsystem:          Flow Module
-      !
-      ! Programmer:         J. van Beek
-      !
-      ! Module:             PLQHAP (PLuvius Q Discharge Advance Pump)
-      !
-      ! Module description: The discharge through an advanced pump with different capacities
-      !     and control on sucktion and pressure side is calculated.
-      !
-      !     update information
-      !     person                    date
-      !
-      !     23-03-2012: Redesigned by Jaap Zeekant based on algorithm specified by Thieu van Mierlo
-      !
-      !
       implicit none
 
-      type(t_pump), pointer          :: pump
-      double precision, intent(in)   :: s1m1 ! TODO: JN: Suction Side level
-      double precision, intent(in)   :: s1m2 ! TODO: JN: Delivery Side Level
+      type(t_pump), pointer          :: pump     !< Object containing pump specific data.
+      double precision, intent(in)   :: s1m1     !< 'Left side' water level, w.r.t. pump spatial orientation.
+      double precision, intent(in)   :: s1m2     !< 'Right side' water level, w.r.t. pump spatial orientation.
       !
       !
       ! Local variables
@@ -157,148 +140,139 @@ contains
       logical                        :: ss_switch_off
       logical                        :: ds_switch_on
       logical                        :: ds_switch_off
-      double precision               :: ss_level  ! Suction Side level
-      double precision               :: ds_level  ! Delivery Side Level
 
-      nstages = pump%nrstages
+      double precision               :: ss_level !< Suction Side level, w.r.t. pumping direction.
+      double precision               :: ds_level !< Delivery Side Level, w.r.t. pump spatial orientation.
 
-      ! Check Suction Side Conditions
-      if (pump%direction > 0) then
-         !
-         !              Pump Direction Positive
-         !
+      ! Direction (==orientation) may be positive or negative,
+      ! and additionally, non-staged pumps may have negative capacity.
+      if (pump%direction * pump%capacity(1) > 0) then
          ss_level = s1m1
          ds_level = s1m2
       else
-         !
-         !              Pump Direction Negative
-         !
          ss_level = s1m2
          ds_level = s1m1
-      endif
+      end if
 
-      if (abs(pump%direction) == 1 .or. abs(pump%direction) == 3) then
-
-        do istage = 1, nstages
-
-            ss_switch_on = (ss_level > pump%ss_onlevel(istage))
-            ss_switch_off = (ss_level < pump%ss_offlevel(istage))
-
-            if (ss_switch_on .and. .not. ss_switch_off) then
-
-              pump%ss_trigger(istage) = .true.
-
-            elseif (.not. ss_switch_on .and. ss_switch_off) then
-
-              pump%ss_trigger(istage) = .false.
-
-            else
-              ! Keep Old Value, So Do Nothing
-            endif
-
-        enddo
-
-      endif
-
-      ! Check Delivery Side Conditions
-      if (abs(pump%direction) == 2 .or. abs(pump%direction) == 3) then
-
-        do istage = 1, nstages
-
-            ds_switch_on = (ds_level < pump%ds_onlevel(istage))
-            ds_switch_off = (ds_level > pump%ds_offlevel(istage))
-
-            if (ds_switch_on .and. .not. ds_switch_off) then
-
-              pump%ds_trigger(istage) = .true.
-
-            elseif (.not. ds_switch_on .and. ds_switch_off) then
-
-              pump%ds_trigger(istage) = .false.
-
-            else
-              ! Keep Old Value, So Do Nothing
-            endif
-
-        enddo
-
-      endif
-
-      ! Give non-controlled side all freedom
-      if (abs(pump%direction) == 1) then
-        pump%ds_trigger = .true.
-      elseif (abs(pump%direction) == 2) then
-        pump%ss_trigger = .true.
-      endif
-
-      ! Find the active stage
-      pump%actual_stage = 0
-      do istage = nstages, 1, -1
-        if (pump%ss_trigger(istage) .and. pump%ds_trigger(istage)) then
-          pump%actual_stage = istage
-          exit
-        endif
-      enddo
+      nstages = pump%nrstages
 
       ! Get Reduction Factor from Table
       pump%pump_head = ds_level - ss_level
       pump%reduction_factor = interpolate(pump%reducfact, pump%pump_head)
 
-      ! Calculate Capacity
-      if (pump%actual_stage == 0) then
-
-        pump%is_active = .false.
-
-        qp = 0.
-        pump%stage_capacity = 0.0
-        if (pump%iscontrolled) then
-          pump%actual_stage = -1
-        endif
-
+      if (nstages == 0) then
+         ! No stages for this pump. pump%capacity(1) is the pump capacity to be used
+         pump%is_active = .true.
+         qp = pump%reduction_factor * pump%capacity(1)
+         pump%current_capacity = pump%capacity(1)
       else
+         
+         ! Check Suction Side Conditions
+         ! * IF water level is ABOVE the on level of a stage, according to
+         !   the suction side, the stage is turned on.
+         ! * ELSEIF the water level is BELOW the off level of a stage, according to 
+         !   the suction side, the stage is turned off
+         ! * ELSE no action is taken. (on stays on, off stays off)
 
-        pump%is_active = .true.
+         if (abs(pump%direction) == 1 .or. abs(pump%direction) == 3) then
+           do istage = 1, nstages
+              ss_switch_on = (ss_level > pump%ss_onlevel(istage))
+              ss_switch_off = (ss_level < pump%ss_offlevel(istage))
 
-        if (pump%iscontrolled) then
-          qp = pump%reduction_factor * pump%capacitySetpoint
-          pump%actual_stage = -1
-          pump%stage_capacity = pump%capacitySetpoint
-        else
-          qp = pump%reduction_factor * pump%capacity(pump%actual_stage)
-          pump%stage_capacity = pump%capacity(pump%actual_stage)
-        endif
+              if (ss_switch_on .and. .not. ss_switch_off) then
+                 pump%ss_trigger(istage) = .true.
+              elseif (.not. ss_switch_on .and. ss_switch_off) then
+                 pump%ss_trigger(istage) = .false.
+              else
+                 ! Keep Old Value, So Do Nothing
+              endif
+           enddo
+         endif
+
+         ! Check Delivery Side Conditions
+         ! * IF water level is BELOW the on level of a stage, according to
+         !   the suction side, the stage is turned on.
+         ! * ELSEIF the water level is ABOVE the off level of a stage, according to 
+         !   the suction side, the stage is turned off
+         ! * ELSE no action is taken. (on stays on, off stays off)
+
+         if (abs(pump%direction) == 2 .or. abs(pump%direction) == 3) then
+           do istage = 1, nstages
+              ds_switch_on = (ds_level < pump%ds_onlevel(istage))
+              ds_switch_off = (ds_level > pump%ds_offlevel(istage))
+
+              if (ds_switch_on .and. .not. ds_switch_off) then
+                 pump%ds_trigger(istage) = .true.
+              elseif (.not. ds_switch_on .and. ds_switch_off) then
+                 pump%ds_trigger(istage) = .false.
+              else
+                 ! Keep Old Value, So Do Nothing
+              endif
+           enddo
+         endif
+
+         ! Give non-controlled side all freedom
+         if (abs(pump%direction) == 1) then
+           pump%ds_trigger = .true.
+         elseif (abs(pump%direction) == 2) then
+           pump%ss_trigger = .true.
+         endif
+
+         ! Find the active stage 
+         ! The highest stage, with both suction side and delivery side turned on results in a 
+         ! actual stage.
+         pump%actual_stage = 0
+         do istage = nstages, 1, -1
+           if (pump%ss_trigger(istage) .and. pump%ds_trigger(istage)) then
+             pump%actual_stage = istage
+             exit
+           endif
+         enddo
+
+         ! Calculate Capacity
+         if (pump%actual_stage == 0) then
+           pump%is_active = .false.
+           qp = 0d0
+           pump%current_capacity = 0d0
+         else
+           pump%is_active = .true.
+           qp = pump%reduction_factor * pump%capacity(pump%actual_stage)
+           pump%current_capacity = pump%capacity(pump%actual_stage)
+         endif
 
       endif
-
+         
       pump%ss_level = ss_level
       pump%ds_level = ds_level
+
+      ! Translate computed discharge (not the current_capacity) back to
+      ! the caller's orientation, that is: *spatial* orientation of
+      ! the pump
       if (pump%direction > 0) then
-        pump%discharge = qp
+         pump%discharge = qp
       else
-        pump%discharge = -qp
-        pump%stage_capacity = -pump%stage_capacity
+         pump%discharge = -qp
+         !pump%current_capacity = -pump%current_capacity
       endif
 
-      !
-      !     Function return value is discharge Q for pump
-      !
    end subroutine PrepareComputePump
 
-   subroutine computePump(pump, fum, rum, um, qm, aum)
-      ! modules
-
-      ! Global variables
-      type(t_pump), pointer, intent(in)            :: pump
-      double precision, intent(out)                :: fum
-      double precision, intent(out)                :: rum
-      double precision, intent(out)                :: um
-      double precision, intent(out)                :: qm
-      double precision, intent(in)                 :: aum
-
-      fum = 0.0
-      rum = pump%discharge/max(aum, 1.0D-2)
-      um = rum
-      qm  = pump%discharge
-   end subroutine computePump
+    
+   !subroutine computePump(pump, fum, rum, um, qm, aum)
+   !   ! modules
+   !
+   !   ! Global variables
+   !   type(t_pump), pointer, intent(in)            :: pump
+   !   double precision, intent(out)                :: fum
+   !   double precision, intent(out)                :: rum
+   !   double precision, intent(out)                :: um
+   !   double precision, intent(out)                :: qm
+   !   double precision, intent(in)                 :: aum
+   !
+   !   fum = 0.0
+   !   rum = pump%discharge/max(aum, 1.0D-2)
+   !   um = rum
+   !   qm  = pump%discharge
+   !end subroutine computePump
 
 end module m_Pump

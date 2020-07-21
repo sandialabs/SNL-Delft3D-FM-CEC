@@ -2,7 +2,7 @@ module M_newcross                                                ! new type conv
                                                                  ! all data is attached to pluv u nr
 !----- AGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2017-2018.                                
+!  Copyright (C)  Stichting Deltares, 2017-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify              
 !  it under the terms of the GNU Affero General Public License as               
@@ -26,8 +26,8 @@ module M_newcross                                                ! new type conv
 !  Stichting Deltares. All rights reserved.
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: wetcrs_modules.F90 8044 2018-01-24 15:35:11Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_gpl/flow1d/packages/flow1d_core/src/wetcrs_modules.F90 $
+!  $Id: wetcrs_modules.F90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_gpl/flow1d/packages/flow1d_core/src/wetcrs_modules.F90 $
 !-------------------------------------------------------------------------------
 
 implicit none
@@ -40,10 +40,11 @@ public generateConvtab
 public regulatehlv
 public realloc
 public dealloc
+public write_conv_tab
 
  integer, parameter                             :: ncx = 144
- integer, parameter, public                             :: CS_VERT_SEGM = 1
- integer, parameter, public                             :: CS_LUMPED = 2
+ integer, parameter, public                             :: CS_LUMPED    = 0 !< Lumped option for yz-type conveyance calculation.
+ integer, parameter, public                             :: CS_VERT_SEGM = 1 !< Vertically segmented option for yz-type conveyance calculation.
  integer, public     :: lcnvmax
  
 interface dealloc
@@ -690,6 +691,7 @@ subroutine CalcConveyanceTables(jf, vf, y, d, hlv, nc, n12, jgetlevels, zminpr, 
           endif
 
           conv = 0.5d0*ikpt(n12,j,1) + 0.5d0*ikpt(n12,j-1,1)
+          co = max(co,1d-6)
           dif2 = abs(conv - co)/(co)
           accuracy = 0.01d0
 
@@ -808,11 +810,11 @@ subroutine ConveyanceTables(href, grndlyr, typ, yin, z, nbo, branchid, bedFricti
    double precision           :: frictionValueNeg(:)
 
    integer nc, ind, typ
-   integer jf(*), icrds
+   integer jf(:), icrds
    integer j, jgetlevels, n12
-   double precision              :: vf(*)
+   double precision              :: vf(:)
    double precision              :: cg(2)
-   double precision              :: hlv(*), d(*), y(:), zminpr
+   double precision              :: hlv(:), d(:), y(:), zminpr
    logical                       :: prtout
    character*10                  :: id
    
@@ -824,7 +826,7 @@ subroutine ConveyanceTables(href, grndlyr, typ, yin, z, nbo, branchid, bedFricti
       d(j) = z(j) + href       ! nc = actueel aantal punten, wordt aangepast
       if (j>1) then
          if (d(j) == d(j-1)) then
-            d(j) = d(j) + 0.0011
+            d(j) = d(j) + 0.0011    ! Prevent horizontal to prevent devision by zero
          endif
       endif
       y(j) = yin(j)
@@ -977,7 +979,7 @@ double precision            :: c1, c2, dcf, f1, f2
 
 co = 0.0d0
 dcf = cf
-if(ct.eq.7) then
+if(ct.eq.3) then
    c1 = (1.0d0+bt**2)**s14*dlog(10.0d0)
    c2 = dcf/12.0d0
 endif
@@ -985,15 +987,15 @@ endif
 if(d0.lt.dz.or.d1.lt.dz) then   ! beta#0
    if(bt.lt.-0.01d0) then
       select case (ct)
-      case (1)                   ! Chezy
+      case (0)                   ! Chezy
          co = 2.0d0*dcf/(5.0d0*dabs(bt)*(1.0d0+bt**2)**s14)*d1**s52
-      case (4)                   ! Manning (n)
+      case (1)                   ! Manning (n)
          co = 3.0d0/(8.0d0*dcf*dabs(bt)*(1.0d0+bt**2)**s14)*d1**s83
-      case (5)                   ! Strickler (kn)
+      case (7)                   ! Strickler (kn)
          co = 75.0d0*dcf**sixth/(8.0d0*dabs(bt)*(1.0d0+bt**2)**s14)*d1**s83
-      case (6)                   ! Strickler (ks)
+      case (8)                   ! Strickler (ks)
          co = 3.0d0*dcf/(8.0d0*dabs(bt)*(1.0d0+bt**2)**s14)*d1**s83
-      case (7)                   ! White-Colebrook (kn)
+      case (3)                   ! White-Colebrook (kn)
          if(d1/c2.le.1.495d0) then 
             f1 = 2.13d-3
          else
@@ -1005,15 +1007,15 @@ if(d0.lt.dz.or.d1.lt.dz) then   ! beta#0
       end select
    else if(bt.ge.-0.01.and.bt.lt.0) then
       select case (ct)
-      case (1)                   ! Chezy
+      case (0)                   ! Chezy
          co = dcf/(((1.0d0+bt**2)**s14))*(d1/2.0d0)**s32*(-d1/bt)
-      case (4)                   ! Manning (n)
+      case (1)                   ! Manning (n)
          co = 1/(dcf*(1.0d0+bt**2)**s14)*(d1/2.0d0)**s53*(-d1/bt)
-      case (5)                   ! Strickler (kn)
+      case (7)                   ! Strickler (kn)
          co = 25.0d0*dcf**sixth/((1.0d0+bt**2)**s14)*(d1/2.0d0)**s53*(-d1/bt)
-      case (6)                   ! Strickler (ks)
+      case (8)                   ! Strickler (ks)
          co = dcf/((1.0d0+bt**2)**s14)*(d1/2.0d0)**s53*(-d1/bt)
-      case (7)                   ! White-Colebrook (kn)
+      case (3)                   ! White-Colebrook (kn)
          if(6.0d0*d1/dcf.le.1.0005d0) then
             f1 = 2.2d-4
          else
@@ -1025,35 +1027,35 @@ if(d0.lt.dz.or.d1.lt.dz) then   ! beta#0
       end select
   else if(bt.le.0.01.and.bt.gt.0) then
       select case (ct)
-      case (1)                   ! Chezy
+      case (0)                   ! Chezy
          co = dcf/((1.0d0+bt**2)**s14)*(d0/2.0d0)**s32*(d0/bt)
-      case (4)                   ! Manning (n)
+      case (1)                   ! Manning (n)
          co = 1/(dcf*(1.0d0+bt**2)**s14)*(d0/2.0d0)**s53*(d0/bt)
-      case (5)                   ! Strickler (kn)
-         co = 25.0d0*dcf**sixth/((1.0d0+bt**2)**s14)*(d0/2.0d0)**s53*(-d0/bt)
-      case (6)                   ! Strickler (ks)
+      case (7)                   ! Strickler (kn)
+         co = 25.0d0*dcf**sixth/((1.0d0+bt**2)**s14)*(d0/2.0d0)**s53*(d0/bt)
+      case (8)                   ! Strickler (ks)
          co = dcf/((1.0d0+bt**2)**s14)*(d0/2.0d0)**s53*(d0/bt)
-      case (7)                   ! White-Colebrook (kn)
+      case (3)                   ! White-Colebrook (kn)
          if(6.0d0*d0/dcf.le.1.0005d0) then
             f1 = 2.2d-4
          else
             f1 = dlog10(6.0d0*d0/dcf)
          endif
-         co = 18.0d0/((1.0d0+bt**2)**s14)*f1*(-d0/bt)*(d0/2.0d0)**s32
+         co = 18.0d0/((1.0d0+bt**2)**s14)*f1*(d0/bt)*(d0/2.0d0)**s32
       case (9)                   ! Bos&Bijkerk 
          co = dcf/((1.0d0+bt**2)**s14)*(d0/2.0d0)**2*(d0/bt)
       end select
   else if(bt.gt.0.01) then
       select case (ct)
-      case (1)                   ! Chezy
+      case (0)                   ! Chezy
          co = 2.0d0*dcf/(5.0d0*dabs(bt)*(1.0d0+bt**2)**s14)*d0**s52
-      case (4)                   ! Manning (n)
+      case (1)                   ! Manning (n)
          co = 3.0d0/(8.0d0*dcf*dabs(bt)*(1.0d0+bt**2)**s14)*d0**s83
-      case (5)                   ! Strickler (kn)
+      case (7)                   ! Strickler (kn)
          co = 75.0d0*dcf**sixth/(8.0d0*dabs(bt)*(1.0d0+bt**2)**s14)*d0**s83
-      case (6)                   ! Strickler (ks)
+      case (8)                   ! Strickler (ks)
          co = 3.0d0*dcf/(8.0d0*dabs(bt)*(1.0d0+bt**2)**s14)*d0**s83
-      case (7)                   ! White-Colebrook (kn)
+      case (3)                   ! White-Colebrook (kn)
          if(d0/c2.le.1.495d0) then 
             f1 = 2.13d-3
          else
@@ -1068,15 +1070,15 @@ endif
 if(d0.ge.dz.or.d1.ge.dz) then   
   if(bt.ge.-0.01d0.and.bt.le.0.01d0) then
       select case (ct)
-      case (1)                   ! Chezy
+      case (0)                   ! Chezy
          co = dcf/((1.0d0+bt**2)**s14)*((d0+d1)/2.0d0)**s32*bb
-      case (4)                   ! Manning (n)
+      case (1)                   ! Manning (n)
          co = 1.0d0/(dcf*(1.0d0+bt**2)**s14)*((d0+d1)/2.0d0)**s53*bb
-      case (5)                   ! Strickler (kn)
+      case (7)                   ! Strickler (kn)
          co = 25.0d0*dcf**sixth/((1.0d0+bt**2)**s14)*((d0+d1)/2.0d0)**s53*bb
-      case (6)                   ! Strickler (ks)
+      case (8)                   ! Strickler (ks)
          co = dcf/((1.0d0+bt**2)**s14)*((d0+d1)/2.0d0)**s53*bb
-      case (7)                   ! White-Colebrook (kn)
+      case (3)                   ! White-Colebrook (kn)
          if(6.0d0*(d0+d1)/dcf.le.1.0005d0) then
             f1 = 2.2d-4
          else
@@ -1088,15 +1090,15 @@ if(d0.ge.dz.or.d1.ge.dz) then
       end select
   elseif (dabs(bt) .gt. 0.01d0) then
       select case (ct)
-      case (1)                   ! Chezy
+      case (0)                   ! Chezy
          co = 2.0d0*dcf/(5.0d0*dabs(bt)*(1.0d0+bt**2)**s14)*dabs(d0**s52-d1**s52)
-      case (4)                   ! Manning (n)
+      case (1)                   ! Manning (n)
          co = 3.0d0/(8.0d0*dcf*dabs(bt)*(1.0d0+bt**2)**s14)*dabs(d0**s83-d1**s83)
-      case (5)                   ! Strickler (kn)
+      case (7)                   ! Strickler (kn)
          co = 75.0d0*dcf**sixth/(8.0d0*dabs(bt)*(1.0d0+bt**2)**s14)*dabs(d0**s83-d1**s83)
-      case (6)                   ! Strickler (ks)
+      case (8)                   ! Strickler (ks)
          co = 3.0d0*dcf/(8.0d0*dabs(bt)*(1.0d0+bt**2)**s14)*dabs(d0**s83-d1**s83)
-      case (7)                   ! White-Colebrook (kn)
+      case (3)                   ! White-Colebrook (kn)
          if(d0/c2.le.1.495d0) then 
             f1 = 2.13d-3
          else
@@ -1149,6 +1151,38 @@ double precision :: dh                         ! depth dif
    a  = 0.5d0*( h1 + h2 )*w
    p  = dsqrt ( w*w  + dh*dh )
 end subroutine compwap
+
+subroutine write_conv_tab(convtab)
+   use messagehandling
+   
+   type(t_crsu), intent(in)      :: convtab
+   
+   integer :: nlevels
+   integer :: i
+   
+   write(msgbuf, '(''Number of levels in Conveyance table = '', i5)') convtab%nru
+   call msg_flush()
+   
+   write(msgbuf,'(''Extrapolation factor a (positive direction)'', g14.6)') convtab%a_pos_extr
+   call msg_flush()
+   write(msgbuf,'(''Extrapolation factor a (negative direction)'', g14.6)') convtab%a_neg_extr
+   call msg_flush()
+   write(msgbuf,'(''Extrapolation factor b (positive direction)'', g14.6)') convtab%b_pos_extr
+   call msg_flush()
+   write(msgbuf,'(''Extrapolation factor b (negative direction)'', g14.6)') convtab%b_neg_extr
+   call msg_flush()
+   write(msgbuf,'(11a17)') 'Water_depth', 'Total_width', 'Flow_width', 'Total_Area', 'Flow_Area', 'Conv_pos_dir', &
+               'Conv_neg_dir', 'Perimeter'
+   call msg_flush()
+
+   nlevels = convtab%nru
+   do i = 1, nlevels
+      write(msgbuf, '(11g17.6)') convtab%hu (i) , convtab%wt(i,1), convtab%wf (i), convtab%at(i,1), convtab%af (i), &
+                                 convtab%co1(i), convtab%co2(i), convtab%pf (i)
+      call msg_flush()
+   enddo 
+   
+end subroutine write_conv_tab
 
 end module M_newcross           ! new type conveyance table crossections
 

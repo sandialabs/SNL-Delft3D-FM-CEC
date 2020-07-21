@@ -1,6 +1,6 @@
 !----- AGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2017-2018.                                
+!  Copyright (C)  Stichting Deltares, 2017-2020.                                
 !                                                                               
 !  This file is part of Delft3D (D-Flow Flexible Mesh component).               
 !                                                                               
@@ -27,8 +27,8 @@
 !                                                                               
 !-------------------------------------------------------------------------------
 
-! $Id: unstruc_display.F90 54191 2018-01-22 18:57:53Z dam_ar $
-! $HeadURL: https://repos.deltares.nl/repos/ds/trunk/additional/unstruc/src/unstruc_display.F90 $
+! $Id: unstruc_display.F90 65778 2020-01-14 14:07:42Z mourits $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/dflowfm/packages/dflowfm_kernel/src/unstruc_display.F90 $
 
 ! m_WEARELT movet to gridgeom
 
@@ -55,6 +55,22 @@ implicit none
 
     integer :: klvec=4, klaxs=30, klscl=221, kltex=3, klfra=31, klobs=227, klsam=33, klzm=31, klank=31, klprof=222, KLSRC=233 
 
+    ! Color numbers for standard colors.
+    integer :: ncolgray       = 255
+    integer :: ncolred        = 252
+    integer :: ncolyellow     = 251
+    integer :: ncolgreen      = 250
+    integer :: ncolcyan       = 249
+    integer :: ncolblue       = 248
+    integer :: ncolmagenta    = 247
+    integer :: ncolmaroon     = 246
+    integer :: ncoldarkgreen  = 245
+    integer :: ncolteal       = 244
+    integer :: ncolpink       = 243
+    integer :: ncolorange     = 242
+    integer :: ncollavender   = 241
+    integer :: ncolbrown      = 240
+    
     integer :: ncoldn    = 3   !< Design net
     integer :: ncolrn    = 211 !< Previous state net
     integer :: ncolnn    = 89  ! 203 !< Net node dots
@@ -74,8 +90,8 @@ implicit none
     integer :: ncolhl    =  31 ! Highlight nodes/links
     integer :: ncolANA   =  63 ! 180! ANALYTIC SOLOUTIONS
 
-    integer :: ncolblack = 3
-    integer :: ncolwhite = 255
+    integer :: ncolblack = 254
+    integer :: ncolwhite = 253
     
     ! colors in text screens
     ! 0 : Black       4 : Cyan
@@ -113,7 +129,7 @@ module unstruc_display
 !! Handles all display settings and screen plotting for Unstruc
 !! (Not yet, a lot is still in REST.F90 [AvD])
 
-! $Id: unstruc_display.F90 54191 2018-01-22 18:57:53Z dam_ar $
+! $Id: unstruc_display.F90 65778 2020-01-14 14:07:42Z mourits $
 
 use unstruc_colors
 implicit none
@@ -149,6 +165,8 @@ implicit none
     integer :: ndrawManholes      = 2   !< how draw manholes
     integer :: ndrawPart          = 2   !< Particles, 1=No, 2=Yes
     integer :: ndrawDots          = 2   !< dots, 1=No, 2=Yes
+    integer :: ndrawStructures    = 1   !< structures, 1=No, 2=Yes (only symbols), 3=Yes (symbols and IDs)
+    integer :: idisLink           = 0   !< Index of flowlink which is to be displayed with more information
   
     integer :: numzoomshift       = 250 !< nr of steps in zoomshift
     double precision :: wetplot   = 0.001 !< only show wet waterlevel points if (hs>wetplot)
@@ -156,6 +174,16 @@ implicit none
     integer :: jafullbottomline   = 0     !<larger bottomline with more complete description in screen 
     double precision :: profmax(20) = -999d0 !< minmax axes of tekprofiles 
     double precision :: profmin(20) = -999d0 
+    double precision :: ymn, zmn             ! for tekrailines  
+    
+    public dis_info_1d_link
+    public plotStructures
+    
+    interface Write2Scr
+      module procedure Write2ScrInt
+      module procedure Write2ScrDouble
+      module procedure Write2ScrChar
+    end interface Write2Scr
     
 contains
 
@@ -168,7 +196,7 @@ subroutine load_displaysettings(filename)
     use m_wearelt
     use M_isoscaleunit
     use m_transport, only: iconst_cur
-    USE M_FLOW, only: kplot, nplot
+    USE M_FLOW, only: kplot, nplot, kplotfrombedorsurface, kplotordepthaveraged
     use m_observations, only : jafahrenheit
 !   use unstruc_opengl    ! circular dependency
  
@@ -228,8 +256,8 @@ subroutine load_displaysettings(filename)
 
     numdraw = 41
     do i=1,numdraw
-        write (nrstring, '(I2)') i
-        call prop_get_integer(dis_ptr, '*', 'ndraw('//trim(adjustl(nrstring))//')', ndraw(i), success)
+       write (nrstring, '(I2)') i
+       call prop_get_integer(dis_ptr, '*', 'ndraw('//trim(adjustl(nrstring))//')', ndraw(i), success)
     end do
     
 !   load active constituent number
@@ -271,13 +299,18 @@ subroutine load_displaysettings(filename)
     call prop_Get_DOUBLE (dis_ptr, '*', 'VMIN         '  , VMIN            , success)
     call prop_Get_DOUBLE (dis_ptr, '*', 'VMAX         '  , VMAX            , success)
     call prop_Get_DOUBLE (dis_ptr, '*', 'DV           '  , DV              , success)
+    DO I = 1,NV
+       VAL(I) = VMIN + (I-1)*DV/(NV-1)
+    ENDDO
 
     call prop_Get_integer(dis_ptr, '*', 'JAAUTO2      '  , JAAUTO2         , success)
     call prop_Get_integer(dis_ptr, '*', 'NV2          '  , NV2             , success)
     call prop_Get_DOUBLE (dis_ptr, '*', 'VMIN2        '  , VMIN2           , success)
     call prop_Get_DOUBLE (dis_ptr, '*', 'VMAX2        '  , VMAX2           , success)
     call prop_Get_DOUBLE (dis_ptr, '*', 'DV2          '  , DV2             , success)
-
+    DO I = 1,NV2
+       VAL2(I) = VMIN2 + (I-1)*DV2/(NV2-1)
+    ENDDO
     
     call prop_Get_string (dis_ptr, '*', 'UNIT(1)      '  , UNIT(1)         , success)
     call prop_Get_string (dis_ptr, '*', 'PARAMTEX(1)  '  , PARAMTEX(1)     , success)
@@ -336,7 +369,9 @@ subroutine load_displaysettings(filename)
     call prop_get_integer (dis_ptr, '*', 'NREDP  ', NREDP   , success) 
     call prop_get_integer (dis_ptr, '*', 'NGREENP', NGREENP , success) 
     call prop_get_integer (dis_ptr, '*', 'NBLUEP ', NBLUEP  , success) 
-      
+
+    call prop_get_integer (dis_ptr, '*', 'kplotbedsur', kplotfrombedorsurface, success)
+    call prop_get_integer (dis_ptr, '*', 'kplotordepthaveraged', kplotordepthaveraged, success)
     call prop_get_integer (dis_ptr, '*', 'kplot', kplot, success)
     call prop_get_integer (dis_ptr, '*', 'nplot', nplot, success) 
     
@@ -371,6 +406,7 @@ subroutine load_displaysettings(filename)
         ndraw(10) = 1
     end if
 
+    
 end subroutine load_displaysettings
 
 
@@ -567,6 +603,8 @@ subroutine save_displaysettings(filename)
     call prop_set(dis_ptr, '*', 'NGREENP', NGREENP  )
     call prop_set(dis_ptr, '*', 'NBLUEP ', NBLUEP   )
 
+    call prop_set(dis_ptr, '*', 'kplotbedsur', kplotfrombedorsurface)
+    call prop_set(dis_ptr, '*', 'kplotordepthaveraged', kplotordepthaveraged)
     call prop_set(dis_ptr, '*', 'kplot', kplot)
     call prop_set(dis_ptr, '*', 'nplot', nplot)
     
@@ -632,9 +670,11 @@ subroutine plotObservations() ! TEKOBS
                 call gtext(' '//trim(namobs(n)), xobs(n), yobs(n), 221)
              endif
           else if (ndrawobs == 6) then
+             tex = '           (m)' 
              write (tex,'(f10.4)') s1(k)
              call gtext(tex(1:14), xobs(n), yobs(n), ncolblack)
           else if (ndrawobs == 7) then
+             tex = '           (m)' 
              write (tex,'(f10.4)') s1(k) - bl(k)
              call gtext(tex(1:14), xobs(n), yobs(n), ncolblack)   
           else if (ndrawobs == 8) then
@@ -1030,14 +1070,18 @@ subroutine plotCrossSectionPath(path, met, ncol, jaArrow, label)
         !call cir(.4d0*rcir)
         jmax = 1 ! jmax is the last visible point in coarse polyline.
                  ! Only #1 is not checked (so user should zoom out when even that one is not visible)
-        do j=2,path%np
-            call lnabs(path%xp(j), path%yp(j))
-
-            if (inview(path%xp(j), path%yp(j))) then  ! find first and last j in viewing area
-                jmax = j
-            end if
-            !call cir(.4d0*rcir)
-        end do
+        if (path%np > 1) then
+           do j=2,path%np
+               call lnabs(path%xp(j), path%yp(j))
+           
+               if (inview(path%xp(j), path%yp(j))) then  ! find first and last j in viewing area
+                   jmax = j
+               end if
+               !call cir(.4d0*rcir)
+           end do
+        else if (path%np == 1) then
+           call cir(rcir)
+        end if
         xx2 = path%xp(jmax)
         yy2 = path%yp(jmax)
     ! Else, default: plot all crossed flow links in crs.
@@ -1235,7 +1279,393 @@ SUBROUTINE MINMXNS()
       CALL WEAREL()
 
        RETURN
-      END subroutine minmxns
+END subroutine minmxns
+
+!> Plot all structures in the current viewport
+subroutine plotStructures()
+use m_GlobalParameters
+use unstruc_colors
+use unstruc_channel_flow
+use m_flowgeom, only: xu, yu, lnx
+use gridoperations
+use m_flowparameters, only: epshu
+use m_flow, only: hu
+use m_wearelt, only: rcir
+implicit none
+
+integer              :: is,link
+double precision     :: icon_rw_size !< Size of plotted icons in real-world coordinates.
+double precision     :: x, y
+character(len=Idlen) :: text
+logical              :: active
+
+if (ndrawStructures <= 1) then
+   return
+end if
+
+! Determine icon_rw_size. 
+icon_rw_size = 2*rcir
+
+call IGrCharJustify('L')
+
+! Draw structures at the velocity points where they are located
+if (network%loaded) then
+   do is = 1,network%sts%Count
+   
+      ! Get structure x,y coordinates.
+      link = network%sts%struct(is)%linknumbers(1)
+      if (link > 0 .and. link <= lnx) then ! for safety
+         x = xu(link)
+         y = yu(link)
+         if (.not. inView(x, y)) cycle
+         
+         ! Draw structure.
+         active = hu(link) > epshu         
+         call movabs(x, y)
+         ! Uses same symbols and colors as for Sobek 2.
+         select case(network%sts%struct(is)%type)
+         case (ST_PUMP)
+            active = network%sts%struct(is)%pump%is_active
+            call drawTriangle(x, y, icon_rw_size, ncolorange, ncolblack, active)
+         case (ST_GENERAL_ST)
+            call drawTriangle(x, y, icon_rw_size, ncolpink, ncolblack, active)
+         case (ST_WEIR)
+            call drawTriangle(x, y, icon_rw_size, ncolgreen, ncolblack, active)
+         case (ST_ORIFICE)
+            call drawTriangle(x, y, icon_rw_size, ncoldarkgreen, ncolblack, active)
+         case (ST_CULVERT)
+            call drawTriangle(x, y, icon_rw_size, ncolmaroon, ncolblack, active)      
+         case (ST_UNI_WEIR)
+            call drawTriangle(x, y, icon_rw_size, ncolgray, ncolblack, active)
+         case (ST_BRIDGE)
+            call drawTriangle(x, y, icon_rw_size, ncollavender, ncolblack, active)
+         case (ST_DAMBREAK)
+            call drawStar(x, y, 1.5*icon_rw_size, ncolred, ncolblack)
+         case default
+         end select
+         
+         if (ndrawStructures <= 2) then
+            cycle
+         end if
+         
+         ! Draw label with structure id.
+         call igrcharfont(7)
+         call gtext(trim(network%sts%struct(is)%id), x + 0.5*icon_rw_size, y - 1.3*icon_rw_size, ncolwhite)
+      end if
+   end do
+end if
+
+call resetlinesizesetc()
+
+end subroutine plotStructures
+
+!> Draws a filled (or empty) triangle at current position.
+!! Filled means: one colour for inside, one colour for edge.
+subroutine drawTriangle(x, y, size, icolfill, icoledge, filled)
+implicit none
+
+double precision, intent(in) :: x        !< x coordinate of center of triangle.
+double precision, intent(in) :: y        !< y coordinate of center of triangle.
+double precision, intent(in) :: size     !< size of triangle in world coordinates.
+integer,          intent(in) :: icolfill !< Colour number for inner fill
+integer,          intent(in) :: icoledge !< Colour number for edge
+logical,          intent(in) :: filled   !< Filled or empty  
+
+if (filled) then 
+   ! Fill
+   call IGrFillPattern(4,0,0)
+   call setcol(icolfill)
+   call IGrTriangle(real(x - size/2), real(y - size/2), real(x + size/2), real(y - size/2), real(x), real(y + size/2))
+   call IGrFillPattern(0,0,0)
+   call setcol(icoledge)
+   call IGrTriangle(real(x - size/2), real(y - size/2), real(x + size/2), real(y - size/2), real(x), real(y + size/2))
+else 
+   ! Edge
+   call IGrFillPattern(0,0,0)  
+   call IGrLineWidth(3,1)
+   call setcol(icoledge)
+   call IGrTriangle(real(x - size/2), real(y - size/2), real(x + size/2), real(y - size/2), real(x), real(y + size/2))
+   call IGrLineWidth(1,1)
+   call setcol(icolfill)
+   call IGrTriangle(real(x - size/2), real(y - size/2), real(x + size/2), real(y - size/2), real(x), real(y + size/2))
+endif 
+! Edge
+call IGrFillPattern(4,0,0)    ! Reset fill pattern
+
+end subroutine drawTriangle
+
+
+!> Draws a filled four-pointed star at current position.
+!! Filled means: one colour for inside, one colour for edge.
+subroutine drawStar(x, y, size, icolfill, icoledge)
+implicit none
+
+double precision,   intent(in) :: x        !< x coordinate of center of star.
+double precision,   intent(in) :: y        !< y coordinate of center of star.
+double precision,   intent(in) :: size     !< size of start in world coordinates.
+integer,            intent(in) :: icolfill !< Colour number for inner fill
+integer,            intent(in) :: icoledge !< Colour number for edge
+
+double precision, dimension(8) :: xs
+double precision, dimension(8) :: ys
+
+xs = (/ x - size/2, x - size/8, x, x + size/8, x + size/2, x + size/8, x, x - size/8 /)
+ys = (/ y, y - size/8, y - size/2, y - size/8, y, y + size/8, y + size/2, y + size/8 /)
+
+! Fill
+call IGrFillPattern(4,0,0)
+call setcol(icolfill)
+call IGrPolygonSimple(real(xs), real(ys), 8)
+
+! Edge
+call IGrFillPattern(0,0,0)
+call setcol(icoledge)
+call IGrPolygonSimple(real(xs), real(ys), 8)
+
+! Reset IGrFillPattern.
+call IGrFillPattern(4,0,0)
+
+end subroutine drawStar
+
+
+!> Display information for a (1D) flow link and its connected nodes.
+!! If it has a structure on it, then also display relevant fields
+!! of this structure.
+subroutine dis_info_1d_link(LL)
+use m_flowgeom
+use network_data
+use m_flow
+use unstruc_channel_flow
+use m_1d_structures
+use m_Pump
+use m_Weir
+use m_Orifice
+use m_Culvert
+implicit none
+
+integer, intent(in) :: LL !< flow link number
+
+character TEX*48, str_type*21, tex_empty*48
+integer :: linec ! line counter
+integer :: colc  ! colume counter
+integer :: k1, k2! node number
+integer :: L     ! net link number
+integer :: line_max ! maximal line number
+integer :: branchindex, ilocallin, nstruc, istrtype, i
+type(t_weir), pointer :: pweir
+type(t_pump), pointer :: ppump
+type(t_orifice), pointer :: porifice
+type(t_culvert), pointer :: pculvert
+
+
+linec = 7
+colc  = 1
+line_max = 48
+
+! write an empty line
+tex_empty = ''
+call IOUTSTRINGXY(colc, linec, tex_empty)
+
+linec = linec + 1
+tex = ' Info for current link+nodes, press q to exit.'
+call IOUTSTRINGXY(colc, linec, tex)
+
+linec = linec + 1
+call IOUTSTRINGXY(colc, linec, tex_empty)
+
+! block for node 1
+k1 = ln(1,LL)
+if (k1 > 0) then
+   call Write2Scr(linec, 'Node 1 number', k1, '-')
+   call Write2Scr(linec, 'Kfs', kfs(k1), '-')
+   call Write2Scr(linec, 'Water level  (s1)', s1(k1), 'm')
+   call Write2Scr(linec, 'Water depth  (hs)', hs(k1), 'm')
+   call Write2Scr(linec, 'Bottom level (bl)', bl(k1), 'm')
+   call Write2Scr(linec, 'Volume     (vol1)', vol1(k1), 'm3')
+end if
+
+! write an empty line
+linec = linec + 1
+call IOUTSTRINGXY(colc, linec, tex_empty)
+
+! block for node 2
+k2 = ln(2,LL)
+if (k2 > 0) then
+   call Write2Scr(linec, 'Node 2 number', k2, '-')
+   call Write2Scr(linec, 'Kfs', kfs(k2), '-')
+   call Write2Scr(linec, 'Water level  (s1)', s1(k2), 'm')
+   call Write2Scr(linec, 'Water depth  (hs)', hs(k2), 'm')
+   call Write2Scr(linec, 'Bottom level (bl)', bl(k2), 'm')
+   call Write2Scr(linec, 'Volume     (vol1)', vol1(k2), 'm3')
+end if
+
+! write an empty line
+linec = linec + 1
+call IOUTSTRINGXY(colc, linec, tex_empty)
+
+! block for flow link
+call Write2Scr(linec, 'Flow link number', LL, '-')
+call Write2Scr(linec, 'Flow link type (kcu)', kcu(LL), '-')
+L = abs(ln2lne(LL))
+call Write2Scr(linec, 'Net link number', L, '-')
+call Write2Scr(linec, 'Net link type  (kn3)', kn(3,L), '-')
+
+if (network%loaded .and. kcu(LL) == 1) then
+   branchindex = network%adm%lin2ibr(LL)
+   if (branchindex >= 1 .and. branchindex <= network%brs%Count) then
+      call Write2Scr(linec, 'Branch id', network%brs%branch(branchindex)%id(1:21))
+
+      ilocallin = network%adm%lin2local(LL)
+      if (ilocallin >= 1 .and. ilocallin <= network%brs%branch(branchindex)%uPointsCount) then
+         call Write2Scr(linec, 'Chainage', network%brs%branch(branchindex)%uPointsChainages(ilocallin), 'm')
+      else
+         call Write2Scr(linec, 'Chainage', 'N/A')
+      end if
+   else
+      call Write2Scr(linec, 'Branch id', 'N/A')
+      call Write2Scr(linec, 'Chainage',  'N/A')
+   end if
+
+end if
+
+call Write2Scr(linec, 'Bob(1,L)', bob(1,LL), 'm')
+call Write2Scr(linec, 'Bob(2,L)', bob(2,LL), 'm')
+call Write2Scr(linec, 'Bob0(1,L)', bob0(1,LL), 'm')
+call Write2Scr(linec, 'Bob0(2,L)', bob0(2,LL), 'm')
+
+call Write2Scr(linec, 'Flow area     (au)', au(LL), 'm2')
+call Write2Scr(linec, 'Flow width    (wu)', wu(LL), 'm')
+call Write2Scr(linec, 'Water depth   (hu)', hu(LL), 'm')
+call Write2Scr(linec, 'Velocity      (u1)', u1(LL), 'm/s')
+call Write2Scr(linec, 'Discharge     (q1)', q1(LL), 'm3/s')
+call Write2Scr(linec, 'Conveyance (cfuhi)', cfuhi(LL), 'm3/s')
+
+! If this flowlink has a stucture on it, then also display related info.
+if (network%loaded .and. kcu(LL) == 1) then
+   nstruc = network%adm%lin2str(LL) ! Assume only 1 structure on the flowlink
+else
+   nstruc = 0
+end if
+
+if (nstruc > 0) then
+   call Write2Scr(linec, 'Structure id', network%sts%struct(nstruc)%id(1:21))
+   
+   istrtype = network%sts%struct(nstruc)%type
+   call GetStrucType_from_int(istrtype, str_type)
+   call Write2Scr(linec, 'Structure type', str_type)   
+   
+   select case (istrtype)
+   case (ST_WEIR)
+      pweir=>network%sts%struct(nstruc)%weir
+      call write2scr(linec, 'Crest level', pweir%crestlevel, 'm')
+      call write2scr(linec, 'Crest width', pweir%crestwidth, 'm')
+      call write2scr(linec, 'Discharge coef.', pweir%dischargecoeff, '-')
+      call write2scr(linec, 'Lat. dis. coef.', pweir%latdiscoeff, '-')
+      call write2scr(linec, 'Allowed flow dir.', pweir%allowedflowdir, '-')
+   case (ST_PUMP)
+      ppump=>network%sts%struct(nstruc)%PUMP
+      call Write2Scr(linec, 'Direction', ppump%direction, 'm')
+      call Write2Scr(linec, 'Head', ppump%pump_head, 'm')
+      call Write2Scr(linec, 'Actual stage', ppump%actual_stage, '-')
+      if (ppump%is_active) then
+         call Write2Scr(linec, 'Is active?', 1, '-')
+      else
+         call Write2Scr(linec, 'Is active?', 0, '-')
+      end if
+      call Write2Scr(linec, 'Current capacity', ppump%current_capacity, 'm3/s')
+      call Write2Scr(linec, 'Reduction factor', ppump%reduction_factor, '-')
+   case (ST_ORIFICE)
+      porifice=>network%sts%struct(nstruc)%orifice
+      call write2scr(linec, 'Crest level', porifice%crestlevel, 'm')
+      call write2scr(linec, 'Crest width', porifice%crestwidth, 'm')
+      call write2scr(linec, 'Contraction coef.', porifice%contrcoeff, '-')
+      call write2scr(linec, 'Lat. contract coef.', porifice%latcontrcoeff, '-')
+      call write2scr(linec, 'Allowed flow dir.', porifice%allowedflowdir, '-')
+      if (porifice%uselimitflowpos) then
+         call write2scr(linec, 'Use limit flow pos.', 1, '-')
+         call write2scr(linec, 'Limit flow pos.', porifice%limitflowpos, 'm3/s')
+      else 
+         call write2scr(linec, 'Use limit flow pos.', 0, '-')
+      end if
+      if (porifice%uselimitflowneg) then
+         call write2scr(linec, 'Use limit flow neg.', 1, '-')
+         call write2scr(linec, 'Limit flow neg.', porifice%limitflowneg, 'm3/s')
+      else
+         call write2scr(linec, 'Use limit flow neg.', 0, '-')
+      end if
+   case (ST_CULVERT)
+      pculvert=>network%sts%struct(nstruc)%culvert
+      call write2scr(linec, 'Left level', pculvert%leftlevel, 'm')
+      call write2scr(linec, 'Right level', pculvert%rightlevel, 'm')
+      call write2scr(linec, 'Allowed flow dir.', pculvert%allowedflowdir, '-')
+      call write2scr(linec, 'Length', pculvert%length, 'm')
+      
+      if (pculvert%has_valve) then
+         call write2scr(linec, 'Valve opening', pculvert%valveOpening, 'm')
+      end if
+
+      call write2scr(linec, 'Inlet loss coef.', pculvert%inletlosscoeff, '-')
+      call write2scr(linec, 'Outlet loss coef.', pculvert%outletlosscoeff, '-')
+   case default
+      linec = linec + 1
+      call IOUTSTRINGXY(1, linec, ' Display for this structure type is not supported.')     
+   end select
+end if
+
+! write empty lines to erase lines with structure data from the previous clicked flow link, if any
+do i = linec+1, line_max
+   call IOUTSTRINGXY(colc, i, tex_empty)
+end do
+
+return
+end subroutine dis_info_1d_link
+
+!> Writes a line with integer data to the screen.
+   subroutine Write2ScrInt(ipos, desc, val, unit)
+      implicit none
+      integer, intent(inout)        :: ipos
+      character(len=*), intent(in)  :: desc
+      integer, intent(in)           :: val
+      character(len=*), intent(in)  :: unit
+
+      character :: tex*48, help*27
+      ipos = ipos+1
+      help = ' '//desc
+      write(tex, '(a23,'' = '', i13, '' ('',a,'')'')') help, val, trim(unit)
+      call IOUTSTRINGXY(1,ipos,tex)
+   end subroutine Write2ScrInt
+
+   !> Writes a line with double precision data to the screen.
+   subroutine Write2ScrDouble(ipos, desc, val, unit)
+      implicit none
+      integer, intent(inout)        :: ipos
+      character(len=*), intent(in)  :: desc
+      double precision, intent(in)  :: val
+      character(len=*), intent(in)  :: unit
+
+      character :: tex*48, help*27
+      ipos = ipos+1
+      help = ' '//desc
+      write(tex, '(a23,'' = '', g13.4, '' ('',a,'')'')') help, val, trim(unit)
+      call IOUTSTRINGXY(1,ipos,tex)
+   end subroutine Write2ScrDouble
+
+   !> Writes a line with character data to the screen.
+   subroutine Write2ScrChar(ipos, desc, val)
+      implicit none
+
+      integer, intent(inout)        :: ipos
+      character(len=*), intent(in)     :: desc
+      character(len=*), intent(in)     :: val
+
+      character :: text*48, help*24, help2*21
+
+      ipos = ipos + 1
+      help = ' '//desc
+      help2 = trim(adjustl(val))
+      write(text, '(A23,'' = '',A21)') help, help2
+      call IOUTSTRINGXY(1, ipos, text)
+   end subroutine Write2ScrChar
 
 end module unstruc_display
 
@@ -1403,15 +1833,28 @@ subroutine tekwindvector()
     
     if (vinbndcum > 0 .or. voutbndcum > 0) then 
        yp  = yp - dyp                 
-       tex = 'Hinbnd :               (m)'
+       tex = 'HinBnd :               (m)'
        write(tex(10:20), '(F11.4)')  vinbndcum/a1ini   
        call GTEXT(tex, xp, yp, ncol)
    
        yp  = yp - dyp                 
-       tex = 'Houtbnd:               (m)'
+       tex = 'HoutBnd:               (m)'
        write(tex(10:20), '(F11.4)') -voutbndcum/a1ini   
        call GTEXT(tex, xp, yp, ncol)
     endif
+
+    if (vinlatcum > 0 .or. voutlatcum > 0) then 
+       yp  = yp - dyp                 
+       tex = 'HinLat :               (m)'
+       write(tex(10:20), '(F11.4)')  vinlatcum/a1ini   
+       call GTEXT(tex, xp, yp, ncol)
+   
+       yp  = yp - dyp                 
+       tex = 'HoutLat:               (m)'
+       write(tex(10:20), '(F11.4)') -voutlatcum/a1ini   
+       call GTEXT(tex, xp, yp, ncol)
+    endif
+
     
     if (vingrwcum > 0 .or. voutgrwcum > 0) then 
        yp  = yp - dyp                 

@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2018.
+!!  Copyright (C)  Stichting Deltares, 2012-2020.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -23,6 +23,26 @@
 
 C ======================================================================
       SUBROUTINE RDTOK1 ( LUNUT  , ILUN   , LCH    , LSTACK , CCHAR  ,
+     *                    IPOSR  , NPOS   , CHULP2 , IHULP  , RHULP  ,
+     *                    ITYPEX , IERR   )
+
+      CHARACTER*1   CCHAR
+      CHARACTER*(*) LCH  ( LSTACK ) , CHULP2
+      DIMENSION     ILUN ( LSTACK )
+      INTEGER*8     IHULP8
+      REAL*8        RHULP8
+      
+      CALL RDTOK2 ( LUNUT  , ILUN   , LCH    , LSTACK , CCHAR  ,
+     *              IPOSR  , NPOS   , CHULP2 , IHULP8 , RHULP8  ,
+     *              ITYPEX , IERR   )
+      
+      IHULP = IHULP8
+      RHULP = REAL(RHULP8)
+      
+      RETURN
+      END
+      
+      SUBROUTINE RDTOK2 ( LUNUT  , ILUN   , LCH    , LSTACK , CCHAR  ,
      *                    IPOSR  , NPOS   , CHULP2 , IHULP  , RHULP  ,
      *                    ITYPEX , IERR   )
 C ----------------------------------------------------------------------
@@ -56,9 +76,9 @@ C     NPOS    INTEGER     1       INPUT   nr of significant characters
 C     CCHAR   CHAR*1      1       INPUT   comment character
 C     IPOSR   INTEGER     1       IN/OUT  start position on line
 C     NPOS    INTEGER     1       INPUT   width of the input file
-C     CHULP   CHAR*(*)    1       OUTPUT  string  to be delivered
+C     CHULP   CHAR*(*)    1       OUTPUT  string  to be delivered (for ITYPEX=-1: input!)
 C     IHULP   INTEGER     1       OUTPUT  integer to be delivered
-C     RHULP   REAL*4      1       OUTPUT  real    to be delivered
+C     RHULP   REAL*8      1       OUTPUT  real    to be delivered
 C     ITYPEX  INTEGER     1       INPUT   type expected
 C     IERR    INTEGER     1       OUTPUT  Error code (see below)
 C
@@ -80,12 +100,22 @@ C DATA ---------------------------------------------------- Arguments --
       CHARACTER*1   CCHAR
       CHARACTER*(*) LCH  ( LSTACK ) , CHULP2
       DIMENSION     ILUN ( LSTACK )
+      INTEGER*8     IHULP
+      REAL*8        RHULP
 C
 C DATA -------------------------------------------------------- Local --
 C
       SAVE
       CHARACTER  LINE*1000, LINE2*80 , CHULP*1000
       INTEGER, DIMENSION(100) :: CURLINE = 0 ! Line number in the current file
+
+      CHARACTER(  1) CTRLZ       !   Tab character
+      CHARACTER(  1) CHTAB       !   Cariage return character
+      CHARACTER(  1) CH_CR       !   Ctrl_Z character
+
+      CHTAB = CHAR(9)
+      CH_CR = CHAR(13)
+      CTRLZ = CHAR(26)
 
 C BEGIN ================================================================
 
@@ -100,10 +130,51 @@ C
     5 CONTINUE
 
 C
+C           Force the opening of a new include file - special case
+C
+      IF ( ITYPEX .EQ. -999) THEN
+         WRITE ( LUNUT , 1040 ) CHULP2
+         IFL       = IFL + 1
+         LUNIN     = 800+IFL
+         OPEN ( LUNIN, FILE = CHULP2, STATUS = 'old', IOSTAT = IOERR)
+         IF ( IOERR .GT. 0 ) THEN
+            IFL = IFL - 1
+            WRITE ( LUNUT , 1050 )
+            IERR = 1
+            GOTO 20
+         ELSE
+            LCH (IFL) = CHULP2
+            ILUN(IFL) = LUNIN
+            IERR = 0
+            RETURN
+         ENDIF
+      ENDIF
+
+C
 C           Get the data
 C
       CHULP = ' '
+      CHULP2 = ' '
    10 IERR = 0
+
+      IF ( ITYPEX .EQ. 4) THEN
+C
+C           Return a string from the first non space caracter until the end of the line (could be empty)
+C
+         DO I = IPOSR+1 , NPOS
+         IPOSL = I
+         IF ( LINE(I:I) .NE. ' '   .AND.
+     &        LINE(I:I) .NE. CTRLZ .AND.
+     &        LINE(I:I) .NE. CH_CR .AND.
+     &        LINE(I:I) .NE. CHTAB      ) EXIT
+          ENDDO
+          IPOSR = MAX(IPOSL,LEN_TRIM(LINE))
+          CHULP2 = LINE(IPOSL:IPOSR)
+          IPOSL = 0
+          IPOSR = 0
+          RETURN
+      ENDIF
+
       CALL GETTOK ( LUNIN  , LINE   , CHULP  , IHULP  , RHULP   ,
      *              ITYPE  , IPOSL  , IPOSR  , NPOS   , CCHAR   ,
      *                       '#'    , CURLINE(IFL)    , IERR    )

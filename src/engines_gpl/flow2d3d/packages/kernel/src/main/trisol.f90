@@ -8,7 +8,7 @@ subroutine trisol(dischy    ,solver    ,icreep    ,ithisc    , &
                 & error     ,gdp       )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
+!  Copyright (C)  Stichting Deltares, 2011-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -32,8 +32,8 @@ subroutine trisol(dischy    ,solver    ,icreep    ,ithisc    , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: trisol.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/engines_gpl/flow2d3d/packages/kernel/src/main/trisol.f90 $
+!  $Id: trisol.f90 65922 2020-02-03 13:22:49Z jagers $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/kernel/src/main/trisol.f90 $
 !!--description-----------------------------------------------------------------
 !
 ! This routine basically carries out the hydrodynamics
@@ -1901,7 +1901,7 @@ subroutine trisol(dischy    ,solver    ,icreep    ,ithisc    , &
                        & icx       ,icy       ,lundia    ,d(dps)    ,r(s0)     , &
                        & r(umean)  ,r(vmean)  ,r(z0urou) ,r(z0vrou) ,i(kfu)    , &
                        & i(kfv)    ,zmodel    ,i(kfsmx0) ,i(kfsmn0) ,r(dzs0)   , &
-                       & gdp       )        
+                       & lstsci    ,gdp       )        
              call timer_stop(timer_fallve, gdp)
           endif
           !
@@ -2194,7 +2194,7 @@ subroutine trisol(dischy    ,solver    ,icreep    ,ithisc    , &
        call updmassbal(2        ,r(qxk)    ,r(qyk)    ,i(kcs)    ,r(r1)     , &
                     & r(volum0) ,r(volum1) ,r(sbuu)   ,r(sbvv)   ,r(disch)  , &
                     & i(mnksrc) ,r(sink)   ,r(sour)   ,r(gsqs)   ,r(guu)    , &
-                    & r(gvv)    ,d(dps)    ,r(rintsm) ,gdp       )
+                    & r(gvv)    ,d(dps)    ,r(rintsm) ,hdt       ,gdp       )
        call updcomflx(nst       ,zmodel    ,nmmax     ,kmax      ,i(kcs)    , &
                     & i(kcu)    ,i(kcv)    ,r(qxk)    ,r(qyk)    ,r(qzk)    , &
                     & nsrc      ,r(disch)  ,i(kfumin) ,i(kfvmin) ,r(qu)     , &
@@ -2749,7 +2749,7 @@ subroutine trisol(dischy    ,solver    ,icreep    ,ithisc    , &
        !
        if (lfbedfrmrou) then
           call timer_start(timer_calksc, gdp)
-          call calksc(nmmax     ,itimtt    ,d(dps)    ,r(s1)     ,lsedtot   , &
+          call calksc(nmmax     ,d(dps)    ,r(s1)     ,lsedtot   , &
                     & r(wrkb3)  ,r(wrkb4)  ,i(kfs)    ,r(z0urou) ,r(z0vrou) , &
                     & i(kfu)    ,i(kfv)    ,r(sig)    ,kmax      ,r(hrms)   , &
                     & r(rlabda) ,r(tp)     ,r(deltau) ,r(deltav) ,icx       , &
@@ -2969,7 +2969,7 @@ subroutine trisol(dischy    ,solver    ,icreep    ,ithisc    , &
                        & icx       ,icy       ,lundia    ,d(dps)    ,r(s0)     , &
                        & r(umean)  ,r(vmean)  ,r(z0urou) ,r(z0vrou) ,i(kfu)    , &
                        & i(kfv)    ,zmodel    ,i(kfsmx0) ,i(kfsmn0) ,r(dzs0)   , &
-                       & gdp       )
+                       & lstsci    ,gdp       )
              call timer_stop(timer_fallve, gdp)
           endif
           !
@@ -3274,7 +3274,7 @@ subroutine trisol(dischy    ,solver    ,icreep    ,ithisc    , &
        call updmassbal(imode    ,r(qxk)    ,r(qyk)    ,i(kcs)    ,r(r1)     , &
                     & r(volum0) ,r(volum1) ,r(sbuu)   ,r(sbvv)   ,r(disch)  , &
                     & i(mnksrc) ,r(sink)   ,r(sour)   ,r(gsqs)   ,r(guu)    , &
-                    & r(gvv)    ,d(dps)    ,r(rintsm) ,gdp       )
+                    & r(gvv)    ,d(dps)    ,r(rintsm) ,hdt       ,gdp       )
        call updcomflx(nst       ,zmodel    ,nmmax     ,kmax      ,i(kcs)    , &
                     & i(kcu)    ,i(kcv)    ,r(qxk)    ,r(qyk)    ,r(qzk)    , &
                     & nsrc      ,r(disch)  ,i(kfumin) ,i(kfvmin) ,r(qu)     , &

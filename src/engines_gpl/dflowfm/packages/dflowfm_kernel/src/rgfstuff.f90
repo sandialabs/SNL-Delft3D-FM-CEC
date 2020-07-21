@@ -1,6 +1,6 @@
 !----- AGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2017-2018.                                
+!  Copyright (C)  Stichting Deltares, 2017-2020.                                
 !                                                                               
 !  This file is part of Delft3D (D-Flow Flexible Mesh component).               
 !                                                                               
@@ -27,8 +27,8 @@
 !                                                                               
 !-------------------------------------------------------------------------------
 
-! $Id: rgfstuff.f90 54131 2018-01-18 14:02:31Z carniato $
-! $HeadURL: https://repos.deltares.nl/repos/ds/trunk/additional/unstruc/src/rgfstuff.f90 $
+! $Id: rgfstuff.f90 65778 2020-01-14 14:07:42Z mourits $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/dflowfm/packages/dflowfm_kernel/src/rgfstuff.f90 $
      MODULE M_MAPPROPARAMETERS
      implicit none
       double precision :: XCE,YCE,DELTX,DELTY,XF,YF,FI, XCSTEREO, YCSTEREO
@@ -6255,7 +6255,6 @@
      SUBROUTINE delgrd(KEY,JASAVE,jadelpol)
 !    delete grid
      use m_grid
-     use m_polygon
      use m_missing
      use m_polygon, only: NPL, xpl, ypl, zpl
      use geometry_module, only: dbpinpol
@@ -6322,6 +6321,7 @@
      use m_grid
      implicit none
      if (allocated (xch) ) then 
+        call increasegrid(mch,nch)
         xc = xch
         yc = ych
         zc = zch

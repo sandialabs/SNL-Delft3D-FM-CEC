@@ -27,7 +27,7 @@ function H = ui_message(Cmd,varargin)
 
 %----- LGPL --------------------------------------------------------------------
 %
-%   Copyright (C) 2011-2018 Stichting Deltares.
+%   Copyright (C) 2011-2020 Stichting Deltares.
 %
 %   This library is free software; you can redistribute it and/or
 %   modify it under the terms of the GNU Lesser General Public
@@ -52,8 +52,8 @@ function H = ui_message(Cmd,varargin)
 %
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_lgpl/matlab/quickplot/progsrc/ui_message.m $
-%   $Id: ui_message.m 7992 2018-01-09 10:27:35Z mourits $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/ui_message.m $
+%   $Id: ui_message.m 65778 2020-01-14 14:07:42Z mourits $
 
 persistent UD
 
@@ -225,7 +225,7 @@ else
         Msg = '';
     end
     switch lower(Cmd)
-        case {'error','warning',''}
+        case {'error','warning','message',''}
             if nargin>2
                 Msg = sprintf(varargin{:});
             end
@@ -280,7 +280,8 @@ else
             while length(Msg)>1 && isempty(Msg{end})
                 Msg(end)=[];
             end
-            errors={errors{:} Separator{:} Msg{:}};
+            Msg = strrep(Msg,char(9),'   ');
+            errors=[errors(:)' Separator(:)' Msg(:)'];
             if length(MessageOffset)>MaxNMessages
                 MessageOffset(1)=[];
                 errors(1:(MessageOffset(1)-1))=[];
@@ -331,6 +332,9 @@ else
         case 'close'
             set(fig,'visible','off');
         case 'max'
+            if ischar(Msg)
+                Msg = str2double(Msg);
+            end
             MaxNMessages=max(1,Msg);
             while length(MessageOffset)>MaxNMessages
                 MessageOffset(1)=[];

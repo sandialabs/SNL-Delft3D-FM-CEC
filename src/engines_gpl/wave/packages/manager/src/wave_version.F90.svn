@@ -24,8 +24,8 @@
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: wave_version.F90.svn 7970 2017-12-20 16:58:47Z dam_ar $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/engines_gpl/wave/packages/manager/src/wave_version.F90.svn $
+!  $Id: wave_version.F90.svn 8455 2018-03-28 15:46:59Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/wave/packages/manager/src/wave_version.F90.svn $
 !
 ! Do not use a module here; that will cause a serious dependency problem
 !
@@ -164,4 +164,18 @@ subroutine getdrofileversionstring_wave(stringout)
    length    = min(len_trim(dro_file_version),len(stringout))
    stringout = dro_file_version(1:length)
 end subroutine getdrofileversionstring_wave
+!
+!
+!===============================================================================
+subroutine getsourcecodelocation_wave(stringout)
+   character(*), intent(out) :: stringout
+   integer                   :: length
+
+   character(*), parameter :: deltares_common_source_code  = '@(#) $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/wave/packages/manager/src/wave_version.F90.svn $'//char(0)
+
+   !
+   ! body
+   length    = min(len_trim(deltares_common_source_code),len(stringout))
+   stringout = deltares_common_source_code(1:length)
+end subroutine getsourcecodelocation_wave
 

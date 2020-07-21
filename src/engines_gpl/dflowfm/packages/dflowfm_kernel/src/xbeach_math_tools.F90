@@ -1,6 +1,6 @@
 !----- AGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2017-2018.                                
+!  Copyright (C)  Stichting Deltares, 2017-2020.                                
 !                                                                               
 !  This file is part of Delft3D (D-Flow Flexible Mesh component).               
 !                                                                               
@@ -27,8 +27,8 @@
 !                                                                               
 !-------------------------------------------------------------------------------
 
-! $Id: xbeach_math_tools.F90 54191 2018-01-22 18:57:53Z dam_ar $
-! $HeadURL: https://repos.deltares.nl/repos/ds/trunk/additional/unstruc/src/xbeach_math_tools.F90 $
+! $Id: xbeach_math_tools.F90 65778 2020-01-14 14:07:42Z mourits $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/dflowfm/packages/dflowfm_kernel/src/xbeach_math_tools.F90 $
 MODULE math_tools
   ! MODULE CONTAINS:
   !     1) Singleton fft transform

@@ -1,7 +1,7 @@
 subroutine write_wave_map (sg, sof, n_swan_grids, wavedata, casl, prevtime, gamma0)
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
+!  Copyright (C)  Stichting Deltares, 2011-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -25,8 +25,8 @@ subroutine write_wave_map (sg, sof, n_swan_grids, wavedata, casl, prevtime, gamm
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: write_wave_map.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/engines_gpl/wave/packages/io/src/write_wave_map.f90 $
+!  $Id: write_wave_map.f90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/wave/packages/io/src/write_wave_map.f90 $
 !!--description-----------------------------------------------------------------
 ! NONE
 !!--pseudo code and references--------------------------------------------------
@@ -297,12 +297,24 @@ subroutine write_wave_map (sg, sof, n_swan_grids, wavedata, casl, prevtime, gamm
 
     allocate( rbuf(size(sg%x,1),size(sg%x,2)) )
 
-    rbuf = real(sg%x,sp)
+    ! This statement causes a stack overflow on big models: rbuf = real(sg%x,sp)
+    ! So a double do-loop is necessary
+    do j = 1,size(sg%x,2)
+       do i = 1,size(sg%x,1)
+          rbuf(i,j) = real(sg%x(i,j),sp)
+       enddo
+    enddo
     call putgtr(filnam    ,grpnam(1) ,nelems    ,elmnms(1) ,elmdms(1, 1)         , &
               & elmqty(1) ,elmunt(1) ,elmdes(1) ,elmtps(1) ,nbytsg(1) , &
               & elmnms(17),celidt    ,wrswch    ,error     ,rbuf      )
 
-    rbuf = real(sg%y,sp)
+    ! This statement causes a stack overflow on big models: rbuf = real(sg%y,sp)
+    ! So a double do-loop is necessary
+    do j = 1,size(sg%y,2)
+       do i = 1,size(sg%y,1)
+          rbuf(i,j) = real(sg%y(i,j),sp)
+       enddo
+    enddo
     call putgtr(filnam    ,grpnam(1) ,nelems    ,elmnms(1) ,elmdms(1, 1)         , &
               & elmqty(1) ,elmunt(1) ,elmdes(1) ,elmtps(1) ,nbytsg(1) , &
               & elmnms(18),celidt    ,wrswch    ,error     ,rbuf      )

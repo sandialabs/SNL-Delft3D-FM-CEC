@@ -1,7 +1,7 @@
 module networkTypes
 !----- AGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2017-2018.                                
+!  Copyright (C)  Stichting Deltares, 2017-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify              
 !  it under the terms of the GNU Affero General Public License as               
@@ -25,19 +25,17 @@ module networkTypes
 !  Stichting Deltares. All rights reserved.
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: NetworkTypes.f90 8044 2018-01-24 15:35:11Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_gpl/flow1d/packages/flow1d_core/src/NetworkTypes.f90 $
+!  $Id: NetworkTypes.f90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_gpl/flow1d/packages/flow1d_core/src/NetworkTypes.f90 $
 !-------------------------------------------------------------------------------
 
    use messagehandling
    use m_node
    use m_branch
    use m_CrossSections
-   use m_structure
+   use m_1d_structures
    use m_spatial_data
-   use m_boundaryConditions
    use m_ObservationPoints
-   use m_laterals
    use m_storage
    
    implicit none

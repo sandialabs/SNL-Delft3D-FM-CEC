@@ -1,7 +1,7 @@
 module m_GlobalParameters
 !----- AGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2017-2018.                                
+!  Copyright (C)  Stichting Deltares, 2017-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify              
 !  it under the terms of the GNU Affero General Public License as               
@@ -25,8 +25,8 @@ module m_GlobalParameters
 !  Stichting Deltares. All rights reserved.
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: GlobalParameters.f90 8044 2018-01-24 15:35:11Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_gpl/flow1d/packages/flow1d_core/src/GlobalParameters.f90 $
+!  $Id: GlobalParameters.f90 65972 2020-02-12 07:36:41Z chavarri $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_gpl/flow1d/packages/flow1d_core/src/GlobalParameters.f90 $
 !-------------------------------------------------------------------------------
    
    use MessageHandling
@@ -49,24 +49,27 @@ module m_GlobalParameters
    double precision                 :: thresholdDry                  = 0.001d0
    double precision                 :: thresholdFlood                = 0.01d0
    double precision                 :: factorFloodingDividedByDrying = 10.0d0
-   double precision                 :: summerDikeTransitionHeight    = 1.0d0
+   double precision                 :: summerDikeTransitionHeight    = 0.50d0 !read from CrossSectionDefinitions.ini 
    double precision                 :: summerDikeThreshold           = 0.4d+0
    double precision                 :: ThresholdSiphon               = 0.1d0
    double precision                 :: StructureDynamicsFactor       = 1.0d0
    double precision                 :: strucalfa                     = 0.9d0
-   double precision                 :: sl                            = 0.0001d0        !< width at top of closed profile (Preisman lock)
+   double precision                 :: sl                            = 0.01d0        !< width at top of closed profile (Preisman lock)
    double precision                 :: pi                            = 3.141592653589793d0
    double precision                 :: ThresholdForPreismannLock     = 0.02d0
+   double precision                 :: minSectionLength              = 1.0
    double precision, public         :: dynstructext                  = 1.0d0
    double precision, public         :: missingvalue                  =-999.999d0
    double precision, public         :: latitude                      = 52.25
    double precision, public         :: longitude                     = 0d0
    double precision, public         :: time_zone                     = 0d0
+   integer, public                  :: maxlenpar                     = 100000   
    !TODO temporary unit to be removed, when finished
    integer, public :: luntrans = 0
 
    ! storage table controls
    double precision, public      :: tb_inc = 0.01
+   double precision, public      :: tb_extra_height = 0.0
    character(len=charln), public :: st_filename
    logical, public               :: write_tables
 
@@ -83,7 +86,25 @@ module m_GlobalParameters
    
    integer, parameter  :: DENS_ECKART_MODIFIED = 1
    integer, parameter  :: DENS_ECKART          = 2
-   integer, parameter  :: DENS_UNESCO           = 3
+   integer, parameter  :: DENS_UNESCO          = 3
+   
+   type, public :: t_chainage2cross
+      integer :: c1 = -1           !< cross section index 1
+      integer :: c2 = -1           !< cross section index 2
+      double precision :: f        !< fraction: c_loc = f * c1 + (1-f)*c2
+      double precision :: distance !< geometric distance between two cross sections
+   end type
+ 
+   type t_filenames
+      character(len=255) :: onednetwork                  = ' ' !< 1d Network definition             (e.g., flow1d.md1d)
+      character(len=255) :: cross_section_definitions    = ' ' !< 1d cross section definitions
+      character(len=255) :: cross_section_locations      = ' ' !< 1d cross section locations
+      character(len=1024):: roughness                    = ' ' !< 1d roughness files
+      character(len=255) :: roughnessdir                 = ' ' !< location of roughness files
+      character(len=255) :: storage_nodes                = ' ' !< 1d cross section retention manhole definitions
+      character(len=255) :: structures                   = ' ' !< structure file
+   end type
+
    
    type t_constituent_helper
       integer              :: boundary_index
@@ -102,15 +123,15 @@ module m_GlobalParameters
       double precision                :: teta
       
       !data for branch own mouth relations
-      type(t_node), pointer           :: mouth
-      double precision                :: tidal_period
-      double precision                :: start_time_tidal_period    !< start time of this tidal period
-      double precision                :: rho_fresh_water            !< reference density of sea water
-      logical                         :: start_tidal_period         !< indicates whether the first tidal period has started.
-      logical                         :: first_tidal_period         !< indicates whether this is the first tidal period has started.
-      integer                         :: dis_loc                    !< location of discharge point near mouth 
-      integer                         :: dis_dir                    !< direction of discharge point if dis_dir*Q > 0 then flow is into the model  
-      logical                         :: use_f4_dispersion          !< logical indicating, whether f4 dispersion is to be used 
+      type(t_node), pointer              :: mouth
+      double precision                   :: tidal_period
+      double precision                   :: start_time_tidal_period      !< start time of this tidal period
+      double precision                   :: rho_fresh_water              !< reference density of sea water
+      logical                            :: start_tidal_period           !< indicates whether the first tidal period has started.
+      logical                            :: first_tidal_period           !< indicates whether this is the first tidal period has started.
+      integer                            :: dis_loc                      !< location of discharge point near mouth 
+      integer                            :: dis_dir                      !< direction of discharge point if dis_dir*Q > 0 then flow is into the model  
+      logical                            :: use_f4_dispersion            !< logical indicating, whether f4 dispersion is to be used 
       logical, allocatable, dimension(:) :: use_f4_dispersion_for_branch !< logical indicating, whether f4 dispersion is defined on this branch
 
       double precision                :: n
@@ -126,17 +147,20 @@ module m_GlobalParameters
    integer, public, parameter              :: ST_WEIR       =  2
    integer, public, parameter              :: ST_ORIFICE    =  3
    integer, public, parameter              :: ST_PUMP       =  4
-   integer, public, parameter              :: ST_RIVER_WEIR =  5
-   integer, public, parameter              :: ST_ADV_WEIR   =  6
-   integer, public, parameter              :: ST_GENERAL_ST =  8
-   integer, public, parameter              :: ST_EXTRA_RES  =  9
-   integer, public, parameter              :: ST_UNI_WEIR   = 11
-   integer, public, parameter              :: ST_CULVERT    = 21
-   integer, public, parameter              :: ST_SIPHON     = 22
-   integer, public, parameter              :: ST_INV_SIPHON = 23
-   integer, public, parameter              :: ST_BRIDGE     = 32
-   integer, public, parameter              :: ST_MAX_TYPE   = 32 !< Max id of structure types. The preceding ids must be lower than this.
-   
+   integer, public, parameter              :: ST_GATE       =  5
+   integer, public, parameter              :: ST_GENERAL_ST =  6
+   integer, public, parameter              :: ST_UNI_WEIR   =  7
+   integer, public, parameter              :: ST_DAMBREAK   =  8
+   integer, public, parameter              :: ST_CULVERT    =  9
+   integer, public, parameter              :: ST_BRIDGE     = 10
+   integer, public, parameter              :: ST_COMPOUND   = 11
+   integer, public, parameter              :: ST_MAX_TYPE   = 11 !< Max id of structure types. The preceding ids must be lower than this.
+
+   ! Flow geometry / computational grid
+   integer, public, parameter              :: INDTP_1D      = 1  !< Type code for flow nodes that are 1D
+   integer, public, parameter              :: INDTP_2D      = 2  !< Type code for flow nodes that are 2D
+   integer, public, parameter              :: INDTP_ALL     = 3  !< Type code for flow nodes that are 1D or 2D
+
    ! element set integer ids
    integer, public, parameter :: CFiBranchNodes             = 1
    integer, public, parameter :: CFiBranchLinks             = 2
@@ -153,7 +177,7 @@ module m_GlobalParameters
    integer, public, parameter :: CFiBranches                = 13
    integer, public, parameter :: CFiObservationpoints       = 14
    integer, public, parameter :: CFiStructuresAndPumps      = 15
-   integer, public, parameter :: CFiRetentions              = 16
+   integer, public, parameter :: CFiStorageNodes            = 16
    integer, public, parameter :: CFiVolumesOnReachSegments  = 17
    integer, public, parameter :: CFiVolumesOnGridPoints     = 18
    integer, public, parameter :: CFiLateralsOnReachSegments = 19
@@ -263,7 +287,7 @@ module m_GlobalParameters
    integer, public, parameter :: CFimomAcceleration         = 103
    integer, public, parameter :: CFimomBedStress            = 104
    integer, public, parameter :: CFimomLosses               = 105
-   integer, public, parameter :: CFimomLateralCorrection          = 106
+   integer, public, parameter :: CFimomLateralCorrection    = 106
    integer, public, parameter :: CFimomWindStress           = 107
    integer, public, parameter :: CFiChangeArea              = 108
    integer, public, parameter :: CFiMeanBedLevelMain        = 109
@@ -280,5 +304,9 @@ module m_GlobalParameters
    integer, public, parameter :: CFiMorVelocity             = 120
    integer, public, parameter :: CFiMorWidth                = 121
    integer, public, parameter :: CFiMorDepth                = 122
+   integer, public, parameter :: CFiPumpHead                = 123
+   integer, public, parameter :: CFiState                   = 124
+   integer, public, parameter :: CFiWindVelocity            = 125
+   integer, public, parameter :: CFiWindDirection           = 126
    
 end module m_GlobalParameters                                 

@@ -1,7 +1,7 @@
 subroutine write_wave_his_netcdf (sg, sof, n_swan_grids, i_swan, wavedata)
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
+!  Copyright (C)  Stichting Deltares, 2011-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -25,8 +25,8 @@ subroutine write_wave_his_netcdf (sg, sof, n_swan_grids, i_swan, wavedata)
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: write_wave_his_netcdf.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/engines_gpl/wave/packages/io/src/write_wave_his_netcdf.f90 $
+!  $Id: write_wave_his_netcdf.f90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/wave/packages/io/src/write_wave_his_netcdf.f90 $
 !!--description-----------------------------------------------------------------
 ! NONE
 !!--pseudo code and references--------------------------------------------------
@@ -118,7 +118,7 @@ subroutine write_wave_his_netcdf (sg, sof, n_swan_grids, i_swan, wavedata)
     character(NAMLEN), dimension(:), allocatable, save :: statnam
     character(NAMLEN), dimension(:), allocatable, save :: statid
     character(100)                                     :: string
-    character(20)                                      :: tabfil
+    character(50)                                      :: tabfil
     character(256)                                     :: version_full
     logical                                            :: formatok
 !
@@ -281,7 +281,7 @@ subroutine write_wave_his_netcdf (sg, sof, n_swan_grids, i_swan, wavedata)
        !
        ! create file
        !
-       ierror = nf90_create(filename, 0, idfile); call nc_check_err(ierror, "creating file", filename)
+       ierror = nf90_create(filename, wavedata%output%ncmode, idfile); call nc_check_err(ierror, "creating file", filename)
        !
        ! global attributes
        !

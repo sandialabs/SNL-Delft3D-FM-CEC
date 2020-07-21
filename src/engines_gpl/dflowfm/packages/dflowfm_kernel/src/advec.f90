@@ -1,3 +1,35 @@
+!----- AGPL --------------------------------------------------------------------
+!                                                                               
+!  Copyright (C)  Stichting Deltares, 2017-2020.                                
+!                                                                               
+!  This file is part of Delft3D (D-Flow Flexible Mesh component).               
+!                                                                               
+!  Delft3D is free software: you can redistribute it and/or modify              
+!  it under the terms of the GNU Affero General Public License as               
+!  published by the Free Software Foundation version 3.                         
+!                                                                               
+!  Delft3D  is distributed in the hope that it will be useful,                  
+!  but WITHOUT ANY WARRANTY; without even the implied warranty of               
+!  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the                
+!  GNU Affero General Public License for more details.                          
+!                                                                               
+!  You should have received a copy of the GNU Affero General Public License     
+!  along with Delft3D.  If not, see <http://www.gnu.org/licenses/>.             
+!                                                                               
+!  contact: delft3d.support@deltares.nl                                         
+!  Stichting Deltares                                                           
+!  P.O. Box 177                                                                 
+!  2600 MH Delft, The Netherlands                                               
+!                                                                               
+!  All indications and logos of, and references to, "Delft3D",                  
+!  "D-Flow Flexible Mesh" and "Deltares" are registered trademarks of Stichting 
+!  Deltares, and remain the property of Stichting Deltares. All rights reserved.
+!                                                                               
+!-------------------------------------------------------------------------------
+
+! $Id: advec.f90 65778 2020-01-14 14:07:42Z mourits $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/dflowfm/packages/dflowfm_kernel/src/advec.f90 $
+
 !> initialize matrix for first-order upwind discretization of advection
 !>   Cartesian cell-centered vector components are numbered as
 !>      ( ucx_1, ucy_1, ucx_2, ucy_2, ..., ...)
@@ -237,11 +269,11 @@
       if ( ierror.ne.0 ) goto 1234
       
       if ( jaoutput.eq.1 ) then
-         call writematrix('Imat.m', Lnx,   iI, jI, aI, 'I')
-         call writematrix('Rmat.m', 2*Ndx, iR, jR, aR, 'R')
-         call writematrix('Cmat.m', 2*Ndx, iC, jC, aC, 'C')
+         call writematrix('Imat.m', Lnx,   iI, jI, aI, 'I', 0)
+         call writematrix('Rmat.m', 2*Ndx, iR, jR, aR, 'R', 0)
+         call writematrix('Cmat.m', 2*Ndx, iC, jC, aC, 'C', 0)
          solver_advec%a = 1d0
-         call writematrix('Amat.m', Lnx, solver_advec%ia, solver_advec%ja, solver_advec%a, 'A')
+         call writematrix('Amat.m', Lnx, solver_advec%ia, solver_advec%ja, solver_advec%a, 'A', 0)
       end if
       
       ierror = 0
@@ -262,7 +294,7 @@
       
       solver%numrows            = numrows
       solver%numnonzeros        = numnonzeros
-      solver%numnonzerosprecond = 30*numrows
+      solver%numnonzerosprecond = 120*numrows
       solver%nwork              = 2*solver%numnonzerosprecond
       
          !!   ipar(1) = 0               ! initialized in "itaux"
@@ -405,7 +437,7 @@
       end do
       
       if ( jaoutput.eq.1 ) then
-         call writematrix('C.m', 2*Ndx, iC, jC, aC, 'A_C')
+         call writematrix('C.m', 2*Ndx, iC, jC, aC, 'A_C', 0)
       end if
       
       ierror = 0
@@ -418,7 +450,7 @@
    
    
    !> output matrix in CRS format to file
-   subroutine writeMatrix(FNAM, N, ia, ja, a, VARNAM)
+   subroutine writeMatrix(FNAM, N, ia, ja, a, VARNAM, jaappend)
       implicit none
       
       character(len=*),                       intent(in) :: FNAM         !< filename
@@ -430,10 +462,21 @@
       double precision, dimension(ia(N+1)-1), intent(in) :: a            !< matrix in CRS format
 
       character(len=*),                       intent(in) :: VARNAM       !< variable name
+      
+      integer,                                intent(in) :: jaappend     !< append (1), or not (0)
+      
+      logical                                            :: Lexist
                                               
       integer                                            :: irow, icol, j
       
-      open(1234,file=trim(FNAM))
+      inquire(file=trim(FNAM), exist=Lexist)
+      if ( jaappend.eq.0 .or. .not.Lexist ) then
+         open(1234,file=trim(FNAM))
+      else
+         open(1234,file=trim(FNAM), access="append")
+      end if
+      
+      
       write(1234,"('dum = [')")
       do irow=1,N
          do j=ia(irow),ia(irow+1)-1

@@ -1,6 +1,6 @@
 //---- GPL ---------------------------------------------------------------------
 //
-// Copyright (C)  Stichting Deltares, 2011-2018.
+// Copyright (C)  Stichting Deltares, 2011-2020.
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -34,7 +34,10 @@
 //------------------------------------------------------------------------------
 
 #define DIMR_LIB
+#include <string>
+#include <iostream>
 
+using namespace std;
 
 #include "dimr.h"
 #include "dimr_lib_version.h"
@@ -65,6 +68,7 @@ using namespace std;
 #include <ctime>
 # include <stdio.h>
 #include <fstream>
+#include <iomanip>
 
 #if defined (WIN32)
 //#  include "getopt.h"
@@ -83,8 +87,7 @@ using namespace std;
 #  include <unistd.h>
 #endif
 
-// static added to prevent name conflicts on Linux.
-static Dimr * thisDimr = NULL;     // global pointer to single object instance
+Dimr* Dimr::instance = NULL;
 
 Dimr::Dimr(void) {
     FILE * logFile               = stdout;
@@ -112,466 +115,13 @@ Dimr::Dimr(void) {
     redirectFile                 = (char *) malloc((len+1)*sizeof(char));
     strncpy(redirectFile, (const char*)filename, len);
     redirectFile[len]            = '\0';
-}
-
-
-extern "C" {
-//------------------------------------------------------------------------------
-   DllExport void set_logger_callback(WriteCallback writeCallBack)
-   {
-      if (thisDimr == NULL)
-      {
-         thisDimr = new Dimr();
-      }
-      thisDimr->log->SetWriteCallBack(writeCallBack);
-   }
-    
-//------------------------------------------------------------------------------
-   DllExport void set_dimr_logger(Log * loggerFromDimrExe)
-   {
-      if (thisDimr == NULL)
-      {
-         thisDimr = new Dimr();
-      }
-      thisDimr->log = loggerFromDimrExe;
-   }
-
-   BMI_API void set_logger(Logger logger)
-   {
-      if (thisDimr == NULL)
-      {
-         thisDimr = new Dimr();
-      }
-
-      thisDimr->log->SetExternalLogger(logger);
-      //Update or add the extertnal logger function in the kernels
-      for (int i = 0; i < thisDimr->componentsList.numComponents; i++) {
-         if (thisDimr->componentsList.components[i].type == COMP_TYPE_FLOW1D)
-         {
-            if (thisDimr->componentsList.components[i].setLogger != NULL) {
-               thisDimr->componentsList.components[i].setLogger(logger);
-            }
-            double level = (double)thisDimr->logLevel;
-            thisDimr->componentsList.components[i].dllSetVar("debugLevel", (const void *)&level);
-         }
-      }
-   }
-//------------------------------------------------------------------------------
-   BMI_API int initialize(const char * configfile) {
-
-      // Return to library users informative messages when exceptions are thrown
-      try
-      {
-         int nSettingsSet, nParamsSet;
-         if (thisDimr == NULL)
-         {
-            thisDimr = new Dimr();
-         }
-
-         if (thisDimr->redirectFile != NULL)
-         {
-            // RedirectFile must be including the full path:
-            // - Get the basename (platform dependent implementation)
-            // - if (redirectfile == basename) then
-            //       Make copy of redirectfile
-            //       Put CWD in redirectfile
-            //       redirectfile = redirectfile + / + copy
-            char *fileBasename = new char[MAXSTRING];
 #if defined(HAVE_CONFIG_H)
-            fileBasename = strdup(basename(thisDimr->redirectFile));
-            const char *dirSeparator = "/";
+    dirSeparator = "/";
 #else
-            char * ext = new char[5];
-            _splitpath(thisDimr->redirectFile, NULL, NULL, fileBasename, ext);
-            StringCbCatA(fileBasename, MAXSTRING, ext);
-            delete[] ext;
-            const char *dirSeparator = "\\";
-#endif
-            if (strcmp(thisDimr->redirectFile, fileBasename) == 0)
-            {
-               char *filenameCopy = new char[MAXSTRING];
-               strcpy(filenameCopy, thisDimr->redirectFile);
-
-               delete[] thisDimr->redirectFile;
-               thisDimr->redirectFile = (char *)malloc((MAXSTRING) * sizeof(char));
-
-               if (!getcwd(thisDimr->redirectFile, MAXSTRING))
-               {
-                  throw Exception(true, Exception::ERR_OS, "ERROR obtaining the current working directory (init)");
-               }
-
-               strcat(thisDimr->redirectFile, dirSeparator);
-               strcat(thisDimr->redirectFile, filenameCopy);
-               delete[] filenameCopy;
-            }
-            // Redirection to file is currently handled in the logger by writing directly to the specified file
-            thisDimr->log->redirectFile = thisDimr->redirectFile;
-            printf("DIMR messages are redirected to file \"%s\"\n", thisDimr->redirectFile);
-            fflush(stdout);
-            // Create an empty file
-            FILE * fp = fopen(thisDimr->redirectFile, "w+");
-            fclose(fp);
-            delete[] fileBasename;
-         }
-
-         thisDimr->log->Write(INFO, thisDimr->my_rank, getfullversionstring_dimr_lib());
-         thisDimr->log->Write(INFO, thisDimr->my_rank, "dimr_dll:initialize(%s)", configfile);
-         //
-         //
-         // Read XML configuration file into tree structure
-         thisDimr->configfile = configfile;
-         FILE * conf;
-         if (strcmp(thisDimr->configfile, "-") == 0)
-            conf = stdin;
-         else
-         {
-            conf = fopen(thisDimr->configfile, "r");
-            if (conf == NULL)
-            {
-               throw Exception(true, Exception::ERR_OS, "Cannot open configuration file \"%s\"", thisDimr->configfile);
-            }
-         }
-
-         thisDimr->config = new XmlTree(conf);
-         thisDimr->config->ExpandEnvironmentVariables();
-         fclose(conf);
-         //
-         // Build controlBlock administration by scanning the XmlTree
-         thisDimr->log->Write(INFO, thisDimr->my_rank, "Build controlBlock administration by scanning the XmlTree");
-         thisDimr->scanConfigFile();
-         //
-         // ToDo: check whether a core dump is requested on abort; if so set global variable for Dimr_CoreDump
-         //
-         // This is a good time to attach to the processes in case you want to debug
-         thisDimr->processWaitFile();
-         //
-         // Build connection with dlls
-         thisDimr->connectLibs();
-         // Init the timers before calling the dllInitialize routines!
-         thisDimr->timersInit();
-         //
-         // Initialize the components in the first controlBlock only
-         if (thisDimr->control->subBlocks[0].type == CT_PARALLEL) 
-         {
-            thisDimr->runParallelInit(&(thisDimr->control->subBlocks[0]));
-         }
-         else 
-         {
-            // Start block
-
-            // Hack for WAVE:
-            if (thisDimr->control->subBlocks[0].unit.component->type == COMP_TYPE_WAVE) {
-               int *waveModePtr = NULL;
-               const char *key = "mode";
-               (thisDimr->control->subBlocks[0].unit.component->dllGetVar) (key, (void**)(&waveModePtr));
-               *waveModePtr = 0;
-            }
-
-            chdir(thisDimr->control->subBlocks[0].unit.component->workingDir);
-            thisDimr->log->Write(FATAL, thisDimr->my_rank, "%s.Initialize(%s)", thisDimr->control->subBlocks[0].unit.component->name, thisDimr->control->subBlocks[0].unit.component->inputFile);
-            nSettingsSet = thisDimr->control->subBlocks[0].unit.component->dllSetKeyVals(thisDimr->control->subBlocks[0].unit.component->settings);
-            thisDimr->timerStart(thisDimr->control->subBlocks[0].unit.component);
-            thisDimr->control->subBlocks[0].unit.component->result = (thisDimr->control->subBlocks[0].unit.component->dllInitialize) (thisDimr->control->subBlocks[0].unit.component->inputFile);
-            thisDimr->timerEnd(thisDimr->control->subBlocks[0].unit.component);
-            nParamsSet = thisDimr->control->subBlocks[0].unit.component->dllSetKeyVals(thisDimr->control->subBlocks[0].unit.component->parameters);
-            (thisDimr->control->subBlocks[0].unit.component->dllGetStartTime) (&thisDimr->control->subBlocks[0].tStart);
-            (thisDimr->control->subBlocks[0].unit.component->dllGetEndTime) (&thisDimr->control->subBlocks[0].tEnd);
-            (thisDimr->control->subBlocks[0].unit.component->dllGetTimeStep) (&thisDimr->control->subBlocks[0].tStep);
-            (thisDimr->control->subBlocks[0].unit.component->dllGetCurrentTime) (&thisDimr->control->subBlocks[0].tCur);
-         }
-      }
-      catch (Exception & ex)
-      {
-         printf("#### ERROR: dimr initialize ABORT: %s\n", ex.message);
-         thisDimr->log->Write(INFO, thisDimr->my_rank, ex.message, thisDimr->configfile);
-         return ex.errorCode;
-      }
-      catch (...)
-      {
-         printf("#### ERROR: dimr finalize ABORT with unknown exception\n");
-         return Exception::ERR_UNKNOWN;
-      }
-      // all ok (no exceptions)
-      return 0;
-   }
-
-//------------------------------------------------------------------------------
-   BMI_API int update(double tStep)
-   {
-      // Return to library users informative messages when exceptions are thrown
-      try
-      {
-         thisDimr->log->Write(INFO, thisDimr->my_rank, "dimr_lib:update");
-         // Execute update on the first controlBlock only
-         if (thisDimr->control->subBlocks[0].type == CT_PARALLEL) {
-            thisDimr->runControlBlock(&(thisDimr->control->subBlocks[0]), tStep, GLOBAL_PHASE_UPDATE);
-         }
-         else {
-            // Start block
-            chdir(thisDimr->control->subBlocks[0].unit.component->workingDir);
-            thisDimr->log->Write(FATAL, thisDimr->my_rank, "%s.Update(%6.1f)", thisDimr->control->subBlocks[0].unit.component->name, tStep);
-            thisDimr->timerStart(thisDimr->control->subBlocks[0].unit.component);
-            (thisDimr->control->subBlocks[0].unit.component->dllUpdate) (tStep);
-            thisDimr->timerEnd(thisDimr->control->subBlocks[0].unit.component);
-            (thisDimr->control->subBlocks[0].unit.component->dllGetCurrentTime) (&thisDimr->control->subBlocks[0].tCur);
-         }
-      }
-      catch (Exception & ex)
-      {
-         printf("#### ERROR: dimr update ABORT: %s\n", ex.message);
-         thisDimr->log->Write(INFO, thisDimr->my_rank, ex.message, thisDimr->configfile);
-         return ex.errorCode;
-      }
-      catch (...)
-      {
-         printf("#### ERROR: dimr finalize ABORT with unknown exception\n");
-         return Exception::ERR_UNKNOWN;
-      }
-      return 0;
-   }
-
-//------------------------------------------------------------------------------
-   BMI_API int finalize(void)
-   {
-      // Return to library users informative messages when exceptions are thrown
-      try
-      {
-         thisDimr->log->Write(INFO, thisDimr->my_rank, "dimr_lib:finalize");
-         // Execute finalize on the first controlBlock and
-         // initialize, step, finalize on all other controlBlocks
-         if (thisDimr->control->subBlocks[0].type == CT_PARALLEL) {
-            thisDimr->runParallelFinish(&(thisDimr->control->subBlocks[0]));
-         }
-         else {
-            // Start block
-            chdir(thisDimr->control->subBlocks[0].unit.component->workingDir);
-            thisDimr->log->Write(FATAL, thisDimr->my_rank, "%s.Finalize()", thisDimr->control->subBlocks[0].unit.component->name);
-            thisDimr->timerStart(thisDimr->control->subBlocks[0].unit.component);
-            (thisDimr->control->subBlocks[0].unit.component->dllFinalize) ();
-            thisDimr->timerEnd(thisDimr->control->subBlocks[0].unit.component);
-            fflush(stdout);
-         }
-         thisDimr->timersFinish();
-         for (int i = 1; i < thisDimr->control->numSubBlocks; i++) {
-            thisDimr->runControlBlock(&(thisDimr->control->subBlocks[i]), 999999999.0, GLOBAL_PHASE_FINISH);
-         }
-
-         if (thisDimr->redirectFile != NULL) {
-            thisDimr->log->redirectFile = NULL;
-            printf("Finished: redirecting DIMR messages to file \"%s\"", thisDimr->redirectFile);
-            fflush(stdout);
-         }
-      }
-      catch (Exception & ex)
-      {
-         printf("#### ERROR: dimr finalize ABORT: %s\n", ex.message);
-         thisDimr->log->Write(INFO, thisDimr->my_rank, ex.message, thisDimr->configfile);
-         return ex.errorCode;
-      }
-      catch (...)
-      {
-         printf("#### ERROR: dimr finalize ABORT with unknown exception\n");
-         return Exception::ERR_UNKNOWN;
-      }
-      return 0;
-   }
-
-//------------------------------------------------------------------------------
-   BMI_API void get_start_time(double * tStart)
-   {
-      thisDimr->log->Write(INFO, thisDimr->my_rank, "dimr_lib:get_start_time");
-      if (thisDimr->control->subBlocks[0].type == CT_PARALLEL)
-      {
-         *tStart = thisDimr->control->subBlocks[0].subBlocks[thisDimr->control->subBlocks[0].masterSubBlockId].tStart;
-      }
-      else {
-         // Start block
-         *tStart = thisDimr->control->subBlocks[0].tStart;
-      }
-   }
-
-//------------------------------------------------------------------------------
-   BMI_API void get_end_time(double * tEnd) {
-      thisDimr->log->Write(INFO, thisDimr->my_rank, "dimr_lib:get_end_time");
-      if (thisDimr->control->subBlocks[0].type == CT_PARALLEL) {
-         *tEnd = thisDimr->control->subBlocks[0].subBlocks[thisDimr->control->subBlocks[0].masterSubBlockId].tEnd;
-      }
-      else {
-         // Start block
-         *tEnd = thisDimr->control->subBlocks[0].tEnd;
-      }
-   }
-
-//------------------------------------------------------------------------------
-   BMI_API void get_time_step(double * tStep) {
-      thisDimr->log->Write(INFO, thisDimr->my_rank, "dimr_lib:get_time_step");
-      if (thisDimr->control->subBlocks[0].type == CT_PARALLEL) {
-         *tStep = thisDimr->control->subBlocks[0].subBlocks[thisDimr->control->subBlocks[0].masterSubBlockId].tStep;
-      }
-      else {
-         // Start block
-         *tStep = thisDimr->control->subBlocks[0].tStep;
-      }
-   }
-
-//------------------------------------------------------------------------------
-   BMI_API void get_current_time(double * tCur) {
-      thisDimr->log->Write(INFO, thisDimr->my_rank, "dimr_lib:get_current_time");
-      if (thisDimr->control->subBlocks[0].type == CT_PARALLEL) {
-         *tCur = thisDimr->control->subBlocks[0].subBlocks[thisDimr->control->subBlocks[0].masterSubBlockId].tCur;
-      }
-      else {
-         // Start block
-         *tCur = thisDimr->control->subBlocks[0].tCur;
-      }
-   }
-
-//------------------------------------------------------------------------------
-BMI_API void get_var(const char * key, void ** ref) {
-    char           * componentName = new char[MAXSTRINGLEN];
-    const char     * slash         = strstr(key, "/");
-    const char     * sourceName;
-    dimr_component * compPtr       = NULL;
-    double         * sourceVarPtr  = NULL; // In a coupler, when the source component is get/setting by ref, the pointer to
-                                           // the resulting parameter is stored in sourceVarPtr
-                                           // In this get_var, sourceVarPtr is always undefined.
-                                           // NULL flags that it has to be retrieved.
-    int              sourceProcess  = 0;   // With multiple possible source processes, sourceProcess flags what process is actualy delivering the value
-                                           // Only relevant for parallel calculations. Possibly not working yet?
-
-    thisDimr->log->Write (DEBUG, thisDimr->my_rank, "dimr_lib:get_var");
-    // Assumption: "key" has the structure "componentName/group/id/parameter"
-    if (slash == NULL) {
-        // No component name specified in "key"
-        *ref == NULL;
-        delete[] componentName;
-        return;
-    }
-    // componentName is everything before the first / in key
-    strncpy(componentName, key, slash-key);
-    componentName[slash-key] = '\0';
-    // sourceName is everything behind the first / in key
-    sourceName = slash + 1;
-    if (strlen(sourceName) < 1) 
-    {
-        throw Exception(true, Exception::ERR_INVALID_INPUT, "dimr::get_var: No parameter specified. Expecting \"componentName/parameterName\"\n");
-    }
-    // Search componentName in the list of components of thisDimr
-    for (int i = 0 ; i < thisDimr->componentsList.numComponents ; i++) {
-        if (strcmp(thisDimr->componentsList.components[i].name, componentName) == 0) {
-            compPtr = &thisDimr->componentsList.components[i];
-            break;
-        }
-    }
-    if (compPtr == NULL) {
-        throw Exception(true, Exception::ERR_INVALID_INPUT, "dimr::get_var: Unrecognized component \"%s\". Expecting \"componentName/parameterName\"\n", componentName);
-    }
-    // Get the pointer to the variable being asked for and put it in argument "ref"
-    double * transfer = new double [compPtr->numProcesses];
-
-    thisDimr->getAddress(sourceName, compPtr->type, compPtr->dllGetVar, &sourceVarPtr, compPtr->processes, compPtr->numProcesses, transfer);
-    *ref = thisDimr->send(sourceName, compPtr->type, sourceVarPtr, compPtr->processes, compPtr->numProcesses, transfer);
-    
-    delete[] transfer;
-    delete[] componentName;
+    dirSeparator = "\\";
+#endif                                            
 }
 
-//------------------------------------------------------------------------------
-BMI_API void set_var(const char * key, const void * value) {
-    char           * componentName = new char[MAXSTRINGLEN];
-    const char     * slash = strstr(key, "/");
-    const char     * targetName;
-    dimr_component * compPtr = NULL;
-    double         * targetVarPtr = NULL; // In a coupler, when the target component is get/setting by ref, the pointer to
-                                          // the resulting parameter is stored in sourceVarPtr
-                                          // In this set_var, targetVarPtr is always undefined.
-                                          // NULL flags that it has to be retrieved via dllSetVar.
-    int              sourceProcess = 0;   // With multiple possible source processes, sourceProcess flags what process is actualy delivering the value
-                                          // Only relevant for parallel calculations. Possibly not working yet?
-
-    // thisDimr->log is not initialized when set_var is called before initialize
-    if (thisDimr == NULL) {
-        thisDimr = new Dimr();
-    }
-    thisDimr->log->Write (DEBUG, thisDimr->my_rank, "dimr_lib:set_var");
-    // Catch special keywords for Dimr_dll itself
-    if (strcmp(key, "useMPI") == 0) {
-        thisDimr->use_mpi = *(bool *)value;
-    } else if (strcmp(key, "numRanks") == 0) {
-        thisDimr->numranks = *(int *)value;
-    } else if (strcmp(key, "myRank") == 0) {
-        thisDimr->my_rank = *(int *)value;
-    } else if (strcmp(key, "debugLevel") == 0) {
-        thisDimr->logLevel = *(Level *)value;
-        thisDimr->log->SetLevel(thisDimr->logLevel);
-    } else if (strcmp(key, "feedbackLevel") == 0) {
-        thisDimr->feedbackLevel = *(Level *)value;
-        thisDimr->log->SetFeedbackLevel(thisDimr->feedbackLevel);
-    } else if (strcmp(key, "redirectFile") == 0) {
-        // value is a char*
-        // Special value: "stdout/stderr" => switch off redirection to file by setting to NULL
-        // Else: value is the name of the file to redirect to
-        if (strcmp((const char*)value,"stdout/stderr") == 0 && thisDimr->redirectFile != NULL) {
-            free(thisDimr->redirectFile);
-            thisDimr->redirectFile = NULL;
-        } else {
-            if (thisDimr->redirectFile != NULL) {
-                free(thisDimr->redirectFile);
-            }
-            int len = strlen((const char*)value);
-            thisDimr->redirectFile = (char *) malloc((len+1)*sizeof(char));
-            strncpy(thisDimr->redirectFile, (const char*)value, len);
-            thisDimr->redirectFile[len] = '\0';
-        }
-    } else {
-        // Assumption: "key" has the structure "componentName/group/id/parameter"
-        if (slash == NULL) {
-            // No component name specified in "key"
-            throw Exception(true, Exception::ERR_INVALID_INPUT, "dimr::set_var: Unrecognized keyword \"%s\"\n", key);
-        }
-        // componentName is everything before the first / in key
-        strncpy(componentName, key, slash-key);
-        componentName[slash-key] = '\0';
-        // targetName is everything behind the first / in key
-        targetName = slash + 1;
-        if (strlen(targetName) < 1) {
-            throw Exception(true, Exception::ERR_INVALID_INPUT, "dimr::set_var: No parameter specified. Expecting \"componentName/parameterName\"\n");
-        }
-        // Search componentName in the list of components of thisDimr
-        for (int i = 0 ; i < thisDimr->componentsList.numComponents ; i++) {
-            if (strcmp(thisDimr->componentsList.components[i].name, componentName) == 0) {
-                compPtr = &thisDimr->componentsList.components[i];
-                break;
-            }
-        }
-        if (compPtr == NULL) {
-            throw Exception(true, Exception::ERR_INVALID_INPUT, "dimr::set_var: Unrecognized component \"%s\". Expecting \"componentName/parameterName\"\n", componentName);
-        }
-        // Send value to the receiving component
-        thisDimr->receive (targetName, 
-                               compPtr->type,
-                               compPtr->dllSetVar,
-                               compPtr->dllGetVar,
-                               targetVarPtr,
-                               compPtr->processes,
-                               compPtr->numProcesses,
-                               -1,
-                               value);
-    }
-    delete[] componentName;
-}
-
-
-} // extern "C"
-
-
-//------------------------------------------------------------------------------
-string GetLoggerFilename(dimr_logger* logger) {
-    string fileName = logger->workingDir;
-    fileName += '/';
-    fileName += logger->outputFile;
-    return fileName;
-}
 
 
 //------------------------------------------------------------------------------
@@ -597,14 +147,13 @@ int dimr_component::dllSetKeyVals (keyValueLL * kv) {
 //------------------------------------------------------------------------------
 //  Destructor
 Dimr::~Dimr (void) {
-
-    if (done)
+	if (done)
         return;
 
     // to do:  (void) FreeLibrary(handle);
     freeLibs();
 
-    log->Write (INFO, thisDimr->my_rank, "dimr shutting down normally");
+    log->Write (INFO, my_rank, "dimr shutting down normally");
 
 #if defined(HAVE_CONFIG_H)
     free (exeName);
@@ -628,7 +177,8 @@ Dimr::~Dimr (void) {
     }
     delete [] couplersList.couplers;
     // control
-    deleteControlBlock(*(control));
+	if (control != NULL)
+		deleteControlBlock(*(control));
     free(control);
     done = true;
 }
@@ -921,22 +471,22 @@ void Dimr::runParallelInit (dimr_control_block * cb) {
                     }
 
 					// create netcdf logfiles
-					if (thisCoupler->logger != NULL)
+                    if (thisCoupler->logger != NULL  && my_rank == 0)
 					{
-						// create netcdf file in workingdir
+                        // create netcdf file in workingdir
 
-                        string fileName = GetLoggerFilename(thisCoupler->logger);
+                        string fileName = thisCoupler->logger->GetLoggerFilename(dimrWorkingDirectory, dirSeparator);
 
                         // write NetCDF file
 
                         int ncid = -1;
-                        if (nc_create(fileName.c_str(), NC_CLOBBER, &ncid))
+                        if (nc_create(fileName.c_str(), nc_mode, &ncid))
                             throw Exception(true, Exception::ERR_OS, "Could not create NetCDF file at location \"%s\".", fileName.c_str());
                         ncfiles[fileName] = ncid;
 
                         // write global attributes
 
-					    time_t now;
+                        time_t now;
                         time(&now);
                         char buf[sizeof("2017-10-10T16:57:32Z")+1];
                         strftime(buf, sizeof buf, "%Y-%m-%dT%H:%M:%SZ", gmtime(&now));
@@ -956,7 +506,7 @@ void Dimr::runParallelInit (dimr_control_block * cb) {
                         std::ostringstream title;
                         const char * version = "version";
                         char * sourceComponentVersion = new char[1024];
-					    char * targetComponentVersion = new char[1024];
+                        char * targetComponentVersion = new char[1024];
                         strcpy(sourceComponentVersion, "");
                         strcpy(targetComponentVersion, "");
                         if (thisCoupler->sourceComponent->dllGetAttribute != NULL) {
@@ -981,23 +531,25 @@ void Dimr::runParallelInit (dimr_control_block * cb) {
                         nc_put_att_text(ncid, NC_GLOBAL, "title", titlestr.size(), titlestr.c_str());
                         delete[] sourceComponentVersion;
                         delete[] targetComponentVersion;
-                        const char conventions[] = "CF-1.6";
-                        nc_put_att_text(ncid, NC_GLOBAL, "conventions", strlen(conventions), conventions);
-                        
+                        const char conventions[] = "CF-1.7";
+                        nc_put_att_text(ncid, NC_GLOBAL, "Conventions", strlen(conventions), conventions);
+                        const char feature_type[] = "timeSeries";
+                        nc_put_att_text(ncid, NC_GLOBAL, "featureType", strlen(feature_type), feature_type);
+
                         // write dimensions
 
                         nc_def_dim(ncid, "strlen", 256, &thisCoupler->logger->netcdfReferences->strlenDim);
-                        nc_def_dim(ncid, "time", NC_UNLIMITED, &thisCoupler->logger->netcdfReferences->timeDim);
+                        nc_def_dim(ncid, "time_offset", NC_UNLIMITED, &thisCoupler->logger->netcdfReferences->timeDim);
 
-                        nc_def_var(ncid, "time", NC_DOUBLE, 1, &thisCoupler->logger->netcdfReferences->timeDim, &thisCoupler->logger->netcdfReferences->timeVar);
-                        const char longnametime[] = "time";
+                        nc_def_var(ncid, "time_offset", NC_DOUBLE, 1, &thisCoupler->logger->netcdfReferences->timeDim, &thisCoupler->logger->netcdfReferences->timeVar);
+                        const char longnametime[] = "seconds since simulation reference date, T00:00:00";
                         nc_put_att_text(ncid, thisCoupler->logger->netcdfReferences->timeVar, "long_name", sizeof(longnametime), longnametime);
-                        const char units[] = "seconds since 2017-10-09T00:00:00"; // TODO: Compute start time!!
+                        const char units[] = "seconds since 1980-01-01T00:00:00"; // TODO: Get simulation reference time from one of the kernels
                         nc_put_att_text(ncid, thisCoupler->logger->netcdfReferences->timeVar, "units", sizeof(units), units);
                         const char axis[] = "T";
                         nc_put_att_text(ncid, thisCoupler->logger->netcdfReferences->timeVar, "axis", sizeof(axis), axis);
 
-                        // write variables
+                        // write variables/parameter
 
                         thisCoupler->logger->netcdfReferences->item_values = new int[thisCoupler->numItems];
                         thisCoupler->logger->netcdfReferences->item_variables = new int[thisCoupler->numItems];
@@ -1020,15 +572,44 @@ void Dimr::runParallelInit (dimr_control_block * cb) {
 
                             std::ostringstream itemValuesLongName;
                             const string sourceName = string(thisCoupler->items[k].sourceName);
-                            itemValuesLongName << string(thisCoupler->sourceComponentName) << ":" << sourceName
-                                << " -> " << string(thisCoupler->targetComponentName) << ":" << string(thisCoupler->items[k].targetName);
+                            itemValuesLongName << sourceName
+                                << " -> " << string(thisCoupler->items[k].targetName);
                             const string itemvaluesstr(itemValuesLongName.str());
                             nc_put_att_text(ncid, thisCoupler->logger->netcdfReferences->item_variables[k], "long_name", itemvaluesstr.size(), itemvaluesstr.c_str());
+
+                            std::ostringstream itemValuesCoordinates;
+                            itemValuesCoordinates << "station_name";
+                            const string itemValuesCoordinatesstr(itemValuesCoordinates.str());
+                            nc_put_att_text(ncid, thisCoupler->logger->netcdfReferences->item_variables[k], "coordinates", itemValuesCoordinatesstr.size(), itemValuesCoordinatesstr.c_str());
+                        }
+
+                        // write location
+                        long nStations = 1;
+                        long name_strlen = 64;
+                        int id_nStations;
+                        int id_name_strlen;
+                        int station_var;
+                        {
+                            nc_def_dim(ncid, "nStations", nStations, &id_nStations);
+                            nc_def_dim(ncid, "name_strlen", name_strlen, &id_name_strlen);
+
+                            int dim_id[2];
+                            dim_id[0] = id_nStations;
+                            dim_id[1] = id_name_strlen;
+                            nc_def_var(ncid, "station_name", NC_CHAR, 2, dim_id, &station_var);
+                            const char timeseries_id[] = "timeseries_id";
+                            nc_put_att_text(ncid, station_var, "cf_role", strlen(timeseries_id), timeseries_id);
+                            const char longName[] = "Station name";
+                            nc_put_att_text(ncid, station_var, "long_name", strlen(longName), longName);
                         }
 
                         nc_enddef(ncid);
-                    }
 
+                        // Add station name
+                        std::string varName = sourceComponentName + " -> " + targetComponentName;
+                        varName.append(name_strlen - varName.length(), ' ');
+                        nc_put_var_text(ncid, station_var, varName.c_str());
+                    }
                     // Het hele spul MOET NAAR DELTARES_COMMON_C !!!
                 }
             }
@@ -1155,18 +736,27 @@ void Dimr::runParallelUpdate (dimr_control_block * cb, double tStep) {
                             chdir(thisComponent->workingDir);
                             log->Write (FATAL, my_rank, "%10.1f:    %s.Update(%10.1f)", *currentTime, thisComponent->name, tUpdate);
                             timerStart(thisComponent);
-                            (thisComponent->dllUpdate) (tUpdate);
+                            int state = (thisComponent->dllUpdate) (tUpdate);
+                            if (state != 0)
+                            {
+                                stringstream ss;
+                                ss << *currentTime;
+                                string message = "Could not update the component " + std::string(thisComponent->name) + " at time " + ss.str() + "\n";
+                                throw Exception(true, Exception::ERR_UNKNOWN, message.c_str());
+                            }
                             timerEnd(thisComponent);
-                        } else {
+                        } 
+                        else 
+                        {
                             // Coupler
                             dimr_coupler * thisCoupler = cb->subBlocks[i].subBlocks[j].unit.coupler;
                             double * transferValuePtr;
                             log->Write (DEBUG, my_rank, "%10.1f:    %s.communicate", *currentTime, thisCoupler->name);
 
                             // log netcdf time variable
-                            int timeIndexCounter = static_cast<int>(floor(*currentTime / tStep));
+                            int timeIndexCounter = static_cast<int>(floor((*currentTime - cb->subBlocks[cb->masterSubBlockId].tStart) / tStep));
                             if (thisCoupler->logger != NULL) {
-                                string fileName = GetLoggerFilename(thisCoupler->logger);
+                                string fileName = thisCoupler->logger->GetLoggerFilename(dimrWorkingDirectory, dirSeparator); 
 
                                 int ncid = ncfiles[fileName];
                                 size_t index[] = { timeIndexCounter };
@@ -1207,9 +797,9 @@ void Dimr::runParallelUpdate (dimr_control_block * cb, double tStep) {
                                          thisCoupler->items[k].targetProcess,
                                          transferValuePtr);
 
-
-                                if (thisCoupler->logger != NULL) {
-                                    string fileName = GetLoggerFilename(thisCoupler->logger);
+                                if (thisCoupler->logger != NULL && my_rank == 0)
+                                {
+                                    string fileName = thisCoupler->logger->GetLoggerFilename(this->dimrWorkingDirectory, this->dirSeparator);
 
                                     int ncid = ncfiles[fileName];
                                     size_t indices[] = { timeIndexCounter, 0 };
@@ -1333,11 +923,13 @@ void Dimr::getAddress(
    for (int m = 0; m < nProc; m++) {
       if (my_rank == processes[m]) {
          log->Write(ALL, my_rank, "Dimr::getAddress (%s)", name);
-         if (compType == COMP_TYPE_RTC
-            || compType == COMP_TYPE_RR
-            || compType == COMP_TYPE_FLOW1D
-            || compType == COMP_TYPE_FLOW1D2D
-            || *sourceVarPtr == NULL) {
+         if ( compType == COMP_TYPE_DEFAULT_BMI ||
+              compType == COMP_TYPE_RTC ||
+              compType == COMP_TYPE_RR ||
+              compType == COMP_TYPE_FLOW1D ||
+              compType == COMP_TYPE_FLOW1D2D ||
+              compType == COMP_TYPE_FM || // NOTE: pending new feature of specifying get_var by value/by reference, we now always get the new pointer from dflowfm (needed for UNST-1713).
+              *sourceVarPtr == NULL) {
             // These components only returns a new pointer to a copy of the double value, so call it each time.
             // sourceVarPtr=NULL: getVar not yet called for this parameter, probably because "send" is being called
             //                    via the toplevel "get_var"
@@ -1458,7 +1050,7 @@ void Dimr::runParallelFinish (dimr_control_block * cb) {
 				else { //coupler
 					dimr_coupler * thisCoupler = cb->subBlocks[i].subBlocks[j].unit.coupler;
 					if (thisCoupler->logger != NULL) {
-                        string fileName = GetLoggerFilename(thisCoupler->logger);
+                        string fileName = thisCoupler->logger->GetLoggerFilename(dimrWorkingDirectory, dirSeparator);  
                         int ncid = ncfiles[fileName];
                         if (ncid >= 0) {
                             // todo: what if the computation crashes - can we read the file?
@@ -1474,7 +1066,7 @@ void Dimr::runParallelFinish (dimr_control_block * cb) {
 //------------------------------------------------------------------------------
 void Dimr::scanConfigFile (void) {
 
-    XmlTree * rootXml     = config->Lookup ("/dimrConfig");
+    XmlTree * rootXml     = static_cast<XmlTree*>(config->Lookup("/dimrConfig"));
     if (rootXml == NULL)
         throw Exception (true, Exception::ERR_INVALID_INPUT, "Configuration file \"%s\" does not have a <dimrConfig> root element", configfile);
     XmlTree * fileversion = rootXml->Lookup ("documentation/fileVersion");
@@ -1498,13 +1090,40 @@ void Dimr::scanConfigFile (void) {
     control->numSubBlocks = 0;
     control->subBlocks    = NULL;
     control->masterSubBlockId = -1;
-    // First scan the config file for all components and couplers (= units)
+    // First scan the global settings
+    scanGlobalSettings(rootXml);
+    // Then scan the config file for all components and couplers (= units)
     scanUnits(rootXml);
     // Then scan the control part
     // References are added to the list of components/couplers
     scanControl(controlXml, control);
 }
 
+
+
+//------------------------------------------------------------------------------
+void Dimr::scanGlobalSettings(XmlTree * rootXml) {
+    // Init
+    nc_mode = 0;
+    // Scan
+    XmlTree * globalSettings = rootXml->Lookup ("global_settings");
+    if (globalSettings == NULL)
+        return;
+    XmlTree * loggerNcFormat = globalSettings->Lookup ("logger_ncFormat");
+    if (loggerNcFormat != NULL) {
+        int intRead = sscanf(loggerNcFormat->charData, "%d", &(nc_mode));
+        if (intRead != 1)
+            throw Exception (true, Exception::ERR_INVALID_INPUT, "logger_ncFormat must contain the value 3 or 4");
+        if (nc_mode == 3) {
+            nc_mode = NC_CLASSIC_MODEL;
+        } else if (nc_mode == 4) {
+            nc_mode = NC_NETCDF4;
+        } else {
+            nc_mode = NC_CLOBBER;
+        }
+
+    }
+}
 
 
 //------------------------------------------------------------------------------
@@ -1549,11 +1168,6 @@ void Dimr::scanUnits(XmlTree * rootXml) {
 //------------------------------------------------------------------------------
 void Dimr::scanComponent(XmlTree * xmlComponent, dimr_component * newComp) {
     // Needed for path handling
-#if defined(HAVE_CONFIG_H)
-    const char *dirSeparator = "/";
-#else
-    const char *dirSeparator = "\\";
-#endif
     char *curPath = new char[MAXSTRING];
     if (!getcwd(curPath, MAXSTRING))
         throw Exception (true, Exception::ERR_OS, "ERROR obtaining the current working directory (scan)");
@@ -1593,8 +1207,10 @@ void Dimr::scanComponent(XmlTree * xmlComponent, dimr_component * newComp) {
     } else if (strstr(libNameLowercase, "dimr_testcomponent") != NULL){
        newComp->type = COMP_TYPE_TEST;
     }
-    else {
-        throw Exception (true, Exception::ERR_INVALID_INPUT, "Name of library, \"%s\", is not recognized", newComp->library);
+    else 
+    {
+       newComp->type = COMP_TYPE_DEFAULT_BMI;
+       log->Write(ALL, my_rank, "INFO: \"<process>\" Type for component \"%s\" is set to default value 0", newComp->name);
     }
     delete [] libNameLowercase;
 
@@ -1747,7 +1363,7 @@ void Dimr::scanCoupler(XmlTree * xmlCoupler, dimr_coupler * newCoup) {
         }
     }
 
-	// Logger (optional)
+	// BMILogger (optional)
     newCoup->logger = NULL;
     XmlTree * logger = xmlCoupler->Lookup("logger");
 	if (logger != NULL) {
@@ -1839,7 +1455,6 @@ dimr_coupler * Dimr::getCoupler(const char * coupName) {
 }
 
 
-
 //------------------------------------------------------------------------------
 void Dimr::connectLibs (void) {
 
@@ -1888,7 +1503,7 @@ void Dimr::connectLibs (void) {
         componentsList.components[i].libHandle = dllhandle;
         #define GETPROCADDRESS dlsym
         #define GetLastError dlerror
-        #define Sleep sleep
+        #define Sleep(msec) sleep((int)msec/1000)
 #else
         SetLastError(0); /* clear error code */
         HINSTANCE dllhandle = LoadLibrary (LPCSTR(lib));
@@ -1954,14 +1569,15 @@ void Dimr::connectLibs (void) {
 //          throw Exception (true,  Exception::ERR_METHOD_NOT_IMPLEMENTED, "Cannot find function \"%s\" in library \"%s\". Return code: %d", BmiGetAttributeEntryPoint, lib, GetLastError());
 //        }
 
-		if (   componentsList.components[i].type == COMP_TYPE_FM
-            || componentsList.components[i].type == COMP_TYPE_RTC 
-            || componentsList.components[i].type == COMP_TYPE_RR 
-            || componentsList.components[i].type == COMP_TYPE_FLOW1D 
-            || componentsList.components[i].type == COMP_TYPE_FLOW1D2D
-            || componentsList.components[i].type == COMP_TYPE_DELWAQ
-            || componentsList.components[i].type == COMP_TYPE_TEST
-            || componentsList.components[i].type == COMP_TYPE_WANDA) {
+		if ( componentsList.components[i].type == COMP_TYPE_DEFAULT_BMI ||
+           componentsList.components[i].type == COMP_TYPE_FM ||
+           componentsList.components[i].type == COMP_TYPE_RTC ||
+           componentsList.components[i].type == COMP_TYPE_RR ||
+           componentsList.components[i].type == COMP_TYPE_FLOW1D ||
+           componentsList.components[i].type == COMP_TYPE_FLOW1D2D ||
+           componentsList.components[i].type == COMP_TYPE_DELWAQ ||
+           componentsList.components[i].type == COMP_TYPE_TEST ||
+           componentsList.components[i].type == COMP_TYPE_WANDA) {
             // RTC-Tools: setVar is used
             componentsList.components[i].dllSetVar = (BMI_SETVAR) GETPROCADDRESS (dllhandle, BmiSetVarEntryPoint);
             if (componentsList.components[i].dllSetVar == NULL) {
@@ -1971,23 +1587,23 @@ void Dimr::connectLibs (void) {
             componentsList.components[i].dllSetVar = NULL;
       }
 
-      // Logger callback: FLOW1D uses BmiSetLogger
+      // BMILogger callback: FLOW1D uses BmiSetLogger
       if (componentsList.components[i].type == COMP_TYPE_FLOW1D) {
          componentsList.components[i].setLogger = (BMI_SET_LOGGER)GETPROCADDRESS(dllhandle, BmiSetLogger);
          if (componentsList.components[i].setLogger == NULL) {
             throw Exception(true, Exception::ERR_METHOD_NOT_IMPLEMENTED, "Cannot find function \"%s\" in library \"%s\". Return code: %d", BmiSetLogger, lib, GetLastError());
          }
-         componentsList.components[i].setLogger((Logger)&_log);
+         componentsList.components[i].setLogger((BMILogger)&_log);
          double level = (double)this->logLevel;
          componentsList.components[i].dllSetVar("debugLevel", (const void *)&level);
       }
-      // Logger callback: FLOWFM uses BmiSetLogger2
+      // BMILogger callback: FLOWFM uses BmiSetLogger2
       if (componentsList.components[i].type == COMP_TYPE_FM) {
          componentsList.components[i].setLogger = (BMI_SET_LOGGER)GETPROCADDRESS(dllhandle, BmiSetLogger);
          if (componentsList.components[i].setLogger == NULL) {
             throw Exception(true, Exception::ERR_METHOD_NOT_IMPLEMENTED, "Cannot find function \"%s\" in library \"%s\". Return code: %d", BmiSetLogger, lib, GetLastError());
          }
-         componentsList.components[i].setLogger((Logger)&_log);
+         componentsList.components[i].setLogger((BMILogger)&_log);
          // Is it possible to set the debugLevel in FM? componentsList.components[i].dllSetVar("debugLevel", (const void *)&level);
       }
 
@@ -2026,15 +1642,6 @@ void Dimr::printComponentVersionStrings (Level my_level) {
     log->Write (my_level, my_rank, "---------------------------------");
     log->Write (my_level, my_rank, "");
     delete[] versionstr;
-}
-
-
-//void _log(int level, char * msg) {
-void _log(Level level, const char * msg) {
-	if (thisDimr == NULL) {
-		thisDimr = new Dimr();
-	}	
-	thisDimr->log->Write(level, thisDimr->my_rank, msg);
 }
 
 //------------------------------------------------------------------------------
@@ -2083,7 +1690,7 @@ void Dimr::processWaitFile (void) {
     // The following waitFile code is introduced for
     // debugging parallel runs. It should NOT be used for any other purpose!
 
-    XmlTree * rootXml     = config->Lookup ("/dimrConfig");
+    XmlTree * rootXml     = static_cast<XmlTree *>(config->Lookup("/dimrConfig"));
     const char * waitFile = rootXml->GetElement ("waitFile");
     if (waitFile != NULL) {
         log->Write (INFO, my_rank, "Waiting for file \"%s\" to appear...", waitFile);
@@ -2103,7 +1710,7 @@ void Dimr::processWaitFile (void) {
 
 //------------------------------------------------------------------------------
 void Dimr::timersInit (void) {
-    for (int i = 0 ; i < thisDimr->componentsList.numComponents ; i++) {
+    for (int i = 0 ; i < componentsList.numComponents ; i++) {
         componentsList.components[i].timerSum   =  0;
         componentsList.components[i].timerStart =  0;
     }
@@ -2130,7 +1737,7 @@ void Dimr::timerEnd (dimr_component * thisComponent) {
 //------------------------------------------------------------------------------
 void Dimr::timersFinish (void) {
     log->Write (FATAL, my_rank, "TIMER INFO:\n");
-    for (int i = 0 ; i < thisDimr->componentsList.numComponents ; i++) {
+    for (int i = 0 ; i < componentsList.numComponents ; i++) {
         componentsList.components[i].timerStart = 0;
         log->Write (FATAL, my_rank, "%s\t: %d.%d sec", componentsList.components[i].name, 
                           componentsList.components[i].timerSum/1000000,
@@ -2173,4 +1780,8 @@ void Dimr::char_to_ints(char * line, int ** iarr, int * count) {
         np++;
     }
 }
-
+//------------------------------------------------------------------------------
+void Dimr::_log(Level level, const char * msg) {
+	Dimr* thisDimr = GetInstance();
+	thisDimr->log->Write(level, thisDimr->my_rank, msg);
+}

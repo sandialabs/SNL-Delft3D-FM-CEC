@@ -1,6 +1,6 @@
 !----- AGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2017-2018.                                
+!  Copyright (C)  Stichting Deltares, 2017-2020.                                
 !                                                                               
 !  This file is part of Delft3D (D-Flow Flexible Mesh component).               
 !                                                                               
@@ -27,8 +27,8 @@
 !                                                                               
 !-------------------------------------------------------------------------------
 
-! $Id: step_to_screen.f90 52966 2017-10-26 15:42:54Z kernkam $
-! $HeadURL: https://repos.deltares.nl/repos/ds/trunk/additional/unstruc/src/step_to_screen.f90 $
+! $Id: step_to_screen.f90 65778 2020-01-14 14:07:42Z mourits $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/dflowfm/packages/dflowfm_kernel/src/step_to_screen.f90 $
 ! Copied and modified from: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/flow2d3d/packages/kernel/src/general/step_to_screen.f90
 ! Original file distributed  GNU General Public License <http://www.gnu.org/licenses/>.
 
@@ -55,12 +55,13 @@ subroutine step_to_screen()
     integer       :: days2go      !!  days remaining
     real(fp)      :: perc_compl   !!  completed percentage of simulation
     character(32) :: timeremstr   !!  string for remaining time
+    character(20) :: string   !!  string for remaining time
     integer, save :: ifirsttime = 1
     real(fp)      :: dt_ave
     real(fp), save :: timesav = 0d0
     real(fp), save :: dntsav  = 0d0
     
-    character(len=16), external :: seconds_to_dhms
+    character(len=20), external :: seconds_to_dhms
 !
 !! executable statements -------------------------------------------------------
 !
@@ -153,7 +154,8 @@ subroutine step_to_screen()
     !      & 'user time steps left  ', nst2go
     !!
     !0    .    1    .    2    .    3    .    4    .    5    .    6    .    7
-    write(msgbuf, '(4(1x,a16),i11,f8.1,a1,f12.5)') &
+    string = seconds_to_dhms(nint(time_user-tstart_user, long))
+    write(msgbuf, '(4(1x,a20),i11,f8.1,a1,f12.5)') &
         seconds_to_dhms(nint(time_user-tstart_user, long)), &
         seconds_to_dhms(nint(tstop_user-time_user, long)), &
         seconds_to_dhms(nint(cpusteps(3), long)), &
@@ -170,13 +172,14 @@ function seconds_to_dhms(secs_long) result(timestr)
     use precision
     implicit none
     integer(long), intent(in) :: secs_long  !< total in seconds
-    character(len=16)         :: timestr
+    character(len=20)         :: timestr
 
     integer(long) :: secs_l    !!  Copy of total seconds for computations
     integer       :: secs      !!  seconds remaining (normal integer)
     integer       :: mins      !!  minutes remaining
     integer       :: hours     !!  hours remaining
     integer       :: days      !!  days remaining
+    character(len=20)         :: timestr_
 
     !
     ! extract days, hours, minutes and seconds remaining
@@ -201,7 +204,7 @@ function seconds_to_dhms(secs_long) result(timestr)
         secs = int(secs_l)
     endif
     if (secs >= 0) then
-        write(timestr, '(i6,a,i2,a,i2.2,a,i2.2)') days,'d ', hours, ':', mins, ':', secs
+        write(timestr, '(i10,a,i2,a,i2.2,a,i2.2)') days,'d ', hours, ':', mins, ':', secs
     else
         write(timestr, '(a6,a,a2,a,a2,a,a2)') '    ??','d ', '??', ':', '??', ':', '??'
     end if

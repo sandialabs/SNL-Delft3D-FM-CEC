@@ -1,6 +1,6 @@
 !----- LGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
+!  Copyright (C)  Stichting Deltares, 2011-2020.                                
 !                                                                               
 !  This library is free software; you can redistribute it and/or                
 !  modify it under the terms of the GNU Lesser General Public                   
@@ -23,24 +23,28 @@
 !  are registered trademarks of Stichting Deltares, and remain the property of  
 !  Stichting Deltares. All rights reserved.                                     
 
-!  $Id: ec_parameters.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_lgpl/ec_module/packages/ec_module/src/ec_parameters.f90 $
+!  $Id: ec_parameters.F90 65795 2020-01-16 09:45:14Z leander $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/ec_module/packages/ec_module/src/ec_parameters.F90 $
 
 !> This module contains the Ec-module's enumerations and constants.
 !! @author arjen.markus@deltares.nl
 !! @author adri.mourits@deltares.nl
 !! @author stef.hummel@deltares.nl
-!! @author edwin.bos@deltares.nl
+!! @author edwin.spee@deltares.nl
 module m_ec_parameters
    use precision
 
    implicit none
 
-   integer,  parameter :: maxNameLen           = 100
-   integer,  parameter :: maxRecordLen         = 132
+   integer,  parameter :: maxNameLen           = 256
    integer,  parameter :: maxFileNameLen       = 256
    integer,  parameter :: maxFileReaderFiles   = 3
-   integer             :: maxFileUnits         = 2000   !< may be lowered if too high for current OS
+#ifdef _WIN64
+   integer             :: maxFileUnits         = 8000   !< maximum on Windows 10 (8000 < 8192)
+#else
+   integer             :: maxFileUnits         = 2000
+#endif
+   integer,  parameter :: numberOfTargetItems  = 4
 
    integer,  parameter :: EC_MISSING_VALUE = -999
    integer,  parameter :: ec_undef_int = -987
@@ -66,7 +70,7 @@ module m_ec_parameters
    integer, parameter :: elmSetType_polytim               = 10
    integer, parameter :: elmSetType_samples               = 11
    integer, parameter :: elmSetType_spheric_ortho         = 12! A spherical element set the lat, lon of which are one dimension (no cross-product array)
-   integer, parameter :: elmSetType_Cartesian_ortho       = 13! A carthesian element set the lat, lon of which are one dimension (no cross-product array)
+   integer, parameter :: elmSetType_Cartesian_ortho       = 13! A cartesian element set the lat, lon of which are one dimension (no cross-product array)
 
    !> Enumeration for tEcItem role
    integer, parameter :: itemType_undefined = 0
@@ -77,7 +81,7 @@ module m_ec_parameters
    !> enumeration for tEcFileReader filetypes
    integer, parameter :: provFile_undefined           =  0
    integer, parameter :: provFile_uniform             =  1  !< kx values each timestep 1 dim arr       uni
-   integer, parameter :: provFile_unimagdir           =  2  !< 2 values each timestep; magnitide, direction
+   integer, parameter :: provFile_unimagdir           =  2  !< 2 values each timestep; magnitude, direction
    integer, parameter :: provFile_svwp                =  3  !< 3 fields each timestep 3 dim array      noint
    integer, parameter :: provFile_svwp_weight         =  4  !< 3 fields each timestep 3 dim array      noint
    integer, parameter :: provFile_arcinfo             =  5  !< 1 field each timestep 2 dim array        bilin/direct
@@ -118,6 +122,7 @@ module m_ec_parameters
    integer, parameter :: interpolate_smoothing                  = 11 !< Not yet supported: only spatial, smoothing
    integer, parameter :: interpolate_intdiffusion               = 12 !< Not yet supported: only spatial, internal diffusion
    integer, parameter :: interpolate_vertprofile                = 13 !< Not yet supported: only initial vertical profiles
+   integer, parameter :: extrapolate_spacetimeSaveWeightFactors = 14 !< inter/extra-polate in space, save the space weight factors, then interpolate in time
 
    ! enumeration for time interpolation types
    integer, parameter :: timeint_lin                           = 1   !< linear
@@ -147,13 +152,8 @@ module m_ec_parameters
    !
    ! enumeration for tEcConverter types
    integer, parameter :: convType_undefined = 0
-   !integer, parameter :: convType_default   = 1
-   integer, parameter :: convType_unimagdir = 2 !< first time, then space
+   integer, parameter :: convType_unimagdir = 2
    integer, parameter :: convType_uniform = 3 !< only time
-   !integer, parameter :: convType_svwp      = 4
-   !integer, parameter :: convType_svwp_cpu  = 5
-   !integer, parameter :: convType_grib      = 6
-   !integer, parameter :: convType_ById      = 7
    integer, parameter :: convType_fourier = 8
    integer, parameter :: convType_arcinfo = 9
    integer, parameter :: convType_curvi = 10
@@ -165,7 +165,6 @@ module m_ec_parameters
    integer, parameter :: convType_sigma   = 16
    integer, parameter :: convType_samples = 17
 
-
    ! Error states, in addition to success=.true./.false. returns.
    integer, parameter :: EC_UNKNOWN_ERROR      = -1 !< Unknown error.
    integer, parameter :: EC_NOERR              = 0  !< Success
@@ -173,9 +172,10 @@ module m_ec_parameters
    integer, parameter :: EC_METADATA_INVALID   = 12 !< Meta-data was mal-formatted or incomplete.
    integer, parameter :: EC_DATA_INVALID       = 13 !< Data was mal-formatted or incomplete.
    integer, parameter :: EC_EOF                = 14 !< EOF reached/file ended prematurely.
+   integer, parameter :: EC_IO_ERROR           = 15 !< Low-level I/O error from the multifile I/O routines.
 
    ! COORDINATE SYSTEM that applies to all elementsets in this instance
-   integer, parameter :: EC_COORDS_CARTESIAN  = 1  !< Cartesian coordinates (x,y)
+   integer, parameter :: EC_COORDS_CARTESIAN   = 1  !< Cartesian coordinates (x,y)
    integer, parameter :: EC_COORDS_SFERIC      = 2  !< Sferic coordinates (Lon,Lat) WGS84
 
     !------------------------ BC-header related parameters ----------------------------------
@@ -197,6 +197,7 @@ module m_ec_parameters
     integer, parameter :: BC_TIMEINT_LIN_EXTRAPOL  = 4   !< linear
 
     ! Vertical position type
+    integer, parameter :: BC_VPTYP_SINGLE      = 0   !< depth averaged
     integer, parameter :: BC_VPTYP_PERCBED     = 1   !< precentage from bed
     integer, parameter :: BC_VPTYP_ZDATUM      = 2   !< z above datum
     integer, parameter :: BC_VPTYP_ZDATUM_DOWN = 3   !< z below datum
@@ -215,9 +216,3 @@ module m_ec_parameters
     !------------------------ BC-header related parameters ----------------------------------
 
 end module m_ec_parameters
-
-module m_ec_magic_number
-   use precision
-   implicit none
-   real(hp), dimension(:), allocatable :: magic_array
-end module m_ec_magic_number

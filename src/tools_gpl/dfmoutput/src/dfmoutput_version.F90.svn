@@ -27,8 +27,8 @@
 !                                                                               
 !-------------------------------------------------------------------------------
 
-! $Id: dfmoutput_version.F90.svn 52271 2017-09-04 07:52:04Z klecz_ml $
-! $HeadURL: https://repos.deltares.nl/repos/ds/branches/dflowfm/20161017_dflowfm_codecleanup/tools_gpl/dfmoutput/src/dfmoutput_version.F90.svn $
+! $Id: dfmoutput_version.F90.svn 61486 2018-08-29 10:22:14Z mourits $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_gpl/dfmoutput/src/dfmoutput_version.F90.svn $
 
 module dfmoutput_version_module
 
@@ -41,7 +41,7 @@ implicit none
 
     character(*),  public, parameter :: dfmoutput_company      = 'Deltares'
     character(*),  public, parameter :: dfmoutput_company_url  = 'http://www.deltares.nl'
-    character(*),  public, parameter :: dfmoutput_program      = 'D-Flow FM'
+    character(*),  public, parameter :: dfmoutput_program      = 'dfmoutput'
     character(*),  public, parameter :: dfmoutput_basename     = 'dfmoutput'
 
     character(*),  public, parameter :: dfmoutput_version      = dfmoutput_major//'.'//dfmoutput_minor//'.'//dfmoutput_revision//'.'//dfmoutput_build_number

@@ -3,7 +3,7 @@ subroutine windtostress(mmax      ,nmax      ,nmaxus    ,grdang    ,kcs       , 
                       & windcd    , gdp       )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
+!  Copyright (C)  Stichting Deltares, 2011-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -27,8 +27,8 @@ subroutine windtostress(mmax      ,nmax      ,nmaxus    ,grdang    ,kcs       , 
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: windtostress.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/engines_gpl/flow2d3d/packages/kernel/src/timedep/windtostress.f90 $
+!  $Id: windtostress.f90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/kernel/src/timedep/windtostress.f90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: Conversion from wind velocity to stresses
@@ -128,7 +128,8 @@ subroutine windtostress(mmax      ,nmax      ,nmaxus    ,grdang    ,kcs       , 
              ! Wuest & Lorke (2003)
              !
              if(wslake == 1) then
-                 cdwl  = 0.0044_fp/wsp**1.15_fp
+                 ! Limit wsp to > 0.5. Stay on the safe side in case cd is copied to Stanton/Dalton, see code below
+                 cdwl  = 0.0044_fp/max(wsp,0.5_fp)**1.15_fp
              else
                  cdwl = 0.0_fp
              endif

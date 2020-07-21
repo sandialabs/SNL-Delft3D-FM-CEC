@@ -18,7 +18,7 @@ function varargout=d3d_waqfil(FI,domain,field,cmd,varargin)
 
 %----- LGPL --------------------------------------------------------------------
 %                                                                               
-%   Copyright (C) 2011-2018 Stichting Deltares.                                     
+%   Copyright (C) 2011-2020 Stichting Deltares.                                     
 %                                                                               
 %   This library is free software; you can redistribute it and/or                
 %   modify it under the terms of the GNU Lesser General Public                   
@@ -43,8 +43,8 @@ function varargout=d3d_waqfil(FI,domain,field,cmd,varargin)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_lgpl/matlab/quickplot/progsrc/private/d3d_waqfil.m $
-%   $Id: d3d_waqfil.m 7992 2018-01-09 10:27:35Z mourits $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/private/d3d_waqfil.m $
+%   $Id: d3d_waqfil.m 65942 2020-02-06 15:19:38Z jagers $
 
 %========================= GENERAL CODE =======================================
 T_=1; ST_=2; M_=3; N_=4; K_=5;
@@ -253,7 +253,7 @@ for i=[M_ N_ K_]
         elseif ~isequal(idx{i},idx{i}(1):idx{i}(end))
             error('Only scalars or ranges allowed for index %i',i)
         end
-        if (i~=K_) && ~strcmp(subtype,'plot') && ~strcmp(Props.Geom,'POLYG') && ~strcmp(Props.Geom,'UGRID-FACE')
+        if (i~=K_) && ~strcmp(subtype,'plot') && ~strcmp(Props.Geom,'POLYG') && ~strcmp(Props.Geom,'UGRID2D-FACE')
             if DataInCell
                 if isequal(idx{i},1)
                     idx{i}=[1 2];
@@ -364,7 +364,7 @@ switch subtype
                                         select = {idx{M_}};
                                     end
                                     [Success,Ans] = qp_getdata(FI.Grid,FI.Grid.Mesh{4},'griddata',select{:});
-                                    Ans.ValLocation = Props.Geom(7:end);
+                                    Ans.ValLocation = Props.Geom(9:end);
                             end
                         else
                             if DataInCell
@@ -587,6 +587,7 @@ switch subtype
 end
 %========================= GENERAL CODE =======================================
 x(x==-999) = NaN;
+x(x==-missingvalue) = NaN;
 %end
 
 % grid interpolation ...
@@ -611,7 +612,7 @@ TDam=0;
 T=[];
 if ~isempty(Props.SubFld) && isnumeric(Props.SubFld)
     % for S1/S2 quantities we read only the last layer
-    elidx(end+1)={Props.SubFld};
+    elidx(end+1)={':'};
 end
 if strcmp(Props.Name,'grid') && ~strcmp(Props.Geom,'POLYG')
     if isequal(FI.FileType,'DelwaqLGA')
@@ -742,6 +743,33 @@ elseif (strcmp(subtype,'map') && mapgrid) || strcmp(subtype,'plot') || strcmp(su
     else
         val1 = val1(:,ic);
         val1(:,missing) = NaN;
+        if size(val1,2) ~= prod(szPerTimestep)
+            nTimes = size(val1,1);
+            nLayers = size(val1,2)/prod(szPerTimestep);
+            val1 = reshape(val1,[nTimes*prod(szPerTimestep) nLayers]);
+            val1(val1==-999) = 0;
+            bed2d_method = 'last_layer_non_zero';
+            switch bed2d_method
+                case 'last_layer_non_zero'
+                    for k = nLayers:-1:1
+                        if k==nLayers
+                            needsval = val1(:,k)==0;
+                        else
+                            getval = val1(:,k)~=0 & needsval;
+                            if any(getval)
+                                val1(getval,nLayers) = val1(getval,k);
+                                needsval(getval) = false;
+                            end
+                        end
+                    end
+                    val1 = val1(:,nLayers);
+                case 'sum_all_layers'
+                    val1 = sum(val1,2);
+                case 'last_layer'
+                    val1 = val1(:,nLayers);
+            end
+            val1 = reshape(val1,[nTimes prod(szPerTimestep)]);
+        end
         val1 = reshape(val1,[size(val1,1) szPerTimestep]);
         if ~isempty(val2)
             val2 = val2(:,ic);
@@ -839,7 +867,7 @@ end
 %======================== SPECIFIC CODE =======================================
 % select active points ...
 act_from_z = 0;
-if strcmp(subtype,'map') && mapgrid && ~strcmp(Props.Geom,'TRI') && ~strcmp(Props.Geom,'POLYG') && ~strcmp(Props.Geom,'UGRID-FACE')
+if strcmp(subtype,'map') && mapgrid && ~strcmp(Props.Geom,'TRI') && ~strcmp(Props.Geom,'POLYG') && ~strcmp(Props.Geom,'UGRID2D-FACE')
     act=FI.Grid.Index(idx{[M_ N_]},1)~=0;
     gridact=~isnan(x(:,:,:,1));
 elseif strcmp(subtype,'plot') && ~isempty(z)
@@ -1007,7 +1035,7 @@ end
 % generate output ...
 if XYRead
     switch Props.Geom
-        case {'UGRID-FACE','UGRID-EDGE','UGRID-NODE'}
+        case {'UGRID2D-FACE','UGRID2D-EDGE','UGRID2D-NODE'}
             % Ans already filled with geometry information
         case 'POLYG'
             if size(x,2)==2 % segments
@@ -1114,6 +1142,8 @@ plotfile=0;
 includegrid=1;
 enablegridview=1;
 mass_per='n/a';
+reducebedto2d = qp_option(FI,'reducebedto2d','default',1);
+reducedptstatto2d = qp_option(FI,'reducedptstatto2d','default',1);
 switch Type
     case {'delwaqlga'}
         DataProps={'grid'          ''     '' 'xy'     [0 0 1 1 0]  0         0     ''       'd'   'd'       ''      ''               ''              ''    []       0 0
@@ -1135,7 +1165,7 @@ switch Type
                 switch name
                     case 'vol'
                         Out(end).DimFlag(T_) = 5;
-                        name = 'flow volumes';
+                        name = 'water volumes';
                         units = 'm^3';
                     case 'sal'
                         Out(end).DimFlag(T_) = 5;
@@ -1178,10 +1208,18 @@ switch Type
                         name = 'chezy - direction 2';
                         units = 'm^{1/2}/s';
                         Out(end).AttPar = {2};
-                    case 'srf'
-                        name = 'surface areas';
+                    case {'srf','srfold'}
+                        if isfield(FI.Attributes.(name),'Srf')
+                            Out(end).DimFlag(K_) = 0;
+                        else
+                            Out(end).DimFlag(T_) = 5;
+                        end
+                        if strcmp(name,'srfold')
+                            name = 'surface areas (old format)';
+                        else
+                            name = 'surface areas';
+                        end
                         units = 'm^2';
-                        Out(end).DimFlag(K_) = 0;
                     case 'dps'
                         name = 'bed level';
                         units = 'm';
@@ -1227,7 +1265,7 @@ switch Type
                             enablegridview=0;
                             %
                             if isfield(FI.Grid,'Mesh')
-                                DataProps{r,3}='UGRID-FACE';
+                                DataProps{r,3}='UGRID2D-FACE';
                             else
                                 DataProps{r,3}='POLYG';
                             end
@@ -1612,23 +1650,58 @@ if ~isempty(icnst)
        Ins(j+1:k)=[];
        j=j+1;
     end
-    for j=1:length(Ins)
-       s1 = strfind(Ins(j).Name,'S1');
-       s2 = strfind(Ins(j).Name,'S2');
-       s = max([s1 s2]);
-       if ~isempty(s)
-          smatch = strmatch(Ins(j).Name(s+2:end),{'','M2','TOT','-DIS','-PAR','OMP'},'exact');
-          if ~isempty(smatch)
-             if Ins(j).DimFlag(5)
-                Ins(j).DimFlag(5)=0;
-                Ins(j).SubFld=FI.Grid.MNK(3);
-             end
-          end
-       end
+    if reducebedto2d
+        for j=1:length(Ins)
+            s1 = strfind(Ins(j).Name,'S1');
+            s2 = strfind(Ins(j).Name,'S2');
+            s = max([s1 s2]);
+            if ~isempty(s)
+                smatch = strmatch(Ins(j).Name(s+2:end),{'','M2','TOT','-DIS','-PAR','OMP'},'exact');
+                if ~isempty(smatch)
+                    if Ins(j).DimFlag(5)
+                        Ins(j).DimFlag(5)=0;
+                        Ins(j).SubFld=FI.Grid.MNK(3);
+                    end
+                end
+            end
+        end
     end
+    shownames = qp_settings('delwaq_names');
     for j=1:length(Ins)
         Ins(j).ShortName = Ins(j).Name;
-        [Ins(j).Name,Ins(j).Units,Ins(j).SubsGrp]=substdb(Ins(j).Name,mass_per,'minmatchlen',minlen);
+        if strncmp(Ins(j).Name,'DPTAVG_',7)
+            [LN1,Ins(j).Units,Ins(j).SubsGrp]=substdb(Ins(j).Name(8:end),mass_per,'minmatchlen',minlen-7);
+            LN = ['depth average of ' LN1];
+            if reducedptstatto2d
+                Ins(j).DimFlag(K_) = 0;
+            end
+        elseif strncmp(Ins(j).Name,'DPTMAX_',7)
+            [LN1,Ins(j).Units,Ins(j).SubsGrp]=substdb(Ins(j).Name(8:end),mass_per,'minmatchlen',minlen-7);
+            LN = ['maximum of ' LN1 ' over water depth'];
+            if reducedptstatto2d
+                Ins(j).DimFlag(K_) = 0;
+            end
+        elseif strncmp(Ins(j).Name,'DPTMIN_',7)
+            [LN1,Ins(j).Units,Ins(j).SubsGrp]=substdb(Ins(j).Name(8:end),mass_per,'minmatchlen',minlen-7);
+            LN = ['minimum of ' LN1 ' over water depth'];
+            if reducedptstatto2d
+                Ins(j).DimFlag(K_) = 0;
+            end
+        else
+            [LN,Ins(j).Units,Ins(j).SubsGrp]=substdb(Ins(j).Name,mass_per,'minmatchlen',minlen);
+        end
+        switch shownames
+            case 'expanded'
+                Ins(j).Name = LN;
+            case 'short'
+                % keep as is
+            case 'both'
+                if isempty(strfind(LN,Ins(j).Name))
+                    Ins(j).Name = [LN ' [' Ins(j).Name ']'];
+                else
+                    Ins(j).Name = LN;
+                end
+        end
         if Ins(j).BedLayer>0
             Ins(j).SubsGrp=[Ins(j).SubsGrp '-bedlayer'];
             Ins(j).Name=[Ins(j).Name ' (bed layer)'];
@@ -1681,7 +1754,7 @@ if ~isempty(icnst)
     [subsgrp,I,J]=unique({Ins.SubsGrp});
     for i=length(subsgrp):-1:1
         j=find(J==i);
-        [dummy,reorder]=sort({Ins(j).Name});
+        [dummy,reorder]=sort(upper({Ins(j).Name}));
         Ins(j+i-1)=Ins(j(reorder));
         if i>1
             j0=j(1)+i-2;
@@ -1750,22 +1823,29 @@ end
 
 if isPartFile(FI)
     lasti = 0;
-    for i = 3:3:length(Out)
-        Substance = Out(i-2).Name;
-        if length(Out(i).Name)>5 && strcmp(Out(i).Name(end-4:end),'stick') && ...
-                length(Out(i-1).Name)>4 && strcmp(Out(i-1).Name(end-3:end),'disp') && ...
-                strcmp(Substance,deblank(Out(i).Name(1:end-5))) && ...
-                strcmp(Substance,deblank(Out(i-1).Name(1:end-4)))
-            Out(i-2).Name = [Substance ' (floating)'];
-            Out(i-2).Units = 'kg/m^2';
-            Out(i-1).Name = [Substance ' (dispersed)'];
-            Out(i-1).Units = 'kg/m^3';
+    OilTypes = {};
+    for i = 1:length(Out)
+        Substance = Out(i).Name;
+        if length(Substance)>5 && strcmp(Substance(end-5:end),' stick')
+            Substance = deblank(Substance(1:end-6));
             Out(i).Name = [Substance ' (sticking)'];
             Out(i).Units = 'kg/m^2';
-            lasti = i;
+            OilTypes{end+1} = Substance;
+        elseif length(Substance)>4 && strcmp(Substance(end-4:end),' disp')
+            Substance = deblank(Substance(1:end-5));
+            Out(i).Name = [Substance ' (dispersed)'];
+            Out(i).Units = 'kg/m^3';
+            OilTypes{end+1} = Substance;
         end
     end
-    for i = lasti+1:length(Out)
+    OilTypes = unique(OilTypes);
+    for i = 1:length(Out)
+        if ismember(Out(i).Name,OilTypes)
+            Out(i).Name = [Out(i).Name ' (floating)'];
+            Out(i).Units = 'kg/m^2';
+        end
+    end
+    for i = 1:length(Out)
         if isempty(Out(i).Units)
             switch Out(i).Name
                 case {'grid','segment number','-------'}
@@ -1961,8 +2041,23 @@ if isempty(x)
     try
         ErrMsg='Cannot find or open ';
         tbl=qp_settings('delwaq_procdef');
-        if isequal(tbl,'auto') || ~exist(tbl,'file')
-            tbl=cat(2,getenv('D3D_HOME'),filesep,getenv('ARCH'),filesep,'waq',filesep,'default',filesep,'proc_def.dat');
+        for WAQDIR = {'waq','dwaq'}
+            waq = WAQDIR{1};
+            if isequal(tbl,'auto') || ~exist(tbl,'file')
+                tbl=cat(2,getenv('D3D_HOME'),filesep,getenv('ARCH'),filesep,waq,filesep,'default',filesep,'proc_def.dat');
+            end
+            if ~exist(tbl,'file')
+                if isstandalone % from d3d_qp.exe on Windows (or old Linux)
+                    % two levels up to "D3D_HOME/ARCH" and then proc_def.dat should be located in waq/default
+                    tbl=cat(2,qp_basedir('exe'),filesep,'..',filesep,'..',filesep,waq,filesep,'default',filesep,'proc_def.dat');
+                elseif ispc % from d3d_qp.m on Windows (or old Linux)
+                    % one level up to "D3D_HOME/ARCH" and then proc_def.dat should be located in waq/default
+                    tbl=cat(2,qp_basedir('exe'),'..',filesep,waq,filesep,'default',filesep,'proc_def.dat');
+                else % from d3d_qp.m on (new) Linux
+                    % one level to "share" and then proc_def.dat should be located in dwaq
+                    tbl=cat(2,qp_basedir('exe'),'..',filesep,waq,filesep,'proc_def.dat');
+                end
+            end
         end
         if ~exist(tbl,'file') && ispc
             for drive = 'cdef'
@@ -2146,6 +2241,7 @@ Active=[1 1 1];
 NewFI=FI;
 cmd=lower(cmd);
 cmdargs={};
+shownames = {'expanded','short','both'};
 switch cmd
     case 'initialize'
         OK=optfig(mfig);
@@ -2153,13 +2249,13 @@ switch cmd
             case 'delwaqlga'
                 cellflds = {'loadvolflux'};
             otherwise
-                cellflds = {'treatas1d','balancefile','clipwherezundefined'};
+                cellflds = {'treatas1d','balancefile','clipwherezundefined','reducebedto2d','reducedptstatto2d'};
         end
         for cellfld = cellflds
             Fld = cellfld{1};
             f = findobj(mfig,'tag',Fld);
             switch Fld
-                case {'clipwherezundefined'}
+                case {'clipwherezundefined','reducebedto2d','reducedptstatto2d'}
                     defval = 1;
                 otherwise
                     defval = 0;
@@ -2188,6 +2284,9 @@ switch cmd
         options(FI,mfig,'updateprocdef');
         
     case {'updateprocdef'}
+        f1 = findobj(mfig,'tag','shownames');
+        set(f1,'value',ustrcmpi(qp_settings('delwaq_names'),shownames))
+        %
         f1 = findobj(mfig,'tag','autoprocdef');
         f2 = findobj(mfig,'tag','procdefname');
         f3 = findobj(mfig,'tag','procdefbrowse');
@@ -2201,6 +2300,10 @@ switch cmd
             set(f2,'string',substdb('cmd','filename'),'enable','on','backgroundcolor',Active)
             set(f3,'enable','on')
         end
+        
+    case {'shownames'}
+        f1 = findobj(mfig,'tag','shownames');
+        qp_settings('delwaq_names',shownames{get(f1,'value')})
         
     case {'autoprocdef'}
         f1 = findobj(mfig,'tag','autoprocdef');
@@ -2251,17 +2354,20 @@ switch cmd
                         NewFI.Attributes.(ext) = waqfil('open',[base ext],FI.NoSeg);
                     case {'.are','.flo','.poi','.len'}
                         %NewFI.Attributes.(ext) = waqfil('open',[base ext],sum(FI.NoExchMNK));
-                    case {'.srf','.dps','.chz'}
+                    case {'.srf','.dps','.chz','.srfold'}
                         NewFI.Attributes.(ext) = waqfil('open',[base ext]);
                 end
-            catch
+            catch e
+                if strcmp(e.message,'Could this be a new format srf file?')
+                    NewFI.Attributes.(ext) = waqfil('open',[base ext],FI.NoSeg);
+                end
             end
         end
         delete(H)
         f = findobj(mfig,'tag','loadvolflux');
         set(f,'string','Reload Volumes, Fluxes, ...')
         
-    case {'treatas1d','balancefile','nettransport','clipwherezundefined'}
+    case {'treatas1d','balancefile','nettransport','clipwherezundefined','reducebedto2d','reducedptstatto2d'}
         f = findobj(mfig,'tag',cmd);
         if nargin>3
             Log = varargin{1};
@@ -2293,6 +2399,7 @@ end
 
 % -----------------------------------------------------------------------------
 function OK=optfig(h0)
+Active=[1 1 1];
 Inactive=get(0,'defaultuicontrolbackground');
 FigPos=get(h0,'position');
 FigPos(3:4) = getappdata(h0,'DefaultFileOptionsSize');
@@ -2344,6 +2451,17 @@ uicontrol('Parent',h0, ...
 %
 voffset=voffset-30;
 h2 = uicontrol('Parent',h0, ...
+    'Style','popupmenu', ...
+    'BackgroundColor',Active, ...
+    'Callback','d3d_qp fileoptions shownames', ...
+    'Horizontalalignment','left', ...
+    'Position',[11 voffset width 18], ...
+    'String',{'Show Expanded Names','Show Short Code Names','Show Both Names'}, ...
+    'Enable','on', ...
+    'Tooltip','Show expanded and/or short code names for D-Water Quality quantities', ...
+    'Tag','shownames');
+voffset=voffset-30;
+h2 = uicontrol('Parent',h0, ...
     'Style','checkbox', ...
     'BackgroundColor',Inactive, ...
     'Callback','d3d_qp fileoptions autoprocdef', ...
@@ -2386,6 +2504,29 @@ h2 = uicontrol('Parent',h0, ...
     'Enable','off', ...
     'Tooltip','Clip values where Z Coordinate is undefined', ...
     'Tag','clipwherezundefined');
+%
+voffset=voffset-30;
+h2 = uicontrol('Parent',h0, ...
+    'Style','checkbox', ...
+    'BackgroundColor',Inactive, ...
+    'Callback','d3d_qp fileoptions reducebedto2d', ...
+    'Horizontalalignment','left', ...
+    'Position',[11 voffset width 18], ...
+    'String','Reduce S1/S2 Quantities to 2D', ...
+    'Enable','off', ...
+    'Tooltip','List quantities in bed layers S1 or S2 as 2D quantities', ...
+    'Tag','reducebedto2d');
+voffset=voffset-25;
+h2 = uicontrol('Parent',h0, ...
+    'Style','checkbox', ...
+    'BackgroundColor',Inactive, ...
+    'Callback','d3d_qp fileoptions reducedptstatto2d', ...
+    'Horizontalalignment','left', ...
+    'Position',[11 voffset width 18], ...
+    'String','Reduce Depth Statistics Quantities to 2D', ...
+    'Enable','off', ...
+    'Tooltip','List statistical quantities over water depth as 2D quantities', ...
+    'Tag','reducedptstatto2d');
 OK=1;
 % -----------------------------------------------------------------------------
 

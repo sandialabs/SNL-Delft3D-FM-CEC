@@ -22,8 +22,8 @@ subroutine fm_bedform()
     use m_flowgeom, only: ndxi, ndx, lnx, lnxi, kfs, ln, wcl
     use m_flowparameters, only: epshs, jawave, epshu
     use m_flow, only: ucx, ucy, frcu, ifrcutp, hu, hs, u1, u0
-    use m_flowwave
     use m_flowtimes
+    use m_waves
     !
     implicit none
     !
@@ -107,7 +107,7 @@ subroutine fm_bedform()
     !
     if (jawave > 0) then
        u1ori = u1
-       u1 = u1-fwx%ustokes        ! now eulerian
+       u1 = u1-ustokes        ! now eulerian
     end if
     !
     call setucxucyucxuucyu()
@@ -266,7 +266,7 @@ subroutine fm_calbf()
     use m_physcoef, only: ag
     use m_flowtimes, only: dts, dnt, time1, tfac, dt_user
     use m_flowgeom, only: ndxi, lnxi, ndx, lnx, kfs, wcx1, wcx2,wcy1,wcy2, ln, wu, nd, ba
-    use m_flow, only: hs, hu, u1, v, au, vol1, plotlin
+    use m_flow, only: hs, hu, u1, v, au, plotlin
     use m_flowparameters, only: epshu, epshs
     use unstruc_files, only: mdia
     use m_alloc
@@ -600,7 +600,7 @@ subroutine fm_calksc()
     use sediment_basics_module, only: dsand, dgravel, dsilt
     use m_sferic,               only: pi
     use m_physcoef,             only: ag, frcuni, ifrctypuni
-    use m_flowtimes,            only: dts, dt_max, dt_trach
+    use m_flowtimes,            only: dts, dt_max
     use m_flow,                 only: kmx, s1, u1, u0, hs, z0urou, ucx, ucy, frcu, ifrcutp, hu
     use m_flowgeom,             only: ndx, kfs, bl, ndxi, lnx, wcl, ln
     use m_flowparameters,       only: v2dwbl, jatrt, epshs, jawave
@@ -608,7 +608,7 @@ subroutine fm_calksc()
     use m_bedform
     use m_rdtrt
     use m_trachy,               only: trachy_fl
-    use m_flowwave, only: fwx
+    use m_waves
     !
     implicit none
     !
@@ -637,7 +637,7 @@ subroutine fm_calksc()
 
     real(fp), parameter                            :: rwe = 1.65
     
-    integer                                        :: nm, k, kb, kt, itimtt, ierr, k1, k2, L
+    integer                                        :: nm, k, kb, kt, ierr, k1, k2, L
     integer                                        :: kmaxx
     real(fp)                                       :: par1, par2, par3, par4, par5, par6
     real(fp)                                       :: relaxr, relaxmr, relaxd
@@ -681,8 +681,8 @@ subroutine fm_calksc()
     u1ori = u1; z0rou = 0d0
     !
     ! Calculate Eulerian velocities at old time level
-    if (fwx%have_waves) then
-       u1 = u0 - fwx%ustokes
+    if (jawave>0) then
+       u1 = u0 - ustokes
     endif
     call setucxucyucxuucyu()
     !
@@ -722,11 +722,9 @@ subroutine fm_calksc()
        par5 = kdpar(5)*60d0    ! relaxation time scale mega-ripples (minutes to sec)
        par6 = kdpar(6)*60d0    ! relaxation time scale dunes (minutes to sec)
        !
-       itimtt = nint(dt_trach/dt_max)    ! value in seconds, to check, according to modules dt_trach in sec
-       !
-       relaxr  = exp(- dt_max * itimtt / max(1.0e-20_fp, par4))
-       relaxmr = exp(- dt_max * itimtt / max(1.0e-20_fp, par5))
-       relaxd  = exp(- dt_max * itimtt / max(1.0e-20_fp, par6))
+       relaxr  = exp(- dt_max / max(1.0e-20_fp, par4))
+       relaxmr = exp(- dt_max / max(1.0e-20_fp, par5))
+       relaxd  = exp(- dt_max / max(1.0e-20_fp, par6))
        !
        do k = 1, ndx
           if (kfs(k)>0) then
@@ -737,7 +735,7 @@ subroutine fm_calksc()
              call getkbotktop(k, kb, kt)
              kmaxx = kb
              !
-             if (v2dwbl>0 .and. fwx%have_waves .and. kmx>1) then    ! JRE to do: 3D
+             if (v2dwbl>0 .and. (jawave>0) .and. kmx>1) then    ! JRE to do: 3D
                 !
                 ! Determine representative 2Dh velocity based on velocities in first layer above wave boundary layer 
                 ! kmaxx is the first layer with its centre above the wave boundary layer
@@ -766,21 +764,21 @@ subroutine fm_calksc()
                 !u2dh = (umod/depth*((depth + z0rou)*log(1.0_fp + depth/z0rou) - depth)) &
                 !     & / log(1.0_fp + (1.0_fp + sig(kmaxx))*depth/z0rou)
              endif
-             if (fwx%have_waves) then
-                hh     = fwx%hrms(k) * sqrt(2.0_fp)
-                arg = 2.0_fp * pi * depth / max(fwx%rlabda(k),0.1)
+             if (jawave>0) then
+                hh     = hwav(k) * sqrt(2.0_fp)
+                arg = 2.0_fp * pi * depth / max(rlabda(k),0.1)
                 if (arg > 50.0_fp) then
                    uw = 0.0_fp
                 else
-                   uw = 2.0_fp * pi * hh / (2.0_fp * sinh(arg) * fwx%tp(k))
+                   uw = 2.0_fp * pi * hh / (2.0_fp * sinh(arg) * twav(k))
                 endif
                 rr    = -0.4_fp*hh/depth + 1.0_fp
                 umax  = rr * 2.0_fp * uw
-                t1    = fwx%tp(k) * (ag/depth)**0.5_fp
+                t1    = twav(k) * (ag/depth)**0.5_fp
                 uu    = umax / (ag*depth)**0.5_fp
                 a11   = -0.0049_fp*t1**2 - 0.069_fp*t1 + 0.2911_fp
                 raih  = max(0.5_fp  , -5.25_fp - 6.1_fp*tanh(a11*uu-1.76_fp))
-                rmax  = max(0.62_fp , min(0.75_fp , -2.5_fp*depth/fwx%rlabda(k)+0.85_fp))
+                rmax  = max(0.62_fp , min(0.75_fp , -2.5_fp*depth/rlabda(k)+0.85_fp))
                 uon   = umax * (0.5_fp+(rmax-0.5_fp)*tanh((raih-0.5_fp)/(rmax-0.5_fp)))
                 uoff  = umax - uon
                 uon   = max(1.0e-5_fp , uon)
@@ -871,12 +869,13 @@ subroutine fm_calksc()
              !
              if (depth>1.0_fp .and. par3>0.0_fp) then
                 if (psi <= 100.0_fp) then
-                   rksd0 = 0.0004_fp * psi * depth
+                   rksd0 = 0.0004_fp * psi * depth * fch2
                 elseif (psi < 600.0_fp) then
-                   rksd0 = (0.048_fp - 0.00008_fp*psi) * depth
+                   rksd0 = (0.048_fp - 0.00008_fp*psi) * depth * fch2
                 else
                    rksd0 = 0.0_fp
                 endif
+                rksd0 = rksd0 * par3
              else
                 rksd0 = 0.0_fp
              endif
@@ -1063,7 +1062,8 @@ subroutine fm_advecbedform(thevar, uadv, qadv, bedform_sour, bedform_sink, limit
    end do
 
 !  compute horizontal fluxes, explicit part
-   call comp_fluxhor3D(1, limityp, Ndx, Lnx, uadv, qadv, wu, bfsqi, ba, kbot, Lbot, Ltop,  kmxn, kmxL, thevar, difsedubf, sigdifibf, dumL, dumd, 1, jabfupdate, jabfhorupdate, nbfdeltasteps, (/ 1 /), fluxhorbf, dumx, dumy)
+   call comp_dxiAu()
+   call comp_fluxhor3D(1, limityp, Ndx, Lnx, uadv, qadv, wu, bfsqi, ba, kbot, Lbot, Ltop,  kmxn, kmxL, thevar, difsedubf, sigdifibf, dumL, dumd, 1, jabfupdate, jabfhorupdate, nbfdeltasteps, (/ 1 /), fluxhorbf, dumx, dumy, 1, dxiAu)
    call comp_sumhorflux(1, 0, Lnkx, Ndkx, Lbot, Ltop, fluxhorbf, bfsumhorflux)
    call solve_2D(1, Ndx, Lnx, ba, kbot, ktop, Lbot, Ltop, bfsumhorflux, fluxverbf, const_sourbf, const_sinkbf, 1, jabfupdate, nbfdeltasteps, thevar, rhsbf)
    ierror = 0

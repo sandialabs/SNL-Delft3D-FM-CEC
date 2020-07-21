@@ -4,7 +4,7 @@ function [FI,FileName,Tp,Otherargs]=qp_fmem(cmd,varargin)
 
 %----- LGPL --------------------------------------------------------------------
 %
-%   Copyright (C) 2011-2018 Stichting Deltares.
+%   Copyright (C) 2011-2020 Stichting Deltares.
 %
 %   This library is free software; you can redistribute it and/or
 %   modify it under the terms of the GNU Lesser General Public
@@ -29,8 +29,8 @@ function [FI,FileName,Tp,Otherargs]=qp_fmem(cmd,varargin)
 %
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_lgpl/matlab/quickplot/progsrc/private/qp_fmem.m $
-%   $Id: qp_fmem.m 7992 2018-01-09 10:27:35Z mourits $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/private/qp_fmem.m $
+%   $Id: qp_fmem.m 65867 2020-01-26 21:09:56Z jagers $
 
 lasttp=qp_settings('LastFileType','');
 
@@ -419,9 +419,15 @@ switch cmd
                         end
                     case 'NetCDF'
                         Opt = get_matching_names(FileName,'_',-2);
+                        if ~isempty(Opt)
+                            if Opt{4}~=0 || Opt{3}~=4
+                                Opt = {};
+                            end
+                        end
                         FI = nc_interpret(FileName,Opt{:});
                         %nc_dump(FileName)
                         FI.FileName = FI.Filename;
+                        FI.Options=1;
                         Tp = try_next;
                     case 'HDF5'
                         FI = hdf5info(FileName);
@@ -437,26 +443,28 @@ switch cmd
                             else
                                 Tp=FI.FileType;
                             end
-                            FI.Data={};
-                            p=fileparts(FileName);
-                            files=dir(p);
-                            fl={'flowmap.his','minmax.his','gsedmap.his','kafhmap.his', ...
-                                'kafpmap.his','kafrmap.his','kaphmap.his','kappmap.his', ...
-                                'saltmap.his','sedtmap.his','morpmap.his','sobekwq.map', ...
-                                'calcpnt.his','reachseg.his','reachvol.his','delwaq.map'};
-                            %'calcdim.his','delwaq.his','flowanal.his', ...
-                            %'nodesvol.his','nodes_cr.his','qlat.his','qwb.his', ...
-                            %'reachdim.his','reachflw.his','reachvol.his','reach_cr.his', ...
-                            %'struc.his','strucdim.his','wqbou20.his'};
-                            for i=1:length(files)
-                                if ~isempty(strmatch(lower(files(i).name),fl,'exact'))
-                                    try
-                                        FIH=delwaq('open',fullfile(p,files(i).name));
-                                    catch
-                                        FIH=[];
-                                    end
-                                    if ~isempty(FIH)
-                                        FI.Data{end+1}=FIH;
+                            if ~isempty(FI)
+                                FI.Data={};
+                                p=fileparts(FileName);
+                                files=dir(p);
+                                fl={'flowmap.his','minmax.his','gsedmap.his','kafhmap.his', ...
+                                    'kafpmap.his','kafrmap.his','kaphmap.his','kappmap.his', ...
+                                    'saltmap.his','sedtmap.his','morpmap.his','sobekwq.map', ...
+                                    'calcpnt.his','reachseg.his','reachvol.his','delwaq.map'};
+                                %'calcdim.his','delwaq.his','flowanal.his', ...
+                                %'nodesvol.his','nodes_cr.his','qlat.his','qwb.his', ...
+                                %'reachdim.his','reachflw.his','reachvol.his','reach_cr.his', ...
+                                %'struc.his','strucdim.his','wqbou20.his'};
+                                for i=1:length(files)
+                                    if ~isempty(strmatch(lower(files(i).name),fl,'exact'))
+                                        try
+                                            FIH=delwaq('open',fullfile(p,files(i).name));
+                                        catch
+                                            FIH=[];
+                                        end
+                                        if ~isempty(FIH)
+                                            FI.Data{end+1}=FIH;
+                                        end
                                     end
                                 end
                             end
@@ -686,6 +694,13 @@ switch cmd
                     case 'adcircmesh'
                         asciicheck(ASCII,try_next)
                         FI=adcircmesh('open',FileName);
+                        if ~isempty(FI)
+                            FI.Options=0;
+                            Tp=FI.FileType;
+                        end
+                    case 'smsmesh'
+                        asciicheck(ASCII,try_next)
+                        FI=smsmesh('open',FileName);
                         if ~isempty(FI)
                             FI.Options=0;
                             Tp=FI.FileType;
@@ -1152,6 +1167,9 @@ else
 end
 if nDigits>0 && all(ismember(n(iOffset+(1:nDigits)),'0123456789'))
     iPOffset  = length(p)+1+iOffset;
+    if length(p)>=1 && p(end)==filesep
+        iPOffset = iPOffset-1;
+    end
     FileName1 = FileName(1:iPOffset);
     FileName2 = FileName(iPOffset+nDigits+1:end);
     %

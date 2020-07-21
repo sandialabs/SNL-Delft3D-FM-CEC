@@ -1,6 +1,6 @@
 !----- AGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2015-2018.                                
+!  Copyright (C)  Stichting Deltares, 2015-2020.                                
 !                                                                               
 !  This file is part of Delft3D (D-Flow Flexible Mesh component).               
 !                                                                               
@@ -35,6 +35,10 @@
 
      call c_f_pointer(xptr, x_1d_int_ptr, (/c_count(1)/))
      iglobal_s(c_start(1)+1:(c_start(1)+c_count(1))) = x_1d_int_ptr
+  case("hwav")
+
+     call c_f_pointer(xptr, x_1d_double_ptr, (/c_count(1)/))
+     hwav(c_start(1)+1:(c_start(1)+c_count(1))) = x_1d_double_ptr
   case("twav")
 
      call c_f_pointer(xptr, x_1d_double_ptr, (/c_count(1)/))
@@ -43,6 +47,14 @@
 
      call c_f_pointer(xptr, x_1d_double_ptr, (/c_count(1)/))
      Uorb(c_start(1)+1:(c_start(1)+c_count(1))) = x_1d_double_ptr
+  case("infilt")
+
+     call c_f_pointer(xptr, x_1d_double_ptr, (/c_count(1)/))
+     infilt(c_start(1)+1:(c_start(1)+c_count(1))) = x_1d_double_ptr
+  case("infiltcap")
+
+     call c_f_pointer(xptr, x_1d_double_ptr, (/c_count(1)/))
+     infiltcap(c_start(1)+1:(c_start(1)+c_count(1))) = x_1d_double_ptr
   case("shx")
 
      call c_f_pointer(xptr, x_1d_double_ptr, (/c_count(1)/))
@@ -87,10 +99,6 @@
 
      call c_f_pointer(xptr, x_1d_double_ptr, (/c_count(1)/))
      vicushp(c_start(1)+1:(c_start(1)+c_count(1))) = x_1d_double_ptr
-  case("vos")
-
-     call c_f_pointer(xptr, x_2d_double_ptr, (/c_count(1), c_count(2)/))
-     vos(c_start(1)+1:(c_start(1)+c_count(1)),c_start(2)+1:(c_start(2)+c_count(2))) = x_2d_double_ptr
   case("shL")
 
      call c_f_pointer(xptr, x_1d_double_ptr, (/c_count(1)/))
@@ -135,10 +143,6 @@
 
      call c_f_pointer(xptr, x_1d_double_ptr, (/c_count(1)/))
      wy(c_start(1)+1:(c_start(1)+c_count(1))) = x_1d_double_ptr
-  case("wmag")
-
-     call c_f_pointer(xptr, x_1d_double_ptr, (/c_count(1)/))
-     wmag(c_start(1)+1:(c_start(1)+c_count(1))) = x_1d_double_ptr
   case("rain")
 
      call c_f_pointer(xptr, x_1d_double_ptr, (/c_count(1)/))
@@ -147,6 +151,72 @@
 
      call c_f_pointer(xptr, x_1d_double_ptr, (/c_count(1)/))
      evap(c_start(1)+1:(c_start(1)+c_count(1))) = x_1d_double_ptr
+  case("numlatsg")
+     ! Does not apply to scalar variables
+     continue
+  case("qplat")
+
+     call c_f_pointer(xptr, x_1d_double_ptr, (/c_count(1)/))
+     qplat(c_start(1)+1:(c_start(1)+c_count(1))) = x_1d_double_ptr
+  case("qqlat")
+
+     call c_f_pointer(xptr, x_1d_double_ptr, (/c_count(1)/))
+     qqlat(c_start(1)+1:(c_start(1)+c_count(1))) = x_1d_double_ptr
+  case("balat")
+
+     call c_f_pointer(xptr, x_1d_double_ptr, (/c_count(1)/))
+     balat(c_start(1)+1:(c_start(1)+c_count(1))) = x_1d_double_ptr
+  case("n1latsg")
+
+     call c_f_pointer(xptr, x_1d_int_ptr, (/c_count(1)/))
+     n1latsg(c_start(1)+1:(c_start(1)+c_count(1))) = x_1d_int_ptr
+  case("n2latsg")
+
+     call c_f_pointer(xptr, x_1d_int_ptr, (/c_count(1)/))
+     n2latsg(c_start(1)+1:(c_start(1)+c_count(1))) = x_1d_int_ptr
+  case("nnlat")
+
+     call c_f_pointer(xptr, x_1d_int_ptr, (/c_count(1)/))
+     nnlat(c_start(1)+1:(c_start(1)+c_count(1))) = x_1d_int_ptr
+  case("kclat")
+
+     call c_f_pointer(xptr, x_1d_int_ptr, (/c_count(1)/))
+     kclat(c_start(1)+1:(c_start(1)+c_count(1))) = x_1d_int_ptr
+  case("qinext")
+
+     call c_f_pointer(xptr, x_1d_double_ptr, (/c_count(1)/))
+     qinext(c_start(1)+1:(c_start(1)+c_count(1))) = x_1d_double_ptr
+  case("qinextreal")
+
+     call c_f_pointer(xptr, x_1d_double_ptr, (/c_count(1)/))
+     qinextreal(c_start(1)+1:(c_start(1)+c_count(1))) = x_1d_double_ptr
+  case("vincum")
+
+     call c_f_pointer(xptr, x_1d_double_ptr, (/c_count(1)/))
+     vincum(c_start(1)+1:(c_start(1)+c_count(1))) = x_1d_double_ptr
+  case("rainuni")
+     ! Does not apply to scalar variables
+     continue
+  case("zbndz")
+
+     call c_f_pointer(xptr, x_1d_double_ptr, (/c_count(1)/))
+     zbndz(c_start(1)+1:(c_start(1)+c_count(1))) = x_1d_double_ptr
+  case("zbndu")
+
+     call c_f_pointer(xptr, x_1d_double_ptr, (/c_count(1)/))
+     zbndu(c_start(1)+1:(c_start(1)+c_count(1))) = x_1d_double_ptr
+  case("zbndq")
+
+     call c_f_pointer(xptr, x_1d_double_ptr, (/c_count(1)/))
+     zbndq(c_start(1)+1:(c_start(1)+c_count(1))) = x_1d_double_ptr
+  case("turkin1")
+
+     call c_f_pointer(xptr, x_1d_double_ptr, (/c_count(1)/))
+     turkin1(c_start(1)+1:(c_start(1)+c_count(1))) = x_1d_double_ptr
+  case("vicwws")
+
+     call c_f_pointer(xptr, x_1d_double_ptr, (/c_count(1)/))
+     vicwws(c_start(1)+1:(c_start(1)+c_count(1))) = x_1d_double_ptr
   case("rnveg")
 
      call c_f_pointer(xptr, x_1d_double_ptr, (/c_count(1)/))
@@ -175,6 +245,10 @@
 
      call c_f_pointer(xptr, x_1d_double_ptr, (/c_count(1)/))
      stemheight(c_start(1)+1:(c_start(1)+c_count(1))) = x_1d_double_ptr
+  case("Cdvegsp")
+
+     call c_f_pointer(xptr, x_1d_double_ptr, (/c_count(1)/))
+     Cdvegsp(c_start(1)+1:(c_start(1)+c_count(1))) = x_1d_double_ptr
   case("zws")
 
      call c_f_pointer(xptr, x_1d_double_ptr, (/c_count(1)/))
@@ -219,6 +293,10 @@
 
      call c_f_pointer(xptr, x_1d_double_ptr, (/c_count(1)/))
      vol1(c_start(1)+1:(c_start(1)+c_count(1))) = x_1d_double_ptr
+  case("vol1_f")
+
+     call c_f_pointer(xptr, x_1d_double_ptr, (/c_count(1)/))
+     vol1_f(c_start(1)+1:(c_start(1)+c_count(1))) = x_1d_double_ptr
   case("hs")
 
      call c_f_pointer(xptr, x_1d_double_ptr, (/c_count(1)/))
@@ -235,6 +313,10 @@
 
      call c_f_pointer(xptr, x_1d_double_ptr, (/c_count(1)/))
      ucz(c_start(1)+1:(c_start(1)+c_count(1))) = x_1d_double_ptr
+  case("ucmag")
+
+     call c_f_pointer(xptr, x_1d_double_ptr, (/c_count(1)/))
+     ucmag(c_start(1)+1:(c_start(1)+c_count(1))) = x_1d_double_ptr
   case("sa0")
 
      call c_f_pointer(xptr, x_1d_double_ptr, (/c_count(1)/))
@@ -247,6 +329,10 @@
 
      call c_f_pointer(xptr, x_1d_double_ptr, (/c_count(1)/))
      satop(c_start(1)+1:(c_start(1)+c_count(1))) = x_1d_double_ptr
+  case("sabot")
+
+     call c_f_pointer(xptr, x_1d_double_ptr, (/c_count(1)/))
+     sabot(c_start(1)+1:(c_start(1)+c_count(1))) = x_1d_double_ptr
   case("tem0")
 
      call c_f_pointer(xptr, x_1d_double_ptr, (/c_count(1)/))
@@ -259,10 +345,18 @@
 
      call c_f_pointer(xptr, x_1d_double_ptr, (/c_count(1)/))
      u1(c_start(1)+1:(c_start(1)+c_count(1))) = x_1d_double_ptr
+  case("u_to_umain")
+
+     call c_f_pointer(xptr, x_1d_double_ptr, (/c_count(1)/))
+     u_to_umain(c_start(1)+1:(c_start(1)+c_count(1))) = x_1d_double_ptr
   case("q1")
 
      call c_f_pointer(xptr, x_1d_double_ptr, (/c_count(1)/))
      q1(c_start(1)+1:(c_start(1)+c_count(1))) = x_1d_double_ptr
+  case("q1_main")
+
+     call c_f_pointer(xptr, x_1d_double_ptr, (/c_count(1)/))
+     q1_main(c_start(1)+1:(c_start(1)+c_count(1))) = x_1d_double_ptr
   case("au")
 
      call c_f_pointer(xptr, x_1d_double_ptr, (/c_count(1)/))
@@ -283,42 +377,28 @@
 
      call c_f_pointer(xptr, x_1d_double_ptr, (/c_count(1)/))
      diusp(c_start(1)+1:(c_start(1)+c_count(1))) = x_1d_double_ptr
-  case("ndx2d")
-     ! Does not apply to scalar variables
-     continue
   case("ndxi")
      ! Does not apply to scalar variables
      continue
   case("ndx1db")
      ! Does not apply to scalar variables
      continue
-  case("ndx")
-     ! Does not apply to scalar variables
-     continue
   case("kfs")
 
      call c_f_pointer(xptr, x_1d_int_ptr, (/c_count(1)/))
      kfs(c_start(1)+1:(c_start(1)+c_count(1))) = x_1d_int_ptr
-  case("kfst0")
-
-     call c_f_pointer(xptr, x_1d_int_ptr, (/c_count(1)/))
-     kfst0(c_start(1)+1:(c_start(1)+c_count(1))) = x_1d_int_ptr
-  case("ba")
+  case("bare")
 
      call c_f_pointer(xptr, x_1d_double_ptr, (/c_count(1)/))
-     ba(c_start(1)+1:(c_start(1)+c_count(1))) = x_1d_double_ptr
+     bare(c_start(1)+1:(c_start(1)+c_count(1))) = x_1d_double_ptr
+  case("ba_mor")
+
+     call c_f_pointer(xptr, x_1d_double_ptr, (/c_count(1)/))
+     ba_mor(c_start(1)+1:(c_start(1)+c_count(1))) = x_1d_double_ptr
   case("bl")
 
      call c_f_pointer(xptr, x_1d_double_ptr, (/c_count(1)/))
      bl(c_start(1)+1:(c_start(1)+c_count(1))) = x_1d_double_ptr
-  case("xz")
-
-     call c_f_pointer(xptr, x_1d_double_ptr, (/c_count(1)/))
-     xz(c_start(1)+1:(c_start(1)+c_count(1))) = x_1d_double_ptr
-  case("yz")
-
-     call c_f_pointer(xptr, x_1d_double_ptr, (/c_count(1)/))
-     yz(c_start(1)+1:(c_start(1)+c_count(1))) = x_1d_double_ptr
   case("lnx1D")
      ! Does not apply to scalar variables
      continue
@@ -351,10 +431,34 @@
 
      call c_f_pointer(xptr, x_1d_double_ptr, (/c_count(1)/))
      wu(c_start(1)+1:(c_start(1)+c_count(1))) = x_1d_double_ptr
+  case("wu_mor")
+
+     call c_f_pointer(xptr, x_1d_double_ptr, (/c_count(1)/))
+     wu_mor(c_start(1)+1:(c_start(1)+c_count(1))) = x_1d_double_ptr
+  case("wu1D2D")
+
+     call c_f_pointer(xptr, x_1d_double_ptr, (/c_count(1)/))
+     wu1D2D(c_start(1)+1:(c_start(1)+c_count(1))) = x_1d_double_ptr
+  case("hh1D2D")
+
+     call c_f_pointer(xptr, x_1d_double_ptr, (/c_count(1)/))
+     hh1D2D(c_start(1)+1:(c_start(1)+c_count(1))) = x_1d_double_ptr
   case("bob")
 
      call c_f_pointer(xptr, x_2d_double_ptr, (/c_count(1), c_count(2)/))
      bob(c_start(1)+1:(c_start(1)+c_count(1)),c_start(2)+1:(c_start(2)+c_count(2))) = x_2d_double_ptr
+  case("bob0")
+
+     call c_f_pointer(xptr, x_2d_double_ptr, (/c_count(1), c_count(2)/))
+     bob0(c_start(1)+1:(c_start(1)+c_count(1)),c_start(2)+1:(c_start(2)+c_count(2))) = x_2d_double_ptr
+  case("xu")
+
+     call c_f_pointer(xptr, x_1d_double_ptr, (/c_count(1)/))
+     xu(c_start(1)+1:(c_start(1)+c_count(1))) = x_1d_double_ptr
+  case("yu")
+
+     call c_f_pointer(xptr, x_1d_double_ptr, (/c_count(1)/))
+     yu(c_start(1)+1:(c_start(1)+c_count(1))) = x_1d_double_ptr
   case("vort")
 
      call c_f_pointer(xptr, x_1d_double_ptr, (/c_count(1)/))
@@ -386,6 +490,24 @@
   case("numk")
      ! Does not apply to scalar variables
      continue
+  case("ndx2d")
+     ! Does not apply to scalar variables
+     continue
+  case("ndx")
+     ! Does not apply to scalar variables
+     continue
+  case("xz")
+
+     call c_f_pointer(xptr, x_1d_double_ptr, (/c_count(1)/))
+     xz(c_start(1)+1:(c_start(1)+c_count(1))) = x_1d_double_ptr
+  case("yz")
+
+     call c_f_pointer(xptr, x_1d_double_ptr, (/c_count(1)/))
+     yz(c_start(1)+1:(c_start(1)+c_count(1))) = x_1d_double_ptr
+  case("ba")
+
+     call c_f_pointer(xptr, x_1d_double_ptr, (/c_count(1)/))
+     ba(c_start(1)+1:(c_start(1)+c_count(1))) = x_1d_double_ptr
   case("zbnd1d2d1")
 
      call c_f_pointer(xptr, x_1d_double_ptr, (/c_count(1)/))

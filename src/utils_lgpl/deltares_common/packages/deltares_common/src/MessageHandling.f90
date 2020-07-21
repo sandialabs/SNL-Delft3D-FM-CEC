@@ -1,6 +1,6 @@
 !----- LGPL --------------------------------------------------------------------
 !
-!  Copyright (C)  Stichting Deltares, 2011-2018.
+!  Copyright (C)  Stichting Deltares, 2011-2020.
 !
 !  This library is free software; you can redistribute it and/or
 !  modify it under the terms of the GNU Lesser General Public
@@ -24,8 +24,8 @@
 !  Stichting Deltares. All rights reserved.
 !
 !-------------------------------------------------------------------------------
-!  $Id: MessageHandling.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_lgpl/deltares_common/packages/deltares_common/src/MessageHandling.f90 $
+!  $Id: MessageHandling.f90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/deltares_common/packages/deltares_common/src/MessageHandling.f90 $
 
 !> Specifies the interface for MessageHandling's callback functionality.
 ! (A bit awkward, but including it in MessageHandling's module header
@@ -64,6 +64,16 @@ module MHCallBack
       end subroutine progress_c_iface
    end interface
 
+!> Shows a message in a GUI dialog.
+!! This interface is to be used by utility libraries that want to call back
+!! a GUI routine in the parent program to display a message box.
+   abstract interface
+      subroutine msgbox_callbackiface(title, msg, level)
+        character(len=*), intent(in) :: title !< Title string
+        character(len=*), intent(in) :: msg   !< Message string
+        integer,          intent(in) :: level !< Severity level (e.g., LEVEL_ERROR).
+      end subroutine msgbox_callbackiface
+   end interface
 
 end module MHCallBack
 
@@ -85,6 +95,10 @@ module MessageHandling
    procedure(progress_iface), pointer :: progress_callback => null()
    procedure(progress_c_iface), pointer :: progress_c_callback => null()
 
+   !> Callback routine invoked upon any mess/err (i.e. SetMessage)
+   procedure(msgbox_callbackiface), pointer :: msgbox_callback => null()
+
+
    integer, parameter, public    :: BUFLEN = 1024
    !> The message buffer allows you to write any number of variables in any
    !! order to a character string. Call msg_flush or err_flush to output
@@ -105,10 +119,13 @@ module MessageHandling
    public set_logger
    public set_progress_c_callback
    public set_mh_callback
+   public set_msgbox_callback
+   public msgbox
    public msg_flush
    public dbg_flush
    public warn_flush
    public err_flush
+   public fatal_flush
    public set_progress_callback
    public progress
    public stringtolevel
@@ -145,6 +162,7 @@ module MessageHandling
    module procedure message1char2int
    module procedure message1char3int
    module procedure message1char1double
+   module procedure message2double
    module procedure message2int1char
    module procedure message1char1int1double
    module procedure message1double1int1char
@@ -310,6 +328,26 @@ subroutine set_logger(c_callback) bind(C, name="set_logger")
   call c_f_procpointer(c_callback, c_logger)
 end subroutine set_logger
 
+
+subroutine set_msgbox_callback(callback)
+  procedure(msgbox_callbackiface) :: callback
+  msgbox_callback => callback
+end subroutine set_msgbox_callback
+
+
+!> Displays a (GUI) message box by calling a subroutine in the parent program,
+!! IF a callback subroutine has been registered.
+subroutine msgbox(title, msg, level)
+   character(len=*), intent(in) :: title !< Title string
+   character(len=*), intent(in) :: msg   !< Message string
+   integer,          intent(in) :: level !< Severity level (e.g., LEVEL_ERROR).
+
+   ! call the registered msgbox
+   if (associated(msgbox_callback)) then
+      call msgbox_callback(title, msg, level)
+   end if
+
+end subroutine msgbox
 
 
 
@@ -600,6 +638,17 @@ subroutine message1char1double(level, w1, d2)
     call SetMessage(level, rec)
 end subroutine message1char1double
 
+subroutine message2double(level, d1, d2)
+    double precision, intent(in) :: d1, d2
+    integer         :: level
+
+    character(MAXSTRINGLEN) :: rec
+
+    rec = ' '
+    write (rec,'(2F20.6)') d1,d2 
+    call SetMessage(level, rec)
+end subroutine message2double
+
 subroutine message1char1int(level, w1, i2)
     integer :: i2
     character(*) :: w1
@@ -806,19 +855,16 @@ end subroutine error1char1int1double
 
 !> Output the current message buffer as a 'debug' message.
 subroutine dbg_flush()
-! We could check on empty buffer, but we omit this to stay lightweight. [AvD]
     call mess(LEVEL_DEBUG,  msgbuf)
 end subroutine dbg_flush
 
 !!> Output the current message buffer as an 'info' message.
 subroutine msg_flush()
-! We could check on empty buffer, but we omit this to stay lightweight. [AvD]
     call mess(LEVEL_INFO,  msgbuf)
 end subroutine msg_flush
 
 !> Output the current message buffer as a 'warning' message.
 subroutine warn_flush()
-! We could check on empty buffer, but we omit this to stay lightweight. [AvD]
     call mess(LEVEL_WARN,  msgbuf)
 end subroutine warn_flush
 
@@ -826,6 +872,11 @@ end subroutine warn_flush
 subroutine err_flush()
     call mess(LEVEL_ERROR, msgbuf)
 end subroutine err_flush
+
+!> Output the current message buffer as a 'fatal' message.
+subroutine fatal_flush()
+    call mess(LEVEL_FATAL, msgbuf)
+end subroutine fatal_flush
 
 !
 !

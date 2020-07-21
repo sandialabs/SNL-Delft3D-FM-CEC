@@ -1,7 +1,7 @@
 program waves_main
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
+!  Copyright (C)  Stichting Deltares, 2011-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -25,8 +25,8 @@ program waves_main
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: wave_exe.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/engines_gpl/wave/packages/wave/src/wave_exe.f90 $
+!  $Id: wave_exe.f90 65790 2020-01-15 13:52:06Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/wave/packages/wave/src/wave_exe.f90 $
 !!--description-----------------------------------------------------------------
 ! NONE
 !!--pseudo code and references--------------------------------------------------
@@ -174,11 +174,6 @@ program waves_main
       write(*,'(a)') '*** ERROR: Reference date not set'
       write(*,'(a)') '           Use Delft3D-WAVE-GUI version 4.90.00 or higher to create the mdw-file.'
       call wavestop(1, '*** ERROR: Reference date not set')
-   else
-      if (wavedata%time%refdate < 19000000 .or. wavedata%time%refdate > 22000000) then
-         write(*,'(a,i8)') '*** ERROR: Unrealistic reference date ',wavedata%time%refdate
-         call wavestop(1, '*** ERROR: Unrealistic reference date ')
-      endif
    endif
    !
    ! Read wave grids and flow grids; make grid-maps
@@ -294,7 +289,7 @@ program waves_main
          ! Update wave and wind conditions
          !
          if (timtscale >= 0) then
-            call settimtscale(wavedata%time, timtscale, swan_run%modsim, swan_run%deltcom)
+            call settimtscale(wavedata%time, timtscale, swan_run%modsim, swan_run%nonstat_interval)
             !
             ! Run n_swan nested SWAN run
             !

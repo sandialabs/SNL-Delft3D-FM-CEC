@@ -1,6 +1,6 @@
 //---- GPL ---------------------------------------------------------------------
 //
-// Copyright (C)  Stichting Deltares, 2011-2018.
+// Copyright (C)  Stichting Deltares, 2011-2020.
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -126,7 +126,11 @@ int main (int     argc,
 
         doFinalize = true;
 
-        DHE->lib_update();
+        int state = DHE->lib_update();
+        if (state != 0)
+        {
+            throw Exception(true, (Exception::ErrorCode)state, "dimr_exe lib_update failed");
+        }
         
         doFinalize = false;
 
@@ -230,7 +234,7 @@ void DimrExe::lib_initialize(void)
 }
 
 //------------------------------------------------------------------------------
-void DimrExe::lib_update(void)
+int DimrExe::lib_update(void)
 {
     double tStart;
     double tEnd;
@@ -239,7 +243,8 @@ void DimrExe::lib_update(void)
     (this->dllGetStartTime) (&tStart);
     (this->dllGetEndTime) (&tEnd);
     tStep = tEnd - tStart;
-    (this->dllUpdate) (tStep);
+    int state = (this->dllUpdate) (tStep);
+    return state;
 }
 
 //------------------------------------------------------------------------------
@@ -377,14 +382,12 @@ void DimrExe::initialize (int     argc,
 
 #if defined(HAVE_CONFIG_H)
     this->exeName = strdup (basename (argv[0]));
-    const char *dirSeparator = "/";
 #else
     char * ext = new char[5];
     this->exeName = new char[MAXSTRING];
     _splitpath (argv[0], NULL, NULL, this->exeName, ext);
     StringCbCatA (this->exeName, MAXSTRING, ext);
     delete [] ext;
-    const char *dirSeparator = "\\";
 #endif
 
     this->slaveArg  = NULL;
@@ -536,7 +539,7 @@ void DimrExe::openLibrary (void) {
         this->libHandle = dllhandle;
         #define GETPROCADDRESS dlsym
         #define GetLastError dlerror
-        #define Sleep sleep
+        #define Sleep(msec) sleep((int)msec/1000)
 #else
         SetLastError(0); /* clear error code */
         HINSTANCE dllhandle = LoadLibrary (LPCSTR(this->library));
@@ -651,7 +654,7 @@ void DimrExe::freeLib (void) {
 static void printAbout (char * exeName) {
     printf ("\n\
 %s \n\
-Copyright (C)  Stichting Deltares, 2011-2018. \n\
+Copyright (C)  Stichting Deltares, 2011-2020. \n\
 GNU General Public License, see <http://www.gnu.org/licenses/>. \n\n\
 sales@deltaressystems.nl \n", getfullversionstring_dimr_exe());
     printf("%s\n\n", geturlstring_dimr_exe());

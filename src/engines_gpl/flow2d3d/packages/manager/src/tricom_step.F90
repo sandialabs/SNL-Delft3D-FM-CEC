@@ -1,7 +1,7 @@
 subroutine tricom_step(olv_handle, gdp)
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
+!  Copyright (C)  Stichting Deltares, 2011-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -25,8 +25,8 @@ subroutine tricom_step(olv_handle, gdp)
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: tricom_step.F90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/engines_gpl/flow2d3d/packages/manager/src/tricom_step.F90 $
+!  $Id: tricom_step.F90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/manager/src/tricom_step.F90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: 
@@ -340,6 +340,7 @@ subroutine tricom_step(olv_handle, gdp)
   
     integer                                       :: ierror        ! Value is non-zero when an error is encountered
     integer                                       :: istat
+    integer                                       :: nmaxddb
     integer                                       :: iofset        ! Shift of inner part of matrix to remove strips
     integer                                       :: lunfil
     integer                            , external :: modlen
@@ -625,6 +626,9 @@ subroutine tricom_step(olv_handle, gdp)
     !  
     call timer_start(timer_simulation, gdp)
     !
+    nmaxddb = nmax + 2*gdp%d%ddbound
+    iofset  = 2*nmaxddb
+    !
     error = .false.
     ifcore(1) = 0
     ifcore(2) = 0
@@ -881,7 +885,7 @@ subroutine tricom_step(olv_handle, gdp)
                     & error     ,gdp       )
        else
           if (nh_level == nh_full) then
-             call z_trisol_nhfull(dischy    ,solver    ,icreep    , &
+             call z_trisol_nhfull(dischy    ,solver    ,icreep    ,ithisc    , &
                                 & timnow    ,nst       ,itiwec    ,trasol    ,forfuv    , &
                                 & forfww    ,nfltyp    , &
                                 & saleqs    ,temeqs    , &
@@ -889,7 +893,7 @@ subroutine tricom_step(olv_handle, gdp)
                                 & evaint    ,anglat    ,anglon    ,rouflo    ,rouwav    , &
                                 & betac     ,tkemod    ,gdp       )
           else
-             call z_trisol(dischy    ,solver    ,icreep    , &
+             call z_trisol(dischy    ,solver    ,icreep    ,ithisc    , &
                          & timnow    ,nst       ,itiwec    ,trasol    ,forfuv    , &
                          & forfww    ,nfltyp    , &
                          & saleqs    ,temeqs    , &

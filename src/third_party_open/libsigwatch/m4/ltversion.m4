@@ -1,23 +1,23 @@
 # ltversion.m4 -- version numbers			-*- Autoconf -*-
 #
-#   Copyright (C) 2004, 2011-2014 Free Software Foundation, Inc.
+#   Copyright (C) 2004 Free Software Foundation, Inc.
 #   Written by Scott James Remnant, 2004
 #
 # This file is free software; the Free Software Foundation gives
 # unlimited permission to copy and/or distribute it, with or without
 # modifications, as long as this notice is preserved.
 
-# @configure_input@
+# Generated from ltversion.in.
 
-# serial 4105 ltversion.m4
+# serial 2976 ltversion.m4
 # This file is part of GNU Libtool
 
-m4_define([LT_PACKAGE_VERSION], [2.4.2.458.26-92994])
-m4_define([LT_PACKAGE_REVISION], [2.4.3])
+m4_define([LT_PACKAGE_VERSION], [2.2.4])
+m4_define([LT_PACKAGE_REVISION], [1.2976])
 
 AC_DEFUN([LTVERSION_VERSION],
-[macro_version='2.4.2.458.26-92994'
-macro_revision='2.4.3'
+[macro_version='2.2.4'
+macro_revision='1.2976'
 _LT_DECL(, macro_version, 0, [Which release of libtool.m4 was used?])
 _LT_DECL(, macro_revision, 0)
 ])

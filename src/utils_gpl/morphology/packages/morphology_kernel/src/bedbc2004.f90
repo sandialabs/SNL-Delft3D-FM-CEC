@@ -9,10 +9,10 @@ subroutine bedbc2004(tp        ,rhowat    , &
                    & delm      ,fc1       ,fw1       ,phicur    ,kscr      , &
                    & i2d3d     ,mudfrac   ,fsilt     ,taucr1    ,psi       , &
                    & dzduu     ,dzdvv     ,eps       ,camax     ,iopsus    , &
-                   & ag        ,wave      ,tauadd    ,gamtcr    ) 
+                   & ag        ,wave      ,tauadd    ,gamtcr    ,betam     ) 
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
+!  Copyright (C)  Stichting Deltares, 2011-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -36,8 +36,8 @@ subroutine bedbc2004(tp        ,rhowat    , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: bedbc2004.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_gpl/morphology/packages/morphology_kernel/src/bedbc2004.f90 $
+!  $Id: bedbc2004.f90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_gpl/morphology/packages/morphology_kernel/src/bedbc2004.f90 $
 !!--description-----------------------------------------------------------------
 !
 ! Compute bed roughness and shear stress parameters
@@ -56,6 +56,7 @@ subroutine bedbc2004(tp        ,rhowat    , &
 !
     integer, intent(in)   :: i2d3d
     real(fp)              :: aks    !  Description and declaration in esm_alloc_real.f90
+    real(fp), intent(in)  :: betam
     real(fp)              :: caks
     real(fp)              :: d10
     real(fp)              :: d50
@@ -337,7 +338,7 @@ subroutine bedbc2004(tp        ,rhowat    , &
        cmax  = min(max((d50/dsand)*cmaxs , 0.05_fp) , cmaxs)
        fpack = min(cmax/cmaxs , 1.0_fp)
     else
-       fclay = min((1.0_fp+mudfrac)**3, 2.0_fp)
+       fclay = min((1.0_fp+mudfrac)**betam, 2.0_fp)
     endif
     taucr1 = fpack * fch1 * fclay * taucr0
     taurat  = taubcw / taucr1

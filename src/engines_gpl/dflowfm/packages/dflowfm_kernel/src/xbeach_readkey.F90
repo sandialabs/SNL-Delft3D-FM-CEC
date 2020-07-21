@@ -1,6 +1,6 @@
 !----- AGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2017-2018.                                
+!  Copyright (C)  Stichting Deltares, 2017-2020.                                
 !                                                                               
 !  This file is part of Delft3D (D-Flow Flexible Mesh component).               
 !                                                                               
@@ -27,8 +27,8 @@
 !                                                                               
 !-------------------------------------------------------------------------------
 
-! $Id: xbeach_readkey.F90 54191 2018-01-22 18:57:53Z dam_ar $
-! $HeadURL: https://repos.deltares.nl/repos/ds/trunk/additional/unstruc/src/xbeach_readkey.F90 $
+! $Id: xbeach_readkey.F90 65778 2020-01-14 14:07:42Z mourits $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/dflowfm/packages/dflowfm_kernel/src/xbeach_readkey.F90 $
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
 ! Copyright (C) 2007 UNESCO-IHE, WL|Delft Hydraulics and Delft University !
 ! Dano Roelvink, Ap van Dongeren, Ad Reniers, Jamie Lescinski,            !
@@ -60,6 +60,7 @@
 
 module m_xbeach_readkey
   use m_xbeach_typesandkinds
+  use string_module
   
   implicit none
 
@@ -324,7 +325,7 @@ contains
 
        call readkey(fname,key,value)
        ! Change to lowercase
-       call lowercase(value)
+       call str_lower(value)
        if (value == ' ') then
           if (lrequired) then
              call writelog('lse','','Error: missing required value for parameter ',printkey)
@@ -596,69 +597,13 @@ contains
        do ikey=1,nkeys
           if (readindex(ikey)==0) then
              call writelog('slw','','Unknown, unused or multiple statements of parameter ', &
-                                    trim(uppercase(keyword(ikey))),' in ',trim(fname))
+                                    trim(str_toupper(keyword(ikey))),' in ',trim(fname))
           endif
        enddo
     endif
 
   end subroutine readkey
 
-
-  ! The following code is taken from program "CHCASE" @ http://www.davidgsimpson.com/software/chcase_f90.txt:
-  !  Programmer:   Dr. David G. Simpson
-  !                NASA Goddard Space Flight Center
-  !                Greenbelt, Maryland  20771
-  !
-  !  Date:         January 24, 2003
-  !
-  !  Language:     Fortran-90
-  !
-  !  Version:      1.00a
-  !                1.1 : Modified uppercase into function form by R.T. McCall 23/7/2013
-  !
-
-  pure function UPPERCASE(STR) result(upperstr)
-
-    IMPLICIT NONE
-
-    CHARACTER(LEN=*),intent(in) :: STR
-    character(slen)             :: upperstr
-    INTEGER                     :: I, DEL
-
-    upperstr = STR
-
-    DEL = IACHAR('a') - IACHAR('A')
-    
-    DO I = 1, LEN_TRIM(upperstr)
-       IF (LGE(upperstr(I:I),'a') .AND. LLE(upperstr(I:I),'z')) THEN
-          upperstr(I:I) = ACHAR(IACHAR(upperstr(I:I)) - DEL)
-       END IF
-    END DO
-
-  end function UPPERCASE
-  !
-  !  LOWERCASE
-  !
-  SUBROUTINE LOWERCASE(STR)
-
-    IMPLICIT NONE
-
-    CHARACTER(LEN=*), INTENT(IN OUT) :: STR
-    INTEGER :: I, DEL
-
-
-    DEL = IACHAR('a') - IACHAR('A')
-
-    DO I = 1, LEN_TRIM(STR)
-       IF (LGE(STR(I:I),'A') .AND. LLE(STR(I:I),'Z')) THEN
-          STR(I:I) = ACHAR(IACHAR(STR(I:I)) + DEL)
-       END IF
-    END DO
-
-    RETURN
-
-  END SUBROUTINE LOWERCASE
-  
   subroutine setallowednames(a1,v1,a2,v2,a3,v3,a4,v4,a5,v5,a6,v6,a7,v7,a8,v8, &
                                a9,v9,a10,v10,a11,v11,a12,v12,a13,v13,a14,v14,   &
                                a15,v15,a16,v16,a17,v17,a18,v18,a19,v19,a20,v20)

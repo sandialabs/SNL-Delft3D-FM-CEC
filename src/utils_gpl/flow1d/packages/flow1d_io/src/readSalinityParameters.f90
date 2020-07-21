@@ -1,7 +1,7 @@
 module m_readSalinityParameters
 !----- AGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2017-2018.                                
+!  Copyright (C)  Stichting Deltares, 2017-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify              
 !  it under the terms of the GNU Affero General Public License as               
@@ -25,14 +25,14 @@ module m_readSalinityParameters
 !  Stichting Deltares. All rights reserved.
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: readSalinityParameters.f90 8044 2018-01-24 15:35:11Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_gpl/flow1d/packages/flow1d_io/src/readSalinityParameters.f90 $
+!  $Id: readSalinityParameters.f90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_gpl/flow1d/packages/flow1d_io/src/readSalinityParameters.f90 $
 !-------------------------------------------------------------------------------
 
    use MessageHandling
    use ModelParameters
    use m_network
-   use flow1d_io_properties
+   use properties
    use m_hash_search
 
    implicit none
@@ -75,7 +75,7 @@ module m_readSalinityParameters
          return
       endif
       
-      call tree_create(trim(salinityFile), md_ptr)
+      call tree_create(trim(salinityFile), md_ptr, maxlenpar)
       call prop_file('ini',trim(salinityFile),md_ptr, istat)
 
       ! read numerical options
@@ -140,7 +140,6 @@ module m_readSalinityParameters
          mp%tp = transportPars%tidal_period
          
          nbr = network%brs%count
-         allocate(network%trans%mp(2,nbr))
          pmp => network%trans%mp
          do i = 1, 2
             do ibr = 1, nbr

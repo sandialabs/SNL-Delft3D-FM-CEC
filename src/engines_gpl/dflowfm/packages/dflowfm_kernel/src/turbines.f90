@@ -26,8 +26,8 @@ module m_rdturbine
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: modules.f90 51214 2017-06-13 10:08:32Z kernkam $
-!  $HeadURL: https://repos.deltares.nl/repos/ds/trunk/additional/unstruc/src/modules.f90 $
+!  $Id: turbines.f90 66081 2020-02-27 17:01:24Z ccchart.x $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/dflowfm/packages/dflowfm_kernel/src/turbines.f90 $
 !!--declarations----------------------------------------------------------------
     implicit none
     
@@ -302,6 +302,7 @@ subroutine mapturbine(turbines,error)
 !!--declarations----------------------------------------------------------------
     use precision
     use m_structures, only: structure_turbines, structure_turbine
+    use m_GlobalParameters, only: INDTP_1D, INDTP_2D, INDTP_ALL
     !use m_kdtree2
     use kdtree2Factory
     use mathconsts
@@ -370,7 +371,7 @@ subroutine mapturbine(turbines,error)
     double precision,  dimension(1)                    :: xturb, yturb
     integer,           dimension(1)                    :: kturb
     double precision                                   :: xi1, xi2
-    integer                                            :: jakdtree
+    integer                                            :: jakdtree, jaoutside
     
     double precision                                   :: xh, yh, xe, ye, R, dL
     integer                                            :: iL, k1, k2, LL, L
@@ -510,22 +511,22 @@ subroutine mapturbine(turbines,error)
             xturb(1) = turbine%xyz(1)  ! note: hub can be in two cells neighboring the rotor, one of them is selected
             yturb(1) = turbine%xyz(2)
             jakdtree = 1
-            call find_flownode(1, xturb, yturb, namturb, kturb, jakdtree, 0)
+            jaoutside = 0
+            call find_flownode(1, xturb, yturb, namturb, kturb, jakdtree, jaoutside, INDTP_ALL)
             turbine%cellnr = kturb(1)
 
             ! store center upstream reference node
             xturb(1) = turbine%xyz(1) + turbine%ndiamu*turbine%diam*turbine%csturb
             yturb(1) = turbine%xyz(2) + turbine%ndiamu*turbine%diam*turbine%snturb
-            jakdtree = 1
-            call find_flownode(1, xturb, yturb, namturb, kturb, jakdtree, 0)
+            call find_flownode(1, xturb, yturb, namturb, kturb, jakdtree, jaoutside, INDTP_ALL)
             turbine%cellu(1) = kturb(1)
 
             ! store center downstream reference node
             xturb(1) = turbine%xyz(1) - turbine%ndiamu*turbine%diam*turbine%csturb
             yturb(1) = turbine%xyz(2) - turbine%ndiamu*turbine%diam*turbine%snturb
-            jakdtree = 1
-            call find_flownode(1, xturb, yturb, namturb, kturb, jakdtree, 0)
+            call find_flownode(1, xturb, yturb, namturb, kturb, jakdtree, jaoutside, INDTP_ALL)
             turbine%cellu(2) = kturb(1)
+            
         enddo
     endif
 end subroutine mapturbine
@@ -602,6 +603,7 @@ subroutine updturbine(turbines)
     double precision, dimension(2)                     :: zlevel
     double precision                                   :: blockfrac
     double precision                                   :: area
+    double precision                                   :: udisk, areatot
     double precision                                   :: uref, udx, udy
     character(256)                                     :: errorstring
 
@@ -685,6 +687,8 @@ subroutine updturbine(turbines)
             Cd = 4.0*(1.0 - sqrt(1.0-Ct))/(1.0 + sqrt(1.0-Ct))
                         
             turbine%current_power = 0.0
+            areatot = 0.0
+            udisk = 0.0
             do il = 1,numcrossedlinks
                 LL = turbine%edgelist(il)
                 
@@ -709,14 +713,21 @@ subroutine updturbine(turbines)
                      turbine%blockfrac(il,k) = blockfrac
                      !write(1234,"(4F15.5)") 0.5d0*(reldist(1)+reldist(2)), 0.5d0*(zlevel(1,1)+zlevel(1,2)), blockfrac, area
                     
+                     areatot = areatot + area*blockfrac
+                     udisk = udisk +abs(u1(L))*area*blockfrac
+                     !if (blockfrac > 0.1) then
+                     !    write(5979,*) 'CCC DEBUG', LL, L, U1(L)
+                     !endif
                      if (turbine%turbinemodel == 1) then
                         !advi(L) = advi(L) + 0.5d0*Cd*dxi(LL)*abs(u1(L))*blockfrac(1,1)
-                        advi(L) = advi(L) + 0.5d0*Cd*dxi(LL)*abs(u0(L))*blockfrac
+                        advi(L) = advi(L) + 0.5d0*Cd*dxi(LL)*abs(u1(L))*blockfrac
+                        !advi(L) = advi(L) + 0.5d0*Cd*abs(u1(L))*area*blockfrac
                      else
                         !! CCC DEBUG
                         !! verify that u1 is multiplied back in later
-                        advi(L) = advi(L) + 0.5d0*Ct*dxi(LL)*uref**2/abs(u1(L))*blockfrac
-                        !advi(L) = advi(L) + 0.5d0*Ct*dxi(LL)*abs(uref)*blockfrac
+                        !advi(L) = advi(L) + 0.5d0*Ct*dxi(LL)*uref**2/(1e-6+abs(u1(L)))*blockfrac
+                        advi(L) = advi(L) + 0.5d0*Ct*dxi(LL)*abs(uref)*blockfrac
+                        !advi(L) = advi(L) + 0.5d0*Ct*dxi(LL)*abs(uref)*area*blockfrac
                      endif
                      !uref = u1(L)/(1-aaa)  !induction factor method of reconstructing "reference" velocity
                      turbine%current_power  = turbine%current_power + 0.5_fp * turbine%powercoef * rhow * area * abs(uref**3)*blockfrac
@@ -728,6 +739,7 @@ subroutine updturbine(turbines)
             !! TODO fix this ugly hack
             write(5979,'(a,f,a,i,a,e,a,e)') 'Time: ',time0,'  turbine # ',j,'  Power ',turbine%current_power, &
                                         '  Total Power  ',turbine%cumul_power
+            !write(5979,*) "turbine model ",turbine%turbinemodel, 'Uref ',Uref,'  Udisk ',udisk/areatot,' area ',areatot, '  Cd  ',Cd, '  Ct  ', Ct
         enddo
 
         !call add_loss_due_to_turbines(turbines, v, u, 1, nmaxddb, 4, gdp)

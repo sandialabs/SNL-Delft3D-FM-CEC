@@ -1,6 +1,6 @@
 !----- AGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2017-2018.                                
+!  Copyright (C)  Stichting Deltares, 2017-2020.                                
 !                                                                               
 !  This file is part of Delft3D (D-Flow Flexible Mesh component).               
 !                                                                               
@@ -27,8 +27,8 @@
 !                                                                               
 !-------------------------------------------------------------------------------
 
-! $Id: network.f90 54191 2018-01-22 18:57:53Z dam_ar $
-! $HeadURL: https://repos.deltares.nl/repos/ds/trunk/additional/unstruc/src/network.f90 $
+! $Id: network.f90 65778 2020-01-14 14:07:42Z mourits $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/dflowfm/packages/dflowfm_kernel/src/network.f90 $
 
 module m_netw
 
@@ -45,6 +45,8 @@ subroutine loadNetwork(filename, istat, jadoorladen)
     use unstruc_messages
     use m_missing
     use gridoperations
+    use m_network, only: admin_network
+    use unstruc_channel_flow, only: network
     
     implicit none
 
@@ -52,7 +54,10 @@ subroutine loadNetwork(filename, istat, jadoorladen)
     character(*), intent(in)  :: filename !< Name of file to be read (in current directory or with full path).
     integer,      intent(out) :: istat    !< Return status (0=success)
     integer,      intent(in)  :: jadoorladen
+    character(len=255) :: data_file_1d
 
+    integer      :: iDumk
+    integer      :: iDuml
 
     ! double precision, allocatable, save :: zkold(:)
 
@@ -68,6 +73,9 @@ subroutine loadNetwork(filename, istat, jadoorladen)
         return
     end if
 
+    ! This if is needed as long routine load_network_from_flow1d is present for alternative
+    ! 1D-Network reading from INI-file (for Willem Ottevanger)
+
     IF (JADOORLADEN == 0) THEN
         K0 = 0
         L0 = 0
@@ -79,43 +87,43 @@ subroutine loadNetwork(filename, istat, jadoorladen)
     ! New NetCDF net file
     call unc_read_net(filename, K0, L0, NUMKN, NUMLN, istat)
 
-
-    !if (.not. allocated(zkold) ) then
-    !   allocate (zkold(numkn))
-    !   zkold = zk
-    !else
-    !   do k = 1,numkn
-    !      zk(k) = zk(k) - zkold(k)
-    !   enddo
-    !endif
+    iDumk = 0
+    iDuml = 0
+    call admin_network(network, iDumk, iDuml)
 
     if (istat == 0) then
         NUMK = K0 + NUMKN
         NUML = L0 + NUMLN
         CALL SETNODADM (0)
     else
-        ! Retry: Original .net files (new and old format)
-        CALL OLDFIL (MINP, filename)
-        CALL REAnet (MINP, istat, jadoorladen)
-        if (istat > 0) then ! reanet yields >0 on success! [AvD]
-            istat = 0
-        else
-            istat = 1
-        endif
-        if (istat == 0) then
-            ! Autosave NetCDF form of the network just read.
-            L = index(filename, '.')
-            call unc_write_net(filename(1:L-1)//'_net.nc')
-            call mess(LEVEL_INFO, 'Autosaved NetCDF form of net to ', filename(1:L-1)//'_net.nc')
-        endif
-
-        call doclose(minp)
+       call qnerror('Error while loading network from '''//trim(filename)//''', please inspect the preceding diagnostic output.', ' ',  ' ')
     endif
     CALL CLOSEWORLD() ! STITCH 0-360 FOR 0-360 GLOBE MODELS
     netstat = NETSTAT_CELLS_DIRTY
 end subroutine loadNetwork
 
 end module m_netw
+
+
+!> Toplevel setnodadm routine wraps:
+!! * original setnodadm(), for network_data administration.
+!! * update_flow1d_admin(), to remove any net links from
+!!   the flow1d::network administration, if they were also
+!!   removed from network_data in the first step.
+subroutine setnodadm(jacrosscheck_)
+   use gridoperations
+   use m_network
+   use network_data
+   use unstruc_channel_flow
+   
+   integer :: jacrosscheck_
+   
+   call setnodadm_grd_op(jacrosscheck_)
+   if (lc(1) /=0) then
+      call update_flow1d_admin(network, lc)
+   endif
+   
+end subroutine setnodadm
 
 module m_netstore
    use network_data
@@ -398,22 +406,54 @@ implicit none
 
 contains
 
-subroutine load_network_from_flow1d(filename)
+subroutine load_network_from_flow1d(filenames, found_1d_network)
    use m_flow1d_reader
+   use m_flowgeom
    use m_globalParameters
    use m_cross_helper
-
-   character(len=*), intent(inout) :: filename !< Name of a *.md1d file to read from.
+   use unstruc_messages
+   use messagehandling
+   type(t_filenames), intent(inout) :: filenames !< Name of 1d files to read from.
+   logical, intent(out)            :: found_1d_network
 
    type(t_branch), pointer :: pbr
    type(t_node), pointer :: pnod
    integer :: istat, minp, ifil, inod, ibr, ngrd, k, L, k1, k2
+   type (t_structure), pointer :: pstru
+   integer :: nstru, i
    double precision, dimension(2) :: tempbob
-   character(len=255) :: oned_outputdir
+   character(len=255) :: filename
+   integer :: threshold_abort_current
+
+   ! This routine is still used for Morphology model with network in INI-File (Willem Ottevanger)
+   
+   filename = filenames%onednetwork
+   
+   ! Check on Empty File Name
+   if (len_trim(filename) <= 0) then
+      found_1d_network = .false.
+      return
+   endif
 
    ! MessageHandling has already been set up via initMessaging() earlier.
-   call read_1d_model(filename, network, oned_outputdir)
+   threshold_abort_current = threshold_abort
+   threshold_abort = LEVEL_FATAL
+   call read_1d_mdu(filenames, network, found_1d_network)
+   if (.not. found_1d_network) then 
+      network%numk = 0
+      network%numl = 0
+      network%loaded = .false.
+      return
+   else
+       network%loaded = .true.
+   endif
+   
    call admin_network(network, numk, numl)
+
+   call read_1d_attributes(filenames, network)
+   
+   call initialize_1dadmin(network, network%l1d)
+
    numk = 0
    numl = 0
    do inod = 1, network%nds%Count
@@ -450,9 +490,15 @@ subroutine load_network_from_flow1d(filename)
           
    enddo
        
+   network%numk = numk
+   network%numl = numl
+   
    ! fill bed levels from values based on links
-   do L = 1, numl
+   do L = 1, network%numl
       tempbob = getbobs(network, L)
+      if (tempbob(1) > 0.5d0* huge(1d0)) tempbob(1) = dmiss
+      if (tempbob(2) > 0.5d0* huge(1d0)) tempbob(2) = dmiss
+      
       k1 = kn(1,L)
       k2 = kn(2,L)
       if (zk(k1) == dmiss) then
@@ -461,12 +507,13 @@ subroutine load_network_from_flow1d(filename)
       if (zk(k2) == dmiss) then
          zk(k2) = tempbob(2)
       endif
-      zk(k1) = max(zk(k1),tempbob(1))
-      zk(k2) = max(zk(k2),tempbob(2))           
+      zk(k1) = min(zk(k1),tempbob(1))
+      zk(k2) = min(zk(k2),tempbob(2))           
    enddo
-
+   
    ! TODO: Once dflowfm's own 1D and the flow1d code are aligned, the following switch should probably disappear.
    jainterpolatezk1D = 0
+   threshold_abort = threshold_abort_current
 
 end subroutine load_network_from_flow1d
 

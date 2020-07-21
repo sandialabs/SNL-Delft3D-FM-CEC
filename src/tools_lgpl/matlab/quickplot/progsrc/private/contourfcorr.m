@@ -53,7 +53,7 @@ function [cout,H,CS] = contourfcorr(varargin)
 %
 % Modified and improved version
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_lgpl/matlab/quickplot/progsrc/private/contourfcorr.m $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/private/contourfcorr.m $
 %   $Id: contourfcorr.m 5637 2015-12-09 15:25:13Z jagers $
 
 if nargin<1

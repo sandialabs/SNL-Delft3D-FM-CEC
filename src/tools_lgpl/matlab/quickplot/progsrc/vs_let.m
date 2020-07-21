@@ -53,7 +53,7 @@ function [X,Success]=vs_let(varargin)
 
 %----- LGPL --------------------------------------------------------------------
 %                                                                               
-%   Copyright (C) 2011-2018 Stichting Deltares.                                     
+%   Copyright (C) 2011-2020 Stichting Deltares.                                     
 %                                                                               
 %   This library is free software; you can redistribute it and/or                
 %   modify it under the terms of the GNU Lesser General Public                   
@@ -78,8 +78,8 @@ function [X,Success]=vs_let(varargin)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_lgpl/matlab/quickplot/progsrc/vs_let.m $
-%   $Id: vs_let.m 7992 2018-01-09 10:27:35Z mourits $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/vs_let.m $
+%   $Id: vs_let.m 65778 2020-01-14 14:07:42Z mourits $
 
 X=[];
 outputtype=1; % 1=vs_let default, 2=vs_get
@@ -1601,7 +1601,7 @@ function Ind = subcript2ind(Siz,Sub)
 Nsub = cellfun('length',Sub);
 Nind = prod(Nsub);
 for i = 1:length(Nsub)
-    Sub{i} = reshape(repmat(Sub{i},[prod(Nsub(1:i-1)) 1 prod(Nsub(i+1:end))]),Nind,1);
+    Sub{i} = reshape(repmat(Sub{i}(:)',[prod(Nsub(1:i-1)) 1 prod(Nsub(i+1:end))]),Nind,1);
 end
 if Nind==0
     Ind = zeros(0,1);

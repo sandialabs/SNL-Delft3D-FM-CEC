@@ -1,6 +1,6 @@
 !----- AGPL --------------------------------------------------------------------
 !
-!  Copyright (C)  Stichting Deltares, 2017-2018.
+!  Copyright (C)  Stichting Deltares, 2017-2020.
 !
 !  This file is part of Delft3D (D-Flow Flexible Mesh component).
 !
@@ -27,8 +27,8 @@
 !
 !-------------------------------------------------------------------------------
 
-! $Id: network_data.f90 8044 2018-01-24 15:35:11Z mourits $
-! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_lgpl/gridgeom/packages/gridgeom/src/network_data.f90 $
+! $Id: network_data.f90 65778 2020-01-14 14:07:42Z mourits $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/gridgeom/packages/gridgeom/src/network_data.f90 $
 
 !> Global network data (==unstructured grid).
 !! \see network
@@ -85,10 +85,10 @@ module network_data
   type (tface), allocatable         :: netcell_sav(:)  ! backup of netcell (for increasenetcells)
   integer,  allocatable             :: cellmask(:)     !< (nump) Mask array for net cells
 
-  double precision, allocatable, target :: xzw(:)  !< [m] centre of gravity {"shape": ["nump"]}
-  double precision, allocatable         :: xzw0(:)    ! Backup of xzw
-  double precision, allocatable, target :: yzw(:)  !< [m] centre of gravity {"shape": ["nump"]}
-  double precision, allocatable         :: yzw0(:)    ! Backup of yzw
+  double precision, allocatable, target :: xzw(:)      !< [m] centre of gravity {"shape": ["nump"]}
+  double precision, allocatable         :: xzw0(:)     ! Backup of xzw
+  double precision, allocatable, target :: yzw(:)      !< [m] centre of gravity {"shape": ["nump"]}
+  double precision, allocatable         :: yzw0(:)     ! Backup of yzw
 
 
   ! Net node related
@@ -116,6 +116,8 @@ module network_data
   integer,  allocatable            :: LC0(:)          !< Backup for lc.
   real   , allocatable             :: RLIN(:)         !< (numl) Placeholder for link values to be displayed.
   double precision, allocatable    :: xe(:), ye(:)    !< (numl) Edge (link) center coordinates.
+  double precision, allocatable    :: dxe(:)          !< (numl) Edge (link) actual length. OPTIONAL. When unallocated, we default to Euclidean distance between the netnodes xk,yk.
+  double precision, allocatable    :: dxe0(:)         !< Backup for dxe.
   integer,  allocatable            :: KTRI(:), KTON(:), KBT (:)
 
   ! Edge (and cell) related :      ! there are more edges than flow links .....
@@ -125,7 +127,7 @@ module network_data
   integer, allocatable             :: LNN(:)          !< (numl) Nr. of cells in which link participates (ubound for non-dummy values in lne(:,L))
   integer, allocatable             :: LNN0(:)
   integer                          :: NUMK0
-  integer,              target     :: numk            !< [-] Nr. of net nodes. {"shape": []}
+  integer, target                  :: numk            !< [-] Nr. of net nodes. {"shape": []}
   integer                          :: NUML0, NUML     !< Total nr. of net links. In link arrays: 1D: 1:NUML1D, 2D: NUML1D+1:NUML
   integer                          :: NUML1D          !< Nr. of 1D net links.
   integer                          :: NUMP0, NUMP     !< Nr. of 2d netcells.
@@ -178,12 +180,21 @@ module network_data
 
   double precision                 :: TOOCLOSE = 0.001d0                !< Network points closer than tooclose are merged
 
-  double precision                 :: CONNECT1DEND = 200d0              !< Merge 1D endpoint ti closest branch point
+  double precision                 :: CONNECT1DEND = 0d0                !< Merge 1D endpoint ti closest branch point
 
   double precision                 :: Unidx1D = 100d0                   !< Uniform 1D dx in copylandboundaryto1Dnetw
 
   integer                          :: makeorthocenters = 0              !< shift from circumcentre to orthocentre (acts as a maxiter)
 
+  integer, parameter               :: I1D2DTP_1TO1     = 0              !< 1D2D link generation algorithm for 1-to-1 mapping HK algorithm, depending on filetype.
+  integer, parameter               :: I1D2DTP_1TON_EMB = 1              !< 1D2D link generation algorithm for 1-to-1 mapping, for embedded ('rural') links.
+  integer, parameter               :: I1D2DTP_1TON_LAT = 2              !< 1D2D link generation algorithm for 1-to-n mapping, for lateral ('river') links.
+  integer, parameter               :: I1D2DTP_LONG     = -3             !< NOT IMPLEMENTED YET, 1D2D link generation algorithm for 1-to-1 longitudinal links.
+  integer                          :: imake1d2dtype                     !< Selects which algorithm to use for 1D2D link generation (in the GUI). One of I1D2DTP_(1TO1|1TON_EMB|1TON_LAT).
+  
+  double precision                 :: searchRadius1D2DLateral                 !< Search radius for for lateral ('river') links. When the search radius is equalt to defaultSearchRadius1D2DLateral, the algorithm will calculate an appropriate search radius 
+  double precision, parameter      :: defaultSearchRadius1D2DLateral = 0.0d0  !< The default search radius for for lateral ('river') links.
+ 
   double precision                 :: xkmin, xkmax , ykmin, ykmax
 
 ! 1d NET BRANCHES
@@ -212,14 +223,12 @@ module network_data
 
 ! keep circumcenters before orthogonalization in case of quadtree meshes
   integer                          :: keepcircumcenters = 0    !< keep circumcenter (1) or not (0)
-  
-! for dry/illegal/cutcells (mesh generation related only)
-  character(len=255)               :: dryptsfile = ''
-  character(len=255)               :: gridencfile = ''
-     
+
 !  netlink permutation by setnodadm
    integer, dimension(:), allocatable :: Lperm  !< permuation of netlinks by setnodadm, dim(numL)
-   
+!  netnode permutation by setnodadm
+   integer, dimension(:), allocatable :: nodePermutation   !< permutation of netnodes by setnodadm, dim(numk)
+
    contains
    
    function network_data_destructor() result (ierr)
@@ -277,6 +286,8 @@ module network_data
    if(allocated(RLIN)) deallocate(RLIN)
    if(allocated(xe)) deallocate(xe)
    if(allocated(ye)) deallocate(ye)
+   if(allocated(dxe)) deallocate(dxe)
+   if(allocated(dxe0)) deallocate(dxe0)
    if(allocated(KTRI)) deallocate(KTRI)
    if(allocated(KTON)) deallocate(KTON)
    if(allocated(KBT)) deallocate(KBT)
@@ -296,25 +307,9 @@ module network_data
    if(allocated(K1BR)) deallocate(K1BR)  
    if(allocated(NRLB)) deallocate(NRLB)
    
-   !if(allocated(KN))   deallocate(KN)
-   !if(allocated(LC))   deallocate(LC)
-   !if(allocated(RLIN)) deallocate(RLIN)
-   !
-   !if(allocated(XK)) deallocate(XK)
-   !if(allocated(YK)) deallocate(YK)
-   !if(allocated(ZK)) deallocate(ZK)
-   !
-   !if(allocated(RNOD)) deallocate(RNOD)
-   !
-   !if(allocated(XK0)) deallocate(XK0) 
-   !if(allocated(YK0)) deallocate(YK0)    
-   !if(allocated(ZK0)) deallocate(ZK0) 
-   !
-   !if(allocated(NMK))  deallocate(NMK)        
-   !if(allocated(KC))   deallocate(KC)       
-   !if(allocated(NMK0)) deallocate(NMK0)        
-   !if(allocated(KC0))  deallocate(KC0)       
-   !if(allocated(NB))   deallocate(NB)     
+   if(allocated(XPL)) deallocate(XPL)
+   if(allocated(YPL)) deallocate(YPL)
+   if(allocated(ZPL)) deallocate(ZPL)
    
    ! default initialize all variables
    NUMK0     = 0
@@ -353,9 +348,11 @@ module network_data
    cosphiutrsh = 0.5d0               
    CORNERCOS   = 0.25d0             
    TOOCLOSE = 0.001d0                
-   CONNECT1DEND = 200d0              
+   CONNECT1DEND = 0d0              
    Unidx1D = 100d0                   
    makeorthocenters = 0             
+   imake1d2dtype = I1D2DTP_1TO1 ! HK algorithm
+   searchRadius1D2DLateral = defaultSearchRadius1D2DLateral
    xkmin = 0
    xkmax = 0
    ykmin = 0
@@ -365,6 +362,8 @@ module network_data
    jaswan = 0
    netstat = NETSTAT_CELLS_DIRTY
    keepcircumcenters = 0
+   KMAX = 0
+   LMAX = 0
    
    ! return error
    ierr = 0

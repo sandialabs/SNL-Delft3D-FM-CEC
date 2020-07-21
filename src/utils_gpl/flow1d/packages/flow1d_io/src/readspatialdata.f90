@@ -1,7 +1,7 @@
 module m_readSpatialData
 !----- AGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2017-2018.                                
+!  Copyright (C)  Stichting Deltares, 2017-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify              
 !  it under the terms of the GNU Affero General Public License as               
@@ -25,8 +25,8 @@ module m_readSpatialData
 !  Stichting Deltares. All rights reserved.
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: readspatialdata.f90 8044 2018-01-24 15:35:11Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_gpl/flow1d/packages/flow1d_io/src/readspatialdata.f90 $
+!  $Id: readspatialdata.f90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_gpl/flow1d/packages/flow1d_io/src/readspatialdata.f90 $
 !-------------------------------------------------------------------------------
    
    use m_GlobalParameters
@@ -34,7 +34,7 @@ module m_readSpatialData
    use m_spatial_data
    use m_tables
    use m_branch
-   use flow1d_io_properties
+   use properties
    use m_hash_search
    use m_read_table
 
@@ -50,15 +50,17 @@ module m_readSpatialData
 
 contains
 
+   !> Read spatial data from input file
    subroutine spatial_data_reader(isp, spData, brs, inputfile, default, itype, interpolateOverBranches)
 
-      type(t_spatial_dataSet), intent(inout)    :: spData
-      type(t_branchSet), intent(in)             :: brs
-      character(len=*), intent(in)              :: inputfile
-      integer, intent(in)                       :: itype
-      logical, intent(in)                       :: interpolateOverBranches
-      double precision, intent(inout)           :: default
-      integer, intent(out)                      :: isp  
+      type(t_spatial_dataSet) , intent(inout)  :: spData                   !< Spatial data set
+      type(t_branchSet)       , intent(in   )  :: brs                      !< Branches
+      character(len=*)        , intent(in   )  :: inputfile                !< Name of the input file
+      integer                 , intent(in   )  :: itype                    !< Quantity type
+      logical                 , intent(in   )  :: interpolateOverBranches  !< Flag indicates whether interpolation over branches is required
+      double precision        , intent(inout)  :: default                  !< Default/global value
+      integer                 , intent(  out)  :: isp                      !< Index in spatial data set
+      
       type(t_spatial_data), pointer             :: pspData
       type(tree_data), pointer                  :: md_ptr
       integer                                   :: i
@@ -74,6 +76,7 @@ contains
       character(len=idlen)                      :: branchid
       double precision, allocatable             :: levels(:,:)
       double precision, allocatable             :: rough(:)
+      logical                                   :: branch_error = .false.
 
       type(t_ptable), dimension(:), allocatable :: tbls
    
@@ -90,7 +93,7 @@ contains
          pspData%quantity = -1
       endif
 
-      call tree_create(trim(inputfile), md_ptr)
+      call tree_create(trim(inputfile), md_ptr, maxlenpar)
       call prop_file('ini',trim(inputfile),md_ptr,istat)
       ! look for global value in spatial data file. If available use this value for 
       ! default, otherwise use default value as global value
@@ -139,6 +142,8 @@ contains
                if (ibr < 1 .or. ibr > brs%count) then
                   msgbuf = 'Incorrect branchId found in file: '//trim(inputfile)//' branchid = '// trim(branchid)
                   call err_flush()
+                  branch_error = .true.
+                  cycle
                endif
                numLevels(ibr) = numLevs
                call prop_get_doubles(md_ptr%child_nodes(i)%node_ptr, '', 'levels', levels(1:numLevs,ibr), numLevs, success)
@@ -163,6 +168,12 @@ contains
             endif
             call prop_get_string(md_ptr%child_nodes(i)%node_ptr, '', 'branchid', branchid, success)
             ibr = hashsearch(brs%hashlist, branchid)
+            if (ibr < 1 .or. ibr > brs%count) then
+               msgbuf = 'Incorrect branchId found in file: '//trim(inputfile)//' branchid = '// trim(branchid)
+               call err_flush()
+               branch_error = .true.
+               cycle
+            endif
             pspData%brIndex(ind) = ibr
             if (success) call prop_get_double(md_ptr%child_nodes(i)%node_ptr, '', 'value', pspData%valuesOnLocation(ind), success)
             if (.not.success) then
@@ -174,6 +185,7 @@ contains
                call prop_get_doubles(md_ptr%child_nodes(i)%node_ptr, '', 'values', rough, numLevs, success)
                if (success) then
                   call settable(tbls(ind)%p, 0, levels(1:numLevs,ibr), rough, numlevs)
+                  pspData%valuesOnLocation(ind) = rough(1)  ! fill with roughness from roughness table - to be updated later with waterlevel and discharge dependent rouhgness
                else
                   call SetMessage(LEVEL_ERROR, 'Inconsistent input found. On branch '//trim(branchid)//' key value and values is missing.')
                endif
@@ -186,6 +198,10 @@ contains
    
       pspData%numValues = max(0, count)
    
+      if (branch_error) then
+         call SetMessage(LEVEL_FATAL, 'Branch Error(s) found during reading Spatial Data.')
+      endif
+      
       call ValuesToGridPoints(spData%quant(isp), brs, tbls, interpolateOverBranches)
       
       select case (itype)
@@ -229,10 +245,11 @@ contains
    
    end subroutine spatial_data_reader
 
+   !> Read the spatial data file from cache
    subroutine read_spatial_data_cache(ibin, network)
 
-      type(t_network), intent(inout)      :: network
-      integer, intent(in)                 :: ibin
+      type(t_network), intent(inout)      :: network     !< network structure
+      integer, intent(in)                 :: ibin        !< unit number of binary cache file
 
       type(t_spatial_data), pointer       :: pQuant
       integer                             :: nValues
@@ -259,6 +276,8 @@ contains
       
          pQuant => network%spdata%quant(i)
 
+         read(ibin) pQuant%default
+         
          read(ibin) pQuant%quantity
          
          read(ibin) nValues
@@ -308,10 +327,11 @@ contains
 
    end subroutine read_spatial_data_cache
 
+   !> Read the spatial data file from cache
    subroutine write_spatial_data_cache(ibin, spData)
 
-      type(t_spatial_dataSet), intent(in) :: spData
-      integer, intent(in)                 :: ibin
+      type(t_spatial_dataSet), intent(in) :: spData   !< network structure
+      integer, intent(in)                 :: ibin     !< unit number of binary cache file
 
       type(t_spatial_data), pointer       :: pQuant
       integer                             :: nValues
@@ -334,6 +354,8 @@ contains
       do i = 1, spData%Count
       
          pQuant => spdata%quant(i)
+         
+         write(ibin) pQuant%default
 
          write(ibin) pQuant%quantity
          

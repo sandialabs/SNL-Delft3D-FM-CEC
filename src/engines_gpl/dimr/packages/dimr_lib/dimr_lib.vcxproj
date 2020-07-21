@@ -1,5 +1,5 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
       <Configuration>Debug</Configuration>
@@ -28,24 +28,24 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <CharacterSet>MultiByte</CharacterSet>
-    <PlatformToolset>v120</PlatformToolset>
+    <PlatformToolset>v141</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <CharacterSet>MultiByte</CharacterSet>
-    <PlatformToolset>v120</PlatformToolset>
+    <PlatformToolset>v141</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <CharacterSet>MultiByte</CharacterSet>
-    <PlatformToolset>v120</PlatformToolset>
+    <PlatformToolset>v141</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <CharacterSet>MultiByte</CharacterSet>
-    <PlatformToolset>v120</PlatformToolset>
+    <PlatformToolset>v141</PlatformToolset>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
@@ -91,7 +91,7 @@ call ..\..\..\..\scripts_lgpl\win32\update_version.cmd .\include\dimr_lib_versio
     </PreBuildEvent>
     <ClCompile>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>include;src;src/dd;src/dd/iterators;src/dd/mapper;../../../../third_party_open/mpich2/include;../../../../third_party_open/netcdf/src/libsrc;../../../../third_party_open/pthreads/include/win32;../../../../third_party_open/expat/lib;../../../../utils_lgpl/deltares_common/packages/deltares_common_c/include;../../../../utils_lgpl/esmfsm/include;../../../../utils_lgpl/delftonline/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>include;src;src/dd;src/dd/iterators;src/dd/mapper;../../../../third_party_open/mpich2/include;../../../../third_party_open/netcdf/netCDF 4.6.1/include;../../../../third_party_open/pthreads/include/win32;../../../../third_party_open/expat/lib;../../../../utils_lgpl/deltares_common/packages/deltares_common_c/include;../../../../utils_lgpl/esmfsm/include;../../../../utils_lgpl/delftonline/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WITH_DELFTONLINE;WIN32;_DEBUG;_WINDOWS;_USRDLL;DIMR_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <MinimalRebuild>true</MinimalRebuild>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
@@ -102,7 +102,7 @@ call ..\..\..\..\scripts_lgpl\win32\update_version.cmd .\include\dimr_lib_versio
       <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>..\..\..\..\third_party_open\pthreads\bin\win32\pthreadVCE2.lib;..\..\..\..\third_party_open\expat\win32\bin\Release\libexpat.lib;..\..\..\..\third_party_open\mpich2\lib\mpi.lib;..\..\..\..\third_party_open\mpich2\lib\fmpich2.lib;..\..\..\..\third_party_open\netcdf\src\win32\2005\libsrc\$(ConfigurationName)\netcdf.lib;wsock32.lib;netapi32.lib;comctl32.lib;user32.lib;advapi32.lib;comdlg32.lib;gdi32.lib;winspool.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>..\..\..\..\third_party_open\pthreads\bin\win32\pthreadVCE2.lib;..\..\..\..\third_party_open\expat\win32\bin\Release\libexpat.lib;..\..\..\..\third_party_open\mpich2\lib\mpi.lib;..\..\..\..\third_party_open\mpich2\lib\fmpich2.lib;..\..\..\..\third_party_open\netcdf\netCDF 4.6.1\lib\netcdf.lib;wsock32.lib;netapi32.lib;comctl32.lib;user32.lib;advapi32.lib;comdlg32.lib;gdi32.lib;winspool.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <IgnoreSpecificDefaultLibraries>MSVCRT.lib;LIBCMTD.lib;LIBCMT.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <SubSystem>Windows</SubSystem>
       <StackReserveSize>20000000</StackReserveSize>
@@ -122,7 +122,7 @@ call ..\..\..\..\scripts_lgpl\win32\update_version.cmd .\include\dimr_lib_versio
     </PreBuildEvent>
     <ClCompile>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>include;src;src/dd;src/dd/iterators;src/dd/mapper;../../../../third_party_open/mpich2/include;../../../../third_party_open/netcdf/src/libsrc;../../../../third_party_open/pthreads/include/x64;../../../../third_party_open/DelftOnline/include;../../../../third_party_open/DelftOnline/include\windows;../../../../third_party_open\expat\x64\include;../../../../third_party_open\expat_x64\x64\release;../../../../utils_lgpl/esmfsm/include;../../../../utils_lgpl\deltares_common\packages\deltares_common_c\include\;../../../../utils_lgpl/delftonline/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>include;src;src/dd;src/dd/iterators;src/dd/mapper;../../../../third_party_open/mpich2/include;../../../../third_party_open/netcdf/netCDF 4.6.1/include;../../../../third_party_open/pthreads/include/x64;../../../../third_party_open/DelftOnline/include;../../../../third_party_open/DelftOnline/include\windows;../../../../third_party_open\expat\x64\include;../../../../third_party_open\expat_x64\x64\release;../../../../utils_lgpl/esmfsm/include;../../../../utils_lgpl\deltares_common\packages\deltares_common_c\include\;../../../../utils_lgpl/delftonline/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_USRDLL;DIMR_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
@@ -132,7 +132,7 @@ call ..\..\..\..\scripts_lgpl\win32\update_version.cmd .\include\dimr_lib_versio
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>..\..\..\..\third_party_open\pthreads\bin\x64\pthreadVC2.lib;..\..\..\..\third_party_open\expat\x64\$(PlatformName)\$(ConfigurationName)\libexpat.lib;..\..\..\..\third_party_open\mpich2\x64\lib\mpi.lib;..\..\..\..\third_party_open\mpich2\x64\lib\fmpich2.lib;..\..\..\..\third_party_open\netcdf\src\win32\2005\libsrc\x64\$(ConfigurationName)\netcdf.lib;wsock32.lib;netapi32.lib;comctl32.lib;user32.lib;advapi32.lib;comdlg32.lib;gdi32.lib;winspool.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>..\..\..\..\third_party_open\pthreads\bin\x64\pthreadVC2.lib;..\..\..\..\third_party_open\expat\x64\$(PlatformName)\$(ConfigurationName)\libexpat.lib;..\..\..\..\third_party_open\mpich2\x64\lib\mpi.lib;..\..\..\..\third_party_open\mpich2\x64\lib\fmpich2.lib;..\..\..\..\third_party_open\netcdf\netCDF 4.6.1\lib\netcdf.lib;wsock32.lib;netapi32.lib;comctl32.lib;user32.lib;advapi32.lib;comdlg32.lib;gdi32.lib;winspool.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <IgnoreSpecificDefaultLibraries>MSVCRT.lib;LIBCMTD.lib;LIBCMT.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Windows</SubSystem>
@@ -153,7 +153,7 @@ call ..\..\..\..\scripts_lgpl\win32\update_version.cmd .\include\dimr_lib_versio
     <ClCompile>
       <Optimization>MaxSpeed</Optimization>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <AdditionalIncludeDirectories>include;src;src/dd;src/dd/iterators;src/dd/mapper;../../../../third_party_open/mpich2/include;../../../../third_party_open/netcdf/src/libsrc;../../../../third_party_open/pthreads/include/win32;../../../../third_party_open/expat/lib;../../../../utils_lgpl/deltares_common/packages/deltares_common_c/include;../../../../utils_lgpl/esmfsm/include;../../../../utils_lgpl/delftonline/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>include;src;src/dd;src/dd/iterators;src/dd/mapper;../../../../third_party_open/mpich2/include;../../../../third_party_open/netcdf/netCDF 4.6.1/include;../../../../third_party_open/pthreads/include/win32;../../../../third_party_open/expat/lib;../../../../utils_lgpl/deltares_common/packages/deltares_common_c/include;../../../../utils_lgpl/esmfsm/include;../../../../utils_lgpl/delftonline/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WITH_DELFTONLINE;WIN32;NDEBUG;_WINDOWS;_USRDLL;DIMR_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <FunctionLevelLinking>true</FunctionLevelLinking>
@@ -163,7 +163,7 @@ call ..\..\..\..\scripts_lgpl\win32\update_version.cmd .\include\dimr_lib_versio
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>..\..\..\..\third_party_open\pthreads\bin\win32\pthreadVCE2.lib;..\..\..\..\third_party_open\expat\win32\bin\Release\libexpat.lib;..\..\..\..\third_party_open\mpich2\lib\mpi.lib;..\..\..\..\third_party_open\mpich2\lib\fmpich2.lib;..\..\..\..\third_party_open\netcdf\src\win32\2005\libsrc\$(ConfigurationName)\netcdf.lib;wsock32.lib;netapi32.lib;comctl32.lib;user32.lib;advapi32.lib;comdlg32.lib;gdi32.lib;winspool.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>..\..\..\..\third_party_open\pthreads\bin\win32\pthreadVCE2.lib;..\..\..\..\third_party_open\expat\win32\bin\Release\libexpat.lib;..\..\..\..\third_party_open\mpich2\lib\mpi.lib;..\..\..\..\third_party_open\mpich2\lib\fmpich2.lib;..\..\..\..\third_party_open\netcdf\netCDF 4.6.1\lib\netcdf.lib;wsock32.lib;netapi32.lib;comctl32.lib;user32.lib;advapi32.lib;comdlg32.lib;gdi32.lib;winspool.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <IgnoreSpecificDefaultLibraries>LIBCMT.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Windows</SubSystem>
@@ -186,7 +186,7 @@ call ..\..\..\..\scripts_lgpl\win32\update_version.cmd .\include\dimr_lib_versio
     <ClCompile>
       <Optimization>MaxSpeed</Optimization>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <AdditionalIncludeDirectories>include;src;src/dd;src/dd/iterators;src/dd/mapper;../../../../third_party_open/mpich2/include;../../../../third_party_open/netcdf/src/libsrc;../../../../third_party_open/pthreads/include/x64;../../../../third_party_open/DelftOnline/include;../../../../third_party_open/DelftOnline/include\windows;../../../../third_party_open\expat\x64\include;../../../../third_party_open\expat_x64\x64\release;../../../../utils_lgpl/esmfsm/include;../../../../utils_lgpl\deltares_common\packages\deltares_common_c\include\;../../../../utils_lgpl/delftonline/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>include;src;src/dd;src/dd/iterators;src/dd/mapper;../../../../third_party_open/mpich2/include;../../../../third_party_open/netcdf/netCDF 4.6.1/include;../../../../third_party_open/pthreads/include/x64;../../../../third_party_open/DelftOnline/include;../../../../third_party_open/DelftOnline/include\windows;../../../../third_party_open\expat\x64\include;../../../../third_party_open\expat_x64\x64\release;../../../../utils_lgpl/esmfsm/include;../../../../utils_lgpl\deltares_common\packages\deltares_common_c\include\;../../../../utils_lgpl/delftonline/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_USRDLL;DIMR_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <FunctionLevelLinking>true</FunctionLevelLinking>
@@ -196,7 +196,7 @@ call ..\..\..\..\scripts_lgpl\win32\update_version.cmd .\include\dimr_lib_versio
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>..\..\..\..\third_party_open\pthreads\bin\x64\pthreadVC2.lib;..\..\..\..\third_party_open\expat\x64\$(PlatformName)\$(ConfigurationName)\libexpat.lib;..\..\..\..\third_party_open\mpich2\x64\lib\mpi.lib;..\..\..\..\third_party_open\mpich2\x64\lib\fmpich2.lib;..\..\..\..\third_party_open\netcdf\src\win32\2005\libsrc\x64\$(ConfigurationName)\netcdf.lib;wsock32.lib;netapi32.lib;comctl32.lib;user32.lib;advapi32.lib;comdlg32.lib;gdi32.lib;winspool.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>..\..\..\..\third_party_open\pthreads\bin\x64\pthreadVC2.lib;..\..\..\..\third_party_open\expat\x64\$(PlatformName)\$(ConfigurationName)\libexpat.lib;..\..\..\..\third_party_open\mpich2\x64\lib\mpi.lib;..\..\..\..\third_party_open\mpich2\x64\lib\fmpich2.lib;..\..\..\..\third_party_open\netcdf\netCDF 4.6.1\lib\netcdf.lib;wsock32.lib;netapi32.lib;comctl32.lib;user32.lib;advapi32.lib;comdlg32.lib;gdi32.lib;winspool.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <IgnoreSpecificDefaultLibraries>LIBCMT.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Windows</SubSystem>
@@ -212,6 +212,7 @@ call ..\..\..\..\scripts_lgpl\win32\update_version.cmd .\include\dimr_lib_versio
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="src\bmi.cpp" />
     <ClCompile Include="src\clock.cpp" />
     <ClCompile Include="src\component.cpp" />
     <ClCompile Include="src\coredump.cpp" />
@@ -227,9 +228,21 @@ call ..\..\..\..\scripts_lgpl\win32\update_version.cmd .\include\dimr_lib_versio
     <ClInclude Include="include\clock.h" />
     <ClInclude Include="include\component.h" />
     <ClInclude Include="include\dimr.h" />
+    <ClInclude Include="include\dimr_component.h" />
+    <ClInclude Include="include\dimr_components.h" />
+    <ClInclude Include="include\dimr_constants.h" />
+    <ClInclude Include="include\dimr_control_block.h" />
+    <ClInclude Include="include\dimr_coupler.h" />
+    <ClInclude Include="include\dimr_couplers.h" />
+    <ClInclude Include="include\dimr_couple_item.h" />
+    <ClInclude Include="include\dimr_logger.h" />
+    <ClInclude Include="include\dimr_unit.h" />
     <ClInclude Include="include\exception.h" />
     <ClInclude Include="include\getopt.h" />
+    <ClInclude Include="include\ixmltree.h" />
+    <ClInclude Include="include\keyvaluell.h" />
     <ClInclude Include="include\log.h" />
+    <ClInclude Include="include\netcdf_references.h" />
     <ClInclude Include="include\stringutils.h" />
     <ClInclude Include="include\xmltree.h" />
   </ItemGroup>

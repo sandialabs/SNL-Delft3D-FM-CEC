@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2018.
+!!  Copyright (C)  Stichting Deltares, 2012-2020.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -24,7 +24,7 @@
       subroutine polpart( pol_file, nrowsmax, xpol, ypol, nrows, lunpr   )
 
 !
-!     programmer : michel jeuken
+!     programmer : michelle jeuken
 !     function   : read a single polygon from a file
 !     date       : september 2013
 !

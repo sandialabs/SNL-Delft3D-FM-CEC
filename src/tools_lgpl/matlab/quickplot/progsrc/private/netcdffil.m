@@ -18,7 +18,7 @@ function varargout=netcdffil(FI,domain,field,cmd,varargin)
 
 %----- LGPL --------------------------------------------------------------------
 %                                                                               
-%   Copyright (C) 2011-2018 Stichting Deltares.                                     
+%   Copyright (C) 2011-2020 Stichting Deltares.                                     
 %                                                                               
 %   This library is free software; you can redistribute it and/or                
 %   modify it under the terms of the GNU Lesser General Public                   
@@ -43,8 +43,8 @@ function varargout=netcdffil(FI,domain,field,cmd,varargin)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_lgpl/matlab/quickplot/progsrc/private/netcdffil.m $
-%   $Id: netcdffil.m 7992 2018-01-09 10:27:35Z mourits $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/private/netcdffil.m $
+%   $Id: netcdffil.m 65866 2020-01-26 20:25:09Z jagers $
 
 %========================= GENERAL CODE =======================================
 T_=1; ST_=2; M_=3; N_=4; K_=5;
@@ -161,6 +161,19 @@ for d_ = 1:length(DimFlag)
         if isequal(idx{d_},0)
             idx{d_}=1:sz(d_);
         end
+        %
+        % Rule: if dimension = 0, then error
+        %
+        if sz(d_)==0
+            switch d_
+                case T_
+                    error('No time steps available in the file.')
+                case ST_
+                    error('No stations available in the file.')
+                otherwise
+                    error('Empty dimension encountered: unable to read the data.')
+            end
+        end
     end
 end
 
@@ -192,7 +205,7 @@ if DataRead && Props.NVal>0
                 edge_idx{3} = 1:FI.Dimension(Info.TSMNK(3)+1).Length;
                 [Discharge, status] = qp_netcdf_get(FI,ivar,Props.DimName,edge_idx);
                 %
-                meshInfo    = FI.Dataset(Info.Mesh{2});
+                meshInfo    = FI.Dataset(Info.Mesh{3});
                 if isempty(meshInfo.Attribute)
                     meshAttribs = {};
                 else
@@ -221,6 +234,28 @@ if DataRead && Props.NVal>0
                 Psi = Psi - min(Psi);
                 %
                 Ans.Val = Psi(idx{3});
+            case 'erosion_sedimentation'
+                [data, status] = qp_netcdf_get(FI,Props.varid{2},Props.DimName,idx);
+                if any(idx{T_}==1)
+                    first = find(idx{T_}==1);
+                    data1 = data(first(1),:);
+                else
+                    idx1 = idx;
+                    idx1{T_} = 1;
+                    [data1, status] = qp_netcdf_get(FI,Props.varid{2},Props.DimName,idx1);
+                end
+                for i = 1:length(idx{T_})
+                    data(i,:) = data(i,:) - data1;
+                end
+                szData = size(data);
+                %
+                if length(idx{T_})==1
+                    szV = [size(data) 1];
+                    data = reshape(data,szV(2:end));
+                    removeTime = 1;
+                end
+                %
+                Ans.Val = data;
             case {'node_index','edge_index','face_index'}
                 Ans.Val = idx{3}(:);
             otherwise
@@ -243,13 +278,6 @@ if DataRead && Props.NVal>0
                 data = reshape(data,szV(2:end));
                 removeTime = 1;
             end
-            %
-            %positive = strmatch('positive',Attribs,'exact');
-            %if ~isempty(positive)
-            %   if isequal(lower(Info.Attribute(positive).Value),'down')
-            %      data = -data;
-            %   end
-            %end
             %
             if ii==1
                 if length(Props.varid)==1
@@ -280,6 +308,22 @@ if DataRead && Props.NVal>0
             XYneeded = true;
         otherwise
             % no rotation
+    end
+    %
+    if Props.NVal==6
+        fm = ustrcmpi('flag_meanings',Attribs);
+        Ans.Classes = strsplit(Info.Attribute(fm).Value,' ');
+        fv = ustrcmpi('flag_values',Attribs);
+        if fv>0
+            [dummy,Ans.Val] = ismember(Ans.Val,Info.Attribute(fv).Value);
+        else
+            fm = ustrcmpi('flag_masks',Attribs);
+            if fm>0
+                ui_message('warning','The quantity %s uses ''flag_masks'' which are not yet supported.',Info.Name)
+            else
+                ui_message('warning','The quantity %s uses ''flag_meanings'' attribute,\nbut the associated ''flag_values'' or ''flag_masks'' attribute can''t be found.', Info.Name)
+            end
+        end
     end
     %
     hdim = 1-cellfun('isempty',Props.DimName);
@@ -328,29 +372,158 @@ if ~isnan(npolpnt)
     end
 end
 
+getOptions = {};
 if XYRead || XYneeded
     if strncmp(Props.Geom,'UGRID',5)
         %ugrid
         mesh_settings = Info.Mesh;
-        meshInfo      = FI.Dataset(mesh_settings{2});
+        msh = mesh_settings{3};
+        meshInfo      = FI.Dataset(msh);
+        %
+        dimNodes = meshInfo.Mesh{5};
+        dimEdges = meshInfo.Mesh{6};
+        dimFaces = meshInfo.Mesh{7};
+        allDims = {FI.Dimension.Name};
+        MeshSubset = {};
+        switch mesh_settings{4}
+            case 0 % data at NODE
+                MeshSubset = {'NODE' dimNodes idx{M_}
+                              'EDGE' dimEdges -1
+                              'FACE' dimFaces -1};
+                if ~isempty(dimEdges)
+                    MeshSubset{2,3} = 1:FI.Dimension(strcmp(dimEdges,allDims)).Length;
+                end
+                if ~isempty(dimFaces)
+                    MeshSubset{3,3} = 1:FI.Dimension(strcmp(dimFaces,allDims)).Length;
+                end
+            case 1 % data at EDGE
+                MeshSubset = {'NODE' dimNodes 1:FI.Dimension(strcmp(dimNodes,allDims)).Length
+                    'EDGE' dimEdges idx{M_}
+                    'FACE' dimFaces -1};
+                if ~isempty(dimFaces)
+                    MeshSubset{3,3} = 1:FI.Dimension(strcmp(dimFaces,allDims)).Length;
+                end
+            case 2 % data at FACE
+                MeshSubset = {'NODE' dimNodes 1:FI.Dimension(strcmp(dimNodes,allDims)).Length
+                              'EDGE' dimEdges -1
+                              'FACE' dimFaces idx{M_}};
+                if ~isempty(dimEdges)
+                    MeshSubset{2,3} = 1:FI.Dimension(strcmp(dimEdges,allDims)).Length;
+                end
+        end
+        if isempty(MeshSubset)
+            getOptions = {};
+        else
+            getOptions = {'mesh_subsets' MeshSubset};
+        end
         %
         for c = 'XY'
+            if isempty(meshInfo.(c))
+                error('No %s coordinate found for %s.',c,meshInfo.Name)
+            end
             CoordInfo2 = FI.Dataset(meshInfo.(c));
             [Ans.(c), status] = qp_netcdf_get(FI,CoordInfo2);
             %
-            if ~isempty(CoordInfo2.Attribute)
-                Attribs = {CoordInfo2.Attribute.Name};
-                j = strmatch('units',Attribs,'exact');
-                if ~isempty(j)
-                    unit = CoordInfo2.Attribute(j).Value;
-                    units = {'degrees_east','degree_east','degreesE','degreeE', ...
-                        'degrees_north','degree_north','degreesN','degreeN'};
-                    if ismember(unit,units)
-                        unit = 'deg';
-                    end
-                    Ans.([c 'Units']) = unit;
-                end
+            unit = get_unit(CoordInfo2);
+            if ischar(unit)
+                Ans.([c 'Units']) = unit;
             end
+        end
+        if strcmp(mesh_settings{1},'ugrid1d_network')
+            % Ans.X contains mesh node branch index
+            % Ans.Y contains mesh node offset/chainage
+            %
+            attcsp = strmatch('coordinate_space',{meshInfo.Attribute.Name});
+            csp = strmatch(meshInfo.Attribute(attcsp).Value,{FI.Dataset.Name},'exact');
+            [BrX,BrY,xUnit,BrL] = get_edge_geometry(FI,csp);
+            %
+            si = strmatch('start_index',{FI.Dataset(meshInfo.X).Attribute.Name});
+            if ~isempty(si)
+                start_index = FI.Dataset(meshInfo.X).Attribute(si).Value;
+            else
+                start_index = 0;
+            end
+            if min(Ans.X)~=start_index
+                % trigger warning ...?
+            end
+            Ans.X = Ans.X-start_index+1;
+            %
+            % Get edge_node_connectivity
+            attENC= strmatch('edge_node_connectivity',{meshInfo.Attribute.Name});
+            [e2n, status] = qp_netcdf_get(FI,meshInfo.Attribute(attENC).Value);
+            %
+            % Get mesh_edge branch affinity (read from edge_coordinates or reconstructed)
+            attECO = strmatch('edge_coordinates',{meshInfo.Attribute.Name});
+            if ~isempty(attECO)
+                ecoords = strsplit(meshInfo.Attribute(attECO).Value);
+                for iec = 1:length(ecoords)
+                    i_eBrNr = strmatch(ecoords{iec},{FI.Dataset.Name});
+                    ecAtt = {FI.Dataset(i_eBrNr).Attribute.Name};
+                    if ismember('units',ecAtt) || ismember('standard_name',ecAtt)
+                        % x-coordinate, y-coordinate, offset
+                        continue
+                    end
+                    % branch_id
+                    [eBrNr, status] = qp_netcdf_get(FI,FI.Dataset(i_eBrNr));
+                    if any(eBrNr<0)
+                        ui_message('warning','Invalid %s data: negative branch ids encountered. Ignoring this data.',FI.Dataset(i_eBrNr).Name)
+                        eBrNr = [];
+                    end
+                    break
+                end
+                si = strmatch('start_index',{FI.Dataset(i_eBrNr).Attribute.Name});
+                if ~isempty(si)
+                    start_index = FI.Dataset(i_eBrNr).Attribute(si).Value;
+                else
+                    start_index = 0;
+                end
+                eBrNr = eBrNr-start_index+1;
+            else
+                eBrNr = [];
+            end
+            if isempty(eBrNr)
+                % TODO: create networknode(i)
+                % networknode(i) = N if mesh node i coincides with network node N
+                % networknode(i) = -1 if mesh node i does not coincide with a network node
+                networknode = -ones(size(Ans.X));
+                networknode(Ans.Y==0 | Ans.Y==BrL(Ans.X)) = 1;
+                %
+                % reconstruct mesh_edge branch affinity
+                eBrNr = Ans.X(e2n);
+                for i = 1:size(eBrNr,1)
+                    n1 = networknode(e2n(i,1));
+                    if n1<0
+                        % start node isn't a network node, so edge must
+                        % be on same branch.
+                        % eBrNr(i,1) is correct.
+                        continue
+                    end
+                    n2 = networknode(e2n(i,2));
+                    if n2<0
+                        % end node isn't a network node, so edge must
+                        % be on same branch.
+                        eBrNr(i,1) = eBrNr(i,2);
+                        continue
+                    end
+                    % both start and end node of edge match a network node.
+                    % identify the branches between the network nodes.
+                    %
+                    if 1
+                        % if one branch, select that one.
+                        1
+                    else
+                        % if multiple branches, select one and give warning.
+                        2
+                    end
+                end
+                eBrNr = eBrNr(:,1);
+            end
+            %
+            if ischar(xUnit)
+                Ans.XUnits = xUnit;
+                Ans.YUnits = xUnit;
+            end
+            [Ans.X,Ans.Y,Ans.EdgeGeometry.X,Ans.EdgeGeometry.Y] = branch2xy(BrX,BrY,xUnit,BrL,Ans.X,Ans.Y,eBrNr,e2n);
         end
         %
         if isempty(meshInfo.Attribute)
@@ -365,6 +538,12 @@ if XYRead || XYneeded
                 ui_message('error','Face_node_connectivity not found!')
             else
                 [Ans.FaceNodeConnect, status] = qp_netcdf_get(FI,meshInfo.Attribute(connect).Value);
+                nNodes = sum(~isnan(Ans.FaceNodeConnect),2);
+                min_nNodes = min(nNodes);
+                if min_nNodes<3
+                    nError = sum(nNodes==min_nNodes);
+                    error('%i faces found with %i nodes. Number of nodes per face should be at least 3.',nError,min_nNodes)
+                end
                 if isempty(FI.Dataset(iconnect).Attribute)
                     istart = [];
                 else
@@ -394,18 +573,21 @@ if XYRead || XYneeded
             end
         end
         %
-        Ans.ValLocation = Props.Geom(7:end);
+        Ans.ValLocation = Props.Geom(max(strfind(Props.Geom,'-'))+1:end);
         connect = strmatch('edge_node_connectivity',meshAttribs,'exact');
+        iconnect = [];
         if strcmp(Ans.ValLocation,'EDGE') || ~isfield(Ans,'FaceNodeConnect') || (~DataRead && ~isempty(connect))
             % "~DataRead" is a hack to load EdgeNodeConnect if available for use in GridView
             iconnect = strmatch(meshInfo.Attribute(connect).Value,{FI.Dataset.Name},'exact');
             if isempty(iconnect)
-                error('Edge_node_connectivity not found!')
+                ui_message('warning','EDGE-NODE connectivity variable %s not found! Using empty set.',meshInfo.Attribute(connect).Value)
+                Ans.EdgeNodeConnect = zeros(0,2);
+            else
+                [Ans.EdgeNodeConnect, status] = qp_netcdf_get(FI,meshInfo.Attribute(connect).Value);
+                Ans.EdgeNodeConnect(Ans.EdgeNodeConnect<0) = NaN;
             end
-            [Ans.EdgeNodeConnect, status] = qp_netcdf_get(FI,meshInfo.Attribute(connect).Value);
-            Ans.EdgeNodeConnect(Ans.EdgeNodeConnect<0) = NaN;
         end
-        if isfield(Ans,'EdgeNodeConnect')
+        if isfield(Ans,'EdgeNodeConnect') && ~isempty(iconnect)
             if isempty(FI.Dataset(iconnect).Attribute)
                 istart = [];
             else
@@ -426,6 +608,15 @@ if XYRead || XYneeded
             Ans.EdgeNodeConnect = Ans.EdgeNodeConnect - start + 1;
             Ans.EdgeNodeConnect(Ans.EdgeNodeConnect<1) = NaN;
         end
+        if mesh_settings{2}==1 % also: if strncmp(Props.Geom,'UGRID1D',7)
+            aEG = strcmp({meshInfo.Attribute.Name},'edge_geometry');
+            if any(aEG)
+                % get edge geometry
+                [BrX,BrY,xUnit] = get_edge_geometry(FI,msh);
+                Ans.EdgeGeometry.X = BrX;
+                Ans.EdgeGeometry.Y = BrY;
+            end
+        end     
         %
         switch Ans.ValLocation
             case 'NODE'
@@ -445,12 +636,25 @@ if XYRead || XYneeded
                 %end
             case 'EDGE'
                 Ans.EdgeNodeConnect = Ans.EdgeNodeConnect(idx{M_},:);
+                if isfield(Ans,'Edge')
+                    Ans.EdgeGeometry.X = Ans.EdgeGeometry.X(idx{M_});
+                    Ans.EdgeGeometry.Y = Ans.EdgeGeometry.Y(idx{M_});
+                end
             case 'FACE'
                 Ans.FaceNodeConnect = Ans.FaceNodeConnect(idx{M_},:);
         end
         %
         %[Ans.XFace, status] = qp_netcdf_get(FI,'mesh2d_face_x');
         %[Ans.YFace, status] = qp_netcdf_get(FI,'mesh2d_face_y');
+    elseif strcmp(Info.Type,'simple_geometry')
+        gt = ustrcmpi('geometry_type',Attribs);
+        switch Info.Attribute(gt).Value
+            case {'multiline'}
+                Ans.X = qp_netcdf_get(FI,FI.Dataset(Info.X));
+                Ans.Y = qp_netcdf_get(FI,FI.Dataset(Info.Y));
+            otherwise
+                error('Simple geometry type "%s" not yet implemented.',Info.Attribute(gt).Value)
+        end
     else
         firstbound = 1;
         for iCoord = 1:length(coordname)
@@ -609,8 +813,17 @@ if XYRead || XYneeded
     end
     %
     if ~isempty(Info.Z) && Props.hasCoords
+        vCoordExtended = false;
         vdimid = Info.Z;
         CoordInfo = FI.Dataset(vdimid);
+        if ~isempty(strfind(CoordInfo.Name,'_layer_'))
+            iName  = strrep(CoordInfo.Name,'_layer_','_interface_');
+            iDimid = ustrcmpi(iName,{FI.Dataset.Name});
+            CoordInfo = FI.Dataset(iDimid);
+            idx{K_} = unique([idx{K_} idx{K_}+1]);
+            Props.DimName{K_} = CoordInfo.Dimension{1};
+            vCoordExtended = true;
+        end
         %
         if isempty(CoordInfo.Attribute)
             Attribs = {};
@@ -631,6 +844,10 @@ if XYRead || XYneeded
                 end
             end
             FormulaTerms = reshape(FormulaTerms,2,length(FormulaTerms)/2)';
+            FTerror = sprintf('Empty attribute ''formula_terms'' on vertical coordinate variable ''%s''.',CoordInfo.Name);
+        else
+            FormulaTerms = cell(0,2);
+            FTerror = sprintf('Missing attribute ''formula_terms'' on vertical coordinate variable ''%s''.',CoordInfo.Name);
         end
         %
         j=strmatch('positive',Attribs,'exact');
@@ -648,129 +865,232 @@ if XYRead || XYneeded
             signup = 1;
         end
         j=strmatch('standard_name',Attribs,'exact');
+        zLocVar = '';
+        zUnitVar = '';
         try
             if ~isempty(j)
                 standard_name = CoordInfo.Attribute(j).Value;
+                if isnan(Info.TSMNK(N_))
+                    HDIMS = {':'};
+                    hdims = 2;
+                else
+                    HDIMS = {':',':'};
+                    hdims = 2:3;
+                end
                 switch standard_name
-                    case 'atmosphere_sigma_coordinate'
-                        [sigma  , status] = qp_netcdf_get(FI,FormulaTerms{1,2},Props.DimName,idx);
-                        [ps     , status] = qp_netcdf_get(FI,FormulaTerms{2,2},Props.DimName,idx);
-                        [ptop   , status] = qp_netcdf_get(FI,FormulaTerms{3,2},Props.DimName,idx);
+                    case 'atmosphere_ln_pressure_coordinate'
+                        if isempty(FormulaTerms), error(FTerror), end
+                        [p0  , status] = qp_netcdf_get(FI,FormulaTerms{1,2},Props.DimName,idx,getOptions{:});
+                        [lev , status] = qp_netcdf_get(FI,FormulaTerms{2,2},Props.DimName,idx,getOptions{:});
+                        zUnitVar = FormulaTerms{1,2}; % p0
+                        %
                         Z = zeros(szData);
                         for t=1:size(Z,1)
+                            for k=1:length(lev)
+                                Z(t,HDIMS{:},k) = p0 * exp(-lev(k));
+                            end
+                        end
+                    case 'atmosphere_sigma_coordinate'
+                        if isempty(FormulaTerms), error(FTerror), end
+                        [sigma  , status] = qp_netcdf_get(FI,FormulaTerms{1,2},Props.DimName,idx,getOptions{:});
+                        [ps     , status] = qp_netcdf_get(FI,FormulaTerms{2,2},Props.DimName,idx,getOptions{:});
+                        [ptop   , status] = qp_netcdf_get(FI,FormulaTerms{3,2},Props.DimName,idx,getOptions{:});
+                        zUnitVar = FormulaTerms{2,2}; % ps
+                        zLocVar  = FormulaTerms{2,2}; % ps
+                        szZData  = updateSize(szData,size(ps),hdims);
+                        %
+                        Z = zeros(szZData);
+                        for t=1:size(Z,1)
                             for k=1:length(sigma)
-                                Z(t,:,:,k) = ptop+sigma(k)*(ps(t,:,:)-ptop);
+                                Z(t,HDIMS{:},k) = ptop+sigma(k)*(ps(t,HDIMS{:})-ptop);
                             end
                         end
                     case 'atmosphere_hybrid_sigma_pressure_coordinate'
+                        if isempty(FormulaTerms), error(FTerror), end
                         if isequal(FormulaTerms{1,1},'a:')
-                            [a      , status] = qp_netcdf_get(FI,FormulaTerms{1,2},Props.DimName,idx);
-                            [b      , status] = qp_netcdf_get(FI,FormulaTerms{2,2},Props.DimName,idx);
-                            [ps     , status] = qp_netcdf_get(FI,FormulaTerms{3,2},Props.DimName,idx);
-                            [p0     , status] = qp_netcdf_get(FI,FormulaTerms{4,2},Props.DimName,idx);
-                            Z = zeros(szData);
+                            [a      , status] = qp_netcdf_get(FI,FormulaTerms{1,2},Props.DimName,idx,getOptions{:});
+                            [b      , status] = qp_netcdf_get(FI,FormulaTerms{2,2},Props.DimName,idx,getOptions{:});
+                            [ps     , status] = qp_netcdf_get(FI,FormulaTerms{3,2},Props.DimName,idx,getOptions{:});
+                            [p0     , status] = qp_netcdf_get(FI,FormulaTerms{4,2},Props.DimName,idx,getOptions{:});
+                            zUnitVar = FormulaTerms{3,2}; % ps
+                            zLocVar  = FormulaTerms{3,2}; % ps
+                            szZData  = updateSize(szData,size(ps),hdims);
+                            %
+                            Z = zeros(szZData);
                             for t=1:size(Z,1)
                                 for k=1:length(a)
-                                    Z(t,:,:,k) = a(k)*p0+b(k)*ps(t,:,:);
+                                    Z(t,HDIMS{:},k) = a(k)*p0+b(k)*ps(t,HDIMS{:});
                                 end
                             end
                         else
-                            [ap     , status] = qp_netcdf_get(FI,FormulaTerms{1,2},Props.DimName,idx);
-                            [b      , status] = qp_netcdf_get(FI,FormulaTerms{2,2},Props.DimName,idx);
-                            [ps     , status] = qp_netcdf_get(FI,FormulaTerms{3,2},Props.DimName,idx);
-                            Z = zeros(szData);
+                            [ap     , status] = qp_netcdf_get(FI,FormulaTerms{1,2},Props.DimName,idx,getOptions{:});
+                            [b      , status] = qp_netcdf_get(FI,FormulaTerms{2,2},Props.DimName,idx,getOptions{:});
+                            [ps     , status] = qp_netcdf_get(FI,FormulaTerms{3,2},Props.DimName,idx,getOptions{:});
+                            zUnitVar = FormulaTerms{3,2}; % ps
+                            zLocVar  = FormulaTerms{3,2}; % ps
+                            szZData  = updateSize(szData,size(ps),hdims);
+                            %
+                            Z = zeros(szZData);
                             for t=1:size(Z,1)
                                 for k=1:length(ap)
-                                    Z(t,:,:,k) = ap(k)+b(k)*ps(t,:,:);
+                                    Z(t,HDIMS{:},k) = ap(k)+b(k)*ps(t,HDIMS{:});
                                 end
                             end
                         end
                     case 'atmosphere_hybrid_height_coordinate'
-                        [tau     , status] = qp_netcdf_get(FI,FormulaTerms{1,2},Props.DimName,idx);
-                        [eta     , status] = qp_netcdf_get(FI,FormulaTerms{2,2},Props.DimName,idx);
-                        [ztop    , status] = qp_netcdf_get(FI,FormulaTerms{3,2},Props.DimName,idx);
-                        [zsurface, status] = qp_netcdf_get(FI,FormulaTerms{4,2},Props.DimName,idx);
-                        Z = zeros(szData);
+                        if isempty(FormulaTerms), error(FTerror), end
+                        [a     , status] = qp_netcdf_get(FI,FormulaTerms{1,2},Props.DimName,idx,getOptions{:});
+                        [b     , status] = qp_netcdf_get(FI,FormulaTerms{2,2},Props.DimName,idx,getOptions{:});
+                        [orog  , status] = qp_netcdf_get(FI,FormulaTerms{3,2},Props.DimName,idx,getOptions{:});
+                        zUnitVar = FormulaTerms{1,2}; % a
+                        zLocVar  = FormulaTerms{3,2}; % orog
+                        szZData  = updateSize(szData,size(orog),hdims);
+                        %
+                        Z = zeros(szZData);
                         for t=1:size(Z,1)
-                            for k=1:length(tau)
-                                Z(t,:,:,k) = tau(k)*zsurface(t,:,:)+eta(k)*ztop;
+                            for k=1:length(a)
+                                Z(t,HDIMS{:},k) = a(k) + b(k)*orog(t,HDIMS{:});
                             end
                         end
                     case 'atmosphere_sleve_coordinate'
-                        [a       , status] = qp_netcdf_get(FI,FormulaTerms{1,2},Props.DimName,idx);
-                        [b1      , status] = qp_netcdf_get(FI,FormulaTerms{2,2},Props.DimName,idx);
-                        [b2      , status] = qp_netcdf_get(FI,FormulaTerms{3,2},Props.DimName,idx);
-                        [ztop    , status] = qp_netcdf_get(FI,FormulaTerms{4,2},Props.DimName,idx);
-                        [zsurf1  , status] = qp_netcdf_get(FI,FormulaTerms{5,2},Props.DimName,idx);
-                        [zsurf2  , status] = qp_netcdf_get(FI,FormulaTerms{6,2},Props.DimName,idx);
-                        Z = zeros(szData);
+                        if isempty(FormulaTerms), error(FTerror), end
+                        [a       , status] = qp_netcdf_get(FI,FormulaTerms{1,2},Props.DimName,idx,getOptions{:});
+                        [b1      , status] = qp_netcdf_get(FI,FormulaTerms{2,2},Props.DimName,idx,getOptions{:});
+                        [b2      , status] = qp_netcdf_get(FI,FormulaTerms{3,2},Props.DimName,idx,getOptions{:});
+                        [ztop    , status] = qp_netcdf_get(FI,FormulaTerms{4,2},Props.DimName,idx,getOptions{:});
+                        [zsurf1  , status] = qp_netcdf_get(FI,FormulaTerms{5,2},Props.DimName,idx,getOptions{:});
+                        [zsurf2  , status] = qp_netcdf_get(FI,FormulaTerms{6,2},Props.DimName,idx,getOptions{:});
+                        zUnitVar = FormulaTerms{4,2}; % ztop
+                        zLocVar  = FormulaTerms{5,2}; % zsurf1
+                        szZData  = updateSize(szData,size(zsurf1),hdims);
+                        %
+                        Z = zeros(szZData);
                         for t=1:size(Z,1)
                             for k=1:length(a)
-                                Z(t,:,:,k) = a(k)*ztop+b1(k)*zsurf1(t,:,:)+b2(k)*zsurf2(t,:,:);
+                                Z(t,HDIMS{:},k) = a(k)*ztop+b1(k)*zsurf1(t,HDIMS{:})+b2(k)*zsurf2(t,HDIMS{:});
                             end
                         end
                     case 'ocean_sigma_coordinate'
-                        [sigma  , status] = qp_netcdf_get(FI,FormulaTerms{1,2},Props.DimName,idx);
-                        [eta    , status] = qp_netcdf_get(FI,FormulaTerms{2,2},Props.DimName,idx);
-                        [depth  , status] = qp_netcdf_get(FI,FormulaTerms{3,2},Props.DimName,idx);
-                        if strcmp(FormulaTerms{3,1},'bedlevel:') % hack for D-Flow FM
+                        if isempty(FormulaTerms), error(FTerror), end
+                        [sigma  , status] = qp_netcdf_get(FI,FormulaTerms{1,2},Props.DimName,idx,getOptions{:});
+                        [eta    , status] = qp_netcdf_get(FI,FormulaTerms{2,2},Props.DimName,idx,getOptions{:});
+                        [depth  , status] = qp_netcdf_get(FI,FormulaTerms{3,2},Props.DimName,idx,getOptions{:});
+                        zUnitVar = FormulaTerms{2,2}; % eta
+                        zLocVar  = FormulaTerms{2,2}; % eta
+                        szZData  = updateSize(szData,size(eta),hdims);
+                        %
+                        % some hacks for D-Flow FM
+                        if strcmp(FormulaTerms{3,1},'bedlevel:')
                             depth = -depth;
+                        elseif length(FormulaTerms{3,2})>10 && strcmp(FormulaTerms{3,2}(end-9:end),'waterdepth')
+                            depth = depth-eta;
                         end
-                        Z = zeros(szData);
+                        Z = zeros(szZData);
                         for t=1:size(Z,1)
                             for k=1:length(sigma)
-                                Z(t,:,:,k) = eta(t,:,:)+(depth+eta(t,:,:))*sigma(k);
+                                Z(t,HDIMS{:},k) = eta(t,HDIMS{:})+(depth+eta(t,HDIMS{:}))*sigma(k);
                             end
                         end
                     case 'ocean_s_coordinate'
-                        [s      , status] = qp_netcdf_get(FI,FormulaTerms{1,2},Props.DimName,idx);
-                        [eta    , status] = qp_netcdf_get(FI,FormulaTerms{2,2},Props.DimName,idx);
-                        [depth  , status] = qp_netcdf_get(FI,FormulaTerms{3,2},Props.DimName,idx);
-                        [a      , status] = qp_netcdf_get(FI,FormulaTerms{4,2},Props.DimName,idx);
-                        [b      , status] = qp_netcdf_get(FI,FormulaTerms{5,2},Props.DimName,idx);
-                        [depth_c, status] = qp_netcdf_get(FI,FormulaTerms{6,2},Props.DimName,idx);
+                        if isempty(FormulaTerms), error(FTerror), end
+                        [s      , status] = qp_netcdf_get(FI,FormulaTerms{1,2},Props.DimName,idx,getOptions{:});
+                        [eta    , status] = qp_netcdf_get(FI,FormulaTerms{2,2},Props.DimName,idx,getOptions{:});
+                        [depth  , status] = qp_netcdf_get(FI,FormulaTerms{3,2},Props.DimName,idx,getOptions{:});
+                        [a      , status] = qp_netcdf_get(FI,FormulaTerms{4,2},Props.DimName,idx,getOptions{:});
+                        [b      , status] = qp_netcdf_get(FI,FormulaTerms{5,2},Props.DimName,idx,getOptions{:});
+                        [depth_c, status] = qp_netcdf_get(FI,FormulaTerms{6,2},Props.DimName,idx,getOptions{:});
+                        zUnitVar = FormulaTerms{2,2}; % eta
+                        zLocVar  = FormulaTerms{2,2}; % eta
+                        szZData  = updateSize(szData,size(eta),hdims);
+                        %
                         C = (1-b)*sinh(a*s)/sinh(a) + b*(tanh(a*(s+0.5))/(2*tanh(0.5*a))-0.5);
-                        Z = zeros(szData);
+                        Z = zeros(szZData);
                         for t=1:size(Z,1)
                             for k=1:length(s)
-                                Z(t,:,:,k) = eta(t,:,:)*(1+s(k))+depth_c*s(k)+(depth-depth_c)*C(k);
+                                Z(t,HDIMS{:},k) = eta(t,HDIMS{:})*(1+s(k))+depth_c*s(k)+(depth-depth_c)*C(k);
+                            end
+                        end
+                    case 'ocean_s_coordinate_g1'
+                        if isempty(FormulaTerms), error(FTerror), end
+                        [s      , status] = qp_netcdf_get(FI,FormulaTerms{1,2},Props.DimName,idx,getOptions{:});
+                        [C      , status] = qp_netcdf_get(FI,FormulaTerms{2,2},Props.DimName,idx,getOptions{:});
+                        [eta    , status] = qp_netcdf_get(FI,FormulaTerms{3,2},Props.DimName,idx,getOptions{:});
+                        [depth  , status] = qp_netcdf_get(FI,FormulaTerms{4,2},Props.DimName,idx,getOptions{:});
+                        [depth_c, status] = qp_netcdf_get(FI,FormulaTerms{5,2},Props.DimName,idx,getOptions{:});
+                        zUnitVar = FormulaTerms{3,2}; % eta
+                        zLocVar  = FormulaTerms{3,2}; % eta
+                        szZData  = updateSize(szData,size(eta),hdims);
+                        %
+                        Z = zeros(szZData);
+                        for t=1:size(Z,1)
+                            for k=1:length(s)
+                                S = depth_c*s(k) + (depth - depth_c)*C(k);
+                                Z(t,HDIMS{:},k) = S + eta(t,HDIMS{:})*(1+S./depth);
+                            end
+                        end
+                    case 'ocean_s_coordinate_g2'
+                        if isempty(FormulaTerms), error(FTerror), end
+                        [s      , status] = qp_netcdf_get(FI,FormulaTerms{1,2},Props.DimName,idx,getOptions{:});
+                        [C      , status] = qp_netcdf_get(FI,FormulaTerms{2,2},Props.DimName,idx,getOptions{:});
+                        [eta    , status] = qp_netcdf_get(FI,FormulaTerms{3,2},Props.DimName,idx,getOptions{:});
+                        [depth  , status] = qp_netcdf_get(FI,FormulaTerms{4,2},Props.DimName,idx,getOptions{:});
+                        [depth_c, status] = qp_netcdf_get(FI,FormulaTerms{5,2},Props.DimName,idx,getOptions{:});
+                        zUnitVar = FormulaTerms{3,2}; % eta
+                        zLocVar  = FormulaTerms{3,2}; % eta
+                        szZData  = updateSize(szData,size(eta),hdims);
+                        %
+                        Z = zeros(szZData);
+                        for t=1:size(Z,1)
+                            for k=1:length(s)
+                                S = (depth_c*s(k) + depth*C(k))./(depth_c + depth);
+                                Z(t,HDIMS{:},k) = eta(t,HDIMS{:}) + (eta(t,HDIMS{:}) + depth).*S;
                             end
                         end
                     case 'ocean_sigma_z_coordinate'
-                        [sigma  , status] = qp_netcdf_get(FI,FormulaTerms{1,2},Props.DimName,idx);
-                        [eta    , status] = qp_netcdf_get(FI,FormulaTerms{2,2},Props.DimName,idx);
-                        [depth  , status] = qp_netcdf_get(FI,FormulaTerms{3,2},Props.DimName,idx);
-                        [depth_c, status] = qp_netcdf_get(FI,FormulaTerms{4,2},Props.DimName,idx);
-                        [nsigma , status] = qp_netcdf_get(FI,FormulaTerms{5,2},Props.DimName,idx);
-                        [zlev   , status] = qp_netcdf_get(FI,FormulaTerms{6,2},Props.DimName,idx);
+                        if isempty(FormulaTerms), error(FTerror), end
+                        [sigma  , status] = qp_netcdf_get(FI,FormulaTerms{1,2},Props.DimName,idx,getOptions{:});
+                        [eta    , status] = qp_netcdf_get(FI,FormulaTerms{2,2},Props.DimName,idx,getOptions{:});
+                        [depth  , status] = qp_netcdf_get(FI,FormulaTerms{3,2},Props.DimName,idx,getOptions{:});
+                        [depth_c, status] = qp_netcdf_get(FI,FormulaTerms{4,2},Props.DimName,idx,getOptions{:});
+                        [nsigma , status] = qp_netcdf_get(FI,FormulaTerms{5,2},Props.DimName,idx,getOptions{:});
+                        [zlev   , status] = qp_netcdf_get(FI,FormulaTerms{6,2},Props.DimName,idx,getOptions{:});
+                        zUnitVar = FormulaTerms{2,2}; % eta
+                        zLocVar  = FormulaTerms{2,2}; % eta
+                        szZData  = updateSize(szData,size(eta),hdims);
+                        %
                         K=idx{K_};
-                        Z = zeros(szData);
+                        Z = zeros(szZData);
                         for t=1:size(Z,1)
-                            for k=1:length(s)
+                            for k=1:length(sigma)
                                 if K(k)<=nsigma
-                                    Z(t,:,:,k) = eta(t,:,:) + sigma(k)*(min(depth_c,depth)+eta(t,:,:));
+                                    Z(t,HDIMS{:},k) = eta(t,HDIMS{:}) + sigma(k)*(min(depth_c,depth)+eta(t,HDIMS{:}));
                                 else
-                                    Z(t,:,:,k) = zlev(k);
+                                    Z(t,HDIMS{:},k) = zlev(k);
                                 end
                             end
                         end
                     case 'ocean_double_sigma_coordinate'
-                        [sigma  , status] = qp_netcdf_get(FI,FormulaTerms{1,2},Props.DimName,idx);
-                        [depth  , status] = qp_netcdf_get(FI,FormulaTerms{2,2},Props.DimName,idx);
-                        [z1     , status] = qp_netcdf_get(FI,FormulaTerms{3,2},Props.DimName,idx);
-                        [z2     , status] = qp_netcdf_get(FI,FormulaTerms{4,2},Props.DimName,idx);
-                        [a      , status] = qp_netcdf_get(FI,FormulaTerms{5,2},Props.DimName,idx);
-                        [href   , status] = qp_netcdf_get(FI,FormulaTerms{6,2},Props.DimName,idx);
-                        [k_c    , status] = qp_netcdf_get(FI,FormulaTerms{7,2},Props.DimName,idx);
+                        if isempty(FormulaTerms), error(FTerror), end
+                        [sigma  , status] = qp_netcdf_get(FI,FormulaTerms{1,2},Props.DimName,idx,getOptions{:});
+                        [depth  , status] = qp_netcdf_get(FI,FormulaTerms{2,2},Props.DimName,idx,getOptions{:});
+                        [z1     , status] = qp_netcdf_get(FI,FormulaTerms{3,2},Props.DimName,idx,getOptions{:});
+                        [z2     , status] = qp_netcdf_get(FI,FormulaTerms{4,2},Props.DimName,idx,getOptions{:});
+                        [a      , status] = qp_netcdf_get(FI,FormulaTerms{5,2},Props.DimName,idx,getOptions{:});
+                        [href   , status] = qp_netcdf_get(FI,FormulaTerms{6,2},Props.DimName,idx,getOptions{:});
+                        [k_c    , status] = qp_netcdf_get(FI,FormulaTerms{7,2},Props.DimName,idx,getOptions{:});
+                        zUnitVar = FormulaTerms{3,2}; % z1
+                        zLocVar  = FormulaTerms{2,2}; % depth
+                        szZData  = updateSize(szData,size(depth),hdims);
+                        %
                         K=idx{K_};
-                        Z = zeros(szData);
+                        Z = zeros(szZData);
                         for t=1:size(Z,1)
-                            for k=1:length(s)
+                            for k=1:length(sigma)
                                 f = 0.5*(z1+z2) + 0.5*(z1-z2)*tanh(2*a/(z1-z2)*(depth-href));
                                 if K(k)<=k_c
-                                    Z(t,:,:,k) = sigma(k)*f;
+                                    Z(t,HDIMS{:},k) = sigma(k)*f;
                                 else
-                                    Z(t,:,:,k) = f + (sigma(k)-1)*(depth-f);
+                                    Z(t,HDIMS{:},k) = f + (sigma(k)-1)*(depth-f);
                                 end
                             end
                         end
@@ -779,10 +1099,59 @@ if XYRead || XYneeded
                             ui_message('warning','Formula for %s not implemented',standard_name)
                         end
                         [Z, status] = qp_netcdf_get(FI,CoordInfo,Props.DimName,idx);
+                        nZ = length(Z);
                         if signup<0
                             Z=-Z;
                         end
-                        Z = expand_hdim(Z,szData,hdim);
+                        %
+                        % hack for z-layers in FM
+                        %
+                        us = strfind(CoordInfo.Name,'_');
+                        if ~isempty(us)
+                            waterlevel = [CoordInfo.Name(1:us(1)) 's1'];
+                            izw = strmatch(waterlevel,{FI.Dataset.Name});
+                            %
+                            zb_t_dependent = true;
+                            bedlevel   = [CoordInfo.Name(1:us(1)) 'mor_bl'];
+                            izb = strmatch(bedlevel,{FI.Dataset.Name});
+                            if isempty(izb)
+                                zb_t_dependent = false;
+                                bedlevel   = [CoordInfo.Name(1:us(1)) 'flowelem_bl'];
+                                izb = strmatch(bedlevel,{FI.Dataset.Name});
+                            end
+                            %
+                            if ~isempty(izw) && ~isempty(izb)
+                                [zw, status] = qp_netcdf_get(FI,FI.Dataset(izw),Props.DimName,idx,getOptions{:});
+                                %
+                                szZwData = size(zw);
+                                szZData = szData;
+                                szZData(hdims) = szZwData(hdims);
+                                Z = expand_hdim(Z,szZData,hdim);
+                                %
+                                for k=1:nZ
+                                    Z(:,HDIMS{:},k) = min(Z(:,HDIMS{:},k),zw);
+                                end
+                                %
+                                [zb, status] = qp_netcdf_get(FI,FI.Dataset(izb),Props.DimName,idx,getOptions{:});
+                                if zb_t_dependent
+                                    for k=1:nZ
+                                        Z(:,HDIMS{:},k) = max(Z(:,HDIMS{:},k),zb);
+                                    end
+                                else
+                                    for t=1:size(Z,1)
+                                        for k=1:nZ
+                                            Z(t,HDIMS{:},k) = max(Z(t,HDIMS{:},k),zb(1,HDIMS{:}));
+                                        end
+                                    end
+                                end
+                                %
+                                zLocVar = waterlevel;
+                            else
+                                Z = expand_hdim(Z,szData,hdim);
+                            end
+                        else
+                            Z = expand_hdim(Z,szData,hdim);
+                        end
                 end
             else
                 [Z, status] = qp_netcdf_get(FI,CoordInfo,Props.DimName,idx);
@@ -792,14 +1161,44 @@ if XYRead || XYneeded
                 Z = expand_hdim(Z,szData,hdim);
             end
         catch Ex
-            qp_error('Retrieving vertical coordinate failed, continuing with layer index as vertical coordinate',Ex,'netcdffil')
-            szData = [szData 1 1];
-            Z = repmat(reshape(idx{K_},[1 1 1 length(idx{K_})]),szData(1:3));
+            qp_error({'Retrieving vertical coordinate failed, continuing with layer index as vertical coordinate.','The error message encountered reads:'},Ex,'netcdffil')
+            kDim = length(szData);
+            kVec = ones(1,kDim);
+            kVec(kDim) = length(idx{K_});
+            if vCoordExtended
+                Z = repmat(reshape(idx{K_},kVec)-0.5,szData(1:kDim-1));
+            else
+                Z = repmat(reshape(idx{K_},kVec),szData(1:kDim-1));
+            end
         end
         %
-        j = strmatch('units',Attribs,'exact');
-        if ~isempty(j)
-            Ans.ZUnits = CoordInfo.Attribute(j).Value;
+        if ~isempty(zLocVar)
+            zLocVar = strmatch(zLocVar,{FI.Dataset.Name},'exact')-1;
+            Info = FI.Dataset(zLocVar+1);
+            if iscell(Info.Mesh)
+                switch Info.Mesh{4}
+                    case 0
+                        Ans.ZLocation = 'NODE';
+                    case 1
+                        Ans.ZLocation = 'EDGE';
+                    case 2
+                        Ans.ZLocation = 'FACE';
+                end
+            end
+        elseif isfield(Ans,'ValLocation')
+            Ans.ZLocation = Ans.ValLocation;
+        end
+        %
+        if ~isempty(zUnitVar)
+            zUnitVar = strmatch(zUnitVar,{FI.Dataset.Name},'exact')-1;
+            Info = FI.Dataset(zUnitVar+1);
+            zUnitAtt = strmatch('units',{Info.Attribute.Name},'exact');
+            Ans.ZUnits = Info.Attribute(zUnitAtt).Value;
+        else
+            j = strmatch('units',Attribs,'exact');
+            if ~isempty(j)
+                Ans.ZUnits = CoordInfo.Attribute(j).Value;
+            end
         end
         %--------------------------------------------------------------------
         %
@@ -811,8 +1210,12 @@ if XYRead || XYneeded
         Ans.Z = Z;
         %
         if isfield(Ans,'X')
-            % z coordinates may be defined at value locations or grid
-            % locations. Be careful when trying to synchronize dimensions!
+            % z coordinates may be defined at ...
+            % * value locations (e.g. z and values in faces),
+            % * grid locations (e.g. z at nodes), or
+            % * other location (e.g. z in faces, values at edges).
+            % Be careful when trying to synchronize dimensions!
+            %
             szZ = size(Z);
             if isfield(Ans,'Val')
                 szV = size(Ans.Val);
@@ -823,28 +1226,20 @@ if XYRead || XYneeded
             end
             if ~isequal(szZ,szV)
                 if npolpnt>0 && prod(szZ)*npolpnt==szV(1)
+                    % polygons
                     Z = repmat(Z(:)',npolpnt,1);
                     Ans.Z = Z(:);
-                else
-                    % dimensions of Z that don't match the corresponding
-                    % dimension of the values, should be adjusted to match the
-                    % dimension of X.
-                    mismatch = szZ~=szV;
-                    szX = ones(size(szZ));
-                    szX(1:ndims(Ans.X)) = size(Ans.X);
-                    szX(~mismatch)=1;
-                    szZ(~mismatch)=1;
-                    if all(szZ==szX)
-                        % nothing to do
-                    elseif all(szZ>=szX)
-                        rep = szZ./szX;
+                elseif length(idx{K_})>1
+                    % The last dimension of Z is the vertical dimension
+                    zdim = ndims(Z);
+                    kZ = szZ(zdim);
+                    % That dimensions of X/Y should be one.
+                    kX = size(Ans.X,kZ);
+                    if kX==1
+                        rep = ones(1,zdim);
+                        rep(zdim) = kZ;
                         Ans.X = repmat(Ans.X,rep);
                         Ans.Y = repmat(Ans.Y,rep);
-                    elseif all(szX>=szZ)
-                        rep = szX./szZ;
-                        Ans.Z = repmat(Ans.Z,rep);
-                    else
-                        ui_message('error','Complex X/Z resize not yet implemented!')
                     end
                 end
             end
@@ -1059,8 +1454,12 @@ else
         %
         Insert.NVal = 1;
         Insert.DimName = cell(1,5);
-        if strcmp(Info.Datatype,'char')
+        if strcmp(Info.Type,'simple_geometry')
+            Insert.NVal = 0;
+        elseif strcmp(Info.Datatype,'char')
             Insert.NVal = 4;
+        elseif any(strcmp('flag_values',Attribs))
+            Insert.NVal = 6;
         end
         %
         % Link to dimension variables
@@ -1091,25 +1490,36 @@ else
         %
         if ~isempty(Info.Mesh)
             nmesh = nmesh+1;
-            Insert.Geom = 'UGRID';
+            switch Info.Mesh{1}
+                case 'ugrid'
+                    tpd = Info.Mesh{2};
+                    if tpd<0
+                        Insert.Geom = 'UGRID-CONTACT';
+                    else
+                        Insert.Geom = sprintf('UGRID%iD',tpd);
+                    end
+                otherwise
+                    Insert.Geom = upper(Info.Mesh{1});
+            end
             Insert.Coords = 'xy';
             Insert.hasCoords=1;
-            switch Info.Mesh{3}
+            BaseGeom = Insert.Geom;
+            switch Info.Mesh{4}
                 case -1 % the mesh itself
-                    Insert.Geom = 'UGRID-NODE';
+                    Insert.Geom = [Insert.Geom '-NODE'];
                     Insert.DimFlag(3) = 6;
                 case 0 % node
-                    Insert.Geom = 'UGRID-NODE';
+                    Insert.Geom = [Insert.Geom '-NODE'];
                     Insert.DimFlag(3) = 6;
                 case 1 % edge
-                    Insert.Geom = 'UGRID-EDGE';
+                    Insert.Geom = [Insert.Geom '-EDGE'];
                     Insert.DimFlag(3) = 6;
                 case 2 % face
-                    Insert.Geom = 'UGRID-FACE';
+                    Insert.Geom = [Insert.Geom '-FACE'];
                     Insert.DimFlag(3) = 6;
                     Insert.DataInCell = 1;
                 case 3 % volume
-                    Insert.Geom = 'UGRID-VOLUME';
+                    Insert.Geom = [Insert.Geom '-VOLUME'];
                     Insert.DimFlag(3) = 6;
                     Insert.DataInCell = 1;
             end
@@ -1147,13 +1557,13 @@ else
         %
         Insert.varid = Info.Varid;
         %
-        if ~isempty(Info.Mesh) && isequal(Info.Mesh{3},-1)
+        if ~isempty(Info.Mesh) && isequal(Info.Mesh{4},-1)
             Insert.varid = {'node_index' Insert.varid};
         end
         %
         Out(end+1)=Insert;
         %
-        if ~isempty(Info.Mesh) && isequal(Info.Mesh{3},-1)
+        if ~isempty(Info.Mesh) && isequal(Info.Mesh{4},-1)
             Nm = Insert.Name;
             %
             Insert.Name = [Nm ' - node indices'];
@@ -1161,28 +1571,45 @@ else
             Insert.varid{1} = 'node_index';
             Out(end+1) = Insert;
             %
-            if ~isempty(Info.Mesh{5})
+            if ~isempty(Info.Mesh{6})
                 Insert.Name = [Nm ' - edge indices'];
-                Insert.Geom = 'UGRID-EDGE';
+                Insert.Geom = [BaseGeom '-EDGE'];
                 Insert.varid{1} = 'edge_index';
                 Out(end+1) = Insert;
             end
             %
-            if length(Info.Mesh)>=6 && ~isempty(Info.Mesh{6})
+            if length(Info.Mesh)>=7 && ~isempty(Info.Mesh{7})
                 Insert.Name = [Nm ' - face indices'];
-                Insert.Geom = 'UGRID-FACE';
+                Insert.Geom = [BaseGeom '-FACE'];
                 Insert.DataInCell = 1;
                 Insert.varid{1} = 'face_index';
                 Out(end+1) = Insert;
             end
         end
         %
-        if strcmp(standard_name,'discharge') && strcmp(Insert.Geom,'UGRID-EDGE')
+        %if strcmp(standard_name,'discharge') && strncmp(Insert.Name,'Discharge',9) && strcmp(Insert.Geom,'UGRID-EDGE') && Insert.DimFlag(K_)>0
+        %    Insert.Name = ['Depth integrated d' Insert.Name(2:end)];
+        %    Insert.DimFlag(K_)=0;
+        %    %
+        %    Out(end+1)=Insert;
+        %end
+        %
+        if strcmp(standard_name,'discharge') && strcmp(Insert.Geom,'UGRID2D-EDGE') && Insert.DimFlag(K_)==0
             Insert.Name = 'stream function'; % previously: discharge potential
-            Insert.Geom = 'UGRID-NODE';
+            Insert.Geom = 'UGRID2D-NODE';
             Insert.varid = {'stream_function' Insert.varid};
             %
             Out(end+1)=Insert;
+        else
+            switch lower(Insert.Name)
+                case 'time-varying bottom level in flow cell center'
+                    if FI.Dimension(Info.TSMNK(T_)+1).Length>1
+                        Insert.Name = 'cum. erosion/sedimentation';
+                        Insert.varid = {'erosion_sedimentation' Insert.varid};
+                        %
+                        Out(end+1)=Insert;
+                    end
+            end
         end
     end
     Out(1)=[];
@@ -1301,18 +1728,18 @@ Meshes = zeros(0,2);
 for loop = 1:2
     for i = 1:length(Out)
         switch Out(i).Geom
-            case {'UGRID-NODE','UGRID-EDGE','UGRID-FACE'}
+            case {'UGRID1D_NETWORK-NODE','UGRID1D_NETWORK-EDGE','UGRID1D-NODE','UGRID1D-EDGE','UGRID2D-NODE','UGRID2D-EDGE','UGRID2D-FACE'}
                 varid = get_varid(Out(i))+1;
                 thisMesh = FI.Dataset(varid).Mesh;
                 if loop == 1
-                    if thisMesh{3} == -1 && Out(i).NVal == 0
-                        Meshes(end+1,:) = [thisMesh{2} i];
+                    if thisMesh{4} == -1 && Out(i).NVal == 0
+                        Meshes(end+1,:) = [thisMesh{3} i];
                     end
                 else % loop == 2
-                    if thisMesh{3} == -1
+                    if thisMesh{4} == -1
                         Out(i).UseGrid = i;
                     else
-                        j = find(Meshes(:,1) == thisMesh{2});
+                        j = find(Meshes(:,1) == thisMesh{3});
                         Out(i).UseGrid = Meshes(j,2);
                     end
                 end
@@ -1509,21 +1936,26 @@ if iscell(Props.varid)
             Info = FI.Dataset(Props.varid{2}+1);
             sz(1) = FI.Dimension(Info.TSMNK(1)+1).Length;
             % get the x-coordinates variable for the nodes of the mesh
-            XVar = FI.Dataset(Info.Mesh{2}).X;
+            XVar = FI.Dataset(Info.Mesh{3}).X;
             % get the node dimension
             dimNodes = FI.Dataset(XVar).TSMNK(3)+1;
             sz(3) = FI.Dimension(dimNodes).Length;
         case 'node_index'
             Info = FI.Dataset(Props.varid{2}+1);
-            sz(3) = FI.Dimension(strcmp({FI.Dimension.Name},Info.Mesh{4})).Length;
+            if Info.Mesh{2}<0
+                sz(3) = 123;
+            else
+                sz(3) = FI.Dimension(strcmp({FI.Dimension.Name},Info.Mesh{5})).Length;
+            end
         case 'edge_index'
             Info = FI.Dataset(Props.varid{2}+1);
-            sz(3) = FI.Dimension(strcmp({FI.Dimension.Name},Info.Mesh{5})).Length;
+            sz(3) = FI.Dimension(strcmp({FI.Dimension.Name},Info.Mesh{6})).Length;
         case 'face_index'
             Info = FI.Dataset(Props.varid{2}+1);
-            sz(3) = FI.Dimension(strcmp({FI.Dimension.Name},Info.Mesh{6})).Length;
+            sz(3) = FI.Dimension(strcmp({FI.Dimension.Name},Info.Mesh{7})).Length;
         otherwise
-            error('Size function not yet implemented for special case "%s"',Props.varid{1})
+            Props.varid = Props.varid{2};
+            sz = getsize(FI,Props);
     end
 elseif ~isempty(Props.varid)
     for q = 1:length(Props.varid)
@@ -1540,7 +1972,8 @@ end
 % -----------------------------------------------------------------------------
 function Domains=domains(FI)
 if FI.NumDomains > 1
-    Domains = multiline(sprintf('partition %4.4d-',0:FI.NumDomains-1),'-','cell');
+    format = sprintf('%%%d.%dd-',FI.DomainCount.Digits,FI.DomainCount.Digits);
+    Domains = multiline(sprintf(['partition ' format],FI.DomainCount.Offset+(0:FI.NumDomains-1)),'-','cell');
     Domains{end} = 'all partitions';
 else
     Domains = {};
@@ -1558,7 +1991,21 @@ if isempty(tvar)
     T = [];
 else
     tinfo = FI.Dataset(tvar).Info;
-    T = double(nc_varget(FI.Filename,FI.Dataset(tvar).Name));
+    if nargin>2
+        if isequal(t,0)
+            T = nc_varget(FI.Filename,FI.Dataset(tvar).Name);
+        elseif length(t)==1
+            T = nc_varget(FI.Filename,FI.Dataset(tvar).Name,t-1,1);
+        elseif isequal(t,t(1):t(2)-t(1):t(end))
+            T = nc_varget(FI.Filename,FI.Dataset(tvar).Name,t(1)-1,(t(end)-t(1))/(t(2)-t(1))+1,t(2)-t(1));
+        else
+            T = nc_varget(FI.Filename,FI.Dataset(tvar).Name,t(1)-1,t(end)-t(1)+1);
+            T = T(t-t(1)+1);
+        end
+    else
+        T = nc_varget(FI.Filename,FI.Dataset(tvar).Name);
+    end
+    T = double(T);
 end
 if ~isstruct(tinfo) % likely even empty
     % continue with T = T;
@@ -1580,12 +2027,6 @@ elseif ~isempty(tinfo.RefDate)
 else
     T = tinfo.DT * T;
 end
-%if ~isnan(tinfo.TZshift)
-%    T = T - tinfo.TZshift/24;
-%end
-if t~=0
-    T=T(t);
-end
 % -----------------------------------------------------------------------------
 
 
@@ -1593,7 +2034,12 @@ end
 function S=readsts(FI,Props,t)
 %======================== SPECIFIC CODE =======================================
 stcrd = FI.Dataset(get_varid(Props)+1).Station;
-[Stations, status] = qp_netcdf_get(FI,stcrd-1,FI.Dataset(stcrd).Dimension);
+if FI.Dataset(stcrd).CharDim==FI.Dataset(stcrd).Dimid(1)
+    % PRESERVE_FVD=true
+    [Stations, status] = qp_netcdf_get(FI,stcrd-1,fliplr(FI.Dataset(stcrd).Dimension));
+else
+    [Stations, status] = qp_netcdf_get(FI,stcrd-1,FI.Dataset(stcrd).Dimension);
+end
 if t~=0
     Stations = Stations(t,:);
 end
@@ -1636,4 +2082,273 @@ if ~isequal(szC(hdim),szData(hdim))
     repC = szData(1:ndim)./szC(1:ndim);
     repC(~hdim)=1;
     Coord = repmat(Coord,repC);
+end
+% -----------------------------------------------------------------------------
+
+
+% -----------------------------------------------------------------------------
+function szZData  = updateSize(szData,szFld,hdims)
+szZData = szData;
+szZData(hdims) = szFld(hdims);
+% -----------------------------------------------------------------------------
+
+
+% -----------------------------------------------------------------------------
+function [X,Y,EdgeX,EdgeY] = branch2xy(BrX,BrY,xUnit,BrL,BrNr,BrOffset,eBrNr,EdgeNode)
+EdgeX = cell(size(eBrNr));
+EdgeY = EdgeX;
+X = zeros(size(BrNr));
+Y = X;
+if strcmp(xUnit,'deg')
+    cUnit = {'Geographic'};
+else
+    cUnit = {};
+end
+uBrNr = unique(eBrNr);
+doublePoints = false(size(uBrNr));
+for i = 1:length(uBrNr)
+    bN = uBrNr(i);
+    bX = BrX{bN};
+    bY = BrY{bN};
+    Mask = diff(bX)==0 & diff(bY)==0;
+    if any(Mask)
+        doublePoints(i) = true;
+        bX(Mask)=[];
+        bY(Mask)=[];
+    end
+    bS = pathdistance(bX,bY,cUnit{:});
+    %
+    for j = find(BrNr==bN)'
+        s  = (BrOffset(j)/BrL(bN))*bS(end);
+        if s>bS(end)
+            error('Offset %g larger than branch length %g',BrOffset(j),BrL(bN));
+        else
+            x = interp1(bS,bX,s);
+            y = interp1(bS,bY,s);
+        end
+        X(j) = x;
+        Y(j) = y;
+    end
+    %
+    for j = find(eBrNr==bN)'
+        n = EdgeNode(j,:);
+        nBranches = BrNr(n);
+        if all(nBranches==bN)
+            % both nodes on this branch, select the segment
+            s  = (sort(BrOffset(n))/BrL(bN))*bS(end);
+            I = bS>s(1) & bS<s(2);
+            x = interp1(bS,bX,s);
+            y = interp1(bS,bY,s);
+            EdgeX{j} = [x(1);bX(I);x(2)];
+            EdgeY{j} = [y(1);bY(I);y(2)];
+        elseif all(nBranches~=bN)
+            % both nodes on other branches, select the whole branch
+            EdgeX{j} = bX;
+            EdgeY{j} = bY;
+        elseif nBranches(1)==bN
+            % second node on other branch ...
+            % assume we need the end part of the branch
+            n = n(1);
+            s  = (BrOffset(n)/BrL(bN))*bS(end);
+            I = bS>s;
+            x = interp1(bS,bX,s);
+            y = interp1(bS,bY,s);
+            EdgeX{j} = [x;bX(I)];
+            EdgeY{j} = [y;bY(I)];
+        else % nBranches(2)==bN
+            % first node on other branch ...
+            % assume we need the beginning of the branch
+            n = n(2);
+            s  = (BrOffset(n)/BrL(bN))*bS(end);
+            I = bS<s;
+            x = interp1(bS,bX,s);
+            y = interp1(bS,bY,s);
+            EdgeX{j} = [bX(I);x];
+            EdgeY{j} = [bY(I);y];
+            % first node on other branch ...
+        end
+    end
+end
+if any(doublePoints)
+    if sum(doublePoints)==1
+        ui_message('warning','Double geometry points encountered on branch: %i',find(doublePoints))
+    else
+        ui_message('warning','Double geometry points encountered on branches: %s',vec2str(find(doublePoints),'nobrackets'))
+    end
+end
+% -----------------------------------------------------------------------------
+
+
+% -----------------------------------------------------------------------------
+function unit = get_unit(Info)
+unit = [];
+if ~isempty(Info.Attribute)
+    Attribs = {Info.Attribute.Name};
+    j = strmatch('units',Attribs,'exact');
+    if ~isempty(j)
+        unit = Info.Attribute(j).Value;
+        units = {'degrees_east','degree_east','degreesE','degreeE', ...
+            'degrees_north','degree_north','degreesN','degreeN'};
+        if ismember(unit,units)
+            unit = 'deg';
+        end
+    end
+end
+% -----------------------------------------------------------------------------
+
+% -----------------------------------------------------------------------------
+function [BrX,BrY,xUnit,BrL] = get_edge_geometry(FI,csp)
+CSP = FI.Dataset(csp);
+atteg = strmatch('edge_geometry',{CSP.Attribute.Name});
+veg = strmatch(CSP.Attribute(atteg).Value,{FI.Dataset.Name},'exact');
+% node count dimension
+VEG = FI.Dataset(veg);
+attnc = strmatch('node_count',{VEG.Attribute.Name});
+ndc = [];
+if ~isempty(attnc)
+    ndc = strmatch(VEG.Attribute(attnc).Value,{FI.Dataset.Name},'exact');
+    ndcd = strmatch(VEG.Attribute(attnc).Value,{FI.Dimension.Name},'exact');
+    if isempty(ndc)
+        if ~isempty(ndcd)
+            ui_message('error','Geometry %s attribute node_count reads "%s". This is a dimension, but should be a variable.',VEG.Name,VEG.Attribute(attnc).Value)
+        else
+            ui_message('error','Geometry %s attribute node_count reads "%s". Variable not found.',VEG.Name,VEG.Attribute(attnc).Value)
+        end
+    end
+end
+if isempty(ndc)
+    attnc = strmatch('part_node_count',{VEG.Attribute.Name});
+    ui_message('error','Incorrect attribute "part_node_count" used for specifying the node_count for geometry variable "%s".',VEG.Name)
+    ndc = strmatch(VEG.Attribute(attnc).Value,{FI.Dataset.Name},'exact');
+end
+%
+if isempty(FI.Dataset(veg).X)
+    error('Missing X coordinate for geometry variable "%s".',VEG.Name)
+elseif isempty(FI.Dataset(veg).Y)
+    error('Missing Y coordinate for geometry variable "%s".',VEG.Name)
+end
+[BrX, status] = qp_netcdf_get(FI,FI.Dataset(FI.Dataset(veg).X));
+[BrY, status] = qp_netcdf_get(FI,FI.Dataset(FI.Dataset(veg).Y));
+[NDC, status] = qp_netcdf_get(FI,FI.Dataset(ndc));
+BrX = mat2cell(BrX,NDC,1);
+BrY = mat2cell(BrY,NDC,1);
+%
+xUnit = get_unit(FI.Dataset(FI.Dataset(veg).X));
+%
+if nargout>3
+    attbl = strmatch('edge_length',{CSP.Attribute.Name});
+    if isempty(attbl)
+        attbl = strmatch('branch_lengths',{CSP.Attribute.Name});
+        if ~isempty(attbl)
+            ui_message('error','Incorrect attribute "branch_lengths" used for specifying the edge_length for 1D UGRID variable "%s".',CSP.Name)
+        end
+    end
+    if ~isempty(attbl)
+        vbl = strmatch(CSP.Attribute(attbl).Value,{FI.Dataset.Name},'exact');
+        [BrL, status] = qp_netcdf_get(FI,FI.Dataset(vbl));
+    else
+        BrL = zeros(size(BrX));
+        for i = 1:length(BrX)
+            brl = pathdistance(BrX{i},BrY{i}); % Cartesian or spherical?
+            BrL(i) = brl(end);
+        end
+    end
+end
+
+
+% -----------------------------------------------------------------------------
+function [NewFI,cmdargs]=options(FI,mfig,cmd,varargin)
+T_=1; ST_=2; M_=3; N_=4; K_=5;
+%======================== SPECIFIC CODE =======================================
+Inactive=get(0,'defaultuicontrolbackground');
+Active=[1 1 1];
+NewFI=FI;
+cmd=lower(cmd);
+cmdargs={};
+switch cmd
+    case 'initialize'
+        optfig(mfig);
+        set(findobj(mfig,'tag','ncdump'),'enable','on')
+        set(findobj(mfig,'tag','ncdumpto=?'),'enable','on','backgroundcolor',Active)
+    case 'ncdump'
+        out = get(findobj(mfig,'tag','ncdumpto=?'),'value');
+        switch out
+            case 1
+                [f,p] = uiputfile('*.ncdump','Specify Dump File');
+                if ischar(f)
+                    fid = fopen([p,f],'w');
+                    nc_dump(FI.FileName,fid)
+                    fclose(fid);
+                end
+            case {2,3}
+                f = tempname;
+                fid = fopen(f,'w');
+                nc_dump(FI.FileName,fid);
+                fclose(fid);
+                C = getfile(f);
+                delete(f);
+                if out==2
+                    clipboard('copy',sprintf('%s\n',C{:}));
+                else
+                    C = strrep(C,sprintf('\t'),'   ');
+                    C(cellfun(@isempty,C)) = {' '};
+                    ui_message('message',C);
+                end
+        end
+    otherwise
+        error(['Unknown option command: ',cmd])
+end
+% -----------------------------------------------------------------------------
+
+% -----------------------------------------------------------------------------
+function optfig(h0)
+Inactive=get(0,'defaultuicontrolbackground');
+FigPos=get(h0,'position');
+FigPos(3:4) = getappdata(h0,'DefaultFileOptionsSize');
+set(h0,'position',FigPos)
+
+voffset=FigPos(4)-30;
+uicontrol('Parent',h0, ...
+    'Style','pushbutton', ...
+    'BackgroundColor',Inactive, ...
+    'Callback','d3d_qp fileoptions ncdump', ...
+    'Position',[11 voffset-3 140 24], ...
+    'String','NetCDF Dump to', ...
+    'Horizontalalignment','left', ...
+    'Enable','off', ...
+    'Tag','ncdump');
+uicontrol('Parent',h0, ...
+    'Style','popupmenu', ...
+    'BackgroundColor',Inactive, ...
+    'Position',[161 voffset 170 20], ...
+    'String',{'File','Clipboard','Message Window'}, ...
+    'Enable','off', ...
+    'Tag','ncdumpto=?');
+% -----------------------------------------------------------------------------
+
+function C = getfile(file)
+if ischar(file)
+    localfopen = true;
+    fid = fopen(file,'r');
+else
+    localfopen = false;
+    fid = file;
+end
+C = cell(1000,1);
+i = 0;
+while 1
+    L = fgetl(fid);
+    if ischar(L)
+        i = i+1;
+        if i>length(C)
+            C{2*i} = [];
+        end
+        C{i} = L;
+    else
+        break
+    end
+end
+C = C(1:i);
+if localfopen
+    fclose(fid);
 end

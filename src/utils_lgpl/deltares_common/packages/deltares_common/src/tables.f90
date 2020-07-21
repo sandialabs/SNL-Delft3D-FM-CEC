@@ -1,7 +1,7 @@
 module tables
 !----- LGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
+!  Copyright (C)  Stichting Deltares, 2011-2020.                                
 !                                                                               
 !  This library is free software; you can redistribute it and/or                
 !  modify it under the terms of the GNU Lesser General Public                   
@@ -25,8 +25,8 @@ module tables
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: tables.f90 8306 2018-03-08 05:36:30Z ccchart.x $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_lgpl/deltares_common/packages/deltares_common/src/tables.f90 $
+!  $Id: tables.f90 65986 2020-02-16 13:04:44Z jagers $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/deltares_common/packages/deltares_common/src/tables.f90 $
 !!--description-----------------------------------------------------------------
 !
 ! Tables module
@@ -36,6 +36,8 @@ module tables
 !!--declarations----------------------------------------------------------------
     use precision
     use string_module
+    use time_module
+    implicit none
     !
     public tablefiletype
     !
@@ -338,7 +340,7 @@ subroutine org_readtable(this, filnam, refjulday, errorstring)
              !
              ! time column should be treated in a different manner
              !
-             if (table%timefunction == 'non-equidistant') then
+             if (trim(table%timefunction) == 'non-equidistant') then
                 ipar = 0
              endif
           endif
@@ -400,7 +402,7 @@ subroutine org_readtable(this, filnam, refjulday, errorstring)
                 goto 210
              endif
              !
-             if (table%timefunction == 'non-equidistant') then
+             if (trim(table%timefunction) == 'non-equidistant') then
                 !
                 ! First column (times) will be stored in separate array
                 !
@@ -493,7 +495,7 @@ subroutine org_readtable_keyword()
        !
        ! Skip comments and record length
        !
-    elseif (cfield(1) == 'table-name') then
+    elseif (trim(cfield(1)) == 'table-name') then
        if (iread_phase == 2) then
           if (ntoken < 2) then
              errorstring = 'Too few arguments on line'
@@ -511,7 +513,7 @@ subroutine org_readtable_keyword()
              table%name = cfield(2)
           endif
        endif
-    elseif (cfield(1) == 'contents') then
+    elseif (trim(cfield(1)) == 'contents') then
        if (iread_phase == 2) then
           if (ntoken < 2) then
              errorstring = 'Too few arguments on line'
@@ -530,7 +532,7 @@ subroutine org_readtable_keyword()
              table%contents = cfield(2)
           endif
        endif
-    elseif (cfield(1)=='geo-coordinates') then
+    elseif (trim(cfield(1))=='geo-coordinates') then
        !
        ! geographical co-ordinates
        !
@@ -596,7 +598,7 @@ subroutine org_readtable_keyword()
              endif
           endif
        endif
-    elseif (cfield(1) == 'location') then
+    elseif (trim(cfield(1)) == 'location') then
        if (iread_phase == 2) then
           if (ntoken < 2) then
              errorstring = 'Too few arguments on line'
@@ -614,7 +616,7 @@ subroutine org_readtable_keyword()
              table%location = cfield(2)
           endif
        endif
-    elseif (cfield(1) == 'interpolation') then
+    elseif (trim(cfield(1)) == 'interpolation') then
        if (ipar <= 0) then
           if (iread_phase == 2) then
              if (ntoken < 2) then
@@ -666,7 +668,7 @@ subroutine org_readtable_keyword()
              endif
           endif
        endif
-    elseif (cfield(1) == 'extrapolation') then
+    elseif (trim(cfield(1)) == 'extrapolation') then
        if (iread_phase == 2) then
           if (ntoken < 2) then
              errorstring = 'Too few arguments on line'
@@ -692,7 +694,7 @@ subroutine org_readtable_keyword()
              endif
           endif
        endif
-    elseif (cfield(1) == 'records-in-table') then
+    elseif (trim(cfield(1)) == 'records-in-table') then
        if (iread_phase == 2) then
           if (ntoken < 2) then
              errorstring = 'Too few arguments on line'
@@ -715,7 +717,7 @@ subroutine org_readtable_keyword()
              endif
           endif
        endif
-    elseif (cfield(1) == 'metric') then
+    elseif (trim(cfield(1)) == 'metric') then
        !
        ! metric co-ordinates
        !
@@ -725,7 +727,7 @@ subroutine org_readtable_keyword()
              errorstring = 'Unknown keyword: '//trim(cfield(1))
              error = .true.
              goto 100
-          elseif (cfield(2) /= 'coordinates') then
+          elseif (trim(cfield(2)) /= 'coordinates') then
              errorstring = 'Unknown keyword: '//trim(cfield(1))//' '//trim(cfield(2))
              error = .true.
              goto 100
@@ -790,7 +792,7 @@ subroutine org_readtable_keyword()
              endif
           endif
        endif
-    elseif (cfield(1) == 'layer') then
+    elseif (trim(cfield(1)) == 'layer') then
        !
        ! layer <layer number>
        !
@@ -811,7 +813,7 @@ subroutine org_readtable_keyword()
              table%layer = ifield(2)
           endif
        endif
-    elseif (cfield(1) == 'time-unit') then
+    elseif (trim(cfield(1)) == 'time-unit') then
        if (iread_phase == 2) then
           if (ntoken < 2) then
              errorstring = 'Too few arguments on line'
@@ -828,22 +830,22 @@ subroutine org_readtable_keyword()
           else
              call str_lower(cfield(2),len(cfield(2)))
              table%timeunitstr = cfield(2)
-             if (cfield(2) == 'date' .or. cfield(2) == 'absolute') then
+             if (trim(cfield(2)) == 'date' .or. trim(cfield(2)) == 'absolute') then
                  table%timeunit = -1.0_hp
                  table%timeunitstr = 'date'
-             elseif (cfield(2) == 'years') then
+             elseif (trim(cfield(2)) == 'years') then
                  table%timeunit = 365.0_hp
-             elseif (cfield(2) == 'decades') then
+             elseif (trim(cfield(2)) == 'decades') then
                  table%timeunit = 3650.0_hp
-             elseif (cfield(2) == 'days') then
+             elseif (trim(cfield(2)) == 'days') then
                  table%timeunit = 1.0_hp
-             elseif (cfield(2) == 'hours') then
+             elseif (trim(cfield(2)) == 'hours') then
                  table%timeunit = 1.0_hp / 24.0_hp
-             elseif (cfield(2) == 'minutes') then
+             elseif (trim(cfield(2)) == 'minutes') then
                  table%timeunit = 1.0_hp / 1440.0_hp
-             elseif (cfield(2) == 'seconds') then
+             elseif (trim(cfield(2)) == 'seconds') then
                  table%timeunit = 1.0_hp / 86400.0_hp
-             elseif (cfield(2) == 'ddhhmmss') then
+             elseif (trim(cfield(2)) == 'ddhhmmss') then
                  table%timeunit = 1.0_hp
              else
                 errorstring = 'Time unit must be ''date'', ''years'', ''decades'', ''days'', ''hours'', ''minutes'', ''seconds'', ''ddhhmmss'''
@@ -852,7 +854,7 @@ subroutine org_readtable_keyword()
              endif
           endif
        endif
-    elseif (cfield(1) == 'time-step') then
+    elseif (trim(cfield(1)) == 'time-step') then
        if (iread_phase == 2) then
           if (ntoken < 2) then
              errorstring = 'Too few arguments on line'
@@ -868,7 +870,7 @@ subroutine org_readtable_keyword()
              errorstring = 'Time step must be a numeric value'
           endif
        endif
-    elseif (cfield(1) == 'reference-time') then
+    elseif (trim(cfield(1)) == 'reference-time') then
        if (iread_phase == 2) then
           if (ntoken < 2) then
              errorstring = 'Too few arguments on line'
@@ -883,13 +885,13 @@ subroutine org_readtable_keyword()
                !
                ! <yyyymmdd>
                !
-               call juldat(ifield(2),table%refdate)
+               table%refdate = ymd2jul(ifield(2))
                table%reftime = 0.0_fp
              elseif (ntoken == 3 .and. itype(3) == INT_READ) then
                !
                ! <yyyymmdd> <hhmmss>
                !
-               call juldat(ifield(2),table%refdate)
+               table%refdate = ymd2jul(ifield(2))
                ihh = ifield(3) / 10000
                ifield(3) = ifield(3) - ihh * 10000
                imm = ifield(3) / 100
@@ -910,14 +912,14 @@ subroutine org_readtable_keyword()
              call str_lower(cfield(2),len(cfield(2)))
              table%refdate = refjulday
              table%reftime = 0.0_fp
-             if (cfield(2) /= 'from model') then
+             if (trim(cfield(2)) /= 'from model') then
                 errorstring = 'Reference time must be explicitly specified or it should be ''from model'''
                 error = .true.
                 goto 100
              endif
           endif
        endif
-    elseif (cfield(1) == 'constant') then
+    elseif (trim(cfield(1)) == 'constant') then
        if (iread_phase == 2) then
           if (ntoken < 1) then
              errorstring = 'Too few arguments on line'
@@ -932,7 +934,7 @@ subroutine org_readtable_keyword()
              table%nrecords = 1
           endif
        endif
-    elseif (cfield(1) == 'time-function') then
+    elseif (trim(cfield(1)) == 'time-function') then
        if (iread_phase == 2) then
           if (ntoken < 2) then
              errorstring = 'Too few arguments on line'
@@ -949,17 +951,17 @@ subroutine org_readtable_keyword()
           else
              call str_lower(cfield(2),len(cfield(2)))
              table%timefunction = cfield(2)
-             if (cfield(2) /= 'astronomic' .and. &
-               & cfield(2) /= 'harmonic' .and. &
-               & cfield(2) /= 'equidistant' .and. &
-               & cfield(2) /= 'non-equidistant') then
+             if (trim(cfield(2)) /= 'astronomic' .and. &
+               & trim(cfield(2)) /= 'harmonic' .and. &
+               & trim(cfield(2)) /= 'equidistant' .and. &
+               & trim(cfield(2)) /= 'non-equidistant') then
                 errorstring = 'Time function must be ''astronomic'', ''harmonic'', ''equidistant'' or ''non-equidistant'''
                 error = .true.
                 goto 100
              endif
           endif
        endif
-    elseif (cfield(1)=='parameter') then
+    elseif (trim(cfield(1))=='parameter') then
        ipar = ipar + 1
        if (iread_phase == 2) then
           table%nparameters = ipar
@@ -993,7 +995,7 @@ subroutine org_readtable_keyword()
              !
              call str_lower(cfield(2),MAXTABLECLENGTH)
              ! allow 'time' and 'time starting at ...' (in case of reuse TMP files)
-             if (cfield(2)(1:5) /= 'time ') then
+             if (trim(cfield(2)(1:5)) /= 'time ') then
                 errorstring = 'Parameter in first column should be ''time'''
                 error = .true.
                 goto 100
@@ -1044,7 +1046,7 @@ label_token: do i = 1, ntoken
                    ! out of the token loop
                    !
                    exit label_token
-                elseif (ipar == 0 .and. table%timeunitstr == 'date') then
+                elseif (ipar == 0 .and. trim(table%timeunitstr) == 'date') then
                    !
                    ! okay continue
                    !
@@ -1070,7 +1072,7 @@ label_token: do i = 1, ntoken
                 ! copy contents of time column to times array instead of
                 ! copying it to the values array.
                 !
-                select case(table%timeunitstr)
+                select case(trim(table%timeunitstr))
                 case ('date')
                    !
                    ! yyyymmddhhmmss
@@ -1080,7 +1082,7 @@ label_token: do i = 1, ntoken
                    ! always use the string value cfield(i)
                    !
                    read(cfield(i),'(I8,I2,I2,I2)') iyyyymmdd,ihh,imm,iss
-                   call juldat(iyyyymmdd,ijuldate)
+                   ijuldate = ymd2jul(iyyyymmdd)
                    table%times(irec) = real(ijuldate,hp) + &
                                      & real(ihh,hp) / 60.0_hp + &
                                      & real(imm,hp) / 1440.0_hp + &
@@ -1101,9 +1103,9 @@ label_token: do i = 1, ntoken
                    !
                    ! generate time column when not available from file
                    !
-                   if (table%timefunction == 'constant') then
+                   if (trim(table%timefunction) == 'constant') then
                       table%times(irec) = 0.0_hp
-                   elseif (table%timefunction == 'equidistant') then
+                   elseif (trim(table%timefunction) == 'equidistant') then
                       table%times(irec) = real(irec-1,hp) * table%timestep &
                                                         & * table%timeunit
                    endif
@@ -1285,7 +1287,7 @@ subroutine org_gettabletimes(this       ,itable     ,times      ,refjulday  , &
     table => this%tables(itable)
     errorstring = ' '
     !
-    select case(table%timefunction)
+    select case(trim(table%timefunction))
     case ('non-equidistant','equidistant','constant')
        !
        ! note: equidistant and constant tables have been
@@ -1396,7 +1398,7 @@ subroutine org_gettabledata_scalar(this       ,itable     ,ipar       , &
        !
        ! Standard time function
        !
-    select case(table%timefunction)
+    select case(trim(table%timefunction))
     case ('non-equidistant','equidistant','constant')
        !
        ! Search for times in table (note equidistant and
@@ -1421,7 +1423,7 @@ subroutine org_gettabledata_scalar(this       ,itable     ,ipar       , &
           !
           ! requested time before the first time in the table
           !
-          select case(table%extrapolation)
+          select case(trim(table%extrapolation))
           case ('periodic')
              errorstring = 'Periodic boundary conditions not '// &
                 & 'yet implemented, please contact code supplier'
@@ -1461,7 +1463,7 @@ subroutine org_gettabledata_scalar(this       ,itable     ,ipar       , &
              inrange = .false.
              !
           else
-             select case(table%extrapolation)
+             select case(trim(table%extrapolation) )
              case ('periodic')
                 errorstring = 'Periodic boundary conditions not '// &
                    & 'yet implemented, please contact code supplier'
@@ -1532,7 +1534,7 @@ subroutine org_gettabledata_scalar(this       ,itable     ,ipar       , &
           !
           do i = 1, npar
              j = ipar + i - 1
-             if (table%parameters(j)%interpolation == 'block') then
+             if (trim(table%parameters(j)%interpolation) == 'block') then
                 !
                 ! block interpolation
                 !
@@ -1681,9 +1683,9 @@ subroutine org_gettable_scalar(this      ,location  ,parname   ,itable    , &
     endif
 loop_tables: do i = 1, size(tables)
        if (locfieldid==0) then
-          chk = tables(i)%location == location
+          chk = trim(tables(i)%location) == location
        elseif (locfieldid==1) then
-          chk = tables(i)%name == location
+          chk = trim(tables(i)%name) == location
        endif
        if (chk) then
           do j = 1, tables(i)%nparameters
@@ -1710,7 +1712,7 @@ loop_tables: do i = 1, size(tables)
     endif
     !
     j = ipar
-    do while (tables(itable)%parameters(j)%name(1:lpn) == parname(1:lpn))
+    do while (trim(tables(itable)%parameters(j)%name(1:lpn)) == parname(1:lpn))
        j = j + 1
        if (j > tables(itable)%nparameters) exit
     enddo
@@ -1756,7 +1758,7 @@ subroutine org_checktable(this      ,itable    ,ipar      , &
     do j = ipar, ipar + npar - 1
        if ((iand(chktyp,CHKTAB_LOGICAL)==1 .or. &
          &  iand(chktyp,CHKTAB_BLOCK)==1).and. &
-         & tables(itable)%parameters(j)%interpolation /= 'block') then
+         & trim(tables(itable)%parameters(j)%interpolation) /= 'block') then
           errorstring = 'Interpolation method should be "block" for ''' // &
              & trim(tables(itable)%parameters(j)%name) // ''' at location ''' // &
              & trim(tables(itable)%location) // ''' in ' // &
@@ -1821,7 +1823,7 @@ subroutine org_checktableparnames(this      ,parnames  ,itable    , &
     i = 0
     do j = ipar, ipar + npar - 1
        i = i + 1
-       if (tables(itable)%parameters(j)%name /= parnames(i)) then
+       if (trim(tables(itable)%parameters(j)%name) /= parnames(i)) then
           errorstring = 'Expected ''' // trim(parnames(i)) // &
              & ''' but found ''' // trim(tables(itable)%parameters(j)%name) // &
              & ''' for location ''' // trim(tables(itable)%location) // &

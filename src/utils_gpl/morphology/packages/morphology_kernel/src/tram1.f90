@@ -10,7 +10,7 @@ subroutine tram1 (numrealpar,realpar   ,wave                 ,par       , &
                 & message   )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                     
+!  Copyright (C)  Stichting Deltares, 2011-2020.                                     
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -34,8 +34,8 @@ subroutine tram1 (numrealpar,realpar   ,wave                 ,par       , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: tram1.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_gpl/morphology/packages/morphology_kernel/src/tram1.f90 $
+!  $Id: tram1.f90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_gpl/morphology/packages/morphology_kernel/src/tram1.f90 $
 !!--description-----------------------------------------------------------------
 !
 ! computes sediment transport according to
@@ -129,6 +129,7 @@ subroutine tram1 (numrealpar,realpar   ,wave                 ,par       , &
     real(fp) :: avgcu
     real(fp) :: avgu
     real(fp) :: bakdif
+    real(fp) :: betam
     real(fp) :: delr
     real(fp) :: deltas
     real(fp) :: diffbt
@@ -171,6 +172,7 @@ subroutine tram1 (numrealpar,realpar   ,wave                 ,par       , &
     rlabda    = real(realpar(RP_RLAMB),fp)
     uorb      = real(realpar(RP_UORB) ,fp)
     di50      = real(realpar(RP_D50)  ,fp)
+    dss       = real(realpar(RP_DSS)  ,fp)
     !realpar(RP_DSS) = real(dss,hp)
     dstar     = real(realpar(RP_DSTAR),fp)
     d10       = real(realpar(RP_D10MX),fp)
@@ -200,6 +202,7 @@ subroutine tram1 (numrealpar,realpar   ,wave                 ,par       , &
     rdw    = par(15)
     iopkcw = int(par(16))
     epspar = par(17)>0.0_fp
+    betam  = par(18)
     !
     sag    = sqrt(ag)
     !
@@ -210,7 +213,7 @@ subroutine tram1 (numrealpar,realpar   ,wave                 ,par       , &
                  & tauc      ,taubcw    ,taurat    ,ta        ,caks      , &
                  & dss       ,mudfrac   ,eps       ,aksfac    ,rwave     , &
                  & camax     ,rdc       ,rdw       ,iopkcw    ,iopsus    , &
-                 & vonkar    ,wave      ,tauadd    )
+                 & vonkar    ,wave      ,tauadd    ,betam     )
     realpar(RP_DSS)   = real(dss    ,hp)
     !
     ! Find bottom cell for SAND sediment calculations and store for use

@@ -11,7 +11,7 @@
      &                      ztop )
 !----- GPL ---------------------------------------------------------------------
 !
-!  Copyright (C)  Stichting Deltares, 2011-2018.
+!  Copyright (C)  Stichting Deltares, 2011-2020.
 !
 !  This program is free software: you can redistribute it and/or modify
 !  it under the terms of the GNU General Public License as published by
@@ -35,14 +35,15 @@
 !  Stichting Deltares. All rights reserved.
 !
 !-------------------------------------------------------------------------------
-!  $Id: wrwaqhyd.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/engines_gpl/flow2d3d/packages/io/src/output/wrwaqhyd.f90 $
+!  $Id: wrwaqhyd.f90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/io/src/output/wrwaqhyd.f90 $
 !!--description-----------------------------------------------------------------
 ! NONE
 !!--pseudo code and references--------------------------------------------------
 ! NONE
 !!--declarations----------------------------------------------------------------
       use precision
+      use time_module
       implicit none
 !
 !           Global variables
@@ -103,7 +104,7 @@
       character(20)  rundat            !! Current date and time containing a combination of DATE and TIME
       character(21)  datetime          !! Date/time to be filled in the header
       character(256) filstring, file1, file2
-      character(5) sf                  !! character variable for s(ediment)f(iles)
+      character(6) sf                  !! character variable for s(ediment)f(iles)
       integer, external :: newunit
       integer(4)    lunout1 !! write hyd file for structured grid needed for delpar
       integer(4)    lunout2 !! write hyd-file for DeltaShell (unstructured format)
@@ -160,7 +161,7 @@
       write ( lunout2 , '(a      )' ) '''                                                            '''
       write ( lunout1 , '(a      )' ) 'end-description'
       write ( lunout2 , '(a      )' ) 'end-description'
-      call juldat ( itdate, julday )
+      julday = ymd2jul ( itdate )
       write ( lunout1 , '(a,i8,a )' ) 'reference-time           ''',itdate,'000000'''
       write ( lunout2 , '(a,i8,a )' ) 'reference-time           ''',itdate,'000000'''
       timsec = tstart*60.0
@@ -177,10 +178,10 @@
       write ( lunout2 , '(a,i6.6,a )' ) 'hydrodynamic-timestep    ''00000000',itime,''''
       write ( lunout1 , '(a,i8,a )' ) 'conversion-ref-time      ''',itdate,'000000'''
       write ( lunout2 , '(a,i8,a )' ) 'conversion-ref-time      ''',itdate,'000000'''
-      timsec = itwqff*dt*60.0
+      timsec = max(itwqff*dt*60.0,  tstart*60.0)
       call timdat( julday, timsec, idate, itime )
-      write ( lunout1 , '(a,i8,i6.6,a)') 'conversion-start-time     ''',idate,itime,''''
-      write ( lunout2 , '(a,i8,i6.6,a)') 'conversion-start-time     ''',idate,itime,''''
+      write ( lunout1 , '(a,i8,i6.6,a)') 'conversion-start-time    ''',idate,itime,''''
+      write ( lunout2 , '(a,i8,i6.6,a)') 'conversion-start-time    ''',idate,itime,''''
       timsec = itwqfl*dt*60.0
       call timdat( julday, timsec, idate, itime )
       write ( lunout1 , '(a,i8,i6.6,a)') 'conversion-stop-time     ''',idate,itime,''''
@@ -264,7 +265,7 @@
       write ( lunout2 , '(a,a    )' ) 'temperature-file         ',trim(filstring)
       do l = 1, lsed
          sf = ".sed00"
-         write( sf(4:5), '(i2.2)' ) l
+         write( sf(5:6), '(i2.2)' ) l
          filstring = ''''//trim(filnam)//sf//''''
          write ( lunout1 , '(A,A )' ) 'sediment-file            ',trim(filstring)
          write ( lunout2 , '(A,A )' ) 'sediment-file            ',trim(filstring)

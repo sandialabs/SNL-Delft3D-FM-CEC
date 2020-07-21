@@ -8,10 +8,10 @@ function test_nc_cat_a ( )
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
-% $Id: test_nc_cat_a.m 5717 2016-01-12 11:35:24Z mourits $
-% $LastChangedDate: 2016-01-12 04:35:24 -0700 (Tue, 12 Jan 2016) $
-% $LastChangedRevision: 5717 $
-% $LastChangedBy: mourits $
+% $Id: test_nc_cat_a.m 64370 2019-07-17 20:37:24Z jagers $
+% $LastChangedDate: 2019-07-17 14:37:24 -0600 (Wed, 17 Jul 2019) $
+% $LastChangedRevision: 64370 $
+% $LastChangedBy: jagers $
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 

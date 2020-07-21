@@ -1,7 +1,7 @@
 module m_hash_list
 !----- AGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2017-2018.                                
+!  Copyright (C)  Stichting Deltares, 2017-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify              
 !  it under the terms of the GNU Affero General Public License as               
@@ -25,8 +25,8 @@ module m_hash_list
 !  Stichting Deltares. All rights reserved.
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: hash_list_io.f90 8044 2018-01-24 15:35:11Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_gpl/flow1d/packages/flow1d_io/src/hash_list_io.f90 $
+!  $Id: hash_list_io.f90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_gpl/flow1d/packages/flow1d_io/src/hash_list_io.f90 $
 !-------------------------------------------------------------------------------
    
    use m_hash_search
@@ -56,8 +56,8 @@ module m_hash_list
       allocate(hash_list%id_list(hash_list%id_count))
       read(ibin) (hash_list%id_list(i), i = 1, hash_list%id_count)
       
-      allocate(hash_list%hashfirst(0:hashcon-1))
-      read(ibin) (hash_list%hashfirst(i), i = 0, hash_list%hashcon-1)
+      allocate(hash_list%hashfirst(0:hashcon))
+      read(ibin) (hash_list%hashfirst(i), i = 0, hash_list%hashcon)
 
       allocate(hash_list%hashnext(hash_list%id_count))
       read(ibin) (hash_list%hashnext(i), i = 1, hash_list%id_count)
@@ -78,7 +78,7 @@ module m_hash_list
       write(ibin) hash_list%hashcon
       
       write(ibin) (hash_list%id_list(i), i = 1, hash_list%id_count)
-      write(ibin) (hash_list%hashfirst(i), i = 0, hash_list%hashcon-1)
+      write(ibin) (hash_list%hashfirst(i), i = 0, hash_list%hashcon)
       write(ibin) (hash_list%hashnext(i), i = 1, hash_list%id_count)
  
    end subroutine write_hash_list_cache 

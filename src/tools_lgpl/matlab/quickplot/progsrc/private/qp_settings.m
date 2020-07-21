@@ -15,7 +15,7 @@ function valo=qp_settings(param,val)
 
 %----- LGPL --------------------------------------------------------------------
 %                                                                               
-%   Copyright (C) 2011-2018 Stichting Deltares.                                     
+%   Copyright (C) 2011-2020 Stichting Deltares.                                     
 %                                                                               
 %   This library is free software; you can redistribute it and/or                
 %   modify it under the terms of the GNU Lesser General Public                   
@@ -40,8 +40,8 @@ function valo=qp_settings(param,val)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_lgpl/matlab/quickplot/progsrc/private/qp_settings.m $
-%   $Id: qp_settings.m 7992 2018-01-09 10:27:35Z mourits $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/private/qp_settings.m $
+%   $Id: qp_settings.m 65942 2020-02-06 15:19:38Z jagers $
 
 persistent Settings qppref
 if isempty(Settings)
@@ -125,6 +125,7 @@ Set.export_max_ntimes         = 10;
 %
 Set.netcdf_use_fillvalue      = 'valid_range';
 %
+Set.delwaq_names              = 'expanded';
 Set.delwaq_procdef            = 'auto';
 %
 Set.shipma_distance_along_desired_track = 1;

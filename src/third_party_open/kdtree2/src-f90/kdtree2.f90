@@ -46,7 +46,7 @@ module kdtree2_priority_queue_module
   ! is the priority.
   !
   type kdtree2_result
-      ! a pair of distances, indexes
+      ! a pair of distances (squared !!!), indexes
       real(kdkind)    :: dis!=0.0
       integer :: idx!=-1   Initializers cause some bugs in compilers.
   end type kdtree2_result
@@ -856,7 +856,9 @@ contains
             sizeToSort = u - l + 1
             allocate(toSort(sizeToSort))
             
-            toSort = tp%the_data(c,tp%ind(l:u))
+            do i = l, u
+                toSort(i-l+1) = tp%the_data(c,tp%ind(i))
+            end do
             call heapsort(toSort, tp%ind(l:u), sizeToSort)
             
             m = l + (u - l) / 2 

@@ -3,7 +3,7 @@ program nesthd2
     implicit none
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
+!  Copyright (C)  Stichting Deltares, 2011-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -27,8 +27,8 @@ program nesthd2
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: nesthd2.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_gpl/nesthd2/packages/nesthd2/src/nesthd2.f90 $
+!  $Id: nesthd2.f90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_gpl/nesthd2/packages/nesthd2/src/nesthd2.f90 $
 !***********************************************************************
 ! Deltares                         marine and coastal management
 !
@@ -66,7 +66,8 @@ program nesthd2
       double precision, dimension(:)        , pointer :: thick
       double precision, dimension(:,:)      , pointer :: wl
       double precision, dimension(:,:,:)    , pointer :: uu
-      double precision, dimension(:,:,:,:)  , pointer :: vv
+      double precision, dimension(:,:,:)    , pointer :: vv
+      double precision, dimension(:,:,:,:)  , pointer :: conc
       double precision, dimension(:)        , pointer :: angle
       double precision, dimension(:,:,:,:,:), pointer :: bndva
       
@@ -124,7 +125,8 @@ program nesthd2
       allocate (thick(kmax))
       allocate (wl   (nostat, notims))
       allocate (uu   (nostat, kmax, notims))
-      allocate (vv   (nostat, kmax, notims, mincon))
+      allocate (vv   (nostat, kmax, notims))
+      allocate (conc (nostat, kmax, notims, mincon))
       allocate (angle(nostat))
       allocate (bndva(nobnd, notims, kmax, mincon, 2))
 
@@ -142,8 +144,8 @@ program nesthd2
 
       call nest_hd2  (lun   , extnef, nostat , notims, kmax  , &
                       lstci , nobnd , mincon , &
-                      thick , wl    , uu     , vv    , angle , &
-                      bndva , &
+                      thick , wl    , uu     , vv    , conc, &
+                      angle , bndva , &
                       kfs   , mcbsp , ncbsp , mnstat , &
                       typbn , nambn , namco                    )
 
@@ -154,9 +156,11 @@ program nesthd2
   999 continue
 
       call clsfil(lun   ,5     )
+      write(*,'( a)') 'Normal end of program'
       stop
 
   900 write(lun(5),'(//a)') 'Fatal error detected - Memory problem'
       write(lun(5),'(  a)') 'Not enough memory for allocating arrays ',pntnam
       write(lun(5),'(  a)') 'Delft3D-NESTHD2 aborted'
+      write(*,'(  a)') 'Abnormal end of program'
       endprogram nesthd2

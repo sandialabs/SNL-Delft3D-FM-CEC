@@ -43,7 +43,7 @@ function varargout=inifile(cmd,varargin)
 
 %----- LGPL --------------------------------------------------------------------
 %                                                                               
-%   Copyright (C) 2011-2018 Stichting Deltares.                                     
+%   Copyright (C) 2011-2020 Stichting Deltares.                                     
 %                                                                               
 %   This library is free software; you can redistribute it and/or                
 %   modify it under the terms of the GNU Lesser General Public                   
@@ -68,8 +68,8 @@ function varargout=inifile(cmd,varargin)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_lgpl/matlab/quickplot/progsrc/inifile.m $
-%   $Id: inifile.m 7992 2018-01-09 10:27:35Z mourits $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/inifile.m $
+%   $Id: inifile.m 65778 2020-01-14 14:07:42Z mourits $
 
 lcmd = lower(cmd);
 switch lcmd
@@ -84,21 +84,38 @@ switch lcmd
             if nargin==3
                 % only Chapter
                 if strcmp(lcmd,'exists')
-                    lcmd = 'keywords';
+                    lcmd = 'chapters';
+                    chap = varargin{2};
                 else
-                    lcmd = 'keywordsi';
+                    lcmd = 'chaptersi';
+                    chap = lower(varargin{2});
                 end
-                A=chapkeys(lcmd,varargin{:});
+                A = chapfile(lcmd,varargin{1});
+                Amatch = strcmp(chap,A);
+                varargout{1} = sum(Amatch);
+                if nargout>1
+                    varargout{2} = find(Amatch);
+                end
+                return
             else
                 % Chapter/Keyword pair
+                [A,iChap] = inifile(lcmd,varargin{1:2});
                 if strcmp(lcmd,'exists')
-                    lcmd = 'get';
+                    lcmd = 'keywords';
+                    keyw = varargin{3};
                 else
-                    lcmd = 'geti';
+                    lcmd = 'keywordsi';
+                    keyw = lower(varargin{3});
                 end
-                A=getfield(lcmd,varargin{:});
+                %
+                M = zeros(size(iChap));
+                for i = 1:length(iChap)
+                    A = chapkeys(lcmd,varargin{1},iChap(i));
+                    M(i) = sum(strcmp(keyw,A));
+                end
+                varargout{1} = M;
+                return
             end
-            varargout{1} = true;
         catch
             varargout{1} = false;
         end
@@ -109,7 +126,10 @@ switch lcmd
     case {'delete','remove','deletei','removei'}
         varargout{1} = setfield(lcmd,varargin{:},[]);
     case 'write'
-        writefile(varargin{:});
+        FI = writefile(varargin{:});
+        if nargout>0
+            varargout = {FI};
+        end
     case 'new'
         varargout{1} = newfile;
     otherwise
@@ -125,7 +145,7 @@ FI.Data=S;
 
 
 function FI=readfile(filename)
-fid=fopen(filename,'r');
+fid=fopen(filename,'rt');
 if fid<0
     error('Error opening %s.',filename)
 end
@@ -194,45 +214,74 @@ FI.FileType='INI file';
 FI.Data=S;
 
 
-function writefile(filename,FI)
-S=FI.Data;
-fid=fopen(filename,'wt');
+function FI = writefile(filename,FI,formatStyle)
+FI.FileName = filename;
+S = FI.Data;
+fid = fopen(filename,'wt');
 if fid<0
     error('Error opening %s.',filename)
+end
+if nargin<3
+    formatStyle = 'standard';
+end
+compact = false;
+pretty  = false;
+switch formatStyle
+    case 'compact'
+        compact = true;
+    case 'standard'
+    case 'pretty'
+        pretty = true;
+end
+if pretty
+    indent = '    ';
+else
+    indent = '';
 end
 %
 % Keywords without a Chapter title should be written first.
 %
-for i=1:size(S,1)
+for i = 1:size(S,1)
     if isempty(S{i,1})
-        S=cat(1,S(i,:),S(1:i-1,:),S(i+1:end,:));
+        S = cat(1,S(i,:),S(1:i-1,:),S(i+1:end,:));
     end
 end
-maxkeywordlength=0;
-for i=1:size(S,1)
-    SF=S{i,2};
-    for j=1:size(SF,1)
-        maxkeywordlength=max(maxkeywordlength,length(SF{j,1}));
+if compact
+    format        = '%s=%s\n';
+    format_spaces = '%s\n';
+else
+    maxkeywordlength = 0;
+    for i = 1:size(S,1)
+        SF = S{i,2};
+        for j = 1:size(SF,1)
+            maxkeywordlength = max(maxkeywordlength,length(SF{j,1}));
+        end
     end
+    if pretty
+        maxkeywordlength = maxkeywordlength+1;
+    end
+    format        = [indent,'%-',num2str(maxkeywordlength),'s= %s\n'];
+    format_spaces = [indent,repmat(' ',1,maxkeywordlength),'  %s\n'];
 end
-format=['%-',num2str(maxkeywordlength),'s= %s\n'];
-format_spaces=[repmat(' ',1,maxkeywordlength),'  %s\n'];
-for i=1:size(S,1)
+for i = 1:size(S,1)
     if ~isempty(S{i,1})
         fprintf(fid,'[%s]\n',S{i,1});
     end
-    SF=S{i,2};
-    for j=1:size(SF,1)
-        Str=SF{j,2};
+    SF = S{i,2};
+    for j = 1:size(SF,1)
+        Str = SF{j,2};
         if ~ischar(Str)
-            Str=sprintf('%g ',Str);
-            Str(end)=[];
+            Str = sprintf('%g ',Str);
+            Str(end) = [];
         end
         if isempty(SF{j,1})
             fprintf(fid,format_spaces,Str);
         else
             fprintf(fid,format,SF{j,1},Str);
         end
+    end
+    if pretty
+        fprintf(fid,'\n');
     end
 end
 fclose(fid);
@@ -373,13 +422,14 @@ if ~isempty(iGRP)
 end
 
 
-function FI=setfield(cmd,FI,grpS,keyS,val)
+function FI=setfield(cmd,FI,grpS,varargin)
 S = FI.Data;
 CaseInsensitive = cmd(end)=='i';
 if nargin<4
     error('Not enough input arguments.')
 end
 if ischar(grpS)
+    % find a group by name
     if isequal(grpS,'*')
         grp = 1:size(S,1);
     else
@@ -390,23 +440,49 @@ if ischar(grpS)
         end
         grp = find(grp);
     end
-elseif isnumeric(grpS) && all(grpS(:)<=size(S,1))
-    grp=grpS;
-    grpS=sprintf('group#%i',grp);
+elseif isnumeric(grpS)
+    % find a group by index
+    if any(grpS(:)>size(S,1))
+        error('Invalid group index: index larger than number of groups in file.')
+    elseif any(grpS(:)<1)
+        error('Invalid group index: index less than 1.')
+    end
+    grp = grpS;
 else
-    grp = [];
+    % unrecognized group identifier
+    error('Unrecognized group indentifier specified as 3rd argument to INIFILE call.')
 end
 if isempty(grp)
-    if isempty(val) && ~ischar(val)
+    if isempty(varargin{1}) && isnumeric(varargin{1})
+        % remove a non-existing group. Done!
         return
     end
-    S(end+1,1:2)={grpS cell(0,2)};
-    grp=size(S,1);
+    S(end+1,1:2) = {grpS cell(0,2)};
+    grp = size(S,1);
+end
+if ischar(grpS) && isnumeric(varargin{1})
+    % group index
+    igrp = varargin{1};
+    if isequal(igrp,length(grp)+1)
+        S(end+1,1:2) = {grpS cell(0,2)};
+        grp = size(S,1);
+    else
+        grp = grp(igrp);
+    end
+    kS = 2;
+else
+    kS = 1;
+end
+%
+if length(varargin)>=kS
+    keyS = varargin{kS};
 end
 if ischar(keyS)
     keyS = deblank(keyS);
 end
-if nargin>4
+%
+if length(varargin)>=kS+1
+    val = varargin{kS+1};
     DeleteKey = isempty(val) && isnumeric(val);
     iv = 0;
     for i=1:length(grp)
@@ -462,8 +538,9 @@ if nargin>4
         error('Mismatch between the number of matching chapters (%i) and number of values given (%i)',iv,numel(val))
     end
 elseif isempty(keyS) && isnumeric(keyS)
+    % remove group
     S(grp,:) = [];
 else
-    error('Missing key value pair')
+    error('No value specified during INIFILE SET call.')
 end
 FI.Data=S;

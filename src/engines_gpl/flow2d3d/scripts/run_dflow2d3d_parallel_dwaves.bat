@@ -67,7 +67,6 @@ for %%f in ("%D3DT%") do set ARCH=%%~nxf
 
 set dflow2d3ddir=%D3D_HOME%\%ARCH%\dflow2d3d\bin
 set sharedir=%D3D_HOME%\%ARCH%\share\bin
-set swanexedir=%D3D_HOME%\%ARCH%\swan\bin
 set swanbatdir=%D3D_HOME%\%ARCH%\swan\scripts
 set waveexedir=%D3D_HOME%\%ARCH%\dwaves\bin
 
@@ -83,7 +82,7 @@ start "Delft3D-FLOW" "%sharedir%\mpiexec.exe" -n %numpar% -localonly "%dflow2d3d
 
     rem Start WAVE
 title Delft3D-WAVE simulation
-set PATH=%swanbatdir%;%swanexedir%;%sharedir%;%waveexedir%
+set PATH=%waveexedir%;%swanbatdir%;%sharedir%
 echo executing in this window: "%waveexedir%\wave.exe" %mdwfile% 1
 "%waveexedir%\wave.exe" %mdwfile% 1
 title %CD%
@@ -92,11 +91,11 @@ goto end
 
 :usage
 echo Usage:
-echo run_dflow2d3d_parallel_dwaves.bat [--help] [n] [config_d_hydro.xml] -w <mdw-file>
+echo "run_dflow2d3d_parallel_dwaves.bat [--help] n <config_d_hydro.xml> -w <mdw-file>"
 echo     --help            : (Optional) show this usage
-echo     n                 : (Optional) integer, number of partitions.
-echo                         Default value: %NUMBER_OF_PROCESSORS%
-echo     config_d_hydro.xml: (Optional) default: config_d_hydro.xml
+echo     n                 : (Mandatory) integer, number of partitions.
+echo                         Number of processors on this machine: %NUMBER_OF_PROCESSORS%
+echo     config_d_hydro.xml: (Mandatory) Delft3D-FLOW input file
 echo     -w <mdw-file>     : (Mandatory) Delft3D-WAVE input file
 
 :end

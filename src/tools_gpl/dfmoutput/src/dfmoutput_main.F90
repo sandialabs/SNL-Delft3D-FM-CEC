@@ -1,6 +1,6 @@
 !----- AGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2017-2018.                                
+!  Copyright (C)  Stichting Deltares, 2017-2020.                                
 !                                                                               
 !  This file is part of Delft3D (D-Flow Flexible Mesh component).               
 !                                                                               
@@ -27,18 +27,19 @@
 !                                                                               
 !-------------------------------------------------------------------------------
 
-! $Id: dfmoutput_main.F90 52271 2017-09-04 07:52:04Z klecz_ml $
-! $HeadURL: https://repos.deltares.nl/repos/ds/branches/dflowfm/20161017_dflowfm_codecleanup/tools_gpl/dfmoutput/src/dfmoutput_main.F90 $
+! $Id: dfmoutput_main.F90 65778 2020-01-14 14:07:42Z mourits $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_gpl/dfmoutput/src/dfmoutput_main.F90 $
 
 !> DFMOUTPUT - A postprocessing tool for output files from D-Flow Flexible Mesh.
 !! Combines several commands/operations into a single program.
 !!
 !! Available commands:
 !! * mapmerge - Merge multiple _map.nc files into a single one, intended for merging partioned output files.
+!! * max25    - Filter for histories.
 !! * extract  - (not implemented) Extract time series on certain locations from _his.nc files.
 !! * convert  - (not implemented) Convert old format map files into UGRID compliant map files.
 !!
-!! $Id: dfmoutput_main.F90 52271 2017-09-04 07:52:04Z klecz_ml $
+!! $Id: dfmoutput_main.F90 65778 2020-01-14 14:07:42Z mourits $
 program dfmoutput
 use IR_Precision                                                        ! Integers and reals precision definition.
 use Data_Type_Command_Line_Interface, only: Type_Command_Line_Interface ! Definition of Type_Command_Line_Interface.
@@ -46,6 +47,9 @@ use dfmoutput_version_module
 use dfm_params
 use dfm_merge
 use m_alloc
+use precision, only : hp
+use dfm_max25_getdata
+use dfm_gen_filter
 !-----------------------------------------------------------------------------------------------------------------------------------
 
 !-----------------------------------------------------------------------------------------------------------------------------------
@@ -55,8 +59,12 @@ integer(I4P)                      :: ierr         !< Error trapping flag.
 character(len=MAXNAMELEN), allocatable :: infiles(:)  !< Input file name(s)
 character(len=MAXNAMELEN)              :: listfile    !< List file containing all input file name(s)
 character(len=MAXNAMELEN), allocatable :: outfiles(:) !< Output file name(s)
+character(len=32        )              :: filter_length  !< filter lengths given for max25
+character(len=32        )              :: var_name       !< variable name given for max25
 character(len=MAXNAMELEN)              :: rec
-integer :: ninfiles, n0
+character(len=12) :: coeff(3)
+real(kind=hp)     :: rcoeff(3)
+integer :: ninfiles
 integer :: i, fp
 logical :: exist
 logical :: force
@@ -68,7 +76,9 @@ logical :: force
 call cli%init(progname    = dfmoutput_basename,                                            &
               version     = dfmoutput_version,                                             &
               description = 'Tool for handling D-Flow FM output files',                    &
-              examples    = ["dfmoutput mapmerge --infile model_0000_map.nc model_0001_map.nc    "])! ,&
+              examples    = ["dfmoutput mapmerge  --infile model_0000_map.nc model_0001_map.nc", &
+                             "dfmoutput max25     --infile hisfile.nc                         ", &
+                             "dfmoutput genfilter --infile hisfile.nc  --intval 6             "])
 !                             "dfmoutput extract --station='stat A' model_his.nc         "])
 
 ! setting Command Line Arguments
@@ -89,6 +99,22 @@ call cli%add(group='mapmerge',switch='--time',    switch_ab='-t', help='Only sel
                                                                        '   ''LAST''           last available time in input file.', &
              required=.false.,act='store',def='',valname='TIME[:TIME2]')
 
+!! Set up MAX25 command
+call cli%add_group(group='max25',description='Get max25 value and other derived properties from his file.')
+call cli%add(group='max25',switch='--infile',  switch_ab='-i', help='One input files.',required=.true.,act='store',def=char(0),valname='FILE')
+call cli%add(group='max25',switch='--filterlength', switch_ab='-l', help='Filter length. Default: 13,25',required=.false.,act='store',def='13,25',valname='FILTERLENGTH')
+call cli%add(group='max25',switch='--varname', help='Variable name. Default: waterlevel',required=.false.,act='store',def='waterlevel',valname='WATERLEVEL')
+call cli%add(group='max25',switch='--outfile', switch_ab='-o', help='Write output to file OUTFILE. Default: max25.out',required=.false.,act='store',def='max25.out',valname='OUTFILE')
+
+
+!! Set up gen_filter command
+call cli%add_group(group='genfilter',description='Get maximum value based on a generic filter.')
+call cli%add(group='genfilter',switch='--infile',  switch_ab='-i', help='One input files.',required=.true.,act='store',def=char(0),valname='FILE')
+call cli%add(group='genfilter',switch='--varname', help='Variable name. Default: waterlevel',required=.false.,act='store',def='waterlevel',valname='WATERLEVEL')
+call cli%add(group='genfilter',switch='--outfile', switch_ab='-o', help='Write output to file OUTFILE. Default: max.out',required=.false.,act='store',def='max.out',valname='OUTFILE')
+call cli%add(group='genfilter',switch='--intval', help='filter period in terms of timesteps. Default: 6',required=.false.,act='store',def='6',valname='INTVAL')
+call cli%add(group='genfilter',switch='--coefimpl', help='Filter coefficient; impl. part. Default: 0.3',required=.false.,act='store',def='0.3',valname='COEFIMP')
+call cli%add(group='genfilter',switch='--coefexpl', help='Filter coefficient; expl. part. Default: 0.3',required=.false.,act='store',def='0.3',valname='COEFEXPL')
 
 !! Set up EXTRACT command
 !call cli%add_group(group='extract',description='Extract time series from a his file.')
@@ -176,6 +202,52 @@ if (cli%run_command('mapmerge')) then
    if (ierr /= 0) goto 888
 
    ierr = dfm_merge_mapfiles(infiles, ninfiles, outfiles(1), force)
+
+! MAX25 command for water levels
+else if (cli%run_command('max25')) then
+   allocate(infiles(1))
+   allocate(outfiles(1))
+   call cli%get(group='max25', switch='-i', val = infiles(1), error=ierr)
+   if (ierr /= 0) goto 888
+   call cli%get(group='max25', switch='-o', val = outfiles(1), error=ierr)
+   if (ierr /= 0) goto 888
+   call cli%get(group='max25', switch='--varname', val = var_name, error=ierr)
+   if (ierr /= 0) goto 888
+   call cli%get(group='max25', switch='-l', val = filter_length, error=ierr)
+   if (ierr /= 0) goto 888
+
+   if (verbose_mode) then
+      write(*,*) 'arguments for max25: ', trim(infiles(1)), ', ', trim(outfiles(1)), ', ', trim(var_name), ', ', trim(filter_length)
+   endif
+
+   call fmgetdata(trim(infiles(1)), trim(outfiles(1)), trim(var_name), trim(filter_length))
+
+! genfilter command for water levels
+else if (cli%run_command('genfilter')) then
+   allocate(infiles(1))
+   allocate(outfiles(1))
+   call cli%get(group='genfilter', switch='-i', val = infiles(1), error=ierr)
+   if (ierr /= 0) goto 888
+   call cli%get(group='genfilter', switch='-o', val = outfiles(1), error=ierr)
+   if (ierr /= 0) goto 888
+   call cli%get(group='genfilter', switch='--varname', val = var_name, error=ierr)
+   if (ierr /= 0) goto 888
+   call cli%get(group='genfilter', switch='--intval', val = coeff(1), error=ierr)
+   if (ierr /= 0) goto 888
+   call cli%get(group='genfilter', switch='--coefimpl', val = coeff(2), error=ierr)
+   if (ierr /= 0) goto 888
+   call cli%get(group='genfilter', switch='--coefexpl', val = coeff(3), error=ierr)
+   if (ierr /= 0) goto 888
+   do i=1,3
+      read(coeff(i),*) rcoeff(i)
+   enddo
+
+   if (verbose_mode) then
+      write(*,*) 'arguments for genfilter: ', trim(infiles(1)), ', ', trim(outfiles(1)), ', ', trim(var_name)
+      write(*,*) 'coefficients: ', rcoeff
+   endif
+
+   call gen_filter(trim(infiles(1)), trim(outfiles(1)), trim(var_name), rcoeff(1), rcoeff(2), rcoeff(3))
 
 ! EXTRACT command
 else if (cli%run_command('extract')) then

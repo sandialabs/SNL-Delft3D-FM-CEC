@@ -1,4 +1,4 @@
-subroutine z_trisol_nhfull(dischy    ,solver    ,icreep   , &
+subroutine z_trisol_nhfull(dischy    ,solver    ,icreep   ,ithisc    , &
                          & timnow    ,nst       ,itiwec    ,trasol    ,forfuv    , &
                          & forfww    ,nfltyp    , &
                          & saleqs    ,temeqs    , &
@@ -7,7 +7,7 @@ subroutine z_trisol_nhfull(dischy    ,solver    ,icreep   , &
                          & betac     ,tkemod    ,gdp       )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
+!  Copyright (C)  Stichting Deltares, 2011-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -31,8 +31,8 @@ subroutine z_trisol_nhfull(dischy    ,solver    ,icreep   , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: z_trisol_nhfull.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/engines_gpl/flow2d3d/packages/kernel/src/main/z_trisol_nhfull.f90 $
+!  $Id: z_trisol_nhfull.f90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/kernel/src/main/z_trisol_nhfull.f90 $
 !!--description-----------------------------------------------------------------
 !
 ! Z-model
@@ -476,6 +476,7 @@ subroutine z_trisol_nhfull(dischy    ,solver    ,icreep   , &
 !
 ! Global variables
 !
+    integer             :: ithisc      !! History file output time step
     integer             :: icreep      !  Description and declaration in tricom.igs
     integer             :: itiwec      !!  Current time counter for the calibration of internal wave energy
     integer, intent(in) :: keva        !  Description and declaration in tricom.igs
@@ -506,6 +507,7 @@ subroutine z_trisol_nhfull(dischy    ,solver    ,icreep   , &
 !
     integer      :: icx
     integer      :: icy
+    integer      :: imode
     integer      :: itemp
     integer      :: itype
     integer      :: n
@@ -1703,7 +1705,7 @@ subroutine z_trisol_nhfull(dischy    ,solver    ,icreep   , &
                      & icx       ,icy       ,lundia    ,d(dps)    ,r(s0)     , &
                      & r(umean)  ,r(vmean)  ,r(z0urou) ,r(z0vrou) ,i(kfu)    , &
                      & i(kfv)    ,zmodel    ,i(kfsmx0) ,i(kfsmn0) ,r(dzs0)   , &
-                     & gdp       )
+                     & lstsci    ,gdp       )
              call timer_stop(timer_fallve, gdp)
           endif
           !
@@ -1761,10 +1763,10 @@ subroutine z_trisol_nhfull(dischy    ,solver    ,icreep   , &
                     & r(dzs1)   ,r(areau)  ,r(areav)  ,r(volum0) ,r(volum1) , &
                     & r(guu)    ,r(gvv)    ,r(bruvai) ,sedtyp    ,r(seddif) , &
                     & r(ws)     ,lsed      ,lsal      ,ltem      ,eqmbcsand , &
-                    & eqmbcmud  ,lsts      ,gdp       )    
+                    & eqmbcmud  ,lsts      ,r(s1)     ,d(dps)    ,gdp       )    
           call z_difuflux(stage  ,lundia ,kmax      ,nmmax     ,nmmaxj    , &
                   & lstsci    ,r(r0)     ,r(r1)     ,r(qxk)    ,r(qyk)    , &
-                  & r(u1)     ,r(v1)     ,&
+                  & r(u1)     ,r(v1)     ,r(s1)     ,d(dps)    , &
                   & r(dicuv)  ,r(guv)    ,r(gvu)    ,r(areau)  ,r(areav)  , &
                   & i(kfuz1)  ,i(kfvz1)  ,i(kfsz1)  ,i(kcs)    ,i(kfs)    , &
                   & i(kfu)    ,i(kfuz0)  ,i(kfv)    ,i(kfvz0)  , &
@@ -2037,6 +2039,16 @@ subroutine z_trisol_nhfull(dischy    ,solver    ,icreep   , &
                     &  r(thick)  ,gdp       )
        endif
        call timer_stop(timer_3dmor, gdp)
+       !
+       if (nst+1 == ithisc) then
+          imode = 3 ! output needed, so update fluxes and volumes
+       else
+          imode = 2 ! no output needed, so just update fluxes
+       endif
+       call updmassbal(imode    ,r(qxk)    ,r(qyk)    ,i(kcs)    ,r(r1)     , &
+                    & r(volum0) ,r(volum1) ,r(sbuu)   ,r(sbvv)   ,r(disch)  , &
+                    & i(mnksrc) ,r(sink)   ,r(sour)   ,r(gsqs)   ,r(guu)    , &
+                    & r(gvv)    ,d(dps)    ,r(rintsm) ,dtsec     ,gdp       )
        !
        ! Check Courant numbers for U and V velocities in U-points
        ! Check is based on the old geometry (corresponding to S0)

@@ -1,7 +1,8 @@
 module ModelTypes
+   use messageHandling 
 !----- AGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2017-2018.                                
+!  Copyright (C)  Stichting Deltares, 2017-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify              
 !  it under the terms of the GNU Affero General Public License as               
@@ -25,8 +26,8 @@ module ModelTypes
 !  Stichting Deltares. All rights reserved.
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: ModelTypes.f90 8044 2018-01-24 15:35:11Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_gpl/flow1d/packages/flow1d_core/src/ModelTypes.f90 $
+!  $Id: ModelTypes.f90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_gpl/flow1d/packages/flow1d_core/src/ModelTypes.f90 $
 !-------------------------------------------------------------------------------
 
     ! model run-time parameters, model state variables
@@ -37,14 +38,19 @@ module ModelTypes
         integer          :: currentTimeStep
         double precision :: currentTime               ! current time in seconds
         double precision :: timeStep                  ! time step in seconds
-        double precision :: outputTimeStep            ! output timestep in seconds
+        double precision :: mapOutputTimeStep         ! output timestep in seconds for grid points and reach segments
+        double precision :: hisOutputTimeStep         ! output timestep in seconds for other data
         integer          :: startDate
         integer          :: endDate
         integer          :: startTime
         integer          :: endTime
         integer          :: restartendTimestep
-        integer          :: restartInterval            ! output timestep in seconds
-        integer          :: nextRestarttimestep            ! output timestep in seconds
+        integer          :: restartInterval 
+        integer          :: nextRestarttimestep
+        logical          :: writerestart
+        logical          :: userestart
+        
+        character(len=Charln) :: restartFile
         ! model state variables with dimension of number of points / cells
     end type
 end module

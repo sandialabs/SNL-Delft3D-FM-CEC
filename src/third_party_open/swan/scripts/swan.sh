@@ -43,7 +43,10 @@ echo >>swan_sh.log
 debug=0
 OMP_NUM_THREADS_BACKUP=$OMP_NUM_THREADS
 
-testpar=$NHOSTS
+# When using mpi to run FLOW in parallel, it is not possible to use mpi
+# to run SWAN in parallel. By using "testpar=1", SWAN will not use mpi.
+testpar=1
+# testpar=$NHOSTS
 # testpar=$NSLOTS
 if [ ! -z "$testpar" ]; then
   if [ $testpar -gt 1 ]; then
@@ -67,21 +70,9 @@ D3D_HOME=$scriptdir/..
 MACHINE_TYPE=`uname -m`
  
 if [ $mpirun -eq 1 ]; then
-  if [ ${MACHINE_TYPE} = 'x86_64' ]; then
-    SWANEXEC=${D3D_HOME}/bin/swan_4072ABCDE_del_l64_i11_mpi.exe
-  elif [ ${MACHINE_TYPE} = 'i686' ]; then
-    SWANEXEC=${D3D_HOME}/bin/swan_4072ABCDE_del_l32_i11_mpi.exe
-  else
-    echo "Error \"uname -m\" does not return x86_64 or i686" >>swan_sh.log
-  fi
+    SWANEXEC=${D3D_HOME}/bin/swan_mpi.exe
 else
-  if [ ${MACHINE_TYPE} = 'x86_64' ]; then
-    SWANEXEC=${D3D_HOME}/bin/swan_4072ABCDE_del_l64_i11_omp.exe
-  elif [ ${MACHINE_TYPE} = 'i686' ]; then
-    SWANEXEC=${D3D_HOME}/bin/swan_4072ABCDE_del_l32_i11_omp.exe
-  else
-    echo "Error \"uname -m\" does not return x86_64 or i686" >>swan_sh.log
-  fi
+    SWANEXEC=${D3D_HOME}/bin/swan_omp.exe
   #
   # swan40.72AB and newer runs parallel using OpenMP, using the total number of cores on the machine by default
   # Two ways to force the number of parallel processes:
@@ -170,7 +161,7 @@ if [ ${ready} -eq 0 ]; then
          #
          ## General.
          #
-         mpirun -np $NSLOTS ${SWANEXEC}
+         mpirun -np $NSLOTS ${SWANEXEC} >>swan_sh.log
 
          #
          ## Specific for MPICH2, mpiexec offers more possibilities than mpirun (for
@@ -207,11 +198,11 @@ if [ ${ready} -eq 0 ]; then
          #
          # SWAN run on 1 node.
          #
-         ${SWANEXEC}
+         ${SWANEXEC} >>swan_sh.log
          #
          # Move PRINT file to output file
          #
-         mv PRINT ${1}.prt
+         cp PRINT ${1}.prt
       fi
       if [ -f "${1}.src" ]; then
         cp source ${1}.src >/dev/null

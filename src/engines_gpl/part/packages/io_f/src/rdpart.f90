@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2018.
+!!  Copyright (C)  Stichting Deltares, 2012-2020.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -69,6 +69,7 @@
       character( 32)                 filvers         ! to read the file version number
       character( 32)                 cwork           ! small character workstring
       character(256)                 cbuffer         ! character buffer
+      integer  ( ip)                 ibuffer         ! integer buffer
       integer  ( ip)                 i, k            ! loop variables
       integer  ( ip)                 ios             ! help variable io-status
       integer  ( ip)                 nodac           ! help variable nodye + nocont
@@ -86,8 +87,8 @@
       character(1)                   cchar_save      ! save value from Delwaq
       integer  ( ip)                 lunut_save      ! save value from Delwaq
       integer  ( ip)                 npos_save       ! save value from Delwaq
-      real     ( sp), allocatable :: xpoltmp(:)      ! temp x-coordinates polygon
-      real     ( sp), allocatable :: ypoltmp(:)      ! temp y-coordinates polygon
+      real     ( sp), pointer     :: xpoltmp(:)      ! temp x-coordinates polygon
+      real     ( sp), pointer     :: ypoltmp(:)      ! temp y-coordinates polygon
       integer  ( ip)                 nrowstmp        ! temp length polygon
       integer  ( ip)                 npmargin        ! allocation margin in number of particles
       
@@ -661,6 +662,8 @@
       write_restart_file = .false.
       max_restart_age = -1
       pldebug = .false.
+      screens = .false.
+      nrowsscreens = 0
 
 
       if ( gettoken( cbuffer, id, itype, ierr2 ) .ne. 0 ) then
@@ -769,6 +772,30 @@
                   write ( lun2, '(/a)' ) '  Found keyword "pldebug": will write plastics debug info (e.g. sizes).'
                   write ( *   , '(/a)' ) ' Found keyword "pldebug": will write plastics debug info (e.g. sizes).'
                   pldebug = .true.
+               case ('screens')
+                  write ( lun2, '(/a)' ) '  Found keyword "screens".'
+                  write ( *   , '(/a)' ) ' Found keyword "screens".'
+                  screens = .true.
+                  if ( gettoken( permealeft  , ierr2 ) .ne. 0 ) goto 9201   ! leftside permeability of screeens 
+                  if ( gettoken( permearight , ierr2 ) .ne. 0 ) goto 9202   ! rightside permeability of screeens
+                  if ( gettoken( fiscreens   , ierr2 ) .ne. 0 ) goto 9203   ! screens polygon
+
+                  open ( 50, file=fiscreens, status='old', iostat=ierr2 )
+                  if ( ierr2 .ne. 0 ) go to 9204
+                  call getdim_dis ( 50, fiscreens, nrowsscreens, lun2 )
+                  close (50)
+                  if ( nrowsscreens .gt. 0) then
+!     allocate memory for the dispersant polygons, and read them into memory
+                     call alloc ( "xpoltmp", xpolscreens, nrowsscreens )
+                     call alloc ( "ypoltmp", ypolscreens, nrowsscreens )
+                     xpolscreens = 999.999
+                     ypolscreens = 999.999
+                     call polpart(fiscreens, nrowsscreens, xpolscreens, ypolscreens, nrowstmp, lun2)
+                  else
+                     write ( lun2, '(/a)' ) '  Screens polygon doesn''t contain any coordinates'
+                     write ( *   , '(/a)' ) ' Screens polygon doesn''t contain any coordinates'
+                     screens = .false.
+                  endif
                case default
                   write ( lun2, '(/a,a)' ) '  Unrecognised keyword: ', trim(cbuffer)
                   write ( *   , '(/a,a)' ) ' Unrecognised keyword: ', trim(cbuffer)
@@ -948,7 +975,6 @@
 !     oil_opt = 0xx : no boom introductions
 !             = 1xx : boom introductions with direct chance per day to pass the oilboom
 !
-         nrowsmax  = 0
          ndisapp = 0
          nboomint = 0
          if ( gettoken( oil_opt, ierr2 ) .ne. 0 ) goto 6001
@@ -1099,10 +1125,10 @@
             endif
          endif
 
-         allocate ( xpoltmp(nrowsmax) )
-         allocate ( ypoltmp(nrowsmax) )
-         if ( ndisapp .gt. 0 ) then
+         if ( ndisapp .gt. 0 .and. nrowsmax .gt. 0) then
 !     allocate memory for the dispersant polygons, and read them into memory
+            call alloc ( "xpoltmp", xpoltmp, nrowsmax )
+            call alloc ( "ypoltmp", ypoltmp, nrowsmax )
             call alloc ( "xpoldis", xpoldis, nrowsmax, ndisapp )
             call alloc ( "ypoldis", ypoldis, nrowsmax, ndisapp )
             call alloc ( "nrowsdis", nrowsdis, ndisapp )
@@ -1291,6 +1317,7 @@
       call alloc ( "zwaste ", zwaste , i )
       call alloc ( "ioptrad", ioptrad, i )
       call alloc ( "radius ", radius , i )
+      call alloc ( "fidye  ", fidye  , i )
       call alloc ( "wparm  ", wparm  , i )
       call alloc ( "ndprt  ", ndprt  , i )
       call alloc ( "amassd ", amassd , nosubs, i )
@@ -1342,7 +1369,20 @@
 
          if ( gettoken( ioptrad(i), ierr2 ) .ne. 0 ) goto 4043
          if ( ioptrad(i) .eq. 0 ) then
-            if ( gettoken( radius(i), ierr2 ) .ne. 0 ) goto 4043
+            ! read all tokens
+            if ( gettoken( fidye(i), ibuffer, radius(i), itype, ierr2 ) .ne. 0 ) goto 4043
+            if (itype.eq.2) then
+               radius(i) = real(ibuffer)
+               fidye(i) = ' '
+            elseif (itype.eq.3) then
+               fidye(i) = ' '
+            else               
+               radius(i) = -999.0
+               open ( 50, file=fidye(i), status='old', iostat=ierr2 )
+               if ( ierr2 .ne. 0 ) go to 1702
+               call getdim_dis ( 50, fidye(i), nrowsmax, lun2 )
+               close (50)
+            endif
          else
             radius(i) = 0
          endif
@@ -1354,10 +1394,13 @@
 
          if ( nolayp .eq. 1 ) then
             write ( lun2, 2280 ) xwaste(i), ywaste(i), zwaste(i)
-            write ( lun2, 2282 ) radius(i), wparm(i)
          else
             write ( lun2, 2281 ) xwaste(i), ywaste(i), kwaste(i)
+         endif
+         if ( radius(i) .ge. 0.0 ) then
             write ( lun2, 2282 ) radius(i), wparm(i)
+         else
+            write ( lun2, 2283 ) trim(fidye(i)), wparm(i)
          endif
 
 !       mass of the instantaneous release
@@ -1392,6 +1435,10 @@
       call alloc ( "zwaste", zwaste, i )
       call alloc ( "kwaste", kwaste, i )
       call alloc ( "radius", radius, i )
+      call alloc ( "fiwaste",fiwaste, i )
+      do k = 1, nodye
+         fiwaste(k) = fidye(k)
+      enddo
       call alloc ( "wparm ", wparm , i )
       call alloc ( "ndprt ", ndprt , i )
       if ( nocont .gt. 0 ) then
@@ -1429,16 +1476,33 @@
 
 !       radius and scale (% of particles)
 
-         if ( gettoken( radius(i+nodye), ierr2 ) .ne. 0 ) goto 4043
+         ! read all tokens because it might be the name of a polygon
+         if ( gettoken( fiwaste(i+nodye), ibuffer, radius(i+nodye), itype, ierr2 ) .ne. 0 ) goto 4043
+         if (itype.eq.2) then
+            radius(i+nodye) = real(ibuffer)
+            fiwaste(i+nodye) = ' '
+         elseif (itype.eq.3) then
+            fiwaste(i+nodye) = ' '
+         else               
+            radius(i+nodye) = -999.0
+            open ( 50, file=fiwaste(i+nodye), status='old', iostat=ierr2 )
+            if ( ierr2 .ne. 0 ) go to 1703
+            call getdim_dis ( 50, fiwaste(i+nodye), nrowsmax, lun2 )
+            close (50)
+         endif
+         
          if ( gettoken( wparm (i+nodye), ierr2 ) .ne. 0 ) goto 4043
          ndprt(i+nodye) = int(wparm(i+nodye)*nopart/100.0 + 0.5)
 
          if ( nolayp .eq. 1 ) then
             write ( lun2, 2280 ) xwaste(i+nodye), ywaste(i+nodye), zwaste(i+nodye)
-            write ( lun2, 2282 ) radius(i+nodye), wparm (i+nodye)
          else
             write ( lun2, 2281 ) xwaste(i+nodye), ywaste(i+nodye), kwaste(i+nodye)
+         endif
+         if ( radius(i+nodye) .ge. 0.0 ) then
             write ( lun2, 2282 ) radius(i+nodye), wparm (i+nodye)
+         else
+            write ( lun2, 2283 ) trim(fiwaste(i+nodye)), wparm(i+nodye)
          endif
 
 !       scale factors (ascal) for each load
@@ -1514,6 +1578,28 @@
 
    20 continue
       if ( nocont .gt. 0 ) deallocate(ascal)
+
+! read actual waste polygons
+      if (nodac .gt. 0 .and. nrowsmax .gt. 0) then
+         call alloc ( "xpoltmp", xpoltmp, nrowsmax )
+         call alloc ( "ypoltmp", ypoltmp, nrowsmax )
+!        allocate memory for the waste polygons, and read them into memory
+         call alloc ( "xpolwaste", xpolwaste, nrowsmax, nodac )
+         call alloc ( "ypolwaste", ypolwaste, nrowsmax, nodac )
+         call alloc ( "nrowswaste", nrowswaste, nodac )
+         xpolwaste = 999.999
+         ypolwaste = 999.999
+         nrowswaste = 0
+
+         do i = 1 , nodac
+            if (radius(i).eq.-999.0) then
+               call polpart(fiwaste(i), nrowsmax, xpoltmp, ypoltmp, nrowstmp, lun2)
+               xpolwaste(1:nrowstmp, i) = xpoltmp(1:nrowstmp)
+               ypolwaste(1:nrowstmp, i) = ypoltmp(1:nrowstmp)
+               nrowswaste(i) = nrowstmp
+            endif
+         enddo
+      endif
 
 !       user defined releases
 
@@ -1949,6 +2035,8 @@
              12x,'Layer                   =  ',i11  )
  2282 format(12x,'Initial radius          =   ',f11.0, ' m.',/,      &
              12x,'Percentage of particles =   ',f11.0, ' %')
+ 2283 format(12x,'Release in polygon      =   ',A,' (The coordinates above are ignored)'/, &
+             12x,'Percentage of particles =   ',f11.0, ' %')
  2289 format(12x,'Released masses : ')
  2290 format(20x,'  Substance : ',a20,e13.4,'  kg/m3')
  2300 format(/'  Number of continuous release stations:', i2  /       )
@@ -2294,6 +2382,10 @@
       call stop_exit(1)
 1701  write(*,*) ' Error: could not open boom-file ',fiboom(i)
       call stop_exit(1)
+1702  write(*,*) ' Error: could not open instantaneous waste polygon-file ',fidye(i)
+      call stop_exit(1)
+1703  write(*,*) ' Error: could not open continuous waste polygon-file ',fiwaste(i+nodye)
+      call stop_exit(1)
 1710  write(*,*) ' Error: could not open ini-file ',ini_file
       call stop_exit(1)
 
@@ -2325,12 +2417,23 @@
 9107  write(lun2,'(/A,I3,A)') '  Error: ', plmissing, ' plastic(s) is/are not parametrised! '
       write(*   ,'(/A,I3,A)')  ' Error: ', plmissing, ' plastic(s) is/are not parametrised! '
       call stop_exit(1)
+9201  write(lun2,*) ' Error: expected leftside permeability of screeens!'
+      write(*   ,*) ' Error: expected leftside permeability of screeens!'
+      call stop_exit(1)
+9202  write(lun2,*) ' Error: expected rightside permeability of screeens!'
+      write(*   ,*) ' Error: expected rightside permeability of screeens!'
+      call stop_exit(1)
+9203  write(lun2,*) ' Error: expected screeens polygon file name!'
+      write(*   ,*) ' Error: expected screeens polygon file name!'
+9204  write(lun2,*) ' Error: could not open screens polygon-file: '//trim(fiscreens)
+      write(*,*) ' Error: could not open screens polygon-file: '//trim(fiscreens)
+      call stop_exit(1)
 
       end
    
       subroutine getdim_dis ( lun      , dis_file , nrowsmax, lunlog   )
 !
-!     programmer : michel jeuken
+!     programmer : michelle jeuken
 !     credits    : derived from getdim_ini
 !     function   : get dimensions from dispersant-file
 !                  (only max. no. of rows per polygone)

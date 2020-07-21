@@ -1,7 +1,7 @@
 module m_Culvert
 !----- AGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2017-2018.                                
+!  Copyright (C)  Stichting Deltares, 2017-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify              
 !  it under the terms of the GNU Affero General Public License as               
@@ -25,8 +25,8 @@ module m_Culvert
 !  Stichting Deltares. All rights reserved.
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: culvert.f90 8044 2018-01-24 15:35:11Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_gpl/flow1d/packages/flow1d_core/src/culvert.f90 $
+!  $Id: culvert.f90 65946 2020-02-07 08:32:13Z hofer_jn $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_gpl/flow1d/packages/flow1d_core/src/culvert.f90 $
 !-------------------------------------------------------------------------------
 
    use m_CrossSections
@@ -46,37 +46,38 @@ module m_Culvert
    end interface dealloc
    
    type, public :: t_culvert
-      integer                         :: culvertType ! ST_CULVERT, ST_SIPHON or ST_INV_SIPHON
-      double precision                :: leftlevel
-      double precision                :: rightlevel
-      type(t_crosssection), pointer   :: pcross => null()              
-      integer                         :: crosssectionnr      
-      integer                         :: allowedflowdir
-      double precision                :: length
-      double precision                :: inletlosscoeff
-      double precision                :: outletlosscoeff
-      logical                         :: has_valve
-      double precision                :: inivalveopen
-      type(t_table), pointer          :: losscoeff => null()
-      
-      ! Bend Loss for Siphons
-      double precision                :: bendlosscoeff
-
-      ! Levels for Normal Siphon
-      double precision                :: turnonlevel
-      double precision                :: turnofflevel
-      logical                         :: is_siphon_on = .false.
-
+      integer                         :: culvertType           !< ST_CULVERT
+      double precision                :: leftlevel             !< Left invert level of culvert
+      double precision                :: rightlevel            !< Right invert level of culvert
+      type(t_crosssection), pointer   :: pcross => null()      !< Pointer to cross section of culvert
+      integer                         :: crosssectionnr        !< Cross section index in cross section array
+      integer                         :: allowedflowdir        !< Allowed flow direction
+                                                               !< 0 all directions
+                                                               !< 1 only positive flow
+                                                               !< 2 only negative flow
+                                                               !< 3 no flow allowed
+      double precision                :: length                !< Length of the culvert
+      double precision                :: inletlosscoeff        !< Loss coefficient at inflow point
+      double precision                :: outletlosscoeff       !< Loss coefficient at outflow point
+      logical                         :: has_valve             !< Indicates whether a valve has been added
+      double precision                :: valveOpening          !< Current valve opening
+      type(t_table), pointer          :: losscoeff => null()   !< Table containing loss coefficients as a function of the relative opening
+      integer                         :: state                 !< State of Culvert/Siphon
+                                                               !< 0 = No Flow
+                                                               !< 1 = Free Culvert Flow 
+                                                               !< 2 = Submerged Culvert Flow 
+      double precision, dimension(2) :: bob_orig               !< Original bob0 values before the actual bobs are lowered
    end type
 
 contains
 
+   !> deallocate culvert 
    subroutine deallocCulvert(culvert)
       ! Modules
 
       implicit none
       ! Input/output parameters
-      type(t_culvert), pointer   :: culvert
+      type(t_culvert), pointer, intent(inout)   :: culvert     !< culvert object
 
       ! Local variables
 
@@ -91,47 +92,42 @@ contains
       
    end subroutine deallocCulvert
                               
+   !> 
    subroutine ComputeCulvert(culvert, fum, rum, aum, dadsm, kfum, cmustr, s1m1, s1m2, qm,  &
-                             q0m, u1m, u0m, dxm, dt, bobgrm1, bobgrm2, wetdown, infuru)
+                             q0m, u1m, u0m, dxm, dt, bob0, wetdown, infuru)
+      use m_Roughness
       
       implicit none
       !
       ! Global variables
       !
       type(t_culvert), pointer                     :: culvert
-      integer, intent(out)                         :: kfum
-      double precision, intent(out)                :: aum
-      double precision, intent(out)                :: dadsm
-      double precision, intent(out)                :: fum
+      integer,          intent(  out)              :: kfum
+      double precision, intent(  out)              :: aum
+      double precision, intent(  out)              :: dadsm
+      double precision, intent(  out)              :: fum
       double precision, intent(inout)              :: q0m
       double precision, intent(inout)              :: qm
-      double precision, intent(out)                :: rum
-      double precision, intent(out)                :: cmustr
+      double precision, intent(  out)              :: rum
+      double precision, intent(  out)              :: cmustr
       double precision, intent(inout)              :: u0m
       double precision, intent(inout)              :: u1m
-      double precision, intent(in)                 :: s1m2         !< left waterlevel s(m)          sleft
-      double precision, intent(in)                 :: s1m1         !< right waterlevel s(m+1)       sright
-      double precision, intent(in)                 :: dxm
-      double precision, intent(in)                 :: dt
-      double precision, intent(in)                 :: bobgrm1
-      double precision, intent(in)                 :: bobgrm2
-      double precision, intent(in)                 :: wetdown
-      logical, intent(in)                          :: infuru
+      double precision, intent(in   )              :: s1m2         !< left waterlevel s(m)          sleft
+      double precision, intent(in   )              :: s1m1         !< right waterlevel s(m+1)       sright
+      double precision, intent(in   )              :: dxm
+      double precision, intent(in   )              :: dt
+      double precision, intent(inout)              :: bob0(2)
+      double precision, intent(in   )              :: wetdown
+      logical,          intent(in   )              :: infuru
          
       ! Local variables
       type(t_CrossSection)           :: CrossSection
       integer                        :: allowedflowdir
       integer                        :: dir
 
-      logical                        :: IsCulvert
-      logical                        :: IsSiphon
-      logical                        :: IsInvertedSiphon
-
       double precision               :: smax             !< zeta_1 (upstream water level)
       double precision               :: smin             !< zeta_2 (downstream water level)
-      logical                        :: firstafterdry
       logical                        :: isfreeflow
-      logical                        :: belowBottom
       double precision               :: bu
       double precision               :: cmus
       double precision               :: cu
@@ -148,9 +144,8 @@ contains
       double precision               :: dummy
       double precision               :: dpt                 !< upstream water depth
       double precision               :: openingfac
-      double precision               :: inivalveopen
+      double precision               :: valveOpening
       double precision               :: chezyCulvert
-      double precision               :: culvertChezy
       double precision               :: chezyValve
       double precision               :: wArea               !< upstream wet area (no valve)
       double precision               :: wPerimiter          !< upstream wet perimeter  (no valve)
@@ -166,19 +161,13 @@ contains
       double precision               :: totalLoss
 
       ! Culvert Type
-      if (culvert%culvertType == ST_SIPHON) then
-         IsCulvert        = .false.
-         IsSiphon         = .true.
-         IsInvertedSiphon = .false.
-      elseif (culvert%culvertType == ST_INV_SIPHON) then
-         IsCulvert        = .false.
-         IsSiphon         = .false.
-         IsInvertedSiphon = .true.
-      else
-         IsCulvert        = .true.
-         IsSiphon         = .false.
-         IsInvertedSiphon = .false.
-      endif
+      
+      ! Check bobs
+      culvert%bob_orig(1) = bob0(1)
+      culvert%bob_orig(2) = bob0(2)
+      
+      bob0(1) = min(bob0(1), Culvert%leftlevel)
+      bob0(2) = min(bob0(2), Culvert%rightlevel)
 
       ! Find the flow direction
       if (s1m1 > s1m2) then
@@ -196,18 +185,19 @@ contains
       endif
       culvertCrest = max(outflowCrest, inflowCrest) 
 
-      ! Chack on Flow Direction
+      ! Check on Flow Direction
       allowedFlowDir = culvert%allowedflowdir
       if ((allowedFlowDir == 3) .or. &
           (dir == 1  .and. allowedFlowDir == 2) .or. &
           (dir == -1 .and. allowedFlowDir == 1)) then
-         kfum = 0
-         fum = 0.0d0
-         rum = 0.0d0
-         u1m = 0.0d0
-         u0m = 0.0d0
-         qm  = 0.0d0
-         q0m = 0.0d0
+         kfum  = 0
+         fum   = 0.0d0
+         rum   = 0.0d0
+         u1m   = 0.0d0
+         u0m   = 0.0d0
+         qm    = 0.0d0
+         q0m   = 0.0d0
+         culvert%state = 0
          return
       endif
 
@@ -215,159 +205,60 @@ contains
       gl_thickness = getGroundLayer(CrossSection)
 
       ! Check on Valve
-      if (culvert%has_valve .and. ((culvert%inivalveopen - gl_thickness) < thresholdDry)) then
-         kfum = 0
-         fum = 0.0
-         rum = 0.0
-         u1m = 0.0d0
-         u0m = 0.0d0
-         qm  = 0.0d0
-         q0m = 0.0d0
+      if (culvert%has_valve .and. ((culvert%valveOpening - gl_thickness) < thresholdDry)) then
+         kfum  = 0
+         fum   = 0.0d0
+         rum   = 0.0d0
+         u1m   = 0.0d0
+         u0m   = 0.0d0
+         qm    = 0.0d0
+         q0m   = 0.0d0
+         culvert%state = 0
          return
       endif
 
-      ! Check on flooding or drying with treshold
-      firstafterdry = .false.
-
-      if (IsCulvert) then
-      
-         ! Check if structure is lower than bottom
-         belowBottom = .false.
-         if ((bobgrm1 > Culvert%leftlevel + gl_thickness) .or.      &
-             (bobgrm2 > Culvert%rightlevel + gl_thickness)) then
-            belowBottom = .true.
-         endif
-         
-         if (((smax - culvertCrest - gl_thickness) < thresholdDry) .or.               &
-             (belowBottom .and. (dir == 1) .and. ((s1m1 - bobgrm1) < thresholdDry))   &
-             .or.                                                                     &
-             (belowBottom .and. (dir == -1) .and. ((s1m2 - bobgrm2) < thresholdDry))) then
-            kfum = 0
-         elseif (((smax - culvertCrest - gl_thickness) > thresholdFlood) .and.               &
-                 ((belowBottom .and. (dir == 1) .and. ((s1m1 - bobgrm1) > thresholdFlood))   &
-                 .or.                                                                        &
-                 (belowbottom .and. (dir == -1) .and. ((s1m2 - bobgrm2) > thresholdFlood)))) then
-            if (kfum == 0) then
-               firstafterdry = .true.
-            endif
-            kfum = 1
-         elseif (((smax - culvertCrest - gl_thickness) > thresholdFlood) .and. (.not. belowBottom)) then
-            if (kfum == 0) then
-               firstafterdry = .true.
-            endif
-            kfum = 1
-         endif
-
-         if (kfum==0) then 
-            fum = 0.0
-            rum = 0.0
-            u1m = 0.0d0
-            u0m = 0.0d0
-            qm  = 0.0d0
-            q0m = 0.0d0
-            return
-         endif
-      
+      if ((smax - culvertCrest - gl_thickness) < thresholdDry) then
+         kfum = 0
       else
-      
-         if ( ((smax - culvertCrest - gl_thickness) < thresholdDry) .or.                             &
-              (IsInvertedSiphon .and. (dir == 1)  .and. ((s1m1 - bobgrm1) < thresholdDry)) .or.     &
-              (IsInvertedSiphon .and. (dir == -1) .and. ((s1m2 - bobgrm2) < thresholdDry))) then
-            kfum = 0
-         elseif ( ((smax - culvertCrest - gl_thickness) > thresholdFlood) .and.                            &
-                  ((IsInvertedSiphon .and. (dir == 1)  .and. ((s1m1 - bobgrm1) > thresholdFlood)) .or.    &
-                   (IsInvertedSiphon .and. (dir == -1) .and. ((s1m2 - bobgrm2) > thresholdFlood)))) then
-            if (kfum == 0) then
-               firstafterdry = .true.
-            endif
-            kfum = 1
-         endif
-
-         if (IsInvertedSiphon .and. kfum == 0) then
-            fum = 0.0d0
-            rum = 0.0d0
-            u1m = 0.0d0
-            qm  = 0.0d0
-            q0m = 0.0d0
-            return
-         endif
-
+         kfum = 1
       endif
 
+      if (kfum==0) then 
+         kfum  = 0
+         fum   = 0.0d0
+         rum   = 0.0d0
+         u1m   = 0.0d0
+         u0m   = 0.0d0
+         qm    = 0.0d0
+         q0m   = 0.0d0
+         culvert%state = 0
+         return
+      endif
+      
       !     First find out the critical depth that can be used in free flow equations
       !     pjo, 13-04-2000, ars 4952, when flow direction changes, critical
       !     depth is taken as zero.
-      ! if (firstafterdry .or. (dble(dir) * qm <= 0.0d0)) then Simplification does not give same result
-      if (firstafterdry .or.                       &
-          ((dir == -1) .and. (qm > 0.0d0)) .or.    &
-          ((dir == 1)  .and. (qm < 0.0d0))) then
+      if ( ( (dir == -1) .and. (qm > 0.0d0) ) .or.    &
+           ( (dir == 1)  .and. (qm < 0.0d0) ) ) then
          dc = 0.0d0 
       else
          dc = GetCriticalDepth(qm, CrossSection)
       endif
 
-      if (IsSiphon) then
-      
-         ! Siphon
-         ! Now find out whether the upstream water level is greater than the
-         ! crest level + characteristic height of siphon
-         ! and check on the flow direction of the siphon -> can be only positive
-         if ( (smax - (inflowCrest + CrossSection%charHeight) < -ThresholdSiphon * CrossSection%charHeight) .or. &
-              (s1m1 < s1m2)) then
-            kfum = 0
-         elseif ((smax - (inflowCrest + CrossSection%charHeight)) > thresholdFlood) then
-            kfum = 1
-         else
-         endif
-      
-         if (kfum == 0) then
-            fum = 0.0d0
-            rum = 0.0d0
-            u1m = 0.0d0
-            qm  = 0.0d0
-            q0m = 0.0d0
-            return
-         endif
-
-         ! Siphon
-         ! Check for switch on or off of siphon
-         if (s1m2 <= culvert%turnonlevel) then
-            culvert%is_siphon_on = .true.
-         elseif (s1m2 >= culvert%turnofflevel) then
-            culvert%is_siphon_on = .false.
-         else
-         endif
-
-         ! Check if siphon is in operation
-         if (.not. culvert%is_siphon_on) then
-            kfum = 0
-            fum = 0.0d0
-            rum = 0.0d0
-            u1m = 0.0d0
-            qm  = 0.0d0
-            q0m = 0.0d0
-            return
-         endif
-
-      endif
 
       ! Calculate cross-section values in culvert
-      if (IsCulvert) then
-         dpt = smax - inflowCrest
-      else
-         ! Siphon always runs full
-         dpt = CrossSection%charHeight
-      endif
+      dpt = smax - inflowCrest
       
-      chezyCulvert = 0.0d0
-      call GetCSParsFlow(CrossSection, dpt, u0m, chezyCulvert, wArea, wPerimiter, wWidth, dummy)     
+      call GetCSParsFlow(CrossSection, dpt, wArea, wPerimiter, wWidth)     
+      chezyCulvert = getchezy(CrossSection%frictionTypePos(1), CrossSection%frictionValuePos(1), warea/wPerimiter, dpt, 1d0)
                   
       ! Valve Loss
-      if (culvert%has_valve .and. (culvert%inivalveopen < dpt)) then
-         inivalveopen = culvert%inivalveopen
+      if (culvert%has_valve .and. (culvert%valveOpening < dpt)) then
+         valveOpening = culvert%valveOpening
          chezyValve = 0.0d0
-         call GetCSParsFlow(CrossSection, inivalveopen, u0m, chezyValve, valveArea, valvePerimiter, valveWidth, dummy)     
-         openingfac = (inivalveopen - gl_thickness) / (CrossSection%charHeight - gl_thickness)
+         call GetCSParsFlow(CrossSection, valveOpening, valveArea, valvePerimiter, valveWidth)     
+         chezyCulvert = getchezy(CrossSection%frictionTypePos(1), CrossSection%frictionValuePos(1), valveArea/valvePerimiter, valveOpening, 1d0)
+         openingfac = (valveOpening - gl_thickness) / (CrossSection%charHeight - gl_thickness)
       else
          openingfac = 2.0d0     ! >> 1, so not influenced by valve
       endif
@@ -375,17 +266,15 @@ contains
       if (openingfac >= 1.0d0) then
          hydrRadius  = wArea / wPerimiter
          culvertArea  = wArea
-         culvertChezy = chezyCulvert
          valveloss = 0.0d0
       else
          valveloss = interpolate(culvert%lossCoeff, openingfac)
          hydrRadius  = valveArea / (valvePerimiter + valveWidth)
          culvertArea  = valveArea
-         culvertChezy = chezyValve
       endif
       
-      !Friction Loss
-      frictloss = 2.0d0 * gravity * culvert%length / (culvertChezy * culvertChezy * hydrRadius)            ! culvert friction established
+      ! Friction Loss
+      frictloss = 2.0d0 * gravity * culvert%length / (chezyCulvert * chezyCulvert * hydrRadius)            ! culvert friction established
       
       ! Check if flow is free flow or submerged
       if (smin >= (outflowCrest + gl_thickness + dc)) then  
@@ -405,11 +294,7 @@ contains
       endif
       
       totalLoss = exitloss + frictloss + culvert%inletlosscoeff + valveloss
-      
-      if (.not. IsCulvert) then        ! Is a Siphon
-         totalLoss = totalLoss + culvert%bendlosscoeff
-      endif
-      
+            
       totalLoss = max(totalLoss, 0.01d0)
       
       cmus = 1.0d0 / sqrt(totalLoss)
@@ -419,57 +304,39 @@ contains
       aum    = culvertArea
       dadsm  = wWidth
 
-      if (infuru) then
-      
-         if (isCulvert) then
-         
-            uest = u1m
+      uest = u1m
 
+      if (isfreeflow) then
+         
+         if (dir==1) then
+            d11 = s1m1 - outflowCrest - gl_thickness - dc
          else
-
-            if (abs(u1m) < 1.0d-8)then
-
-               ! Estimate velocity through siphon
-               ! Because the velocity is used explicitly an estimation of u is necessary to prevent 
-               ! overshoot situations.
-
-               if (isfreeflow) then
-                  uest = cmus * sqrt(2 * gravity * (smax - outflowCrest - gl_thickness - dc))
-               else
-                  uest = cmus * sqrt(2  *gravity * (smax - smin))
-               endif
-            else
-               uest = u1m        
-            endif   
-         
+            d11 = s1m2 - outflowCrest - gl_thickness - dc
          endif
-
-         if (isfreeflow) then
-         
-            if (dir==1) then
-               d11 = s1m1 - outflowCrest - gl_thickness - dc
-            else
-               d11 = s1m2 - outflowCrest - gl_thickness - dc
-            endif
             
-            d00 = max(1.0d-10, smax - smin)
+         d00 = max(1.0d-10, smax - smin)
             
-            cu = cmus * cmus * 2.0d0 * gravity * d11 / (dxm * d00)
+         cu = cmus * cmus * 2.0d0 * gravity * d11 / (dxm * d00)
             
-         else
+      else
          
-            cu = cmus * cmus * 2.0d0 * gravity / dxm
+         cu = cmus * cmus * 2.0d0 * gravity / dxm
             
-         endif
+      endif
          
-         fr = abs(uest) / dxm
+      uest = sqrt(abs(cu*(smax-smin)*dxm))
+      fr = abs(uest) / dxm
          
-         bu = 1.0d0 / dt + fr
-         du = u0m / dt
+      bu = 1.0d0 / dt + fr
+      du = u0m / dt
          
-         fum = cu / bu
-         rum = du / bu
+      fum = cu / bu
+      rum = du / bu
          
+      if (isfreeflow) then
+         culvert%state = 1
+      else
+         culvert%state = 2
       endif
     
    end subroutine ComputeCulvert

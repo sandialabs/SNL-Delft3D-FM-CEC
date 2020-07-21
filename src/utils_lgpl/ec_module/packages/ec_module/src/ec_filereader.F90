@@ -1,6 +1,6 @@
 !----- LGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
+!  Copyright (C)  Stichting Deltares, 2011-2020.                                
 !                                                                               
 !  This library is free software; you can redistribute it and/or                
 !  modify it under the terms of the GNU Lesser General Public                   
@@ -23,20 +23,21 @@
 !  are registered trademarks of Stichting Deltares, and remain the property of  
 !  Stichting Deltares. All rights reserved.                                     
 
-!  $Id: ec_filereader.F90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_lgpl/ec_module/packages/ec_module/src/ec_filereader.F90 $
+!  $Id: ec_filereader.F90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/ec_module/packages/ec_module/src/ec_filereader.F90 $
 
 !> This module contains all the methods for the datatype tEcFileReader.
 !! @author adri.mourits@deltares.nl
 !! @author stef.hummel@deltares.nl
-!! @author edwin.bos@deltares.nl
+!! @author edwin.spee@deltares.nl
 module m_ec_filereader
    use m_ec_typedefs
    use m_ec_message
    use m_ec_parameters
    use m_ec_alloc
    use m_ec_support
-   use m_ec_filereader_read
+   use m_ec_astro
+   use string_module
    
    implicit none
    
@@ -89,13 +90,14 @@ module m_ec_filereader
          fileReaderPtr%tframe%k_timestep_unit = ec_undef_int
          fileReaderPtr%tframe%ec_refdate = ec_undef_hp
          fileReaderPtr%tframe%ec_timestep_unit = ec_undef_int
-         fileReaderPtr%tframe%nr_timesteps = ec_undef_hp
+         fileReaderPtr%tframe%nr_timesteps = ec_undef_int
          fileReaderPtr%lastReadTime = ec_undef_hp
          fileReaderPtr%end_of_data = .false.
       end function ecFileReaderCreate
       
       ! =======================================================================
       
+
       !> Free a tEcFileReader, after which it can be deallocated.
       function ecFileReaderFree(fileReader) result(success)
       use m_ec_bcreader, only : ecBCBlockFree
@@ -197,9 +199,11 @@ module m_ec_filereader
          character(len=255)      :: qname 
          integer                 :: nv, nl, iitem
          integer                 :: from, thru
+         integer                 :: time_ndx
          real(hp), dimension(:), allocatable    :: values
          type(tEcItem), pointer  :: itemPtr
          integer                 :: n_invalid_components
+         integer                 :: timesndx
          
          ! body
          success = .false.
@@ -257,7 +261,7 @@ module m_ec_filereader
                   end do
                   success = .true.
                case (BC_FUNC_ASTRO)
-                  success = ecTimeFrameRealHpTimestepsToDateTime(fileReaderPtr%tframe, timesteps, yyyymmdd, hhmmss)
+                  success = ecTimeFrameRealHpTimestepsToDateTime(timesteps, yyyymmdd, hhmmss)
                   n_invalid_components = (ecFileReaderLookupAstroComponents(fileReaderPtr)) 
                   do i = 1, size(fileReaderPtr%items(1)%ptr%sourceT1FieldPtr%arr1d)
                      fileReaderPtr%items(1)%ptr%sourceT0FieldPtr%arr1d(i) = fileReaderPtr%items(1)%ptr%sourceT1FieldPtr%arr1d(i)
@@ -269,14 +273,13 @@ module m_ec_filereader
                                fileReaderPtr%items(3)%ptr%sourceT0FieldPtr%arr1d(i), &
                                fileReaderPtr%items(1)%ptr%sourceT0FieldPtr%astro_kbnumber(i),   &
                                yyyymmdd, hhmmss, istat)
+                     if (istat /= 0) success = .false.
                   end do
                   ! Shift time interval with dtnodal
                   do i=1, fileReaderPtr%nItems
                      fileReaderPtr%items(i)%ptr%sourceT0FieldPtr%timesteps = timesteps
                      fileReaderPtr%items(i)%ptr%sourceT1FieldPtr%timesteps = timesteps + fileReaderPtr%tframe%dtnodal
                   end do
-                  success = .true.
-                  if (istat /= 0) success = .false.
                case (BC_FUNC_QHTABLE)
                   do i=1, fileReaderPtr%nItems
                      fileReaderPtr%items(i)%ptr%sourceT1FieldPtr%timesteps = fileReaderPtr%items(i)%ptr%sourceT1FieldPtr%timesteps + 10000.0_hp
@@ -285,10 +288,6 @@ module m_ec_filereader
                case default
                   call setECMessage("ERROR: ec_filereader::ecFileReaderReadNextRecord: Unsupported BC function type.")
                end select
-            case (provFile_svwp)
-               call setECMessage("ERROR: ec_filereader::ecFileReaderReadNextRecord: Unsupported file type.")
-            case (provFile_svwp_weight)
-               call setECMessage("ERROR: ec_filereader::ecFileReaderReadNextRecord: Unsupported file type.")
             case (provFile_t3D)
                 numlay = size(fileReaderPtr%items(1)%ptr%elementsetptr%z)
                 vectormax = fileReaderPtr%items(1)%ptr%quantityptr%vectormax
@@ -327,18 +326,10 @@ module m_ec_filereader
                   fileReaderPtr%items(i)%ptr%sourceT1FieldPtr%timesteps = fileReaderPtr%items(i)%ptr%sourceT1FieldPtr%timesteps + 10000.0_hp
                end do
                success = .true.
-            case (provFile_curvi_weight)
-               call setECMessage("ERROR: ec_filereader::ecFileReaderReadNextRecord: Unsupported file type.")
-            case (provFile_samples)
-               ! NOTE: don't support readNextRecord, because sample data is read once by ecSampleReadAll upon init.
-               call setECMessage("ERROR: ec_filereader::ecFileReaderReadNextRecord: Unsupported file type.")
-            case (provFile_triangulationmagdir)
-               call setECMessage("ERROR: ec_filereader::ecFileReaderReadNextRecord: Unsupported file type.")
-            case (provFile_poly_tim)
-               call setECMessage("ERROR: ec_filereader::ecFileReaderReadNextRecord: Unsupported file type.")
             case (provFile_fourier)
+               success = .true.
                if(allocated(fileReaderPtr%items(1)%ptr%sourceT0FieldPtr%astro_components)) then ! Astronomical case
-                  success = ecTimeFrameRealHpTimestepsToDateTime(fileReaderPtr%tframe, timesteps, yyyymmdd, hhmmss)
+                  success = ecTimeFrameRealHpTimestepsToDateTime(timesteps, yyyymmdd, hhmmss)
                   n_invalid_components = (ecFileReaderLookupAstroComponents(fileReaderPtr)) 
                   do i = 1, size(fileReaderPtr%items(1)%ptr%sourceT1FieldPtr%arr1d)
                      fileReaderPtr%items(1)%ptr%sourceT0FieldPtr%arr1d(i) = fileReaderPtr%items(1)%ptr%sourceT1FieldPtr%arr1d(i)
@@ -350,6 +341,7 @@ module m_ec_filereader
                                fileReaderPtr%items(3)%ptr%sourceT0FieldPtr%arr1d(i),            &
                                fileReaderPtr%items(1)%ptr%sourceT0FieldPtr%astro_kbnumber(i),   &
                                yyyymmdd, hhmmss, istat)
+                     if (istat /= 0) success = .false.
                   end do
                   ! Shift time interval with dtnodal
                   do i=1, fileReaderPtr%nItems
@@ -361,18 +353,22 @@ module m_ec_filereader
                      fileReaderPtr%items(i)%ptr%sourceT1FieldPtr%timesteps = fileReaderPtr%items(i)%ptr%sourceT1FieldPtr%timesteps + 10000.0_hp
                   end do
                endif
-               success = .true.
-               if (istat /= 0) success = .false.
-            case (provFile_grib)
-               call setECMessage("ERROR: ec_filereader::ecFileReaderReadNextRecord: Unsupported file type.")
             case (provFile_netcdf)
                qname = fileReaderPtr%items(1)%ptr%quantityPtr%name
                call str_lower(qname)
+               itemPtr => fileReaderPtr%items(1)%ptr
+               if (itemPtr%sourceT0FieldPtr%timesndx < 0) then
+                  t0t1 = 0 
+                  timesndx  = ecNetcdfGetTimeIndexByTime(fileReaderPtr, timesteps)           ! timesteps is MJD in the new EC-module ? CHECK!
+               elseif (itemPtr%sourceT0FieldPtr%timesndx > itemPtr%sourceT1FieldPtr%timesndx) then
+                  t0t1 = 1
+                  timesndx = itemPtr%sourceT0FieldPtr%timesndx + 1
+               else
+                  t0t1 = 0 
+                  timesndx = itemPtr%sourceT1FieldPtr%timesndx + 1
+               endif
                select case (qname)
-               case ('rainfall','precipitation')
-                  success = ecNetcdfReadNextBlock(fileReaderPtr, fileReaderPtr%items(1)%ptr, 0)
-                  success = ecNetcdfReadNextBlock(fileReaderPtr, fileReaderPtr%items(1)%ptr, 1)
-               case ('hrms', 'tp', 'tps', 'rtp', 'dir', 'fx', 'fy', 'wsbu', 'wsbv', 'mx', 'my', 'dissurf','diswcap')
+               case ('hrms', 'tp', 'tps', 'rtp', 'dir', 'fx', 'fy', 'wsbu', 'wsbv', 'mx', 'my', 'dissurf','diswcap','ubot')   ! TODO RL: kijken of dit eruit kan 
                   t0t1 = -1
                   do i=1, fileReaderPtr%nItems
                      success = ecNetcdfReadBlock(fileReaderPtr, fileReaderPtr%items(i)%ptr, t0t1, fileReaderPtr%items(i)%ptr%elementSetPtr%nCoordinates)                  
@@ -384,19 +380,39 @@ module m_ec_filereader
                      endif
                   end do
                case default
-                  t0t1 = -1
                   do i=1, fileReaderPtr%nItems
-                     success = ecNetcdfReadNextBlock(fileReaderPtr, fileReaderPtr%items(i)%ptr, t0t1)
-                     if (t0t1 == 0) then
+                     success = ecNetcdfReadNextBlock(fileReaderPtr, fileReaderPtr%items(i)%ptr, t0t1, timesndx)
+                  end do
+                  if (itemPtr%sourceT1FieldPtr%timesndx < 0) then
+                     t0t1 = 1
+                     timesndx = timesndx + 1
+                     do i=1, fileReaderPtr%nItems
+                        success = ecNetcdfReadNextBlock(fileReaderPtr, fileReaderPtr%items(i)%ptr, t0t1, timesndx)
+                     end do      
+                  endif
+                  if (t0t1 == 0) then
+                     ! flip t0 and t1
+                     do i=1, fileReaderPtr%nItems
                         ! flip t0 and t1
                         fieldPtrA => fileReaderPtr%items(i)%ptr%sourceT1FieldPtr
                         fileReaderPtr%items(i)%ptr%sourceT1FieldPtr => fileReaderPtr%items(i)%ptr%sourceT0FieldPtr
                         fileReaderPtr%items(i)%ptr%sourceT0FieldPtr => fieldPtrA
-                     endif
-                  end do
-               end select 
+                     end do
+                  end if
+               end select
+            case (provFile_svwp, provFile_svwp_weight, provFile_curvi_weight, provFile_samples, &
+                  provFile_triangulationmagdir, provFile_poly_tim, provFile_grib)
+               ! NOTE for provFile_samples: don't support readNextRecord, because sample data is read once by ecSampleReadAll upon init.
+               call setECMessage("ERROR: ec_filereader::ecFileReaderReadNextRecord: Unsupported file type.")
             case default
                call setECMessage("ERROR: ec_filereader::ecFileReaderReadNextRecord: Unknown file type.")
+            do i=1, fileReaderPtr%nItems
+               if (fileReaderPtr%items(i)%ptr%sourceT1FieldPtr%timesteps<fileReaderPtr%items(i)%ptr%sourceT0FieldPtr%timesteps) then
+                  call setECMessage('Non-progressive time variable detected in file: '//trim(fileReaderPtr%fileName))
+                  success = .False.
+                  return
+               end if
+            end do
          end select
       end function ecFileReaderReadNextRecord
       
@@ -418,7 +434,7 @@ module m_ec_filereader
          fileReaderPtr => ecSupportFindFileReader(instancePtr, fileReaderId)
          if (associated(fileReaderPtr)) then
             do i=1, fileReaderPtr%nItems
-               if (trim(fileReaderPtr%items(i)%ptr%quantityPtr%name) == trim(name)) then
+               if (strcmpi(fileReaderPtr%items(i)%ptr%quantityPtr%name,name)) then                                               !(trim(fileReaderPtr%items(i)%ptr%quantityPtr%name) == trim(name)) then
                   itemId = fileReaderPtr%items(i)%ptr%id
                   exit
                end if
@@ -544,6 +560,7 @@ module m_ec_filereader
                   itemPtr%quantityPtr%vectormax = fileReaderPtr%bc%quantity%vectormax
                end select
             endif 
+            itemPtr%tframe => fileReaderPtr%tframe
             success = .true.
          end if
       end function ecFileReaderAddItem
@@ -562,12 +579,10 @@ module m_ec_filereader
             if (nmissing>0) then 
                do icmp=1, kcmp
                   if (fileReaderPtr%items(1)%ptr%sourceT0FieldPtr%astro_kbnumber(icmp)<0) then
-                     call message('unknown component '     &
-                                 // trim(fileReaderPtr%items(1)%ptr%sourceT0FieldPtr%astro_components(icmp)),                      &
-                                      ' amplitude set to 0 ', ' ')
                      call setECMessage('unknown component '     &
                                  // trim(fileReaderPtr%items(1)%ptr%sourceT0FieldPtr%astro_components(icmp)),                      &
                                       ' amplitude set to 0 ')
+                     ! TODO: return the appropriate state
                   end if
                end do
             end if

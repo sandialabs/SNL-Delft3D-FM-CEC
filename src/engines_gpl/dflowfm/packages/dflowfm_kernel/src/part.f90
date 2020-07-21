@@ -1,10 +1,47 @@
+!----- AGPL --------------------------------------------------------------------
+!                                                                               
+!  Copyright (C)  Stichting Deltares, 2017-2020.                                
+!                                                                               
+!  This file is part of Delft3D (D-Flow Flexible Mesh component).               
+!                                                                               
+!  Delft3D is free software: you can redistribute it and/or modify              
+!  it under the terms of the GNU Affero General Public License as               
+!  published by the Free Software Foundation version 3.                         
+!                                                                               
+!  Delft3D  is distributed in the hope that it will be useful,                  
+!  but WITHOUT ANY WARRANTY; without even the implied warranty of               
+!  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the                
+!  GNU Affero General Public License for more details.                          
+!                                                                               
+!  You should have received a copy of the GNU Affero General Public License     
+!  along with Delft3D.  If not, see <http://www.gnu.org/licenses/>.             
+!                                                                               
+!  contact: delft3d.support@deltares.nl                                         
+!  Stichting Deltares                                                           
+!  P.O. Box 177                                                                 
+!  2600 MH Delft, The Netherlands                                               
+!                                                                               
+!  All indications and logos of, and references to, "Delft3D",                  
+!  "D-Flow Flexible Mesh" and "Deltares" are registered trademarks of Stichting 
+!  Deltares, and remain the property of Stichting Deltares. All rights reserved.
+!                                                                               
+!-------------------------------------------------------------------------------
+
 !> update positions of particles
+   
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif 
 subroutine update_particles(q,s0,s1,Dt)
 !   use m_flow
    use m_particles
    use m_wearelt
 !   use m_flowtimes, only: dts, time1
    use m_flowgeom, only: Ndx, Lnx
+   use m_partitioninfo
+   use m_sferic
+   use geometry_module, only: Cart3Dtospher
+   use unstruc_messages
    implicit none
    
    double precision, dimension(Lnx), intent(in) :: q  !< fluxes
@@ -12,8 +49,11 @@ subroutine update_particles(q,s0,s1,Dt)
    double precision, dimension(Ndx), intent(in) :: s1 !< water levels at end of time interval
    double precision,                 intent(in) :: Dt !< time interval
    
+   integer, dimension(1) :: numremaining ! number of remaining particles to be updated
+   
+   double precision :: xx, yy
+   
    integer :: i, k
-   integer :: numremaining ! number of remaining particles to be updated
    integer :: iter
    integer :: ierror
    
@@ -27,17 +67,40 @@ subroutine update_particles(q,s0,s1,Dt)
    call reconst_vel(q, s0, s1, ierror)
    if ( ierror.ne.0 ) goto 1234
    
-!  set remaining time to time step
-   dtremaining = Dt
-!   Lpart = 0
+   if ( Npart.gt.0 ) then
+!     set remaining time to time step
+      dtremaining = Dt
+!      Lpart = 0
+      numzero = 0
+   end if
    
-   numzero = 0
    do iter=1,MAXITER
 !     update particles in cells
-      call update_particles_in_cells(numremaining, ierror)
+      call update_particles_in_cells(numremaining(1), ierror)
       if ( ierror.ne.0 ) goto 1234
       
-      if ( numremaining.eq.0 ) then
+      if ( jampi.eq.1 ) then
+!        reduce numremaining      
+         call reduce_int_max(1,numremaining)
+      end if
+      
+!      write(6,*) 'my_rank=', my_rank, 'iter=', iter, 'numremaining=', numremaining(1)
+      
+!     send/receive particles from other subdomains
+      call partition_update_particles()
+      
+ !     if ( Npart.gt.0 .and. kpart(1).gt.0 ) then
+ !        write(6,"('my_rank=', I1, ', kpart(1)=', I5 )") my_rank, kpart(1)
+ !     end if
+      
+!     BEGIN DEBUG
+!      i = 1
+!      if ( Npart.gt.0 .and. kpart(i).gt.0 ) then
+!         write(mfile,"(F8.2, F8.2, I5)") xpart(i), ypart(i), my_rank
+!      end if
+!     END DEBUG
+      
+      if ( numremaining(1).eq.0 ) then
 !         write(6,*) 'iter=', iter
          exit
       end if
@@ -45,15 +108,23 @@ subroutine update_particles(q,s0,s1,Dt)
    
    
 !  check for remaining particles
-   if ( numremaining.gt.0 ) then
+   if ( numremaining(1).gt.0 ) then
  !    plot remaining particles
       do i=1,Npart
          if ( dtremaining(i).gt.0d0 .and. kpart(i).gt.0 ) then
-            call cirr(xpart(i),ypart(i), 211)
+            if ( jsferic.eq.0 ) then
+               xx = xpart(i)
+               yy = ypart(i)
+            else
+               call Cart3Dtospher(xpart(i),ypart(i),zpart(i),xx,yy,0d0)
+            end if
+            call cirr(xx,yy, 211)
+            write(6,"(I0, ', ', I0, ':', 2E25.15, ', ', I0)") iglob(i), my_rank, xx, yy, kpart(i)
          end if
       end do
       
-      call qnerror('update_particles: iter>MAXITER', ' ', ' ')
+!      call qnerror('update_particles: iter>MAXITER', ' ', ' ')
+      call mess(LEVEL_WARN, 'update_particles: iter>MAXITER')
       
       goto 1234
    end if
@@ -92,7 +163,8 @@ subroutine update_particles_in_cells(numremaining, ierror)
    
    double precision, parameter :: DTOL = 1d-4
    double precision, parameter :: DTOLd  = 1d-4
-   double precision, parameter :: DTOLun = 1d-4
+   double precision, parameter :: DTOLun_rel = 1d-4
+   double precision, parameter :: DTOLun = 1e-14
    
    integer,          parameter :: MAXNUMZERO = 10
    
@@ -178,7 +250,8 @@ subroutine update_particles_in_cells(numremaining, ierror)
 !        END DEBUG
          
 !        check inside or outside triangle 
-         if ( dis.lt.-DTOLd .and. rL.ge.0d0 .and. rL.le.1d0 .and. .not.isboundary ) then
+!         if ( dis.lt.-DTOLd .and. rL.ge.0d0 .and. rL.le.1d0 .and. .not.isboundary ) then
+         if ( dis.lt.-DTOLd .and. .not.isboundary ) then
 !           outside triangle
             tex = 0d0
             Lexit = L
@@ -203,11 +276,11 @@ subroutine update_particles_in_cells(numremaining, ierror)
 !            end if
 !!           END DEBUG
          
-            if ( un.gt.DTOLun*d ) then   ! normal velocity does not change sign: sufficient to look at u0.n
+            if ( un.gt.max(DTOLun_rel*d,DTOLun) ) then   ! normal velocity does not change sign: sufficient to look at u0.n
    !           compute exit time for this edge: ln(1+ d/un alpha) / alpha
-               dvar = alpha(k)*d/un
+               dvar = alpha(k)*dis/un
                if ( dvar.gt.-1d0) then
-                  t = d/un
+                  t = dis/un
                   if ( abs(dvar).ge.DTOL ) then
                      t = t * log(1d0+dvar)/dvar
                   end if
@@ -216,7 +289,9 @@ subroutine update_particles_in_cells(numremaining, ierror)
                end if  
             
    !           update exit time/edge (flowlink)      
-               if ( t.le.tex .and. t.ge.0d0 ) then
+!               if ( t.le.tex .and. t.ge.0d0 ) then
+               if ( t.le.tex ) then
+
                   tex = t
                   Lexit = L
                end if
@@ -271,10 +346,9 @@ subroutine update_particles_in_cells(numremaining, ierror)
 !        disable particle that is not moving
          kpart(ipart) = 0
          dtremaining(ipart) = 0d0
-      end if
          
 !     proceed to neighboring cell (if applicable)
-      if ( Lexit.gt.0 ) then
+      else if ( Lexit.gt.0 ) then
          numremaining = numremaining + 1  ! number of remaining particles for next substep
          if ( edge2cell(1,Lexit).gt.0 .and. edge2cell(2,Lexit).gt.0 ) then   ! internal edge (netlink)
             kpart(ipart) = edge2cell(1,Lexit) + edge2cell(2,Lexit) - k
@@ -689,6 +763,7 @@ subroutine tekpart()
       call dealloc_partrecons()
       call dealloc_particles()
       call dealloc_auxfluxes()
+      call dealloc_partparallel()
       japart = 0
       return
    end if
@@ -697,11 +772,13 @@ subroutine tekpart()
    
    if ( jsferic.eq.0 ) then
       do i=1,Npart
+         if ( kpart(i).eq.0 ) cycle
          call movabs(xpart(i),ypart(i))
          call cir(rcir)
       end do
    else
        do i=1,Npart
+         if ( kpart(i).eq.0 ) cycle
          call Cart3Dtospher(xpart(i),ypart(i),zpart(i),x,y,0d0)
          call movabs(x,y)
          call cir(rcir)
@@ -1425,7 +1502,7 @@ subroutine tekpartmesh()
    do i=1,Npart
 !      call hitext(i,xpart(i)+rcir,ypart(i))
 !      call hitext(kpart(i),xpart(i)+rcir,ypart(i))
-      write(text,"(I0, '(', I0, ')')") i, kpart(i)
+      write(text,"(I0, '(', I0, ')')") iglob(i), kpart(i)
       if ( jsferic.eq.0 ) then
          call drawtext(real(xpart(i)+rcir),real(ypart(i)),trim(text))
       else
@@ -1447,13 +1524,14 @@ logical function get_japart()
 end function get_japart
 
 !> add particles
-subroutine add_particles(Nadd, xadd, yadd, jareplace)
+subroutine add_particles(Nadd, xadd, yadd, jareplace, jadomain)
    use m_particles
    use m_partmesh
    use m_alloc
    use m_wearelt
    use m_sferic, only: jsferic
    use geometry_module, only: sphertocart3D
+   use m_partitioninfo
 
    implicit none
    
@@ -1461,13 +1539,15 @@ subroutine add_particles(Nadd, xadd, yadd, jareplace)
    double precision, dimension(Nadd), intent(in)  :: xadd       !< x-coordinates of particles to be added
    double precision, dimension(Nadd), intent(in)  :: yadd       !< y-coordinates of particles to be added
    integer,                           intent(in)  :: jareplace  !< replace existing but disabled particles(1) or not (0)
+   integer,                           intent(in)  :: jadomain   !< only place particles in own subdomain (1) or not (0)
    
-   integer,          dimension(:),    allocatable :: kadd   !< cell numbers
+   integer,          dimension(:),    allocatable :: kadd       !< cell numbers
    
    integer                                        :: i, ipoint, Nsize
    integer                                        :: ierror
    integer                                        :: Npartnew
    integer                                        :: Nreplace
+   integer                                        :: n, Nloc
    
    double precision                               :: xn, yn, zn, dn
    integer                                        :: k, k1
@@ -1486,8 +1566,34 @@ subroutine add_particles(Nadd, xadd, yadd, jareplace)
       Nreplace = 0
    end if
    
+!  get new particle cell number
+   allocate(kadd(Nadd))
+   kadd = 0
+   call part_findcell(Nadd,xadd,yadd,kadd,ierror)
+   
+!  count particles to be added   
+   Nloc = 0
+   do i=1,Nadd
+!     get cell number
+      k = kadd(i)
+      
+      if ( k.gt.0 ) then
+         if ( jampi.eq.1 .and. jadomain.eq.1 ) then
+!           only allow particles in own subdomain
+            n = iabs(cell2nod(k))
+            if ( idomain(n).ne.my_rank ) then
+               kadd(i) = 0
+            end if
+         end if
+      
+         if ( kadd(i).gt.0 ) then
+            Nloc = Nloc + 1
+         end if
+      end if
+   end do
+   
 !  new number of particles
-   Npartnew = Npart + max(Nadd-Nreplace,0)
+   Npartnew = Npart + max(Nloc-Nreplace,0)
    
 !  get current array sizes
    if ( allocated(xpart) ) then
@@ -1503,10 +1609,10 @@ subroutine add_particles(Nadd, xadd, yadd, jareplace)
       call realloc_particles(Nsize, .true., ierror)
    end if
    
-!  get new particle cell number
-   allocate(kadd(Nadd))
-   kadd = 0
-   call part_findcell(Nadd,xadd,yadd,kadd,ierror)
+!!  get new particle cell number
+!   allocate(kadd(Nadd))
+!   kadd = 0
+!   call part_findcell(Nadd,xadd,yadd,kadd,ierror)
    
 !  fill data
    if ( jareplace.eq.1 ) then
@@ -1514,8 +1620,10 @@ subroutine add_particles(Nadd, xadd, yadd, jareplace)
    else
       ipoint = Npart+1
    end if
-
+   
    do i=1,Nadd
+      if ( kadd(i).eq.0 ) cycle
+      
       if ( ipoint.le.Npart ) then
          do while ( kpart(ipoint).ne.0 )
             ipoint = ipoint+1
@@ -1538,19 +1646,21 @@ subroutine add_particles(Nadd, xadd, yadd, jareplace)
                xn = xnode(k1)
                yn = ynode(k1)
                zn = znode(k1)
-               dn = (xpart(i) - xn) * dnn(1,k) +  &
-                    (ypart(i) - yn) * dnn(2,k) +  &
-                    (zpart(i) - zn) * dnn(3,k)
-               xpart(i) = xpart(i) - dn * dnn(1,k)
-               ypart(i) = ypart(i) - dn * dnn(2,k)
-               zpart(i) = zpart(i) - dn * dnn(3,k)
+               dn = (xpart(ipoint) - xn) * dnn(1,k) +  &
+                    (ypart(ipoint) - yn) * dnn(2,k) +  &
+                    (zpart(ipoint) - zn) * dnn(3,k)
+               xpart(ipoint) = xpart(ipoint) - dn * dnn(1,k)
+               ypart(ipoint) = ypart(ipoint) - dn * dnn(2,k)
+               zpart(ipoint) = zpart(ipoint) - dn * dnn(3,k)
             end if
          end if
          
       end if
       kpart(ipoint) = kadd(i)
+      iglob(ipoint) = Nglob + i
 !      write(namepart(ipoint), "('added_particle ', I0)") i
-      Npart = Npart+1
+!      Npart = Npart+1
+      Npart = max(Npart,ipoint)
       
 !     plot      
       call setcol(31)
@@ -1561,6 +1671,8 @@ subroutine add_particles(Nadd, xadd, yadd, jareplace)
 !     advance pointer
       ipoint = ipoint+1
    end do
+   
+   Nglob = Nglob + Nadd
    
 !  deallocate
    if ( allocated(kadd) ) deallocate(kadd)
@@ -1709,6 +1821,8 @@ subroutine copy_sam2part()
 
    character(len=255) :: dum
    
+   integer, dimension(1) :: idum
+   
    integer :: i
    integer :: ierror
    
@@ -1719,7 +1833,7 @@ subroutine copy_sam2part()
       call ini_part(0, dum, 0,0d0,0d0,0)
    end if
    
-   call add_particles(Ns, xs, ys, 0)
+   call add_particles(Ns, xs, ys, 0, 1)
    
    call delsam(0)
    
@@ -1748,8 +1862,7 @@ subroutine realloc_particles(Nsize, LkeepExisting, ierror)
    end if
    call realloc(dtremaining, Nsize, keepExisting=LkeepExisting, fill=0d0)
    call realloc(kpart, Nsize, keepExisting=LkeepExisting, fill=0)
-!   call realloc(Lpart, Nsize, keepExisting=LkeepExisting, fill=0)
-!   call realloc(namepart, Nsize, keepExisting=LkeepExisting, fill='')
+   call realloc(iglob, Nsize, keepExisting=LkeepExisting, fill=0)
    
    call realloc(numzero, Nsize, keepExisting=LkeepExisting, fill=0)
    numzero = 0
@@ -1770,8 +1883,7 @@ subroutine dealloc_particles()
    if ( allocated(zpart)       ) deallocate(zpart)
    if ( allocated(dtremaining) ) deallocate(dtremaining)
    if ( allocated(kpart)       ) deallocate(kpart)
-!   if ( allocated(Lpart)       ) deallocate(Lpart)
-!   if ( allocated(namepart)    ) deallocate(namepart)
+   if ( allocated(iglob)       ) deallocate(iglob)
    
    if ( allocated(numzero)     ) deallocate(numzero)
    
@@ -1939,6 +2051,8 @@ subroutine ini_part(japartfile, partfile, jatracer_loc, starttime_loc, timestep_
    use m_transport, only: constituents, numconst
    use m_flowtimes, only: tstart_user
    use m_missing
+   use m_partitioninfo
+   use unstruc_messages
    implicit none
    
    integer,            intent(in) :: japartfile    !< use particle file (1) or not (0)
@@ -1948,10 +2062,19 @@ subroutine ini_part(japartfile, partfile, jatracer_loc, starttime_loc, timestep_
    double precision,   intent(in) :: timestep_loc  !< time step (>0) or every computational time step (0)
    integer,            intent(in) :: threeDtype_loc    !< depth averaged (0) or free surface (1)
    
+   integer, dimension(1) :: idum
+   
    integer             :: minp
    logical             :: lexist
    integer             :: iconst
    integer             :: ierror
+   integer             :: i
+   
+!   if ( jampi.eq.0 ) then
+!      call newfil(mfile,'part.xyz')
+!   else
+!      call newfil(mfile,'part_'//sdmn//'.xyz')
+!   end if
    
 !  deallocate
    call dealloc_partmesh()
@@ -1959,6 +2082,9 @@ subroutine ini_part(japartfile, partfile, jatracer_loc, starttime_loc, timestep_
    call dealloc_partrecons()
    call dealloc_particles()
    call dealloc_auxfluxes()
+   call dealloc_partparallel()
+   
+   Nglob = 0
    
    timenext = 0d0
    timelast = DMISS
@@ -1998,6 +2124,8 @@ subroutine ini_part(japartfile, partfile, jatracer_loc, starttime_loc, timestep_
             call savesam()
             call reasam(minp, 0)
             japart = 1
+         else
+            call mess(LEVEL_ERROR, 'the specified initial particle locations file could not be found: ', trim(partfile))
          end if
       end if
    else  ! initialize only
@@ -2016,7 +2144,7 @@ subroutine ini_part(japartfile, partfile, jatracer_loc, starttime_loc, timestep_
       call reconst_vel_coeffs()
       
       if ( Ns.gt.0 ) then
-         call add_particles(Ns, xs, ys, 0)
+         call add_particles(Ns, xs, ys, 0, 1)
          timepart = tstart_user
          
          call delsam(0)
@@ -2032,6 +2160,8 @@ subroutine ini_part(japartfile, partfile, jatracer_loc, starttime_loc, timestep_
       end if
    
       call alloc_auxfluxes()
+   
+      call ini_partparallel()
    end if
    
    return
@@ -2225,7 +2355,553 @@ subroutine finalize_part()
    call dealloc_partrecons()
    call dealloc_particles()
    call dealloc_auxfluxes()
+   call dealloc_partparallel()
    japart = 0
       
    return
 end subroutine finalize_part
+
+
+! send/receive paticles from other subdomains
+subroutine partition_update_particles()
+   use m_particles
+   use m_partmesh
+   use m_partitioninfo
+   use m_partparallel
+   use m_alloc
+   implicit none
+   
+   integer                                       :: i, icell, idmn, j, k
+   integer                                       :: numsend, numrecv, numnew
+   integer                                       :: N, Nadd, Nsize
+   integer                                       :: ipoint
+   integer                                       :: Nreplace
+   
+   integer                                       :: ierror
+   
+   if ( jampi.eq.0 ) return
+   
+!  make sendlist  
+   call part_makesendlist(Npart,kpart)
+   
+   numsend = jsend(ndomains)-1
+   
+!  copy particles to send array
+   call part2send(jsend,isend)
+   
+!  send/recv data
+   call sendrecv_particledata(NDIM,jsend,jrecv)
+   
+!  deactive sent particles
+   do j=1,jsend(ndomains)-1
+      i = isend(j)
+      kpart(i) = 0
+   end do
+   
+!  add received particles
+   call recv2part(jrecv(ndomains)-1,workrecv)
+   
+   return
+end subroutine partition_update_particles
+
+
+!> copy particle data to send array worksnd
+subroutine part2send(jsnd, isnd)
+   use m_particles
+   use m_partparallel
+   use m_partitioninfo, only: ndomains
+   use m_alloc
+   implicit none
+   
+   integer, dimension(0:ndomains),        intent(in)  :: jsnd   !< subdomain start pointers in data arrays
+   integer, dimension(jsend(ndomains)-1), intent(in)  :: isnd   !< particle numbers
+   
+   integer                                            :: i, j, kother
+   integer                                            :: numsend, numnew
+   
+   numsend = jsnd(ndomains)-1
+   
+   if ( numsend.gt.0 ) then
+!     realloc
+      if ( NDIM.gt.ubound(worksnd,1) .or. numsend.gt.ubound(worksnd,2) ) then
+         numnew = 1+int(1.2d0*dble(numsend))
+         call realloc(worksnd, (/ NDIM,numnew /), keepExisting=.false.)
+      end if
+         
+!     fill data arrays
+      do j=1,numsend
+         i=isnd(j)
+            
+         worksnd(INDX_XPART,j) = xpart(i)
+         worksnd(INDX_YPART,j) = ypart(i)
+         worksnd(INDX_DTREM,j) = dtremaining(i)
+         worksnd(INDX_IGLOB,j) = dble(iglob(i))
+         kother = icellother(kpart(i))
+         if ( kother.gt.0 ) then ! will be send to other subdomain
+            worksnd(INDX_KPART,j) = dble(kother)
+         else  ! will not be send to other subdomain, used for backup in own subdomain
+            worksnd(INDX_KPART,j) = dble(kpart(i))
+         end if
+         if ( INDX_ZPART.ne.0 ) then
+            worksnd(6,j) = zpart(i)
+         end if
+      end do
+   end if
+   
+   return
+end subroutine part2send
+
+
+!> add particles from received data
+subroutine recv2part(numrecv,work)
+   use m_particles
+   use m_partparallel
+   use m_partitioninfo, only: ndomains
+   use unstruc_messages
+   use m_missing
+   implicit none
+   
+   integer,                                   intent(in)  :: numrecv  !< number of received particles
+   double precision, dimension(NDIM,numrecv), intent(in)  :: work     !< received data
+   
+   integer,          dimension(:),            allocatable :: iperm
+   
+   integer                                                :: i, ipoint, j
+   integer                                                :: Nreplace
+                                                          
+   integer                                                :: ierror
+     
+   if ( numrecv.gt.0 ) then
+!     get number of existing particles that may be replaced
+      Nreplace = 0
+      do i=1,Npart
+         if ( kpart(i).eq.0 ) then
+            Nreplace = Nreplace+1
+         end if
+      end do
+      
+      call realloc_particles(Npart+max(numrecv-Nreplace,0), .true., ierror)
+      
+      ipoint = 1
+      do j=1,numrecv
+         if ( ipoint.le.Npart ) then
+            do while ( kpart(ipoint).ne.0 )
+               ipoint = ipoint+1
+            end do
+         end if
+      
+         xpart(ipoint) = work(INDX_XPART,j)
+         ypart(ipoint) = work(INDX_YPART,j)
+         dtremaining(ipoint) = work(INDX_DTREM,j)
+         iglob(ipoint) = int(work(INDX_IGLOB,j))
+         kpart(ipoint) = int(work(INDX_KPART,j))
+         if ( INDX_ZPART.ne.0 ) then
+            zpart(ipoint) = work(INDX_ZPART,j)
+         end if
+         
+         Npart = max(Npart,ipoint)
+      end do
+   end if
+   
+   return
+end subroutine recv2part
+
+
+!> initialization for parallel computations
+subroutine ini_partparallel()
+   use m_particles, only: japart
+   use m_partmesh
+   use m_partparallel
+   use m_partitioninfo, only: jampi, ndomains, DFM_COMM_DFMWORLD, my_rank
+   use m_sferic
+   use m_alloc
+   use geometry_module, only: Cart3Dtospher
+   implicit none
+   
+   double precision, dimension(:),   allocatable :: xrecv, yrecv, zrecv
+                                     
+   integer,          dimension(:),   allocatable :: icells, irecv
+   
+   double precision                              :: xref
+   
+   integer                                       :: i, icell, idmn, k
+   integer                                       :: numsend, numrecv
+   integer                                       :: N, nrequest
+                                               
+   integer                                       :: ierror
+   
+   integer                                       :: itag = 4
+
+   if ( jampi.eq.0 .or. japart.eq.0 ) return
+   
+   if ( jsferic.eq.0 ) then
+      NDIM = 5 ! for updating particles
+      INDX_ZPART = 0
+      N = 3
+   else
+      NDIM = 6 ! for updating particles
+      INDX_ZPART = NDIM
+      N = 4
+   end if
+   
+!  allocate   
+   call alloc_partparallel()
+   
+!  get other subdomain cellnumbers
+   allocate(icells(numcells))
+   icells = (/ (i, i=1,numcells) /)
+   
+!  make sendlist
+   call part_makesendlist(numcells,icells)
+   
+!  fill send data
+   call realloc(worksnd, (/ N,numcells /), keepExisting=.false., fill=0d0)
+   do i=1,jsend(ndomains)-1
+      icell = icells(isend(i))
+      worksnd(1,i) = dble(icell)
+      worksnd(2,i) = xzwcell(icell)
+      worksnd(3,i) = yzwcell(icell)
+      if ( jsferic.ne.0 ) then
+         worksnd(4,i) = zzwcell(icell)
+      end if
+   end do
+   
+!  send/receive data
+   call sendrecv_particledata(N,jsend,jrecv)
+   
+!  process received data
+   numrecv = jrecv(ndomains)-1
+   
+   allocate(irecv(numrecv))
+   allocate(xrecv(numrecv))
+   allocate(yrecv(numrecv))
+   if ( jsferic.ne.0 ) then
+      allocate(zrecv(numrecv))
+   end if
+   
+   xref = 0d0
+   do i=1,jrecv(ndomains)-1
+      irecv(i) = int(workrecv(1,i))
+      if ( jsferic.eq.0 ) then
+         xrecv(i) = workrecv(2,i)
+         yrecv(i) = workrecv(3,i)
+      else
+         call Cart3Dtospher(workrecv(2,i),workrecv(3,i),workrecv(4,i),xrecv(i),yrecv(i),xref)
+      end if
+   end do
+   
+!  find which cells correspond to received cell coordinates
+   call realloc(icells,numrecv,keepExisting=.false.,fill=0)
+   call part_findcell(numrecv, xrecv, yrecv, icells, ierror)
+   
+!  send found cells back to other subdomains (recv is now send)
+   call realloc(worksnd, (/ 1,numrecv /), keepExisting=.false., fill=0d0)
+   do i=1,numrecv
+      worksnd(1,i) = dble(icells(i))
+   end do
+   call sendrecv_particledata(1,jrecv,jsend)
+   
+!  fill other domain cell numbers
+   numsend = jsend(ndomains)-1
+   call realloc(icellother,numcells,keepExisting=.false.,fill=0)
+   do i=1,numsend
+      icell = isend(i)
+      icellother(icell) = int(workrecv(1,i))
+   end do
+   
+!  deallocate
+   if ( allocated(irecv) ) deallocate(irecv)
+   if ( allocated(xrecv) ) deallocate(xrecv)
+   if ( allocated(yrecv) ) deallocate(yrecv)
+   if ( allocated(zrecv) ) deallocate(zrecv)
+
+   japartsaved = 0
+
+   return
+end subroutine ini_partparallel
+
+subroutine alloc_partparallel()
+   use m_partmesh
+   use m_partparallel
+   use m_partitioninfo, only: ndomains
+   use m_alloc
+   use m_sferic
+   implicit none
+   
+   integer :: num
+   
+   call realloc(icellother, numcells)
+   call realloc(jsend,ndomains,lindex=0)
+   call realloc(isend,numcells)       ! first bound
+   
+   num = 10
+   
+   call realloc(worksnd, (/ NDIM, num /)) ! first bound
+   call realloc(workrecv, (/ NDIM, num /)) ! first bound
+   
+   call realloc(jpoint, ndomains, lindex=0)
+                      
+   call realloc(irequest,3*ndomains)
+   
+   call realloc(jrecv,ndomains,lindex=0)
+   
+   call realloc(numsendarr, ndomains-1, lindex=0)
+   call realloc(numrecvarr, ndomains-1, lindex=0)
+   
+   return
+end subroutine alloc_partparallel
+
+subroutine dealloc_partparallel
+   use m_partparallel
+   implicit none
+   
+   if ( allocated(icellother) ) deallocate(icellother)
+   if ( allocated(jsend) ) deallocate(jsend)
+   if ( allocated(isend) ) deallocate(isend)
+   
+   if ( allocated(worksnd) ) deallocate(worksnd)
+   if ( allocated(workrecv) ) deallocate(workrecv)
+   if ( allocated(jpoint) ) deallocate(jpoint)
+   
+   if ( allocated(irequest) ) deallocate(irequest)
+   
+   if ( allocated(jsend) ) deallocate(jrecv)
+   
+   if ( allocated(numsendarr) ) deallocate(numsendarr)
+   if ( allocated(numrecvarr) ) deallocate(numrecvarr)
+   
+   return
+end subroutine dealloc_partparallel
+
+!> make CRS-formatted send list
+subroutine part_makesendlist(N,icells)
+   use m_partmesh
+   use m_partitioninfo
+   use m_partparallel
+   use m_alloc
+   implicit none
+   
+   integer                          :: N        !< number of cells to be send
+   integer, dimension(N)            :: icells   !< cell numbers
+                                    
+!   integer, dimension(0:ndomains)   :: jsend    !< startpointers of send list
+!   integer, dimension(N)            :: isend    !< send list
+   
+   integer                          :: i, icell, idmn, j, k
+   integer                          :: numnew, numsend
+   
+!  count number of cells to be sent to other domains
+   jsend = 0
+   do i=1,N
+!     get cell number
+      icell = icells(i)
+      
+      if ( icell.eq.0 ) cycle
+      
+!     get flownode/netcell number
+      k = iabs(cell2nod(icell))
+      
+!     get domain number
+      idmn = idomain(k)
+      
+      if ( idmn.eq.my_rank ) cycle
+      
+!     update counters
+      jsend(idmn+1) = jsend(idmn+1)+1
+   end do
+   
+!  accumulate
+   jsend(0) = 1
+   do idmn=0,ndomains-1
+      jsend(idmn+1) = jsend(idmn)+jsend(idmn+1)
+   end do
+   
+   numsend = jsend(ndomains)-1
+   
+   if ( numsend.gt.ubound(isend,1) ) then
+!     reallocate
+      numnew = 1+int(1.2d0*dble(numsend))
+      call realloc(isend,numnew,keepExisting=.false.,fill=0)
+   end if
+   
+!  fill send list
+   jpoint = jsend
+   do i=1,N
+!     get cell number
+      icell = icells(i)
+      
+      if ( icell.eq.0 ) cycle
+      
+      k = iabs(cell2nod(icell))
+      
+!     get domain number
+      idmn = idomain(k)
+      
+      if ( idmn.eq.my_rank ) cycle
+      
+      j = jpoint(idmn)
+      
+      isend(j) = i
+      
+      jpoint(idmn) = jpoint(idmn)+1
+   end do
+   
+   return
+end subroutine part_makesendlist
+
+!> send/receive data from sendlist to/from worksend/workrecv and update recvlist
+subroutine sendrecv_particledata(N,jsend,jrecv)
+   use m_alloc
+   use m_partparallel, only: worksnd, workrecv, irequest, numsendarr, numrecvarr
+   use m_partitioninfo
+#ifdef HAVE_MPI   
+   use mpi
+#endif
+   implicit none
+   
+   integer,                        intent(in)  :: N      !< size of data
+   integer, dimension(0:ndomains), intent(in)  :: jsend  !< subdomain startpointers in sent data arrays
+   integer, dimension(0:ndomains), intent(out) :: jrecv  !< subdomain startpointers in received data arrays
+
+#ifdef HAVE_MPI
+   integer, dimension(MPI_STATUS_SIZE)         :: istat
+                                              
+   integer                                     :: i, idmn
+   integer                                     :: numnew, numrecvtot
+   integer                                     :: nrequest
+   integer                                     :: ierror
+                                              
+   integer                                     :: itag1=3
+   integer                                     :: itag2=4
+   
+!  send data
+   nrequest = 0
+   do idmn=0,ndomains-1
+      if ( idmn.eq.my_rank ) cycle
+      nrequest = nrequest+1
+      numsendarr(idmn) = jsend(idmn+1)-jsend(idmn)
+      call mpi_isend(numsendarr(idmn), 1, MPI_INTEGER, idmn, itag1, DFM_COMM_DFMWORLD, irequest(nrequest), ierror)
+      
+!      write(6,"('send ', I0, ' to ', I0, ': ', I0)") my_rank, idmn, numsendarr(idmn)
+      if ( numsendarr(idmn).gt.0 ) then
+         nrequest = nrequest+1
+         call mpi_isend(worksnd(1,jsend(idmn)), N*numsendarr(idmn), MPI_DOUBLE_PRECISION, idmn, itag2, DFM_COMM_DFMWORLD, irequest(nrequest), ierror)
+      end if
+   end do
+   
+!  receive data
+   jrecv(0) = 1
+   do idmn=0,ndomains-1
+      if ( idmn.eq.my_rank ) then
+         jrecv(idmn+1) = jrecv(idmn)
+         cycle
+      end if
+         
+      call mpi_recv(numrecvarr(idmn),1,MPI_INTEGER,idmn,itag1,DFM_COMM_DFMWORLD,istat,ierror)
+!      write(6,"('receive ', I0, ' from ', I0, ': ', I0)") my_rank, idmn, numrecvarr(idmn)
+      
+      jrecv(idmn+1) = jrecv(idmn)+numrecvarr(idmn)
+      
+      if ( numrecvarr(idmn).gt.0 ) then
+         numrecvtot = jrecv(idmn+1)-1
+         if ( N.gt.ubound(workrecv,1) .or. numrecvtot.gt.ubound(workrecv,1) ) then
+!           reallocate      
+            numnew = 1+int(1.2d0*dble(numrecvtot))
+            call realloc(workrecv,(/N,numnew/),keepExisting=.true.)
+         end if
+         call mpi_recv(workrecv(1,jrecv(idmn)),N*numrecvarr(idmn),MPI_DOUBLE_PRECISION,idmn,itag2,DFM_COMM_DFMWORLD,istat,ierror)
+!         nrequest = nrequest+1
+!         call mpi_irecv(workrecv(1,jrecv(idmn)),N*numrecvarr(idmn),MPI_DOUBLE_PRECISION,idmn,itag2,DFM_COMM_DFMWORLD,irequest(nrequest),ierror)
+         
+      end if
+   end do
+   
+!  terminate send (safety)
+   do i=1,nrequest
+      call mpi_wait(irequest(i),istat,ierror)
+   end do
+#else
+   jrecv = 1
+#endif
+
+   return
+end subroutine sendrecv_particledata
+
+
+!> send/receive particles to/at subdomain 0
+subroutine reduce_particles()
+   use m_particles
+   use m_partparallel
+   use m_partitioninfo, only: jampi, my_rank, ndomains
+   use m_alloc
+   implicit none
+   
+   integer :: i, ipart
+   integer :: numsend, numrecv
+   
+   integer :: ierror
+   
+!   return
+   
+   if ( japart.eq.0 .or. jampi.eq.0 ) return
+   
+!  count number of particles to be sent
+   numsend = 0
+   do ipart=1,Npart
+      if ( kpart(ipart).gt.0 ) then
+         numsend = numsend+1
+      end if
+   end do
+   
+!  make send list
+   jsend(0)=1
+   jsend(1:ndomains) = 1+numsend
+   call realloc(isend,numsend,keepExisting=.false.,fill=0)
+   i=0
+   do ipart=1,Npart
+      if ( kpart(ipart).gt.0 ) then
+         i=i+1
+         isend(i) = ipart
+      end if
+   end do
+   
+!  fill send array
+   call part2send(jsend,isend)
+   
+!  send/receive data
+   call sendrecv_particledata(NDIM,jsend,jrecv)
+   
+   if ( my_rank.eq.0 ) then
+!     add particles (original data stored in worksnd)
+      call recv2part(jrecv(ndomains)-1,workrecv)
+   end if
+   
+   japartsaved = 1
+   
+   return
+end subroutine reduce_particles
+
+!> restore particles in subdomain 0 after reduce
+subroutine restore_particles()
+   use m_particles
+   use m_partparallel
+   use m_partitioninfo
+   implicit none
+   
+   integer :: i
+   
+!   return
+   
+   if ( japart.eq.0 .or. jampi.eq.0 ) return
+   
+   if ( my_rank.eq.0 .and. japartsaved.eq.1 ) then
+!     cleanup large arrays
+      call dealloc_particles()
+!     restore particles from send array
+      call recv2part(jsend(ndomains)-1,worksnd)
+   end if
+      
+   japartsaved = 0
+   
+   return
+end subroutine restore_particles

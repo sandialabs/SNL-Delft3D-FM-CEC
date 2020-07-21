@@ -1,6 +1,6 @@
 !----- LGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
+!  Copyright (C)  Stichting Deltares, 2011-2020.                                
 !                                                                               
 !  This library is free software; you can redistribute it and/or                
 !  modify it under the terms of the GNU Lesser General Public                   
@@ -24,8 +24,8 @@
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: tst-2d-get.F90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_lgpl/delftio/tests/tstAll2D/src/tst-2d-get.F90 $
+!  $Id: tst-2d-get.F90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/delftio/tests/tstAll2D/src/tst-2d-get.F90 $
 subroutine write_his_long_2dget(synched, auto, resFileName)
 
     use Dio_2D_Tst
@@ -239,11 +239,11 @@ program test_get_dio_f90
     call write_his_long_2dget(.true., .false., 'TEST2DFSynch-res.txt')    ! get synched streams
     call write_his_long_2dget(.false., .false., 'TEST2DFSerial-res.txt')  ! get non synched streams
 
-    call DioInit('dioconfigShm.ini')
-    call write_his_long_2dget(.true., .true., 'TEST2DFAutoShm-res.txt')   ! get synched streams
-
     call DioInit('dioconfigFiles.ini')
     call write_his_long_2dget(.false., .true., 'TEST2DFAutoFiles-res.txt')! get non synched streams
+
+    call DioInit('dioconfigShm.ini')
+    call write_his_long_2dget(.true., .true., 'TEST2DFAutoShm-res.txt')   ! get synched streams
 
 end
 

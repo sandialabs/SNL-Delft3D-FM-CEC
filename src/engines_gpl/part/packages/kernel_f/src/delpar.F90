@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2018.
+!!  Copyright (C)  Stichting Deltares, 2012-2020.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -798,7 +798,9 @@
          call part09 ( lun(2)   , itime    , nodye    , nwaste   , mwaste   ,    &
                        xwaste   , ywaste   , iwtime   , amassd   , aconc    ,    &
                        npart    , mpart    , xpart    , ypart    , zpart    ,    &
-                       wpart    , iptime   , nopart   , radius   , lgrid    ,    &
+                       wpart    , iptime   , nopart   , radius   , nrowswaste,   &
+                       xpolwaste           , ypolwaste           , lgrid    ,    &
+                       lgrid2   , nmaxp    , mmaxp    , xb       , yb       ,    &
                        dx       , dy       , ndprt    , nosubs   , kpart    ,    &
                        layt     , tcktot   , nplay    , kwaste   , nolayp   ,    &
                        modtyp   , zwaste   , track    , nmdyer   , substi   ,    &
@@ -811,7 +813,9 @@
                        ictmax   , nwaste   , mwaste   , xwaste   , ywaste   ,    &
                        zwaste   , aconc    , rem      , npart    , ndprt    ,    &
                        mpart    , xpart    , ypart    , zpart    , wpart    ,    &
-                       iptime   , nopart   , pblay    , radius   , lgrid    ,    &
+                       iptime   , nopart   , pblay    , radius   , nrowswaste,   &
+                       xpolwaste           , ypolwaste           , lgrid    ,    &
+                       lgrid2   , nmaxp    , mmaxp    , xb       , yb       ,    &
                        dx       , dy       , ftime    , tmassu   , nosubs   ,    &
                        ncheck   , t0buoy   , modtyp   , abuoy    , t0cf     ,    &
                        acf      , lun(2)   , kpart    , layt     , tcktot   ,    &

@@ -7,7 +7,7 @@ subroutine rdproc(error    ,nrrec     ,mdfrec    ,htur2d      ,salin    , &
                 & nmaxus   ,sedim     ,idensform ,solrad_read2, gdp)
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
+!  Copyright (C)  Stichting Deltares, 2011-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -31,8 +31,8 @@ subroutine rdproc(error    ,nrrec     ,mdfrec    ,htur2d      ,salin    , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: rdproc.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/engines_gpl/flow2d3d/packages/io/src/input/rdproc.f90 $
+!  $Id: rdproc.f90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/io/src/input/rdproc.f90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: - Reads physical coefficients for temperature

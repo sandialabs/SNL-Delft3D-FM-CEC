@@ -6,7 +6,7 @@ subroutine rdtimo(lunmd     ,lundia    ,error     ,nrrec     ,mdfrec    , &
                 & itnflf    ,itnfli    ,itnfll    ,lstsci    ,gdp       )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
+!  Copyright (C)  Stichting Deltares, 2011-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -30,8 +30,8 @@ subroutine rdtimo(lunmd     ,lundia    ,error     ,nrrec     ,mdfrec    , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: rdtimo.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/engines_gpl/flow2d3d/packages/io/src/input/rdtimo.f90 $
+!  $Id: rdtimo.f90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/io/src/input/rdtimo.f90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: - Reads records from the MD-file related to the
@@ -446,13 +446,14 @@ subroutine rdtimo(lunmd     ,lundia    ,error     ,nrrec     ,mdfrec    , &
        call prop_get_logical(gdp%mdfile_ptr, '*', 'AdvFlx', flwoutput%difuflux)
        call prop_get_logical(gdp%mdfile_ptr, '*', 'CumAFl', flwoutput%cumdifuflux)
     endif
-    call prop_get_logical(gdp%mdfile_ptr, '*', 'MomTrm', flwoutput%momentum)
-    call prop_get_logical(gdp%mdfile_ptr, '*', 'Chezy' , flwoutput%chezy)
-    call prop_get_logical(gdp%mdfile_ptr, '*', 'Rough' , flwoutput%roughness)
-    call prop_get_logical(gdp%mdfile_ptr, '*', 'Vortic' , flwoutput%vortic)
-    call prop_get_logical(gdp%mdfile_ptr, '*', 'Z0Cur' , flwoutput%z0cur)
-    call prop_get_logical(gdp%mdfile_ptr, '*', 'Z0Rou' , flwoutput%z0rou)
-    call prop_get_logical(gdp%mdfile_ptr, '*', 'KfMnMx', flwoutput%kf_minmax)
+    call prop_get_logical(gdp%mdfile_ptr, '*', 'MomTrm'   , flwoutput%momentum)
+    call prop_get_logical(gdp%mdfile_ptr, '*', 'Chezy'    , flwoutput%chezy)
+    call prop_get_logical(gdp%mdfile_ptr, '*', 'DredgeMap', flwoutput%dredge_map)
+    call prop_get_logical(gdp%mdfile_ptr, '*', 'Rough'    , flwoutput%roughness)
+    call prop_get_logical(gdp%mdfile_ptr, '*', 'Vortic'   , flwoutput%vortic)
+    call prop_get_logical(gdp%mdfile_ptr, '*', 'Z0Cur'    , flwoutput%z0cur)
+    call prop_get_logical(gdp%mdfile_ptr, '*', 'Z0Rou'    , flwoutput%z0rou)
+    call prop_get_logical(gdp%mdfile_ptr, '*', 'KfMnMx'   , flwoutput%kf_minmax)
     if (flwoutput%cumdifuflux) flwoutput%difuflux = .true.
     !
     ! Old flag: WindUV

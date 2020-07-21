@@ -1,34 +1,34 @@
 !----- AGPL --------------------------------------------------------------------
-!                                                                               
-!  Copyright (C)  Stichting Deltares, 2017-2018.                                
-!                                                                               
-!  This file is part of Delft3D (D-Flow Flexible Mesh component).               
-!                                                                               
-!  Delft3D is free software: you can redistribute it and/or modify              
-!  it under the terms of the GNU Affero General Public License as               
-!  published by the Free Software Foundation version 3.                         
-!                                                                               
-!  Delft3D  is distributed in the hope that it will be useful,                  
-!  but WITHOUT ANY WARRANTY; without even the implied warranty of               
-!  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the                
-!  GNU Affero General Public License for more details.                          
-!                                                                               
-!  You should have received a copy of the GNU Affero General Public License     
-!  along with Delft3D.  If not, see <http://www.gnu.org/licenses/>.             
-!                                                                               
-!  contact: delft3d.support@deltares.nl                                         
-!  Stichting Deltares                                                           
-!  P.O. Box 177                                                                 
-!  2600 MH Delft, The Netherlands                                               
-!                                                                               
-!  All indications and logos of, and references to, "Delft3D",                  
-!  "D-Flow Flexible Mesh" and "Deltares" are registered trademarks of Stichting 
+!
+!  Copyright (C)  Stichting Deltares, 2017-2020.
+!
+!  This file is part of Delft3D (D-Flow Flexible Mesh component).
+!
+!  Delft3D is free software: you can redistribute it and/or modify
+!  it under the terms of the GNU Affero General Public License as
+!  published by the Free Software Foundation version 3.
+!
+!  Delft3D  is distributed in the hope that it will be useful,
+!  but WITHOUT ANY WARRANTY; without even the implied warranty of
+!  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!  GNU Affero General Public License for more details.
+!
+!  You should have received a copy of the GNU Affero General Public License
+!  along with Delft3D.  If not, see <http://www.gnu.org/licenses/>.
+!
+!  contact: delft3d.support@deltares.nl
+!  Stichting Deltares
+!  P.O. Box 177
+!  2600 MH Delft, The Netherlands
+!
+!  All indications and logos of, and references to, "Delft3D",
+!  "D-Flow Flexible Mesh" and "Deltares" are registered trademarks of Stichting
 !  Deltares, and remain the property of Stichting Deltares. All rights reserved.
-!                                                                               
+!
 !-------------------------------------------------------------------------------
 
-! $Id: manholes.f90 53959 2018-01-03 16:06:27Z dam_ar $
-! $HeadURL: https://repos.deltares.nl/repos/ds/trunk/additional/unstruc/src/manholes.f90 $
+! $Id: manholes.f90 65778 2020-01-14 14:07:42Z mourits $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/dflowfm/packages/dflowfm_kernel/src/manholes.f90 $
 
 !> Manholes connect 1D networks with 2D/3D grids or other 1D networks.
 !!
@@ -162,7 +162,7 @@ subroutine load_manholes(filename, jadoorladen)
         call mess(LEVEL_ERROR, 'Manhole file '''//trim(filename)//''' not read. Code: ', istat)
         return
     else
-        call mess(LEVEL_DEBUG, 'Opened manhole file : ', trim(filename) ) 
+        call mess(LEVEL_DEBUG, 'Opened manhole file : ', trim(filename) )
     endif
 
 
@@ -173,7 +173,7 @@ subroutine load_manholes(filename, jadoorladen)
             if (.not. success) then
                cycle
             end if
-            
+
             call prop_get_double  ( mh_ptr, '*', 'y',      y,     success)
             if (.not. success) then
                cycle
@@ -197,36 +197,19 @@ end module m_manholes
 
 subroutine flgsfurufm(formno, m, teken, husb, hdsb, velhght, zs, ds, dg, dc, wstr,&
                   & cwfa, cwd, mugfa, cgfa, cgda, strdamf, lambda)
-!!--copyright-------------------------------------------------------------------
-! Copyright (c) 2003, Deltares. All rights reserved.
-!!--disclaimer------------------------------------------------------------------
-! This code is part of the Delft3D software system. Deltares has
-! developed c.q. manufactured this code to its best ability and according to the
-! state of the art. Nevertheless, there is no express or implied warranty as to
-! this software whether tangible or intangible. In particular, there is no
-! express or implied warranty as to the fitness for a particular purpose of this
-! software, whether tangible or intangible. The intellectual property rights
-! related to this software code remain with Deltares at all times.
-! For details on the licensing agreement, we refer to the Delft3D software
-! license and any modifications to this license, if applicable. These documents
-! are available upon request.
-!!--version information---------------------------------------------------------
-! $Author$
-! $Date$
-! $Revision$
 !!--description-----------------------------------------------------------------
 ! NONE
 !!--pseudo code and references--------------------------------------------------
 ! NONE
 !!--declarations----------------------------------------------------------------
-   
+
    ! use m_GlobalParameters
    ! use cpluv
-   
+
    use m_flowgeom, only : dx
    use m_flow
    use m_flowtimes
-   
+
     implicit none
 !
 ! Local parameters
@@ -327,8 +310,8 @@ subroutine flgsfurufm(formno, m, teken, husb, hdsb, velhght, zs, ds, dg, dc, wst
     !
     if (formno==0) then
                            ! closed or dry
-        ! hu(m) = 0d0 
-        au(m) = 0d0 ; fu(m) = 0d0 ; ru(m) = 0d0        
+        ! hu(m) = 0d0
+        au(m) = 0d0 ; fu(m) = 0d0 ; ru(m) = 0d0
     else
         again = .true.
     endif
@@ -336,7 +319,7 @@ subroutine flgsfurufm(formno, m, teken, husb, hdsb, velhght, zs, ds, dg, dc, wst
     !     Calculate upstream energy level w.r.t sill
     !
     hs1 = husb + velhght - zs
-   
+
     !
     itgenstr = 0
     dxdt = strdamf*dx(m)/dts
@@ -374,9 +357,9 @@ subroutine flgsfurufm(formno, m, teken, husb, hdsb, velhght, zs, ds, dg, dc, wst
           rhsc = cu*(hdsb + velhght - (ds + zs))*teken
        else
        endif
-      
+
        ! dads(m) = wstr
-       
+
        if (teken>0) then
            su = husb
            sd = hdsb
@@ -417,7 +400,7 @@ logical function iterfurufm(m, su, sd, ustru, cu, rhsc, dxdt, lambda)
    use m_strucs
    use m_flow
    use m_flowgeom, only : dx
-   
+
    implicit none
 !
 ! Global variables
@@ -428,7 +411,7 @@ logical function iterfurufm(m, su, sd, ustru, cu, rhsc, dxdt, lambda)
    double precision, intent(in)     :: cu
    double precision, intent(in)     :: rhsc
    double precision                 :: su   ! not s(up) but s(k1)
-   double precision                 :: sd   ! not s(do) but s(k2), see switch in calling routine 
+   double precision                 :: sd   ! not s(do) but s(k2), see switch in calling routine
    double precision                 :: dxdt
 !
 ! Local variables
@@ -442,50 +425,33 @@ logical function iterfurufm(m, su, sd, ustru, cu, rhsc, dxdt, lambda)
 !
 !! executable statements -------------------------------- -----------------------
 !
-   dxfrL = 0d0 
+   dxfrL = 0d0
    if (lambda == 0) then        ! if structure defined friction == 0, use standard friction
-      if (kmx == 0) then 
-         dxfrL = dx(m)*cfuhi(m) 
-      else 
-         call getcz(hu(m), frcu(m), ifrcutp(m), Cz, m)      ! standard Chezy coeff 
-         dxfrl = dx(m)*ag/(Cz*Cz*hu(m))                     ! fix for 3D  
-      endif   
-   endif   
-      
+      if (kmx == 0) then
+         dxfrL = dx(m)*cfuhi(m)
+      else if (frcu(m) > 0d0 ) then
+         call getcz(hu(m), frcu(m), ifrcutp(m), Cz, m)      ! standard Chezy coeff
+         dxfrl = dx(m)*ag/(Cz*Cz*hu(m))
+      endif
+   endif
+
    bu    = dxdt + (1.0 + relax + dxfrL)*ustru
    du    = (strucalfa*q1(m)/max(au(m),1d-4) + (1-strucalfa)*u0(m))*dxdt + relax*ustru*u1(m) + rhsc
    fu(m) = cu/bu
    ru(m) = du/bu
    u1mi  = u1(m)
    u1(m) = ru(m) + fu(m)*(su - sd)
-   if (relax == 0.0) then  
+   if (relax == 0.0) then
       iterfurufm = .false.
    else if (abs(u1mi - u1(m))>1.0D-6) then
       iterfurufm = .true.
-   else 
+   else
       iterfurufm = .false.
    endif
 end function iterfurufm
 
 subroutine flgsfm( n, ng, L, firstiter, jarea)
 use m_flowgeom
-!!--copyright-------------------------------------------------------------------
-! Copyright (c) 2003, Deltares. All rights reserved.
-!!--disclaimer------------------------------------------------------------------
-! This code is part of the Delft3D software system. Deltares has
-! developed c.q. manufactured this code to its best ability and according to the
-! state of the art. Nevertheless, there is no express or implied warranty as to
-! this software whether tangible or intangible. In particular, there is no
-! express or implied warranty as to the fitness for a particular purpose of this
-! software, whether tangible or intangible. The intellectual property rights
-! related to this software code remain with Deltares at all times.
-! For details on the licensing agreement, we refer to the Delft3D software
-! license and any modifications to this license, if applicable. These documents
-! are available upon request.
-!!--version information---------------------------------------------------------
-! $Author$
-! $Date$
-! $Revision$
 !!--description-----------------------------------------------------------------
 ! NONE
 !!--pseudo code and references--------------------------------------------------
@@ -494,21 +460,21 @@ use m_flowgeom
     ! use cpluv
     ! use m_strucs
     ! use ident
-    
+
     use m_strucs
     use m_flow
-    
+
     implicit none
 !
 ! Global variables
 !
-    integer, intent(in)  :: n          !< general structure point n   
-    integer, intent(in)  :: ng         !< is a member of general structure sigal ng    
+    integer, intent(in)  :: n          !< general structure point n
+    integer, intent(in)  :: ng         !< is a member of general structure sigal ng
     integer, intent(in)  :: L          !< Flow link number, signed! If L < 0 then flow link is in opposite direction than structure left-right orientation.
     logical, intent(in)  :: firstiter
     logical              :: jarea
 
-   
+
 !
 !
 ! Local variables
@@ -541,8 +507,9 @@ use m_flowgeom
     double precision               :: wstr
     double precision               :: zb2
     double precision               :: zs, gateloweredgelevel, gatedoorheight
-    double precision               :: DsL 
-    
+    double precision               :: DsL
+    double precision               :: gatefraction, g1, fu_sav, ru_sav, au_sav
+
 !
 !! executable statements -------------------------------------------------------
 !
@@ -592,7 +559,7 @@ use m_flowgeom
     !
     !
     !TEM  WRITE (11,*) 'Call structure',istru,'(',m,il,ir,istru,')'
-    
+
     Lf = abs(L)
     ! NOTE: Since a single general structure may be crossed by multiple flow links,
     ! pay attention to proper directions: structure parameters are typically determined
@@ -600,25 +567,26 @@ use m_flowgeom
     ! are typically in the flow link's 1-2 direction.
     k1 = ln(1,Lf) ; k2 = ln(2,Lf)      ! 1 -> 2 flow link direction
     kL = kcgen(1,n) ; kR = kcgen(2,n)  ! L -> R structure direction
-    
+
     m  = L
-    il = k1 
-    ir = k2 
+    il = k1
+    ir = k2
     L0 = n - L1cgensg(ng)+1
 
     zs                 = min  ( bob(1,Lf), bob(2,Lf) )         ! == zcgen(3*ng - 2) crest/silllevel
     gateloweredgelevel = generalstruc(ng)%gateheightonlink(L0) ! == zcgen(3*ng - 1) under gate door and infinity in open part.
+    gatefraction = generalstruc(ng)%gateclosedfractiononlink(L0)
 
     ! TODO: RTC: AvD/Herman: hier ook wu'tjes en zb1-tjes etc gaan zetten, voordat we de flupd/flgtar-subroutines gaan callen?
     ! Velheight is always true for river structures
     ! velheight = istrtyp(7, istru)==1
     velheight = .true.
-        
+
     relax = 1.0D0
     au(Lf) = 0d0 ; fu(Lf) = 0d0 ; ru(Lf) = 0d0
     !
     ! ng instead of istru
-    
+
     dg = gateloweredgelevel - zs
 
     call flupdofm(m, il, ir, ng, velheight, rholeft, rhoright, crest, husb, hdsb,     &
@@ -632,58 +600,64 @@ use m_flowgeom
        call flgtarfm(ng, L0, wu(Lf), bl(kL), bl(kR), tekenstr, zs, wstr, w2, wsd, zb2, dg, ds1, ds2, cgf, cgd,   &
                      cwf, cwd, mugf, lambda, strdamf, gatedoorheight)
 
-       DsL   = s1(k2) - s1(k1) 
-       u1(Lf) = Rusav(1,n) - Fusav(1,n)*DsL ; u0(Lf) = u1(Lf) ; q1(Lf) = Ausav(1,n)*u1(Lf) 
+       DsL   = s1(k2) - s1(k1)
+       u1(Lf) = Rusav(1,n) - Fusav(1,n)*DsL ; u0(Lf) = u1(Lf) ; q1(Lf) = Ausav(1,n)*u1(Lf)
        call flqhgsfm(Lf, teken, husb, hdsb, uu, zs, wstr, w2, wsd, zb2, ds1, ds2, dg,  &
                      cgf, cgd, cwf, cwd, mugf, lambda, strdamf, jarea, ds)
        fusav(1,n) = fu(Lf) ; Rusav(1,n) = ru(Lf) ; Ausav(1,n) = au(Lf)
     endif
-    
-    if (gatedoorheight > 0d0) then  ! now add water overflowing top of gate  
+
+    if (gatedoorheight > 0d0) then  ! now add water overflowing top of gate
        zs = gateloweredgelevel + gatedoorheight
        if (husb > zs) then          ! husb = upwind waterlevel instead of height
           dg    = 1d9               ! sky is the limit, this gate fully open
-          u1(Lf) = rusav(2,n) - Fusav(2,n)*dsL ; u0(Lf) = u1(Lf) ; q1(Lf) = Ausav(2,n)*u1(Lf) 
+          u1(Lf) = rusav(2,n) - Fusav(2,n)*dsL ; u0(Lf) = u1(Lf) ; q1(Lf) = Ausav(2,n)*u1(Lf)
           call flgtarfm(ng, L0, wu(Lf), bl(kL), bl(kR), tekenstr, zs, wstr, w2, wsd, zb2, dg, ds1, ds2, cgf, cgd,   &
                         cwf, cwd, mugf, lambda, strdamf, gatedoorheight)
           call flqhgsfm(Lf, teken, husb, hdsb, uu, zs, wstr, w2, wsd, zb2, ds1, ds2, dg,  &
                         cgf, cgd, cwf, cwd, mugf, lambda, strdamf, jarea, ds)
-          fusav(2,n) = fu(Lf) ; rusav(2,n) = ru(Lf) ; ausav(2,n) = au(Lf)         
- 
-          au(Lf) =  ausav(1,n)            +            ausav(2,n)  
-          fu(Lf) = (fusav(1,n)*ausav(1,n) + fusav(2,n)*ausav(2,n) ) / au(Lf)   
-          ru(Lf) = (rusav(1,n)*ausav(1,n) + rusav(2,n)*ausav(2,n) ) / au(Lf)   
-       else 
-          fusav(2,n) = 0d0 ; rusav(2,n) = 0d0 ; ausav(2,n) = 0d0   
-       endif 
+          fusav(2,n) = fu(Lf) ; rusav(2,n) = ru(Lf) ; ausav(2,n) = au(Lf)
+
+          au(Lf) =  ausav(1,n)            +            ausav(2,n)
+          if (au(Lf) >0d0) then
+             fu(Lf) = (fusav(1,n)*ausav(1,n) + fusav(2,n)*ausav(2,n) ) / au(Lf)
+             ru(Lf) = (rusav(1,n)*ausav(1,n) + rusav(2,n)*ausav(2,n) ) / au(Lf)
+          end if
+       else
+          fusav(2,n) = 0d0 ; rusav(2,n) = 0d0 ; ausav(2,n) = 0d0
+       endif
     endif
 
-    if (au(Lf) == 0d0) then 
-        hu(Lf) =  0d0 
-    endif 
+    if ( gatefraction.lt.1d0 .and. gatefraction.gt.0d0 ) then
+       fu_sav = fu(Lf)
+       ru_sav = ru(Lf)
+       au_sav = au(Lf)
+
+       zs =  min  ( bob(1,Lf), bob(2,Lf) )
+       dg = huge(1d0)
+       u1(Lf) = rusav(3,n) - Fusav(3,n)*dsL ; u0(Lf) = u1(Lf) ; q1(Lf) = Ausav(3,n)*u1(Lf)
+       call flgtarfm(ng, L0, wu(Lf), bl(kL), bl(kR), tekenstr, zs, wstr, w2, wsd, zb2, dg, ds1, ds2, cgf, cgd,   &
+                     cwf, cwd, mugf, lambda, strdamf, gatedoorheight)
+       call flqhgsfm(Lf, teken, husb, hdsb, uu, zs, wstr, w2, wsd, zb2, ds1, ds2, dg,  &
+                     cgf, cgd, cwf, cwd, mugf, lambda, strdamf, jarea, ds)
+       fusav(3,n) = fu(Lf) ; rusav(3,n) = ru(Lf) ; ausav(3,n) = au(Lf)
+
+       g1 = 1d0-gatefraction
+
+       fu(Lf) = gatefraction * fu_sav + g1 * fu(Lf)
+       ru(Lf) = gatefraction * ru_sav + g1 * ru(Lf)
+       au(Lf) = gatefraction * au_sav + g1 * au(Lf)
+    end if
+
+    if (au(Lf) == 0d0) then
+        hu(Lf) =  0d0
+    endif
 
     ! TEMP = laatste statement
     ! strhis(15, istru) = ds + crest     ! waterlevel on crest
 end subroutine flgsfm
 
 subroutine flgsareafm(formno, m, husb, velhght, zs, ds, dg, wstr)
-!!--copyright-------------------------------------------------------------------
-! Copyright (c) 2003, Deltares. All rights reserved.
-!!--disclaimer------------------------------------------------------------------
-! This code is part of the Delft3D software system. Deltares has
-! developed c.q. manufactured this code to its best ability and according to the
-! state of the art. Nevertheless, there is no express or implied warranty as to
-! this software whether tangible or intangible. In particular, there is no
-! express or implied warranty as to the fitness for a particular purpose of this
-! software, whether tangible or intangible. The intellectual property rights
-! related to this software code remain with Deltares at all times.
-! For details on the licensing agreement, we refer to the Delft3D software
-! license and any modifications to this license, if applicable. These documents
-! are available upon request.
-!!--version information---------------------------------------------------------
-! $Author$
-! $Date$
-! $Revision$
 !!--description-----------------------------------------------------------------
 ! NONE
 !!--pseudo code and references--------------------------------------------------
@@ -691,7 +665,7 @@ subroutine flgsareafm(formno, m, husb, velhght, zs, ds, dg, wstr)
 !!--declarations----------------------------------------------------------------
     ! use cpluv
     use m_flow, only: au
-    
+
     implicit none
 !
 ! Global variables
@@ -782,23 +756,6 @@ end subroutine flgsareafm
 
 subroutine flgsd2fm(wsd, wstr, zs, w2, zb2, dg, ds1, ds2, elu, hd, rhoast,    &
                 & cgd, imag, ds, lambda)
-!!--copyright-------------------------------------------------------------------
-! Copyright (c) 2003, Deltares. All rights reserved.
-!!--disclaimer------------------------------------------------------------------
-! This code is part of the Delft3D software system. Deltares has
-! developed c.q. manufactured this code to its best ability and according to the
-! state of the art. Nevertheless, there is no express or implied warranty as to
-! this software whether tangible or intangible. In particular, there is no
-! express or implied warranty as to the fitness for a particular purpose of this
-! software, whether tangible or intangible. The intellectual property rights
-! related to this software code remain with Deltares at all times.
-! For details on the licensing agreement, we refer to the Delft3D software
-! license and any modifications to this license, if applicable. These documents
-! are available upon request.
-!!--version information---------------------------------------------------------
-! $Author$
-! $Date$
-! $Revision$
 !!--description-----------------------------------------------------------------
 ! NONE
 !!--pseudo code and references--------------------------------------------------
@@ -929,23 +886,6 @@ end subroutine flgsd2fm
 
 subroutine flgsd3fm(wsd, wstr, zs, w2, zb2, ds1, ds2, elu, hd, rhoast, cwd,   &
                 & ds, lambda)
-!!--copyright-------------------------------------------------------------------
-! Copyright (c) 2003, Deltares. All rights reserved.
-!!--disclaimer------------------------------------------------------------------
-! This code is part of the Delft3D software system. Deltares has
-! developed c.q. manufactured this code to its best ability and according to the
-! state of the art. Nevertheless, there is no express or implied warranty as to
-! this software whether tangible or intangible. In particular, there is no
-! express or implied warranty as to the fitness for a particular purpose of this
-! software, whether tangible or intangible. The intellectual property rights
-! related to this software code remain with Deltares at all times.
-! For details on the licensing agreement, we refer to the Delft3D software
-! license and any modifications to this license, if applicable. These documents
-! are available upon request.
-!!--version information---------------------------------------------------------
-! $Author$
-! $Date$
-! $Revision$
 !!--description-----------------------------------------------------------------
 ! NONE
 !!--pseudo code and references--------------------------------------------------
@@ -1101,23 +1041,6 @@ end subroutine flgsd3fm
 
 subroutine flgtarfm(ng, L0, wuL, bl1, bl2, teken, zs, wstr, w2, wsd, zb2, dg, ds1, ds2, cgf,  &   ! fromgeneral
                     cgd, cwf, cwd, mugf, lambda, strdamf, gatedoorheight)
-!!--copyright-------------------------------------------------------------------
-! Copyright (c) 2003, Deltares. All rights reserved.
-!!--disclaimer------------------------------------------------------------------
-! This code is part of the Delft3D software system. Deltares has
-! developed c.q. manufactured this code to its best ability and according to the
-! state of the art. Nevertheless, there is no express or implied warranty as to
-! this software whether tangible or intangible. In particular, there is no
-! express or implied warranty as to the fitness for a particular purpose of this
-! software, whether tangible or intangible. The intellectual property rights
-! related to this software code remain with Deltares at all times.
-! For details on the licensing agreement, we refer to the Delft3D software
-! license and any modifications to this license, if applicable. These documents
-! are available upon request.
-!!--version information---------------------------------------------------------
-! $Author$
-! $Date$
-! $Revision$
 !!--description-----------------------------------------------------------------
 ! NONE
 !!--pseudo code and references--------------------------------------------------
@@ -1145,7 +1068,7 @@ subroutine flgtarfm(ng, L0, wuL, bl1, bl2, teken, zs, wstr, w2, wsd, zb2, dg, ds
     double precision               :: lambda
     double precision, intent(out)  :: mugf
     double precision               :: strdamf
-    double precision, intent(in)   :: teken !< Flow direction, w.r.t. the structure's orientation. So: based on both upwind *and* flow-link<-->str-pli crossing. 
+    double precision, intent(in)   :: teken !< Flow direction, w.r.t. the structure's orientation. So: based on both upwind *and* flow-link<-->str-pli crossing.
     double precision               :: w2
     double precision, intent(out)  :: wsd
     double precision, intent(out)  :: wstr
@@ -1212,8 +1135,8 @@ subroutine flgtarfm(ng, L0, wuL, bl1, bl2, teken, zs, wstr, w2, wsd, zb2, dg, ds
     !
     !     Fetch parameters from structure info array
     !
-    
-    if (generalstruc(ng)%numlinks <= 1) then ! Structure crosses just one link, use user-specified widths
+
+    if (generalstruc(ng)%numlinks <= 1) then ! Structure crosses just one link, use user-specified widths ! TODO: AvD: can this be merged with else block, also incase of timeseries and RTC (why only do that for numlinks>1 ?)
        w1   = min(wuL, generalstruc(ng)%widthleftW1)
        wsdl = min(wuL, generalstruc(ng)%widthleftWsdl)
 !    wstr = generalstruc(ng)%widthcenter
@@ -1229,7 +1152,7 @@ subroutine flgtarfm(ng, L0, wuL, bl1, bl2, teken, zs, wstr, w2, wsd, zb2, dg, ds
        wsdr = min(wuL, generalstruc(ng)%widthcenteronlink(L0)) !widthrightWsdr
        w2   = min(wuL, generalstruc(ng)%widthcenteronlink(L0)) !widthrightW2
     end if
-       
+
     ! zs   = generalstruc(ng)%levelcenter        ! comes from ec
     zb1  = max(bl1, generalstruc(ng)%levelleftZb1)
     zbsl = max(bl1, generalstruc(ng)%levelleftZbsl)
@@ -1237,12 +1160,12 @@ subroutine flgtarfm(ng, L0, wuL, bl1, bl2, teken, zs, wstr, w2, wsd, zb2, dg, ds
     zb2  = max(bl2, generalstruc(ng)%levelrightZb2)
     ! dg   = generalstruc(ng)%gateheight - zs    ! also comes from ec
     lambda = generalstruc(ng)%extraresistance
-    strdamf = generalstruc(ng)%dynstructext 
-    gatedoorheight = generalstruc(ng)%gatedoorheight 
-    
+    strdamf = generalstruc(ng)%dynstructext
+    gatedoorheight = generalstruc(ng)%gatedoorheight
+
     !if (strdamf< - 0.5D0) strdamf = dynstructext
     !if (lambda < - 0.5D0) lambda = extra_resist_genstruc
-    
+
     !
     !     Determine cgf, cgd, cwf, cwd, mugf
     !     (flow direction dependent)
@@ -1285,44 +1208,47 @@ use m_strucs
 use m_alloc
 implicit none
 integer,          intent(in) :: ng        !< Index of this general structure in the generalstruc(:) array
-double precision, intent(in) :: hulp(25)  !< genstru params read from file
+double precision, intent(in) :: hulp(26)  !< genstru params read from file
 integer,          intent(in) :: ngen      !< Number of flow links crossed by this single general structure
 double precision, intent(in) :: widths(ngen) !< wu(L) values for all links crossed by this single general structure
 
 generalstruc(ng)%widthleftW1             = hulp( 1)    !< this and following: see Sobek manual
-generalstruc(ng)%levelleftZb1            = hulp( 2)  
-generalstruc(ng)%widthleftWsdl           = hulp( 3)   
-generalstruc(ng)%levelleftZbsl           = hulp( 4)  
-generalstruc(ng)%widthcenter             = hulp( 5)  
-generalstruc(ng)%levelcenter             = hulp( 6) 
-generalstruc(ng)%widthrightWsdr          = hulp( 7) 
-generalstruc(ng)%levelrightZbsr          = hulp( 8) 
-generalstruc(ng)%widthrightW2            = hulp( 9) 
-generalstruc(ng)%levelrightZb2           = hulp(10) 
-generalstruc(ng)%gateheight              = hulp(11) 
+generalstruc(ng)%levelleftZb1            = hulp( 2)
+generalstruc(ng)%widthleftWsdl           = hulp( 3)
+generalstruc(ng)%levelleftZbsl           = hulp( 4)
+generalstruc(ng)%widthcenter             = hulp( 5)
+generalstruc(ng)%levelcenter             = hulp( 6)
+generalstruc(ng)%widthrightWsdr          = hulp( 7)
+generalstruc(ng)%levelrightZbsr          = hulp( 8)
+generalstruc(ng)%widthrightW2            = hulp( 9)
+generalstruc(ng)%levelrightZb2           = hulp(10)
+generalstruc(ng)%gateheight              = hulp(11)
 generalstruc(ng)%gateheightintervalcntrl = hulp(12)
-generalstruc(ng)%pos_freegateflowcoeff   = hulp(13) 
-generalstruc(ng)%pos_drowngateflowcoeff  = hulp(14) 
-generalstruc(ng)%pos_freeweirflowcoeff   = hulp(15) 
-generalstruc(ng)%pos_drownweirflowcoeff  = hulp(16) 
-generalstruc(ng)%pos_contrcoeffreegate   = hulp(17) 
-generalstruc(ng)%neg_freegateflowcoeff   = hulp(18) 
-generalstruc(ng)%neg_drowngateflowcoeff  = hulp(19) 
-generalstruc(ng)%neg_freeweirflowcoeff   = hulp(20) 
-generalstruc(ng)%neg_drownweirflowcoeff  = hulp(21) 
-generalstruc(ng)%neg_contrcoeffreegate   = hulp(22) 
-generalstruc(ng)%extraresistance         = hulp(23)   ! lambda = L*g/ (C*C) 
-generalstruc(ng)%dynstructext            = hulp(24) 
-if (hulp(25) > 0d0) then 
-   generalstruc(ng)%gatedoorheight           = hulp(25) 
+generalstruc(ng)%pos_freegateflowcoeff   = hulp(13)
+generalstruc(ng)%pos_drowngateflowcoeff  = hulp(14)
+generalstruc(ng)%pos_freeweirflowcoeff   = hulp(15)
+generalstruc(ng)%pos_drownweirflowcoeff  = hulp(16)
+generalstruc(ng)%pos_contrcoeffreegate   = hulp(17)
+generalstruc(ng)%neg_freegateflowcoeff   = hulp(18)
+generalstruc(ng)%neg_drowngateflowcoeff  = hulp(19)
+generalstruc(ng)%neg_freeweirflowcoeff   = hulp(20)
+generalstruc(ng)%neg_drownweirflowcoeff  = hulp(21)
+generalstruc(ng)%neg_contrcoeffreegate   = hulp(22)
+generalstruc(ng)%extraresistance         = hulp(23)   ! lambda = L*g/ (C*C)
+generalstruc(ng)%dynstructext            = hulp(24)
+if (hulp(25) > 0d0) then
+   generalstruc(ng)%gatedoorheight           = hulp(25)
 endif
-generalstruc(ng)%stabilitycounter        = 0d0 ! hulp(25)     
+generalstruc(ng)%dooropeningwidth        = hulp(26)
+generalstruc(ng)%stabilitycounter        = 0d0
 
 call realloc(generalstruc(ng)%widthcenteronlink, ngen)
 generalstruc(ng)%widthcenteronlink(1:ngen) = widths(1:ngen)
 call realloc(generalstruc(ng)%gateheightonlink, ngen)
 generalstruc(ng)%gateheightonlink(1:ngen) = generalstruc(ng)%gateheight
 generalstruc(ng)%numlinks                = ngen
+
+call realloc(generalstruc(ng)%gateclosedfractiononlink, ngen, fill=0d0)
 end subroutine togeneral
 
 
@@ -1330,13 +1256,13 @@ end subroutine togeneral
 !> Determines flow link' upwind/downwind parameters based on current velocities and water levels.
 !! NOTE that this is purely for this flow link, independent of left-right orientation of the structure itself.
 !! (Motivation: a single structure in 2D may be crossed by multiple flow links, with varying 1->2 orientation.)
-subroutine flupdofm(m, il, ir, istru, velheight, rholeft, rhoright, crest, & 
+subroutine flupdofm(m, il, ir, istru, velheight, rholeft, rhoright, crest, &
                     husb, hdsb, uu, ud, teken, relax)
 
 use m_strucs
 use m_flowgeom
 use m_flow
-    
+
 implicit none
 !
 ! Global variables
@@ -1354,7 +1280,7 @@ double precision               :: teken
 double precision               :: ud
 double precision               :: uu
 
-double precision               :: tem 
+double precision               :: tem
 !double precision               :: ucxku, ucyku
 integer                        :: L, k, LL,iflip
 
@@ -1379,54 +1305,54 @@ integer                        :: L, k, LL,iflip
 
 L    = abs(m)
 iflip = max(0, sign(1,m)) ! iflip: 0 if flow link has same orientation as structure's left-right, 1 if opposite (because then the 'left' str point == ln(2,Lf))
-if (relax .ne. 1d0) then 
+if (relax .ne. 1d0) then
    husb = s1(il)*relax + (1.D0 - relax)*strhis2(9+iflip,istru) ! TODO: HK: strhis2 is not yet filled anywhere (no relaxation possible)
    hdsb = s1(ir)*relax + (1.D0 - relax)*strhis2(10-iflip,istru)
 else
    husb = s1(il)
    hdsb = s1(ir)
-endif 
+endif
 uu   = 0.D0
 ud   = 0.D0
-if (velheight) then 
+if (velheight) then
    uu = 0d0 ; ud = 0d0
    do k = 1,nd(il)%lnx
       LL = iabs( nd(il)%ln(k) )
       if (iadv(LL) .ne. 22) then  ! any non-structure point
-         uu = max(uu, abs(u1(LL)) )         
-      endif 
+         uu = max(uu, abs(u1(LL)) )
+      endif
    enddo
 
    do k = 1,nd(ir)%lnx
       LL = iabs( nd(ir)%ln(k) )
       if (iadv(LL) .ne. 22) then  ! any non-structure point
-         ud = max(ud, abs(u1(LL)) )        
-      endif 
+         ud = max(ud, abs(u1(LL)) )
+      endif
    enddo
 
-   !uu = call getucxucynoweirs(il, ucxku, ucyku, 6) 
-   !uu = csu(L)*ucxku + snu(L)*ucyku    
+   !uu = call getucxucynoweirs(il, ucxku, ucyku, 6)
+   !uu = csu(L)*ucxku + snu(L)*ucyku
    !call getucxucynoweirs(ir, ucxku, ucyku, 6)
-   !ud = csu(L)*ucxku + snu(L)*ucyku  
+   !ud = csu(L)*ucxku + snu(L)*ucyku
 endif
 
-if (u1(L) > 0d0) then 
+if (u1(L) > 0d0) then
    teken =  1d0
-else if (u1(L) < 0d0) then 
-   teken = -1d0 
-else if (s1(iL) > s1(ir) ) then 
+else if (u1(L) < 0d0) then
+   teken = -1d0
+else if (s1(iL) > s1(ir) ) then
    teken = 1d0
-elseif (s1(iL) < s1(ir) ) then 
+elseif (s1(iL) < s1(ir) ) then
    teken = -1d0
 else ! s1(iL) == s1(ir)
    teken = -dble(sign(1,m)) ! account for orientation of flow link w.r.t. structure
 endif
 
-if (teken < 0) then 
-   tem   = hdsb ; hdsb = husb ; husb = tem  
-   tem   = ud   ; ud   = uu   ; uu   = tem 
+if (teken < 0) then
+   tem   = hdsb ; hdsb = husb ; husb = tem
+   tem   = ud   ; ud   = uu   ; uu   = tem
 endif
-   
+
 end subroutine flupdofm
 
 subroutine flqhgsfm(m, teken, husb, hdsb, uu, zs, wstr, w2, wsd, zb2, ds1, ds2,   &
@@ -1434,7 +1360,7 @@ subroutine flqhgsfm(m, teken, husb, hdsb, uu, zs, wstr, w2, wsd, zb2, ds1, ds2, 
     use m_flow, only : au, fu, ru
 
     use m_physcoef, only : ag
-    
+
     implicit none
 !
 ! Global variables
@@ -1455,7 +1381,7 @@ subroutine flqhgsfm(m, teken, husb, hdsb, uu, zs, wstr, w2, wsd, zb2, ds1, ds2, 
     double precision :: mugf
     double precision :: rhoast=1d0
     double precision :: strdamf
-    double precision :: teken                 
+    double precision :: teken
     double precision, intent(in)   :: uu
     double precision :: w2
     double precision :: wsd
@@ -1546,17 +1472,17 @@ subroutine flqhgsfm(m, teken, husb, hdsb, uu, zs, wstr, w2, wsd, zb2, ds1, ds2, 
     !     Compute upstream velocity height and energy level
     !
 
-    
+
 
     velhght = uu*uu/(2.0D0*ag)
     elu = husb + velhght
     hs1 = elu - zs
     !
     tr  = 1d-4
-    if (hs1 < tr .or. wstr < tr .or. dg < tr) THEN   !  .or. min(cgf, cgd, cwf, cwd)<=0. .or.       &
-                                                     !  & dg<.0001) then !hk: or gate closed
-       formno = 0 ; return  
-                 
+    if (hs1 < tr .or. wstr < tr .or. dg < tr .or. min(cgf, cgd, cwf, cwd) <= 0.) then   !  & dg<.0001) then !hk: or gate closed
+
+       formno = 0 ; return
+
     else
        !
        !        Compute critical water depth at the
@@ -1570,12 +1496,12 @@ subroutine flqhgsfm(m, teken, husb, hdsb, uu, zs, wstr, w2, wsd, zb2, ds1, ds2, 
        !        Calculate ds by solving third order algebraic equation
        !
 
-    
+
        call flgsd3fm(wsd, wstr, zs, w2, zb2, ds1, ds2, elu, hd1, rhoast, cwd, ds, &
                  & lambda)
-       
+
        !
-       if (ds>=dc) then    ! waterheight on crest larger than critical height on crest  
+       if (ds>=dc) then    ! waterheight on crest larger than critical height on crest
           if (dg>=ds) then
              !
              !              - drowned weir -
@@ -1687,23 +1613,6 @@ subroutine flqhgsfm(m, teken, husb, hdsb, uu, zs, wstr, w2, wsd, zb2, ds1, ds2, 
 end subroutine flqhgsfm
 
 subroutine flccgsfm(dg, dsc, cgd, cgf, cw, mugf, cgda, cgfa, mugfa)
-!!--copyright-------------------------------------------------------------------
-! Copyright (c) 2003, Deltares. All rights reserved.
-!!--disclaimer------------------------------------------------------------------
-! This code is part of the Delft3D software system. Deltares has
-! developed c.q. manufactured this code to its best ability and according to the
-! state of the art. Nevertheless, there is no express or implied warranty as to
-! this software whether tangible or intangible. In particular, there is no
-! express or implied warranty as to the fitness for a particular purpose of this
-! software, whether tangible or intangible. The intellectual property rights
-! related to this software code remain with Deltares at all times.
-! For details on the licensing agreement, we refer to the Delft3D software
-! license and any modifications to this license, if applicable. These documents
-! are available upon request.
-!!--version information---------------------------------------------------------
-! $Author$
-! $Date$
-! $Revision$
 !!--description-----------------------------------------------------------------
 ! NONE
 !!--pseudo code and references--------------------------------------------------
@@ -1829,26 +1738,26 @@ call aerr('strhis(mxstrhis,nstru)' ,ierr , mxstrhis*nstru )
 call realloc(strhis2, mxstrhis, nstru)
 call aerr('strhis2(mxstrhis,nstru)' ,ierr , mxstrhis*nstru )
 
-mxgeneral   = 0d0 
-mxuniversal = 0d0 
+mxgeneral   = 0d0
+mxuniversal = 0d0
 
 do i = 1,nstru
    if (itypstr(i) == ST_GENERAL_ST) then
-      mxgeneral   = mxgeneral + 1 
+      mxgeneral   = mxgeneral + 1
       ntypstr(i)  = mxgeneral
-   else if (itypstr(i) == ST_UNI_WEIR) then   
+   else if (itypstr(i) == ST_UNI_WEIR) then
       mxuniversal = mxuniversal + 1
       ntypstr(i)  = mxuniversal
    endif
 enddo
 
-if (mxgeneral > 0) then 
-   if (allocated (generalstruc) ) deallocate (generalstruc)  
+if (mxgeneral > 0) then
+   if (allocated (generalstruc) ) deallocate (generalstruc)
    allocate (generalstruc(mxgeneral), stat=ierr)
 endif
 
-if (mxuniversal > 0) then 
-   if (allocated (universalstruc) ) deallocate (universalstruc)  
+if (mxuniversal > 0) then
+   if (allocated (universalstruc) ) deallocate (universalstruc)
    allocate (universalstruc(mxuniversal), stat=ierr)
 endif
 
@@ -1859,13 +1768,13 @@ subroutine furusobekstructures()
 use m_flow
 use m_flowgeom
 use m_strucs
-implicit none 
+implicit none
 integer :: ng, n, L, Ls, LL, Lb, Lt
 double precision :: zup, bup, a, fac
 
-logical :: firstiter=.true. , jarea= .false. 
+logical :: firstiter=.true. , jarea= .false.
 
-firstiter = .true. 
+firstiter = .true.
 jarea     = .false.
 
 do ng = 1, ncgensg      ! loop over generalstruc signals, sethu
@@ -1879,16 +1788,16 @@ do ng = 1, ncgensg      ! loop over generalstruc signals, sethu
 
       if (hu(L) > 0d0) then ! hu is above lowest sill
          call flgsfm( n, ng, Ls, firstiter , jarea )
-      endif   
-      if (kmx > 0) then 
+      endif
+      if (kmx > 0) then
          call getLbotLtop(L,Lb,Lt)
          do LL = Lb, Lt
-            fu(LL) = fu(L) ; ru(LL) = ru(L) 
+            fu(LL) = fu(L) ; ru(LL) = ru(L)
             au(LL) = au(L)*( hu(LL)-hu(LL-1) ) / ( hu(Lt)-hu(Lb-1) )
-         enddo   
-      endif   
+         enddo
+      endif
    enddo
-enddo   
+enddo
 
 end subroutine furusobekstructures
 
@@ -1935,9 +1844,14 @@ do ng=1,ncgensg ! Loop over general structures
       closedGateWidthR = 0d0
    else if (cgen_type(ng) == ICGENTP_GENSTRU) then
       !crestwidth = totalWidth ! No crest/sill-width setting for true general structure yet (not old ext, nor new ext)
-      crestwidth = zcgen((ng-1)*3+3) ! NOTE: AvD: this now comes from scalar attribute 'widthcenter', no timeseries yet.
-      closedGateWidthL = 0d0 ! max(0d0, .5d0*(totalWidth - zcgen((ng-1)*3+3))) ! Default symmetric opening
-      closedGateWidthR = 0d0 ! max(0d0, .5d0*(totalWidth - zcgen((ng-1)*3+3)))
+      crestwidth = min(totalWidth, generalstruc(ng)%widthcenter)
+!      crestwidth = zcgen((ng-1)*3+3) ! NOTE: AvD: this now comes from scalar attribute 'widthcenter', no timeseries yet.
+      ! genstru: always IOPENDIR_SYMMETRIC (TODO: UNST-1935)
+      closedGateWidthL = max(0d0, .5d0*(totalWidth - zcgen((ng-1)*3+3)))
+      closedGateWidthR = max(0d0, .5d0*(totalWidth - zcgen((ng-1)*3+3)))
+      !closedGateWidthL = 0d0 ! max(0d0, .5d0*(totalWidth - zcgen((ng-1)*3+3))) ! Default symmetric opening
+      !closedGateWidthR = 0d0 ! max(0d0, .5d0*(totalWidth - zcgen((ng-1)*3+3)))
+      generalstruc(ng)%gateheightonlink(1:generalstruc(ng)%numlinks) = huge(1d0) ! As a start, gate door is open everywhere. Below, we will close part of the gate doors.
    else if (cgen_type(ng) == ICGENTP_GATE) then
       ! For a gate: zcgen(3,ng) is limited to the door opening width, but we want to open all links
       ! *underneath* the two doors as well, (if lower_edge_level is still high enough above sill_level)
@@ -1962,7 +1876,9 @@ do ng=1,ncgensg ! Loop over general structures
    !       NOT because of gate door closing: that is handled by closedGateWidthL/R and may still
    !       have flow underneath doors if they are up high enough.
    closedWidth = max(0d0, totalWidth - crestwidth)/2d0 ! Intentionally symmetric: if crest/sill_width < totalwidth. Only gate door motion may have a direction, was already handled above.
-    
+
+   generalstruc(ng)%gateclosedfractiononlink = 0d0
+
    do L=L1cgensg(ng),L2cgensg(ng)
       L0 = L-L1cgensg(ng)+1
       Lf = kcgen(3,L)
@@ -1975,14 +1891,18 @@ do ng=1,ncgensg ! Loop over general structures
          generalstruc(ng)%widthcenteronlink(L0) = wu(Lf)
       end if
 
-      if (cgen_type(ng) == ICGENTP_GATE .and. closedGateWidthL > 0d0 .or. cgen_type(ng) == ICGENTP_GENSTRU ) then
+      if ((cgen_type(ng) == ICGENTP_GATE .or. cgen_type(ng) == ICGENTP_GENSTRU) .and. closedGateWidthL > 0d0 ) then
          !if (closedGateWidthL > .5d0*wu(Lf)) then
          generalstruc(ng)%gateheightonlink(L0) = zcgen((ng-1)*3+2)
          help = min (wu(Lf), closedGateWidthL)
          closedGateWidthL = closedGateWidthL - help
          !end if
-      else    
-         
+
+         if ( wu(Lf).gt.0d0 ) then
+            generalstruc(ng)%gateclosedfractiononlink(L0) = generalstruc(ng)%gateclosedfractiononlink(L0) + help/wu(Lf)
+         end if
+      else
+
       end if
 
       if (closedWidth <= 0d0 .and. closedGateWidthL <= 0d0) then
@@ -2009,12 +1929,16 @@ do ng=1,ncgensg ! Loop over general structures
          generalstruc(ng)%widthcenteronlink(L0) = wu(Lf)
       end if
 
-      if (cgen_type(ng) == ICGENTP_GATE .and. closedGateWidthR > 0d0 .or. cgen_type(ng) == ICGENTP_GENSTRU) then
+      if ((cgen_type(ng) == ICGENTP_GATE .or. cgen_type(ng) == ICGENTP_GENSTRU) .and. closedGateWidthR > 0d0) then
          !if (closedGateWidthL > .5d0*wu(Lf)) then
          generalstruc(ng)%gateheightonlink(L0) = zcgen((ng-1)*3+2)
          help = min (wu(Lf), closedGateWidthR)
          closedGateWidthR = closedGateWidthR - help
          !end if
+
+         if ( wu(Lf).gt.0d0 ) then
+            generalstruc(ng)%gateclosedfractiononlink(L0) = generalstruc(ng)%gateclosedfractiononlink(L0) + help/wu(Lf)
+         end if
       end if
 
        if (closedWidth <= 0d0 .and. closedGateWidthR <= 0d0) then
@@ -2022,6 +1946,11 @@ do ng=1,ncgensg ! Loop over general structures
          exit
       endif
    enddo
+
+   !if ( L2cgensg(ng) == L1cgensg(ng) ) then
+   !   generalstruc(ng)%widthcenteronlink(L0) = min( wu(Lf), zcgen((ng-1)*3+3) )
+   !endif
+
 end do ! 1,ngensg
 
 end subroutine update_zcgen_widths_and_heights
@@ -2031,31 +1960,6 @@ subroutine enloss(ag        ,d1        ,eweir     ,hkruin    ,hov       , &
                 & ewben     ,wsbov     ,wsben     ,dte       , &
                 & dtefri    ,iflagweir , &
                 & crestl    ,rmpbov    ,rmpben    ,veg      )
-!----- GPL ---------------------------------------------------------------------
-!                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
-!                                                                               
-!  This program is free software: you can redistribute it and/or modify         
-!  it under the terms of the GNU General Public License as published by         
-!  the Free Software Foundation version 3.                                      
-!                                                                               
-!  This program is distributed in the hope that it will be useful,              
-!  but WITHOUT ANY WARRANTY; without even the implied warranty of               
-!  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the                
-!  GNU General Public License for more details.                                 
-!                                                                               
-!  You should have received a copy of the GNU General Public License            
-!  along with this program.  If not, see <http://www.gnu.org/licenses/>.        
-!                                                                               
-!  contact: delft3d.support@deltares.nl                                         
-!  Stichting Deltares                                                           
-!  P.O. Box 177                                                                 
-!  2600 MH Delft, The Netherlands                                               
-!                                                                               
-!  All indications and logos of, and references to, "Delft3D" and "Deltares"    
-!  are registered trademarks of Stichting Deltares, and remain the property of  
-!  Stichting Deltares. All rights reserved.                                     
-!                                                                               
 !-------------------------------------------------------------------------------
 !  Original URL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/flow2d3d/packages/kernel/src/compute/enloss.f90
 !!--description-----------------------------------------------------------------
@@ -2120,7 +2024,7 @@ subroutine enloss(ag        ,d1        ,eweir     ,hkruin    ,hov       , &
     real(fp) :: qqv
     double precision :: tabellenboek
     real(fp) :: theta
-    real(fp) :: vilcd(1:2)  !! These parameters have to be read in 
+    real(fp) :: vilcd(1:2)  !! These parameters have to be read in
     real(fp) :: p, pref, qvolkvil, qweir, q2rat, cd0, cd0ref, sqfac, alfitp, re
     real(fp) :: ddive, vil1, vil2
 !
@@ -2161,8 +2065,8 @@ subroutine enloss(ag        ,d1        ,eweir     ,hkruin    ,hov       , &
           dteonv = tabellenboek(d1, eweir, qunit, qvolk)
        else
        endif
-       
-    elseif (iflagweir == 25) then     !! Villemonte 
+
+    elseif (iflagweir == 25) then     !! Villemonte
        !
        ! Set Villemonte coefficients
 
@@ -2176,7 +2080,7 @@ subroutine enloss(ag        ,d1        ,eweir     ,hkruin    ,hov       , &
        ! whether (on)volkomen flow appears. Vegetation is excluded.
        ! cd0 and p are used to compute the energy loss, in which
        ! vegetation is included.
- 
+
        alfitp = exp(-0.5d0*eweir/max(0.01d0,crestl))
        cd0ref = vilcd(1) *                                             &
                 ( alfitp      * (1.0d0-0.25d0*exp(-0.5d0*rmpbov)) +          &
@@ -2192,16 +2096,16 @@ subroutine enloss(ag        ,d1        ,eweir     ,hkruin    ,hov       , &
        ! Sieben' formula of 6 August 2010:
        !
        ddive = min(5.0d0,d1/eweir)
-       vil1 = 1 + ddive * (1-exp(-rmpben/vilcd(2))) 
+       vil1 = 1 + ddive * (1-exp(-rmpben/vilcd(2)))
        vil1 = 1.0 / (vil1**2)
-       vil2 = (1 + ddive) 
+       vil2 = (1 + ddive)
        vil2 = 1.0 / (vil2**2)
        pref = 3.0**3 / (4.0 * cd0**2) / (max(0.001d0,vil1 - vil2))
-       
+
        p = (1.0 + veg/3.0)**3 / (1.0+2*veg) * pref
 
        qvolkvil = 2.0/3.0 * eweir * sqrt(2.0/3.0 * ag * eweir) * cd0
-       
+
        sqfac = sqrt(max(0.0d0,1.0d0-max(0.0d0,ewben/eweir)**pref))
        qweir = qvolkvil * sqfac
        !
@@ -2219,7 +2123,7 @@ subroutine enloss(ag        ,d1        ,eweir     ,hkruin    ,hov       , &
        qvolkvil = max(0.00000001d0, qweir)
        qqv = 0.
     endif
-    
+
     !
     ! Determine energy loss for free weir flow
     !
@@ -2230,7 +2134,7 @@ subroutine enloss(ag        ,d1        ,eweir     ,hkruin    ,hov       , &
     if (iflagweir == 24) then    !! Tabellenboek
        !
        if (dtevol*qqv**2>=dteonv) then
-           ! 
+           !
            ! It is a free weir flow
            !
            toest = 'volk'
@@ -2240,7 +2144,7 @@ subroutine enloss(ag        ,d1        ,eweir     ,hkruin    ,hov       , &
            !
            toest = 'onvo'
        endif
-    elseif (iflagweir == 25) then     !! Villemonte 
+    elseif (iflagweir == 25) then     !! Villemonte
         !
         if (q2rat .gt. 0.99d0) then
            !
@@ -2269,42 +2173,17 @@ subroutine enloss(ag        ,d1        ,eweir     ,hkruin    ,hov       , &
        dte = dteonv
     else
     endif
-    
+
 !    if (iflagweir == 24) then         !! Tabellenboek
 !       write(88,'(2a,10f8.4)')  'Tabellenboek  ', toest, dteonv, dtevol
-!    elseif (iflagweir == 25) then     !! Villemonte    
+!    elseif (iflagweir == 25) then     !! Villemonte
 !       write(88,'(2a,10f8.4)')  'Villemonte  ', toest, dteonv, qweir, qunit, qvolkvil, q2rat, p
-!    endif    
+!    endif
 end subroutine enloss
-                
+
 double precision function tabellenboek(d1        ,eweir     ,qunit     ,qvolk     )
-!----- GPL ---------------------------------------------------------------------
-!                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
-!                                                                               
-!  This program is free software: you can redistribute it and/or modify         
-!  it under the terms of the GNU General Public License as published by         
-!  the Free Software Foundation version 3.                                      
-!                                                                               
-!  This program is distributed in the hope that it will be useful,              
-!  but WITHOUT ANY WARRANTY; without even the implied warranty of               
-!  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the                
-!  GNU General Public License for more details.                                 
-!                                                                               
-!  You should have received a copy of the GNU General Public License            
-!  along with this program.  If not, see <http://www.gnu.org/licenses/>.        
-!                                                                               
-!  contact: delft3d.support@deltares.nl                                         
-!  Stichting Deltares                                                           
-!  P.O. Box 177                                                                 
-!  2600 MH Delft, The Netherlands                                               
-!                                                                               
-!  All indications and logos of, and references to, "Delft3D" and "Deltares"    
-!  are registered trademarks of Stichting Deltares, and remain the property of  
-!  Stichting Deltares. All rights reserved.                                     
-!                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: manholes.f90 53959 2018-01-03 16:06:27Z dam_ar $
+!  $Id: manholes.f90 65778 2020-01-14 14:07:42Z mourits $
 !   Original URL: https://svn.oss.deltares.nl/repos/delft3d/trunk/src/engines_gpl/flow2d3d/packages/kernel/src/compute/tabel.f90
 !!--description-----------------------------------------------------------------
 !
@@ -2338,7 +2217,7 @@ double precision function tabellenboek(d1        ,eweir     ,qunit     ,qvolk   
     real(fp)          , intent(in) :: eweir  !!  Energy level at weir
     real(fp)          , intent(in) :: qunit  !!  Discharge at weir crest
     real(fp)          , intent(in) :: qvolk  !!  Maximum discharge (super critical flow)
-   
+
 !
 !
 ! Local variables

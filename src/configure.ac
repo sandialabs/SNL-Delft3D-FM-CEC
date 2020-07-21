@@ -71,7 +71,8 @@ fi
 
 AC_LANG_PUSH([C++])
 
-AC_CHECK_FUNCS([strdup vsnprintf])
+AC_CHECK_FUNCS([strdup vsnprintf lseek64 lseek])
+AC_CHECK_FUNCS([fseeko64 ftello64])
 AC_MSG_CHECKING([whether to enable dolcli])
 AC_ARG_ENABLE(dolcli,
 AS_HELP_STRING([--enable-dolcli],
@@ -112,7 +113,7 @@ AC_PROG_FC([ifort gfortran])
 dnl Check the flags needed to link fc programs with ld (i.e. cc)
 AC_FC_LIBRARY_LDFLAGS
 dnl Check for openmp for fortran
-AC_OPENMP
+## AC_OPENMP
 
 dnl Check for underscoring of external names
 AC_FC_WRAPPERS
@@ -142,9 +143,21 @@ AC_PROG_F77([ifort gfortran g77])
 AC_F77_LIBRARY_LDFLAGS
 AC_F77_LINE_LENGTH([132])
 dnl Check for openmp for fortran 77
-AC_OPENMP
+## AC_OPENMP
 dnl check if open(...shared) works
 ACX_F77_SHARED_SPECIFIER
+
+POLYPACK_FFLAGS=
+AX_CHECK_COMPILE_FLAG([-r8],
+        [
+        # Intel ifort
+        POLYPACK_FFLAGS=-r8
+        ],[
+        # GNU gfortran
+        POLYPACK_FFLAGS=-fdefault-real-8
+        ])
+AC_SUBST(POLYPACK_FFLAGS)
+
 AC_LANG_POP
 
 # NetCDF, for fortran 90...
@@ -174,7 +187,7 @@ if test "$enableval" = yes ; then
                 dnl no custom flags
                 ;;
                 *ifort*) dnl Intel 8.x Fortran compiler
-                        FFLAGS="$FFLAGS -recursive -reentrancy threaded -traceback"
+                        FFLAGS="$FFLAGS -recursive -traceback"
                 ;;
         esac
         case "$FC" in
@@ -182,7 +195,7 @@ if test "$enableval" = yes ; then
              dnl no custom flags
              ;;
              *ifort*) dnl Intel 8.x Fortran compiler
-                      FCFLAGS="$FCFLAGS -recursive -reentrancy threaded -traceback"
+                      FCFLAGS="$FCFLAGS -recursive -traceback"
              ;;
         esac
 else
@@ -243,17 +256,17 @@ AC_FUNC_VPRINTF
 ####fi
 
 # checks for pthreads
-ACX_PTHREAD([enable_threads="pthread"],[enable_threads="no"])
-
-if test $enable_threads != "pthread"; then
-    AC_MSG_ERROR([unable to find pthreads, currently this is required])
-else
-    AC_DEFINE(HAVE_PTHREAD,1,[Define if you have POSIX threads libraries and header files.])
-    LIBS="$PTHREAD_LIBS $LIBS"
-    FCLIBS="$PTHREAD_LIBS $FCLIBS"
-    CFLAGS="$PTHREAD_CFLAGS $CFLAGS"
-    CXXFLAGS="$PTHREAD_CFLAGS $CXXFLAGS"
-fi
+####ACX_PTHREAD([enable_threads="pthread"],[enable_threads="no"])
+####
+####if test $enable_threads != "pthread"; then
+####    AC_MSG_ERROR([unable to find pthreads, currently this is required])
+####else
+####    AC_DEFINE(HAVE_PTHREAD,1,[Define if you have POSIX threads libraries and header files.])
+####    LIBS="$PTHREAD_LIBS $LIBS"
+####    FCLIBS="$PTHREAD_LIBS $FCLIBS"
+####    CFLAGS="$PTHREAD_CFLAGS $CFLAGS"
+####    CXXFLAGS="$PTHREAD_CFLAGS $CXXFLAGS"
+####fi
 
 
 # Make sure we throw errors when using invalid architecture files (otherwise OSX version might get linked against linux libs)
@@ -360,17 +373,31 @@ AC_DEFINE_UNQUOTED(D3D_PLUGIN_EXT, ["$pluginext"], [Delft3D plugin extension])
 ACX_MKL
 AM_CONDITIONAL([USEMKL], test "x$ax_mkl_ok" == "xyes")
 
-dnl Check for PETSc
-AC_ARG_WITH(petsc,[AS_HELP_STRING([--with-petsc],[Build with petsc support @<:@default=no@:>@])], [],[with_petsc=no])
+# Check for PETSc
+AC_MSG_CHECKING([if PETSc is wanted])
+AC_ARG_WITH(	    petsc,
+		    [AS_HELP_STRING([--with-petsc],[Build with petsc support  @<:@default=no@:>@])],
+		    [],
+		    [with_petsc=no])
+
 AS_IF([test "x$with_petsc" != "xno"],
-        [
-          PKG_CHECK_MODULES([PETSc], [PETSc < 3.5])
-          AC_DEFINE([HAVE_PETSC],1,[Defined if you have PETSc library.])
-        ],
-        [
-          AC_MSG_RESULT([no])
-        ]
-)
+	    	[
+			AC_MSG_RESULT([yes])			
+			# now supporting 3.8 onwards, and deprecated 3.4
+			PKG_CHECK_MODULES([PETSc], [PETSc > 3.4 PETSc < 3.5],
+			[
+				AC_MSG_WARN([PETSc 3.4 has been deprecated, please consider upgrading to version 3.8 or higher])
+				AC_DEFINE([USE_DEPRECATED_PETSC34], 1, [Defined for building with deprecated PETSc version 3.4])
+			],
+			[
+				PKG_CHECK_MODULES([PETSc], [PETSc >= 3.8])					
+			])
+			# do we need fortran cflags here??
+			AC_DEFINE([HAVE_PETSC],1,[Defined if you have PETSc library.])
+			
+		],
+	    	AC_MSG_RESULT([no]))
+
 AM_CONDITIONAL([USEPETSC], test "x$with_petsc" != "xno")
 
 dnl Check for METIS
@@ -418,13 +445,17 @@ AC_SUBST(blasdir)
 AM_CONDITIONAL([USEPARMS], test "x$withblas" != "xno" -a -d "${blasdir}")
 
 dnl Check for PROJ
-AC_MSG_CHECKING([if Proj4 is wanted])
-AC_ARG_WITH(proj,[AS_HELP_STRING([--with-proj[=DIR]],[Build with proj4 support  @<:@default=no@:>@])],[],[with_proj=no])
+dnl Note that the option below is a --with-PKG=dir option,
+dnl whereas the third_party_open/fortrangis/ uses a --enable-PKG option.
+dnl As a result the include/lib paths are not automatically correct,
+dnl so we set them below in the central CPPFLAGS and LDFLAGS.
+AC_MSG_CHECKING([if PROJ is wanted])
+AC_ARG_WITH(proj,[AS_HELP_STRING([--with-proj[=DIR]],[Build with PROJ support  @<:@default=no@:>@])],[],[with_proj=no])
 
 PROJ_DIR=""
 AS_IF([test "x$with_proj" != "xno"],
 	[
-		AC_DEFINE([HAVE_PROJ],1,[Defined if you have Proj4 library.])
+		AC_DEFINE([HAVE_PROJ],1,[Defined if you have PROJ library.])
 		AS_IF([test "x$with_proj" != "xyes"],
 		[
 		  PROJ_DIR=$with_proj
@@ -435,6 +466,37 @@ AS_IF([test "x$with_proj" != "xno"],
 		AC_MSG_RESULT([no])
 	])
 AM_CONDITIONAL([USEPROJ], test "x$with_proj" != "xno")
+
+dnl Check for SHAPELIB
+dnl Note that the option below is a --with-PKG=dir option,
+dnl whereas the third_party_open/fortrangis/ uses a --enable-PKG option.
+dnl As a result the include/lib paths are not automatically correct,
+dnl so we set them below in the central CPPFLAGS and LDFLAGS.
+AC_MSG_CHECKING([if Shapelib is wanted])
+AC_ARG_WITH(shapelib,[AS_HELP_STRING([--with-shapelib[=DIR]],[Build with shapelib support  @<:@default=no@:>@])],[],[with_shapelib=no])
+
+SHAPELIB_DIR=""
+AS_IF([test "x$with_shapelib" != "xno"],
+	[
+		AC_DEFINE([HAVE_SHAPELIB],1,[Defined if you have Shapelib library.])
+		AS_IF([test "x$with_shapelib" != "xyes"],
+		[
+		  SHAPELIB_DIR=$with_shapelib
+		])
+		AC_MSG_RESULT([yes])
+	],
+	[
+			AC_MSG_RESULT([no])
+	])
+AM_CONDITIONAL([USESHAPELIB], test "x$with_shapelib" != "xno")
+if test "x" != "x$SHAPELIB_DIR"; then
+    if test -d "${SHAPELIB_DIR}"; then
+        AX_APPEND_FLAG("-I${SHAPELIB_DIR}/include", CPPFLAGS)
+        AX_APPEND_FLAG("-L${SHAPELIB_DIR}/lib", LDFLAGS)
+    fi
+fi
+
+AM_CONDITIONAL([USEFORTRANGIS], test "x$with_shapelib" != "xno" -o "x$with_proj" != "xno")
 
 AC_LANG_PUSH([C])
 AC_CHECK_LIB([dl], [dlclose],, [AC_MSG_ERROR([Compiler can not find libdl])])
@@ -449,23 +511,23 @@ AS_IF([test "x$with_metis" != "xno"], [
 
 	# Check for Metis headers
   	AS_IF([test "x$METIS_CFLAGS" != "x"], [
-  		CPPFLAGS=$METIS_CFLAGS ],
+  		AX_APPEND_FLAG($METIS_CFLAGS, CPPFLAGS) ],
   	[
-  		AS_IF([test "x$METIS_DIR" != "x"], 
+  		AS_IF([test "x$METIS_DIR" != "x"],
   		[
       	dnl # Look for METIS on the user specified inky install path
       		METIS_CFLAGS="-I$METIS_DIR/include";
-      		CPPFLAGS=$METIS_CFLAGS
+      		AX_APPEND_FLAG($METIS_CFLAGS, CPPFLAGS)
   		])
     ])
   	AS_IF([test "x$METIS_LIBS" != "x"], [
-  		LDFLAGS=$METIS_LIBS ],
+  		AX_APPEND_FLAG($METIS_LIBS, LDFLAGS) ],
   	[
-  		AS_IF([test "x$METIS_DIR" != "x"], 
+  		AS_IF([test "x$METIS_DIR" != "x"],
   		[
       	dnl # Look for METIS on the user specified inky install path
       		METIS_LIBS="-L$METIS_DIR/lib";
-      		LDFLAGS=$METIS_LIBS
+      		AX_APPEND_FLAG($METIS_LIBS, LDFLAGS)
   		])
     	METIS_LIBS="$METIS_LIBS -lmetis"
     ])
@@ -498,6 +560,8 @@ engines_gpl/dflowfm/packages/dflowfm_kernel/Makefile
 engines_gpl/dflowfm/packages/dflowfm_kernel/src/Makefile
 engines_gpl/dflowfm/packages/Makefile
 engines_gpl/dflowfm/scripts/parallel/Makefile
+engines_gpl/dflowfm/scripts/team-city/Makefile
+engines_gpl/dflowfm/scripts/Makefile
 engines_gpl/d_hydro/Makefile
 engines_gpl/d_hydro/packages/d_hydro/Makefile
 engines_gpl/d_hydro/packages/d_hydro/src/Makefile
@@ -512,6 +576,7 @@ engines_gpl/dimr/packages/Makefile
 engines_gpl/dimr/scripts/generic/lnx64/Makefile
 engines_gpl/dimr/scripts/generic/Makefile
 engines_gpl/dimr/scripts/Makefile
+engines_gpl/flow2d3d/default/Makefile
 engines_gpl/flow2d3d/Makefile
 engines_gpl/flow2d3d/packages/data/Makefile
 engines_gpl/flow2d3d/packages/data/src/allocation/Makefile
@@ -571,6 +636,7 @@ engines_gpl/part/packages/Makefile
 engines_gpl/part/packages/utils_f/Makefile
 engines_gpl/part/packages/utils_f/src/Makefile
 engines_gpl/part/scripts/Makefile
+engines_gpl/waq/default/Makefile
 engines_gpl/waq/Makefile
 engines_gpl/waq/packages/delwaq1/Makefile
 engines_gpl/waq/packages/delwaq1/src/Makefile
@@ -583,33 +649,31 @@ engines_gpl/waq/packages/delwaq_lib_examples/unit_tests_waq/src/Makefile
 engines_gpl/waq/packages/delwaq/Makefile
 engines_gpl/waq/packages/delwaq/src/Makefile
 engines_gpl/waq/packages/Makefile
-engines_gpl/waq/packages/waq_data/Makefile
-engines_gpl/waq/packages/waq_data/src/Makefile
-engines_gpl/waq/packages/waq_data/src/proc_data/Makefile
-engines_gpl/waq/packages/waq_data/src/waq_data/Makefile
 engines_gpl/waq/packages/waq_io/Makefile
 engines_gpl/waq/packages/waq_io/src/Makefile
 engines_gpl/waq/packages/waq_io/src/mpidum/Makefile
 engines_gpl/waq/packages/waq_io/src/ods/Makefile
-engines_gpl/waq/packages/waq_io/src/proc_preprocess/Makefile
 engines_gpl/waq/packages/waq_io/src/waq_io/Makefile
 engines_gpl/waq/packages/waq_kernel/Makefile
-engines_gpl/waq/packages/waq_kernel/src/bloom/Makefile
-engines_gpl/waq/packages/waq_kernel/src/charon/Makefile
 engines_gpl/waq/packages/waq_kernel/src/Makefile
-engines_gpl/waq/packages/waq_kernel/src/waq_kernel/Makefile
-engines_gpl/waq/packages/waq_kernel/src/waq_process/Makefile
 engines_gpl/waq/packages/waq_plugin_wasteload/Makefile
 engines_gpl/waq/packages/waq_plugin_wasteload/src/Makefile
+engines_gpl/waq/packages/waq_process/Makefile
+engines_gpl/waq/packages/waq_process/src/bloom/Makefile
+engines_gpl/waq/packages/waq_process/src/charon/Makefile
+engines_gpl/waq/packages/waq_process/src/Makefile
+engines_gpl/waq/packages/waq_process/src/proc_preprocess/Makefile
+engines_gpl/waq/packages/waq_process/src/waq_process/Makefile
 engines_gpl/waq/packages/waq_utils_c/Makefile
 engines_gpl/waq/packages/waq_utils_c/src/Makefile
 engines_gpl/waq/packages/waq_utils_f/Makefile
 engines_gpl/waq/packages/waq_utils_f/src/dlwq_netcdf/Makefile
-engines_gpl/waq/packages/waq_utils_f/src/interact/Makefile
 engines_gpl/waq/packages/waq_utils_f/src/Makefile
 engines_gpl/waq/packages/waq_utils_f/src/mod_couplib/Makefile
 engines_gpl/waq/packages/waq_utils_f/src/mod_timings/Makefile
 engines_gpl/waq/packages/waq_utils_f/src/waq_utils/Makefile
+engines_gpl/waq/packages/wq_processes/Makefile
+engines_gpl/waq/packages/wq_processes/src/Makefile
 engines_gpl/waq/scripts/Makefile
 engines_gpl/wave/Makefile
 engines_gpl/wave/packages/data/Makefile
@@ -631,6 +695,22 @@ plugins_lgpl/plugin_delftflow_traform/Makefile
 plugins_lgpl/plugin_delftflow_traform/src/Makefile
 scripts_lgpl/linux/Makefile
 scripts_lgpl/Makefile
+test/Makefile
+test/engines_gpl/Makefile
+test/engines_gpl/waq/Makefile
+test/engines_gpl/waq/packages/Makefile
+test/engines_gpl/waq/packages/waq_utils_f/Makefile
+test/engines_gpl/waq/packages/waq_utils_f/src/Makefile
+test/engines_gpl/waq/packages/waq_utils_f/src/waq_utils/Makefile
+test/engines_gpl/dflowfm/Makefile
+test/engines_gpl/dflowfm/packages/Makefile
+test/engines_gpl/dflowfm/packages/dflowfm_kernel/Makefile
+test/engines_gpl/dflowfm/packages/dflowfm_kernel/src/Makefile
+test/utils_lgpl/deltares_common/Makefile
+test/utils_lgpl/deltares_common/packages/Makefile
+test/utils_lgpl/deltares_common/packages/test_deltares_common/Makefile
+test/utils_lgpl/deltares_common/packages/test_deltares_common/src/Makefile
+test/utils_lgpl/Makefile
 third_party/interacter_stub/Makefile
 third_party/interacter_stub/src/Makefile
 third_party/Makefile
@@ -639,6 +719,9 @@ third_party_open/esmf/lnx64/Makefile
 third_party_open/esmf/lnx64/scripts/Makefile
 third_party_open/esmf/Makefile
 third_party_open/Makefile
+third_party_open/md5/Makefile
+third_party_open/md5/md5digest/Makefile
+third_party_open/md5/md5file/Makefile
 third_party_open/polypack/Makefile
 third_party_open/polypack/src/Makefile
 third_party_open/swan/bin/linux/Makefile
@@ -703,6 +786,14 @@ tools_gpl/waq_run_processes/packages/waq_run_processes/Makefile
 tools_gpl/waq_run_processes/packages/waq_run_processes/src/Makefile
 tools_gpl/waq_run_processes/packages/waq_run_processes_version_number/Makefile
 tools_gpl/waq_run_processes/packages/waq_run_processes_version_number/src/Makefile
+tools_gpl/waqpb/Makefile
+tools_gpl/waqpb/packages/Makefile
+tools_gpl/waqpb/packages/waqpb_export/Makefile
+tools_gpl/waqpb/packages/waqpb_export/src/Makefile
+tools_gpl/waqpb/packages/waqpb_import/Makefile
+tools_gpl/waqpb/packages/waqpb_import/src/Makefile
+tools_gpl/waqpb/packages/waqpb_lib/Makefile
+tools_gpl/waqpb/packages/waqpb_lib/src/Makefile
 utils_gpl/flow1d/include/Makefile
 utils_gpl/flow1d/Makefile
 utils_gpl/flow1d/packages/flow1d_core/Makefile
@@ -778,6 +869,8 @@ utils_lgpl/ec_module/packages/ec_module/Makefile
 utils_lgpl/ec_module/packages/ec_module/src/ectest/Makefile
 utils_lgpl/ec_module/packages/ec_module/src/Makefile
 utils_lgpl/ec_module/packages/ec_module/src/meteo/Makefile
+utils_lgpl/ec_module/packages/ec_module_test/Makefile
+utils_lgpl/ec_module/packages/ec_module_test/src/Makefile
 utils_lgpl/ec_module/packages/Makefile
 utils_lgpl/esmfsm/include/Makefile
 utils_lgpl/esmfsm/Makefile
@@ -812,10 +905,10 @@ utils_lgpl/gridgeom/Makefile
 utils_lgpl/gridgeom/packages/gridgeom/Makefile
 utils_lgpl/gridgeom/packages/gridgeom/src/Makefile
 utils_lgpl/gridgeom/packages/Makefile
-utils_lgpl/hyd_to_waq_part_lib/Makefile
-utils_lgpl/hyd_to_waq_part_lib/packages/hyd_to_waq_part_lib/Makefile
-utils_lgpl/hyd_to_waq_part_lib/packages/hyd_to_waq_part_lib/src/Makefile
-utils_lgpl/hyd_to_waq_part_lib/packages/Makefile
+utils_lgpl/io_hyd/Makefile
+utils_lgpl/io_hyd/packages/io_hyd/Makefile
+utils_lgpl/io_hyd/packages/io_hyd/src/Makefile
+utils_lgpl/io_hyd/packages/Makefile
 utils_lgpl/io_netcdf/Makefile
 utils_lgpl/io_netcdf/packages/io_netcdf/Makefile
 utils_lgpl/io_netcdf/packages/io_netcdf/src/Makefile
@@ -866,12 +959,18 @@ utils_lgpl/ods/packages/Makefile
 utils_lgpl/ods/packages/ods/Makefile
 utils_lgpl/ods/packages/ods/srcf/Makefile
 utils_lgpl/ods/packages/ods/src/Makefile
-    
+
 ])
 
 AC_CONFIG_SUBDIRS([
     third_party_open/kdtree2
     third_party_open/libsigwatch
 ])
+
+if test "x$with_shapelib" != "xno" -o "x$with_proj" != "xno"; then
+AC_CONFIG_SUBDIRS([
+    third_party_open/fortrangis
+])
+fi
 
 AC_OUTPUT

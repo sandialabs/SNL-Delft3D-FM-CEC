@@ -1,7 +1,7 @@
 module table_handles
 !----- LGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
+!  Copyright (C)  Stichting Deltares, 2011-2020.                                
 !                                                                               
 !  This library is free software; you can redistribute it and/or                
 !  modify it under the terms of the GNU Lesser General Public                   
@@ -25,8 +25,8 @@ module table_handles
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: table_handles.f90 8306 2018-03-08 05:36:30Z ccchart.x $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_lgpl/deltares_common/packages/deltares_common/src/table_handles.f90 $
+!  $Id: table_handles.f90 65986 2020-02-16 13:04:44Z jagers $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/deltares_common/packages/deltares_common/src/table_handles.f90 $
 !!--description-----------------------------------------------------------------
 !
 ! Handle wrapper for tables module.
@@ -623,7 +623,6 @@ character(MAXTABLECLENGTH) function gettablelocation(handle  ,itable     ,errors
     endif
 end function gettablelocation
 
-
 character(MAXTABLECLENGTH) function gettablename(handle  ,itable     ,errorstring)
 !!--description-----------------------------------------------------------------
 !
@@ -651,7 +650,6 @@ character(MAXTABLECLENGTH) function gettablename(handle  ,itable     ,errorstrin
        gettablename = org_gettablename(tablehandle%this ,itable, errorstring)
     endif
 end function gettablename
-
 
 integer function gettablentimes(handle  ,itable     ,errorstring)
 !!--description-----------------------------------------------------------------

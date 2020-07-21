@@ -1,6 +1,6 @@
 !----- AGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2017-2018.                                
+!  Copyright (C)  Stichting Deltares, 2017-2020.                                
 !                                                                               
 !  This file is part of Delft3D (D-Flow Flexible Mesh component).               
 !                                                                               
@@ -27,13 +27,13 @@
 !                                                                               
 !-------------------------------------------------------------------------------
 
-! $Id: xbeach_interp.F90 53524 2017-11-28 16:52:51Z carniato $
-! $HeadURL: https://repos.deltares.nl/repos/ds/trunk/additional/unstruc/src/xbeach_interp.F90 $
+! $Id: xbeach_interp.F90 65778 2020-01-14 14:07:42Z mourits $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/dflowfm/packages/dflowfm_kernel/src/xbeach_interp.F90 $
 
 module interp
 implicit none
 contains
-  PURE SUBROUTINE linear_interp_2d(X,nx,Y,ny,Z,xx,yy,zz,method,exception)
+  SUBROUTINE linear_interp_2d(X,nx,Y,ny,Z,xx,yy,zz,method,exception)
 
     implicit none
     ! input/output
@@ -130,7 +130,7 @@ contains
 !
 ! SOURCE
 !
-  PURE SUBROUTINE LINEAR_INTERP(X, Y, N, XX, YY, INDINT)
+  SUBROUTINE LINEAR_INTERP(X, Y, N, XX, YY, INDINT)
     integer,              intent(in) :: n
     real*8, dimension(n), intent(in) :: x
     real*8, dimension(n), intent(in) :: y
@@ -205,7 +205,7 @@ contains
   !
   ! SOURCE
   !
-  PURE SUBROUTINE BINARY_SEARCH(XX, N, X, J) 
+  SUBROUTINE BINARY_SEARCH(XX, N, X, J) 
     integer,              intent(in) :: N
     real*8, dimension(N), intent(in) :: xx
     real*8, intent(in)               :: x
@@ -220,7 +220,7 @@ contains
     ! Subroutine from 'Numerical recipes' Fortran  edition.
     ! Given an array XX of length N, given value X, return a value J
     ! such that X is between XX(J) en XX (J+1)
-    ! XX must be monotonic, either decreasing or increasin
+    ! XX must be monotonic, either decreasing or increasing
     ! J=0 or J=N indicates X is out of range.
 
 

@@ -13,7 +13,7 @@ subroutine incbc(lundia    ,timnow    ,zmodel    ,nmax      ,mmax      , &
                & typbnd    ,gdp       )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
+!  Copyright (C)  Stichting Deltares, 2011-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -37,8 +37,8 @@ subroutine incbc(lundia    ,timnow    ,zmodel    ,nmax      ,mmax      , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: incbc.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/engines_gpl/flow2d3d/packages/kernel/src/timedep/incbc.f90 $
+!  $Id: incbc.f90 65929 2020-02-04 13:55:49Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/kernel/src/timedep/incbc.f90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: Carry out interpolation in space, determine time
@@ -331,7 +331,12 @@ subroutine incbc(lundia    ,timnow    ,zmodel    ,nmax      ,mmax      , &
        ! Recalculates the effective global number of open boundary conditions
        !
        call dfsync(gdp)
-       call dffind_duplicate(lundia, nto, nobcto, nobcgl,  gdp%gdbcdat%bct_order, gdp)
+       if (gdp%gdbcdat%gntoftoq > 0) then
+          call dffind_duplicate(lundia, nto, nobcto, nobcgl,  gdp%gdbcdat%bct_order, gdp)
+       else
+          nobcto = nto
+          nobcgl = nto
+       endif
     else
        nobcto = nto
        nobcgl = nto
@@ -411,7 +416,7 @@ subroutine incbc(lundia    ,timnow    ,zmodel    ,nmax      ,mmax      , &
     !
     ! accumulate information across MPI partitions
     !
-    if (parll) then
+    if (parll .and. gdp%gdbcdat%gntoftoq>0) then
        call dfsync(gdp)
        allocate( qtfrct_global(nobcgl), stat=istat)
        if (istat /= 0) then
@@ -594,7 +599,7 @@ subroutine incbc(lundia    ,timnow    ,zmodel    ,nmax      ,mmax      , &
     !
     ! Update the discharge for total discharge or QH boundaries for the overall domain by summing up among those
     !
-    if (parll) then
+    if (parll .and. gdp%gdbcdat%gntoftoq>0) then
        call dfsync(gdp)
        allocate( qtfrct_global(nobcgl), stat=istat)
        if (istat /= 0) then

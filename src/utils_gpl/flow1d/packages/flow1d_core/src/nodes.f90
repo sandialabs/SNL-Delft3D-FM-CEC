@@ -1,7 +1,7 @@
 module m_node
 !----- AGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2017-2018.                                
+!  Copyright (C)  Stichting Deltares, 2017-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify              
 !  it under the terms of the GNU Affero General Public License as               
@@ -25,8 +25,8 @@ module m_node
 !  Stichting Deltares. All rights reserved.
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: nodes.f90 8044 2018-01-24 15:35:11Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_gpl/flow1d/packages/flow1d_core/src/nodes.f90 $
+!  $Id: nodes.f90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_gpl/flow1d/packages/flow1d_core/src/nodes.f90 $
 !-------------------------------------------------------------------------------
 
    use MessageHandling
@@ -37,6 +37,10 @@ module m_node
    
    private 
      
+   interface getnodeid
+      module procedure getnodeid_fun
+   end interface
+
    ! node types
    integer, public, parameter :: nt_BND       = -2
    integer, public, parameter :: nt_NotSet    = -1
@@ -49,8 +53,8 @@ module m_node
   
    public realloc
    public dealloc
-   public admin_nodes
    public fill_hashtable
+   public getnodeid
 
    interface fill_hashtable
       module procedure fill_hashtable_nds
@@ -153,31 +157,6 @@ contains
       nds%Size = nds%Size+nds%growsBy
    end subroutine
    
-   subroutine admin_nodes(nds, ngrid)
-      type(t_nodeset), intent(inout) :: nds
-      integer, intent(inout) :: ngrid
-      
-      integer i
-      type(t_node), pointer :: nod
-      
-      do i = 1, nds%count
-         nod => nds%node(i)
-         select case (nod%nodeType)
-         case (nt_EndNode, nt_LinkNode)
-            ngrid = ngrid+1
-            nod%gridNumber = ngrid
-         case (NT_LEVELBOUN)
-            nod%gridNumber = -1
-            nds%bndCount = nds%bndCount + 1
-            nds%LevelBoundaryCount = nds%LevelBoundaryCount + 1
-         case (NT_DISCHBOUN)
-            nod%gridNumber = -1
-            nds%bndCount = nds%bndCount + 1
-            nds%DisBoundaryCount = nds%DisBoundaryCount + 1
-         end select
-      enddo
-      
-   end subroutine admin_nodes
 
    subroutine fill_hashtable_nds(nds)
    
@@ -197,5 +176,24 @@ contains
       call hashfill(nds%hashlist)
       
    end subroutine fill_hashtable_nds
+   
+   function getnodeId_fun(nds, gridpoint) result(id)
+   
+      character(len=80)    :: id
+      type(t_nodeset), intent(in)      :: nds
+      integer        , intent(in)      :: gridpoint
+      
+      integer i
+      
+      do i = 1, nds%count
+         if (nds%node(i)%gridNumber == gridpoint) then
+            id  = nds%node(i)%id
+            return
+         endif
+         
+      enddo
+      
+      id = 'NODEID not found'
+   end function getnodeId_fun
    
 end module m_node

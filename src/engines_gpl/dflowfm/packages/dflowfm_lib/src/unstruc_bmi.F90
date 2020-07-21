@@ -1,6 +1,6 @@
 !----- AGPL --------------------------------------------------------------------
 !
-!  Copyright (C)  Stichting Deltares, 2017-2018.!
+!  Copyright (C)  Stichting Deltares, 2017-2020.!
 !  This file is part of Delft3D (D-Flow Flexible Mesh component).
 !
 !  Delft3D is free software: you can redistribute it and/or modify
@@ -26,8 +26,8 @@
 !
 !-------------------------------------------------------------------------------
 
-! $Id: unstruc_bmi.F90 54191 2018-01-22 18:57:53Z dam_ar $
-! $HeadURL: https://repos.deltares.nl/repos/ds/trunk/additional/unstruc/src/unstruc_bmi.F90 $
+! $Id: unstruc_bmi.F90 65974 2020-02-12 14:16:56Z spee $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/dflowfm/packages/dflowfm_lib/src/unstruc_bmi.F90 $
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
@@ -54,6 +54,7 @@ module bmi
   use m_sediment
   use m_integralstats
   use gridoperations
+  use unstruc_model
 
   implicit none
 
@@ -79,13 +80,13 @@ module bmi
   integer, external :: findname
 
 
-  integer(c_int), parameter :: var_count_compound = 6 ! pumps, gates, weirs, sourcesinks, observations, crosssections ! TODO: AvD: temp, as long as this is not templated
+  integer(c_int), parameter :: var_count_compound = 11 ! pumps, weirs, orifices, gates, generalstructures, culverts, sourcesinks, dambreak, observations, crosssections, laterals ! TODO: AvD: temp, as long as this is not templated
 contains
 
-  subroutine main() bind(C, name="main")
-     !DEC$ ATTRIBUTES DLLEXPORT :: main
-     ! Somehow intel fortran compiler expects a main routine in the dll, it is required since interactor is used (and win calls)
-  end subroutine main
+subroutine main() bind(C, name="main")
+   !DEC$ ATTRIBUTES DLLEXPORT :: main
+   ! Somehow intel fortran compiler expects a main routine in the dll, it is required since interactor is used (and win calls)
+end subroutine main
 
 
 !> \defgroup modelinformation Model Information Functions
@@ -152,131 +153,127 @@ end subroutine get_attribute
 !! \{
 !!
 
-  !> The initialize() function accepts a string argument that
-  !! gives the name (and path) of its "main input file", called
-  !! a configuration file. This function should perform all tasks
-  !! that are to take place before entering the model's time loop.
-  integer(c_int) function initialize(c_config_file) result(c_iresult) bind(C, name="initialize")
-    !DEC$ ATTRIBUTES DLLEXPORT :: initialize
+!> The initialize() function accepts a string argument that
+!! gives the name (and path) of its "main input file", called
+!! a configuration file. This function should perform all tasks
+!! that are to take place before entering the model's time loop.
+integer(c_int) function initialize(c_config_file) result(c_iresult) bind(C, name="initialize")
+   !DEC$ ATTRIBUTES DLLEXPORT :: initialize
     
-    use iso_c_binding, only: c_char
+   use iso_c_binding, only: c_char
 
-    use unstruc_model
-    use unstruc_files
+   use unstruc_model
+   use unstruc_files
    use m_partitioninfo
 #ifdef HAVE_MPI
    use mpi
 #endif
 
-    character(kind=c_char),intent(in)    :: c_config_file(MAXSTRLEN)
-    character(len=strlen(c_config_file)) :: config_file
+   character(kind=c_char),intent(in)    :: c_config_file(MAXSTRLEN)
+   character(len=strlen(c_config_file)) :: config_file
 
-    ! Extra local variables
-    integer :: inerr  ! number of the initialisation error
-    logical :: mpi_initd
+   ! Extra local variables
+   integer :: inerr  ! number of the initialisation error
+   logical :: mpi_initd
 
-    integer(c_int), target, allocatable, save :: x(:,:)
-    type(c_ptr) :: xptr
-    integer :: i,j,k
+   integer(c_int), target, allocatable, save :: x(:,:)
+   type(c_ptr) :: xptr
+   integer :: i,j,k
     
-    c_iresult = 0 ! TODO: is this return value BMI-compliant?
+   c_iresult = 0 ! TODO: is this return value BMI-compliant?
 #ifdef HAVE_MPI
-    call mpi_initialized(mpi_initd, inerr)
-    if (.not. mpi_initd) then
-       ja_mpi_init_by_fm = 1
-       call mpi_init(inerr)
-    else
-       ja_mpi_init_by_fm = 0
-    end if
+   call mpi_initialized(mpi_initd, inerr)
+   if (.not. mpi_initd) then
+      ja_mpi_init_by_fm = 1
+      call mpi_init(inerr)
+   else
+      ja_mpi_init_by_fm = 0
+   end if
 
-    call mpi_comm_rank(DFM_COMM_DFMWORLD,my_rank,inerr)
-    call mpi_comm_size(DFM_COMM_DFMWORLD,numranks,inerr)
+   call mpi_comm_rank(DFM_COMM_DFMWORLD,my_rank,inerr)
+   call mpi_comm_size(DFM_COMM_DFMWORLD,numranks,inerr)
 
-    if ( numranks.le.1 ) then
-        jampi = 0
-    end if
+   if ( numranks.le.1 ) then
+      jampi = 0
+   end if
 
-!   make domain number string as soon as possible
-    write(sdmn, '(I4.4)') my_rank
-
-    open (unit = 2, file = "mpi_"//sdmn//".out")
-    write(2, *) 'my_rank =', my_rank
-    close(2)
+   !   make domain number string as soon as possible
+   write(sdmn, '(I4.4)') my_rank
 
 #else
-    numranks=1
+   numranks=1
 #endif
 
-    ! do this until default has changed
-    jaGUI = 0
+   ! do this until default has changed
+   jaGUI = 0
 
-    ! Store the name
-    config_file = char_array_to_string(c_config_file, strlen(c_config_file))
+   ! Store the name
+   config_file = char_array_to_string(c_config_file, strlen(c_config_file))
 
-    ! Now we can initialize with the config_file
-
-
-    ! It would be great if there would be 1 init function that takes an optional configuration file name
+   ! Now we can initialize with the config_file
 
 
-    ! TODO: check why these are needed to avoid a segfault
-    KNX    = 8
-    MXB    = 10
-    MAXLAN = 500
-    MAXPOL = MAXLAN
+   ! It would be great if there would be 1 init function that takes an optional configuration file name
 
 
-    !call start()
-    !call resetFullFlowModel()
-    !call loadmodel(config_file)
-    call inidia(config_file(1:(len_trim(config_file)-len_trim('.mdu'))))
+   ! TODO: check why these are needed to avoid a segfault
+   KNX    = 8
+   MXB    = 10
+   MAXLAN = 500
+   MAXPOL = MAXLAN
 
-    CALL INIDAT()
-    call api_loadmodel(config_file)
 
-    !PETSC must be called AFTER reading the mdu file, so the icgsolver option is known to startpetsc 
+   !call start()
+   !call resetFullFlowModel()
+   !call loadmodel(config_file)
+   !call init_core() ! All done in inidat()
+
+   CALL INIDAT()
+   call api_loadmodel(config_file)
+
+   !PETSC must be called AFTER reading the mdu file, so the icgsolver option is known to startpetsc 
 #ifdef HAVE_PETSC
    call startpetsc()
 #endif
 
-    c_iresult = flowinit()
+   c_iresult = flowinit()
 
-    time_user = tstart_user
+   time_user = tstart_user
 
-    ! Just terminate if we get an error....
-    ! if (inerr > 0) stop
-    ! initialize = 0
-  end function initialize
+   ! Just terminate if we get an error....
+   ! if (inerr > 0) stop
+   ! initialize = 0
+end function initialize
   
-  !> Setting up the logger.
-  subroutine set_logger_c_callback(c_msg_callback) bind(C, name="set_logger_c_callback")
-    !DEC$ ATTRIBUTES DLLEXPORT :: set_logger_c_callback
-    use MessageHandling
-    use iso_c_binding
-    type(c_funptr), value    :: c_msg_callback   !< Set a callback that will be called with new messages
-    integer                  :: ierr             !< Result status, ionc_noerr if successful.
-    call set_logger(c_msg_callback)    
-    call mess(LEVEL_WARN,"callback initialized")
-  end subroutine set_logger_c_callback
+!> Setting up the logger.
+subroutine set_logger_c_callback(c_msg_callback) bind(C, name="set_logger_c_callback")
+   !DEC$ ATTRIBUTES DLLEXPORT :: set_logger_c_callback
+   use MessageHandling
+   use iso_c_binding
+   type(c_funptr), value    :: c_msg_callback   !< Set a callback that will be called with new messages
+   integer                  :: ierr             !< Result status, ionc_noerr if successful.
+   call set_logger(c_msg_callback)    
+   call mess(LEVEL_WARN,"callback initialized")
+end subroutine set_logger_c_callback
 
-  subroutine get_version_string(c_version_string) bind(C, name="get_version_string")
-    !DEC$ ATTRIBUTES DLLEXPORT :: get_version_string
-    use iso_c_binding, only: c_char
-    use unstruc_version_module, only: unstruc_version
-    character(kind=c_char), intent(out) :: c_version_string(MAXSTRLEN)
-    character(len=MAXSTRLEN) :: name
-    name = unstruc_version
-    c_version_string = string_to_char_array(trim(name), len(trim(name)))
-  end subroutine get_version_string
+subroutine get_version_string(c_version_string) bind(C, name="get_version_string")
+   !DEC$ ATTRIBUTES DLLEXPORT :: get_version_string
+   use iso_c_binding, only: c_char
+   use unstruc_version_module, only: unstruc_version
+   character(kind=c_char), intent(out) :: c_version_string(MAXSTRLEN)
+   character(len=MAXSTRLEN) :: name
+   name = unstruc_version
+   c_version_string = string_to_char_array(trim(name), len(trim(name)))
+end subroutine get_version_string
 
 !! SH: Temporary routine to be able to run both DFlowFM/Wave and 1d2d.         !!
 !!     To be removed when time step handling is fixed, see issue DELFT3DFM-604 !!
 !!     For now, in case of 1d2d, de-activate the time step checks              !!
-  subroutine deactivate_time_step_checking() bind(C, name="deactivate_time_step_checking")
-     !DEC$ ATTRIBUTES DLLEXPORT :: deactivate_time_step_checking
-     use dfm_error
-     do_check_bmi_timestep = .false.
-  end subroutine deactivate_time_step_checking
+subroutine deactivate_time_step_checking() bind(C, name="deactivate_time_step_checking")
+   !DEC$ ATTRIBUTES DLLEXPORT :: deactivate_time_step_checking
+   use dfm_error
+   do_check_bmi_timestep = .false.
+end subroutine deactivate_time_step_checking
 
 !! USER TIMESTEP !!
 !! NOTE: for greater flexibility the time step routines below are split into three
@@ -407,834 +404,872 @@ end function dfm_finalize_computational_timestep
 
 
 
-  integer function update(dt) bind(C, name="update")
-    !DEC$ ATTRIBUTES DLLEXPORT :: update
-    use messagehandling
-    use iso_c_binding, only: c_double
-    real(c_double), value, intent(in) :: dt
+integer function update(dt) bind(C, name="update")
+   !DEC$ ATTRIBUTES DLLEXPORT :: update
+   use messagehandling
+   use iso_c_binding, only: c_double
+   real(c_double), value, intent(in) :: dt
 
-    integer :: key, ierr
-    ! The time loop seems to be located in unstruc->flow
-    ! It is important that we can simulate up to a time set from the outside
-    ! We might have to set time_user or dt_user
+   integer :: key, ierr
+   ! The time loop seems to be located in unstruc->flow
+   ! It is important that we can simulate up to a time set from the outside
+   ! We might have to set time_user or dt_user
 
-    call flow_run_sometimesteps(dt, ierr)
+   call flow_run_sometimesteps(dt, ierr)
 
-    update = ierr
-  end function update
+   update = ierr
+end function update
 
-  subroutine update_until(t) bind(C, name="update_until")
-    use iso_c_binding, only: c_double
-    real(c_double),intent(in) :: t
-    ! Calls update(t-tnow)
-  end subroutine update_until
+subroutine update_until(t) bind(C, name="update_until")
+   use iso_c_binding, only: c_double
+   real(c_double),intent(in) :: t
+   ! Calls update(t-tnow)
+end subroutine update_until
 
-  integer function finalize() bind(C, name="finalize")
-    !DEC$ ATTRIBUTES DLLEXPORT :: finalize
-    use m_partitioninfo
+integer function finalize() bind(C, name="finalize")
+   !DEC$ ATTRIBUTES DLLEXPORT :: finalize
+   use m_partitioninfo
 
-    if ( jampi.eq.1 ) then
+   call writesomefinaloutput()
+
+   if ( jampi.eq.1 ) then
 !        finalize before exit
-      call partition_finalize()
-    end if
+   call partition_finalize()
+   end if
     
-    call flowfinalize()
+   call flowfinalize()
 
-    finalize = 0
+   finalize = 0
 
-  end function finalize
+end function finalize
 
   ! Attributes
 
-  subroutine get_start_time(t) bind(C, name="get_start_time")
-    !DEC$ ATTRIBUTES DLLEXPORT :: get_start_time
-    use m_flowtimes
-    use iso_c_binding, only: c_double
-    real(c_double), intent(out) :: t
-
-    t = tstart_user
-  end subroutine get_start_time
-
-  subroutine get_end_time(t) bind(C, name="get_end_time")
-    !DEC$ ATTRIBUTES DLLEXPORT :: get_end_time
-
-    use m_flowtimes
-    use iso_c_binding, only: c_double
-    real(c_double), intent(out) :: t
-
-    t = tstop_user
-  end subroutine get_end_time
-
-  subroutine get_time_step(dt) bind(C, name="get_time_step")
-    !DEC$ ATTRIBUTES DLLEXPORT :: get_time_step
-
-    use iso_c_binding, only: c_double
-    real(c_double), intent(out) :: dt
-
-    dt = dt_user
-  end subroutine get_time_step
-
-  subroutine get_current_time(t) bind(C, name="get_current_time")
-    !DEC$ ATTRIBUTES DLLEXPORT :: get_current_time
-
-    use iso_c_binding, only: c_double
-    real(c_double), intent(out) :: t
-
-    t = time1
-  end subroutine get_current_time
-
-
-  subroutine dfm_compute_1d2d_coefficients() bind(C, name="dfm_compute_1d2d_coefficients")
-    !DEC$ ATTRIBUTES DLLEXPORT :: dfm_compute_1d2d_coefficients
-
-    call compute_1d2d_coefficients()
-
-  end subroutine dfm_compute_1d2d_coefficients
-
-  subroutine get_time_units(unit)  bind(C, name="get_time_units")
-    ! returns unit string for model time, e.g. ‘days since 1970-01-01'
-    character(kind=c_char), intent(in) :: unit(*)
-  end subroutine get_time_units
-
-
-  subroutine get_n_attributes(n) bind(C, name="get_n_attributes")
-    use iso_c_binding, only: c_char, c_ptr, c_loc, c_int, c_null_char
-    integer(c_int), intent(out) :: n
-    n = 0
-    ! expose attributes, properties, parameters that are settable by users or can be used for calibration
-    ! This is not part of bmi, but it allows us to easily loop over attributes:
-    ! get_n_attributes(n)
-    ! do i=1,n
-    !  get_attribute_name(i, name)
-    !  ! dosomething with name
-    ! end
-  end subroutine get_n_attributes
-
-  subroutine get_attribute_name(i, c_att_name) bind(C, name="get_attribute_name")
-    use iso_c_binding, only: c_char, c_ptr, c_loc, c_int, c_null_char
-    integer(c_int), intent(in) :: i
-    character(kind=c_char), intent(out) :: c_att_name(MAXSTRLEN)
-    character(len=MAXSTRLEN) :: name
-    name = 'some attribute name'
-    c_att_name = string_to_char_array(trim(name), len(trim(name)))
-    ! get name of attribute i
-
-  end subroutine get_attribute_name
-
-  subroutine get_attribute_type(c_att_name, c_type) bind(C, name="get_attribute_type")
-    use iso_c_binding, only: c_char, c_ptr, c_null_char
-    character(kind=c_char), intent(in) :: c_att_name(*)
-    character(kind=c_char), intent(out) :: c_type(MAXSTRLEN)
-    ! Use one of the following types
-    ! BMI datatype        C datatype        NumPy datatype
-    ! BMI_STRING          char*             S<
-    ! BMI_INT             int               int16
-    ! BMI_DOUBLE          double            float64
+subroutine get_start_time(t) bind(C, name="get_start_time")
+   !DEC$ ATTRIBUTES DLLEXPORT :: get_start_time
+   use m_flowtimes
+   use iso_c_binding, only: c_double
+   real(c_double), intent(out) :: t
+
+   t = tstart_user
+end subroutine get_start_time
+
+subroutine get_end_time(t) bind(C, name="get_end_time")
+   !DEC$ ATTRIBUTES DLLEXPORT :: get_end_time
+
+   use m_flowtimes
+   use iso_c_binding, only: c_double
+   real(c_double), intent(out) :: t
+
+   t = tstop_user
+end subroutine get_end_time
+
+subroutine get_time_step(dt) bind(C, name="get_time_step")
+   !DEC$ ATTRIBUTES DLLEXPORT :: get_time_step
+
+   use iso_c_binding, only: c_double
+   real(c_double), intent(out) :: dt
+
+   dt = dt_user
+end subroutine get_time_step
+
+subroutine get_current_time(t) bind(C, name="get_current_time")
+   !DEC$ ATTRIBUTES DLLEXPORT :: get_current_time
+
+   use iso_c_binding, only: c_double
+   real(c_double), intent(out) :: t
+
+   t = time1
+end subroutine get_current_time
+
+
+subroutine dfm_compute_1d2d_coefficients() bind(C, name="dfm_compute_1d2d_coefficients")
+   !DEC$ ATTRIBUTES DLLEXPORT :: dfm_compute_1d2d_coefficients
+
+   call compute_1d2d_coefficients()
+
+end subroutine dfm_compute_1d2d_coefficients
+
+subroutine get_time_units(unit)  bind(C, name="get_time_units")
+   ! returns unit string for model time, e.g. ‘days since 1970-01-01'
+   character(kind=c_char), intent(in) :: unit(*)
+end subroutine get_time_units
+
+
+subroutine get_n_attributes(n) bind(C, name="get_n_attributes")
+   use iso_c_binding, only: c_char, c_ptr, c_loc, c_int, c_null_char
+   integer(c_int), intent(out) :: n
+   n = 0
+   ! expose attributes, properties, parameters that are settable by users or can be used for calibration
+   ! This is not part of bmi, but it allows us to easily loop over attributes:
+   ! get_n_attributes(n)
+   ! do i=1,n
+   !  get_attribute_name(i, name)
+   !  ! dosomething with name
+   ! end
+end subroutine get_n_attributes
+
+subroutine get_attribute_name(i, c_att_name) bind(C, name="get_attribute_name")
+   use iso_c_binding, only: c_char, c_ptr, c_loc, c_int, c_null_char
+   integer(c_int), intent(in) :: i
+   character(kind=c_char), intent(out) :: c_att_name(MAXSTRLEN)
+   character(len=MAXSTRLEN) :: name
+   name = 'some attribute name'
+   c_att_name = string_to_char_array(trim(name), len(trim(name)))
+   ! get name of attribute i
+
+end subroutine get_attribute_name
+
+subroutine get_attribute_type(c_att_name, c_type) bind(C, name="get_attribute_type")
+   use iso_c_binding, only: c_char, c_ptr, c_null_char
+   character(kind=c_char), intent(in) :: c_att_name(*)
+   character(kind=c_char), intent(out) :: c_type(MAXSTRLEN)
+   ! Use one of the following types
+   ! BMI datatype        C datatype        NumPy datatype
+   ! BMI_STRING          char*             S<
+   ! BMI_INT             int               int16
+   ! BMI_DOUBLE          double            float64
 
-    ! The fortran name of the attribute name
-    character(len=strlen(c_att_name)) :: att_name
-    character(len=MAXSTRLEN) :: type_name
-    ! Store the name
-    att_name = char_array_to_string(c_att_name, strlen(c_att_name))
+   ! The fortran name of the attribute name
+   character(len=strlen(c_att_name)) :: att_name
+   character(len=MAXSTRLEN) :: type_name
+   ! Store the name
+   att_name = char_array_to_string(c_att_name, strlen(c_att_name))
 
-    ! Lookup the type of the variable
+   ! Lookup the type of the variable
 
-    type_name = 'BMI_INT'
-    c_type = string_to_char_array(trim(type_name), len(trim(type_name)))
-  end subroutine get_attribute_type
-
-  subroutine get_double_attribute(c_att_name, value)  bind(C, name="get_double_attribute")
-    use iso_c_binding, only: c_double, c_char
-    character(kind=c_char), intent(in) :: c_att_name(*)
-    real(c_double), intent(out)         :: value
-
-    ! The fortran name of the attribute name
-    character(len=strlen(c_att_name)) :: att_name
-    ! Store the name
-    att_name = char_array_to_string(c_att_name, strlen(c_att_name))
-
-    ! Look up the value of att_name
-    value = -1.0d0
-  end subroutine get_double_attribute
-
-  subroutine get_int_attribute(c_att_name, value)  bind(C, name="get_int_attribute")
-    use iso_c_binding, only: c_double, c_char
-    character(kind=c_char), intent(in) :: c_att_name(*)
-    integer(c_int), intent(out)         :: value
-
-    ! The fortran name of the attribute name
-    character(len=strlen(c_att_name)) :: att_name
-    ! Store the name
-    att_name = char_array_to_string(c_att_name, strlen(c_att_name))
-
-    ! Look up the value of att_name
-    value = -1
-  end subroutine get_int_attribute
-
-  subroutine get_string_attribute(c_att_name, c_value)  bind(C, name="get_string_attribute")
-    !DEC$ ATTRIBUTES DLLEXPORT :: get_string_attribute
-
-    use iso_c_binding, only: c_char
-    use m_flowtimes
-
-    character(kind=c_char), intent(in) :: c_att_name(*)
-    character(kind=c_char), intent(out) :: c_value(MAXSTRLEN)
-
-    ! The fortran name of the attribute name
-    character(len=strlen(c_att_name)) :: att_name
-    character(len=MAXSTRLEN) :: value
-    ! Store the name
-    att_name = char_array_to_string(c_att_name, strlen(c_att_name))
-
-    ! Lookup the type of the variable
-
-    select case(att_name)
-    case ("refdat")
-       value = refdat
-    case default
-       value = ''
-    end select
-
-    c_value = string_to_char_array(trim(value), len(trim(value)))
-  end subroutine get_string_attribute
-
-  ! Variables
-  subroutine get_var_count(c_var_count) bind(C, name="get_var_count") ! non-BMI
-    !DEC$ ATTRIBUTES DLLEXPORT :: get_var_count
-
-    use iso_c_binding, only: c_ptr, c_int
-
-    integer(c_int), intent(out)         :: c_var_count
-    include "bmi_get_var_count.inc"
-    ! plus extra local vars
-    c_var_count = var_count + var_count_compound + numconst + 9
-  end subroutine get_var_count
-
-  subroutine get_var_name(var_index, c_var_name) bind(C, name="get_var_name")
-    !DEC$ ATTRIBUTES DLLEXPORT :: get_var_name
-
-    use iso_c_binding, only: c_char, c_int
-
-    integer(kind=c_int), value, intent(in) :: var_index
-    character(kind=c_char), intent(out) :: c_var_name(MAXSTRLEN)
-    integer :: iloc
-
-    character(MAXSTRLEN) :: var_name
-
-    include "bmi_get_var_count.inc"
-
-    include "bmi_get_var_name.inc"
-
-
-    ! Var ordering:
-    ! 0:var_count-1 = autogenerated
-    ! var_count:var_count+var_count_compound-1 = compound types (pumps, etc.)
-    ! var_count+var_count_compound:var_count+var_count_compound+numconst-1 = constituents (tracers, salt, etc.)
-    ! var_count+var_count_compound+numconst:end = remaining hand-crafted variables
-
-    select case(var_index)
-    case(var_count + 0)
-       var_name = "pumps"
-    case(var_count + 1)
-       var_name = "weirs"
-    case(var_count + 2)
-       var_name = "gates"
-    case(var_count + 3)
-       var_name = "sourcesinks"
-    case(var_count + 4)
-       var_name = "observations"
-    case(var_count + 5)
-       var_name = "crosssections"
-    end select
-
-    if (var_index >= var_count + var_count_compound .and. var_index < var_count + var_count_compound + numconst) then
-       var_name = const_names(var_index - var_count - var_count_compound+1)
-    end if
-
-    iloc = var_index - (var_count + var_count_compound + numconst) + 1
-    select case (iloc)
-    case (1)
-       var_name = "uabs"
-    case (2)
-       var_name = "sed1"
-    case (3)
-       var_name = "netelemnode"
-    case(4)
-       var_name = "flowelemnode"
-    case(5)
-       var_name = "flowelemnbs"
-    case(6)
-       var_name = "flowelemlns"
-    case(7)
-       var_name = "flowelemcontour_x"
-    case(8)
-       var_name = "flowelemcontour_y"
-    case(9)
-       var_name = "kn"
-    end select
-    c_var_name = string_to_char_array(trim(var_name), len(trim(var_name)))
-
-  end subroutine get_var_name
-
-  subroutine get_var_names(names) bind(C, name="get_var_names")
-    use iso_c_binding, only: c_char, c_ptr
-    character(kind=c_char), dimension(MAXNAMES), intent(out) :: names(*)
-
-    ! I can't get this to work.....
-
-    ! http://stackoverflow.com/questions/9686532/arrays-of-strings-in-fortran-c-bridges-using-iso-c-binding
-    ! The way we do it is to use a C_PTR array to point to strings. For example:
-
-    ! CHARACTER(LEN=100), DIMENSION(numStrings), TARGET :: stringArray
-    ! TYPE(C_PTR), DIMENSION(numStrings) :: stringPtrs
-    ! then we set our strings in stringArray, remembering to null-terminate them such as:
-
-    ! DO ns = 1, numStrings
-    !    stringArray(ns) = "My String"//C_NULL_CHAR
-    !    stringPtrs(ns) = C_LOC(stringArray(ns))
-    ! END DO
-    ! and pass stringPtrs to the C function.
-
-    ! The C function has the interface:
-
-    ! void stringFunc(int *numStrings, char **stringArray) {
-    !     int i;
-    !     for(i=0;i<*numStrings;++i) {
-    !        printf("%s\n",stringArray[i]);
-    !     }
-    !  }
-  end subroutine get_var_names
-
-  subroutine get_var_type(c_var_name, c_type)  bind(C, name="get_var_type")
-    !DEC$ ATTRIBUTES DLLEXPORT :: get_var_type
-
-    character(kind=c_char), intent(in) :: c_var_name(*)
-    character(kind=c_char), intent(out) :: c_type(MAXSTRLEN)
-    character(len=MAXSTRLEN) :: type_name, var_name
-
-
-    ! Use one of the following types
-    ! BMI datatype        C datatype        NumPy datatype
-    ! BMI_STRING          char*             S<
-    ! BMI_INT             int               int16
-    ! BMI_LONG            long int          int32
-    ! BMI_FLOAT           float             float32
-    ! BMI_DOUBLE          double            float64
-    var_name = char_array_to_string(c_var_name, strlen(c_var_name))
-    include "bmi_get_var_type.inc"
-
-    select case(var_name)
-    case("netelemnode")
-        type_name = "int"
-    case("flowelemnode", "flowelemnbs", "flowelemlns")
-        type_name = "int"
-    case("flowelemcontour_x", "flowelemcontour_y")
-        type_name = "double"
-    end select
-
-    if (numconst > 0) then
-       iconst = findname(numconst, const_names, var_name)
-    endif
-    if (iconst /= 0) then
-       type_name = "double"
-    end if
-
-    c_type = string_to_char_array(trim(type_name), len(trim(type_name)))
-
-  end subroutine get_var_type
-
-  !> Returns the topological location on the unstructured grid of the requested variable.
-  !! Possible return values are: "face", "edge", "node", or "" when location does not apply.
-  !! In line with UGRID conventions.
-  subroutine get_var_location(c_var_name, c_location)  bind(C, name="get_var_location")
-    !DEC$ ATTRIBUTES DLLEXPORT :: get_var_location
-
-    character(kind=c_char), intent(in) :: c_var_name(*)
-    character(kind=c_char), intent(out) :: c_location(MAXSTRLEN)
-    character(len=MAXSTRLEN) :: location_name, var_name
-
-
-    var_name = char_array_to_string(c_var_name, strlen(c_var_name))
-    include "bmi_get_var_location.inc"
-
-    !select case(var_name)
-    !   ! list of additional non-generated quantities.
-    !case("netelemnode")
-    !    type_name = "int"
-    !end select
-
-    c_location = string_to_char_array(trim(location_name), len(trim(location_name)))
-
-  end subroutine get_var_location
-
-  subroutine get_var_role(c_var_name, role) bind(C, name="get_var_role")
-    character(kind=c_char), intent(in) :: c_var_name(*)
-    character(kind=c_char), intent(out) :: role(*)
-    ! Roles:
-    ! BMI_INPUT
-    ! BMI_OUTPUT
-    ! BMI_INPUTOUTPUT
-  end subroutine get_var_role
-
-  subroutine get_var_units( c_var_name, unit )  bind(C, name="get_var_units")
-    character(kind=c_char), intent(in) :: c_var_name(*)
-    character(kind=c_char), intent(out) :: unit(*)
-  end subroutine get_var_units
-
-  !> Returns the rank of a variable, i.e., its dimensionality.
-  !!
-  !! rank = count(shape)
-  !! @see get_var_shape
-  subroutine get_var_rank(c_var_name, rank) bind(C, name="get_var_rank")
-    !DEC$ ATTRIBUTES DLLEXPORT :: get_var_rank
-
-    use iso_c_binding, only: c_int, c_char
-    character(kind=c_char), intent(in) :: c_var_name(*)
-    integer(c_int), intent(out) :: rank
-
-    ! The fortran name of the attribute name
-    character(len=strlen(c_var_name)) :: var_name
-    ! Store the name
-    var_name = char_array_to_string(c_var_name, strlen(c_var_name))
-
-    include "bmi_get_var_rank.inc"
-
-    select case(var_name)
-    case("netelemnode")
-        rank = 2
-    case("flowelemnode", "flowelemnbs", "flowelemlns", "flowelemcontour_x", "flowelemcontour_y")
-        rank = 2
-    case("pumps", "weirs", "gates", "sourcesinks", "observations", "crosssections") ! Compound vars: shape = [numobj, numfields_per_obj]
-        rank = 2
-    end select
-
-    if (numconst > 0) then
-       iconst = findname(numconst, const_names, var_name)
-    endif
-    if (iconst /= 0) then
-       rank = 1
-       return
-    end if
-  end subroutine get_var_rank
-
-  !> Returns the shape of a variable, i.e., an array with length equal to this variables's rank.
-  !! NOTE: the reported shape is in C-compatible row-major order.
-  !!
-  !! count(shape) = rank
-  !! @see get_var_rank
-  subroutine get_var_shape(c_var_name, shape) bind(C, name="get_var_shape")
-    !DEC$ ATTRIBUTES DLLEXPORT :: get_var_shape
-
-    use iso_c_binding, only: c_int, c_char, c_loc
-
-    use m_flowgeom
-    use network_data
-    use m_observations, only: numobs, nummovobs, MAXNUMVALOBS2D, MAXNUMVALOBS3D, MAXNUMVALOBS3Dw
-    use m_monitoring_crosssections, only: ncrs, maxnval
-
-    character(kind=c_char), intent(in) :: c_var_name(*)
-    integer(c_int), intent(inout) :: shape(MAXDIMS)
-
-    character(len=strlen(c_var_name)) :: var_name
-
-    var_name = char_array_to_string(c_var_name, strlen(c_var_name))
-    shape = (/0, 0, 0, 0, 0, 0/)
-
-    ! NOTE: report the shape below in row-major order (so, C-style, not FORTRAN-style)
-    select case(var_name)
-    case("netelemnode")
-        shape(1) = nump1d2d
-        shape(2) = get_net_elem_max_nodes()
-        return
-    case("flowelemnode")
-        shape(1) = ndx2d
-        shape(2) = get_flow_elem_max_nodes()
-        return
-    case("flowelemnbs", "flowelemlns")
-        shape(1) = ndx
-        shape(2) = get_flow_elem_max_nbs()
-        return
-    case("flowelemcontour_x", "flowelemcontour_y")
-        shape(1) = ndx
-        shape(2) = get_flow_elem_max_contour()
-        return
-
-   ! Compounds:
-    case("pumps")
-        shape(1) = npumpsg
-        shape(2) = 1
-        return
-    case("weirs")
-        shape(1) = nweirgen
-        shape(2) = 2
-        return
-    case("gates")
-        shape(1) = ngategen
-        shape(2) = 5
-        return
-    case("sourcesinks")
-        shape(1) = numsrc
-        shape(2) = 3
-        return
-    case("observations")
-        shape(1) = numobs+nummovobs
-        shape(2) = MAXNUMVALOBS2D+MAXNUMVALOBS3D+MAXNUMVALOBS3Dw
-        return
-    case("crosssections")
-        shape(1) = ncrs
-        shape(2) = maxnval
-        return
-    end select
-
-    include "bmi_get_var_shape.inc"
-
-    if (numconst > 0) then
-       iconst = findname(numconst, const_names, var_name)
-    endif
-    if (iconst /= 0) then
-       shape(1) = ndkx
-       return
-    end if
-
-  end subroutine get_var_shape
-
-  subroutine get_2d_int(c_var_name, xptr) bind(C, name="get_2d_int")
-    !DEC$ ATTRIBUTES DLLEXPORT :: get_2d_int
-
-    use iso_c_binding
-    use m_flow
-    use m_flowgeom
-    use network_data
-    character(kind=c_char), intent(in) :: c_var_name(*)
-    type(c_ptr), intent(out) :: xptr
-
-    integer(c_int), target, allocatable, save :: x(:,:)
-
-    integer :: i,j,k
-    ! The fortran name of the attribute name
-    character(len=strlen(c_var_name)) :: var_name
-
-    ! Store the name
-    var_name = char_array_to_string(c_var_name, strlen(c_var_name))
-
-    select case(var_name)
-    case("netelemnode")
-        if (allocated(x)) deallocate(x)
-        ! Deallocate if already allocated.
-        allocate(x(nump, get_net_elem_max_nodes()))
-        ! initialize to 0
-        x = -1
-        do k=1,nump
-            do i=1,netcell(k)%n
-                x(k,i) =  netcell(k)%nod(i)
-            end do
-        end do
-        xptr = c_loc(x)
-
-    case("flowelemnode")
-        if (allocated(x)) deallocate(x)
-        ! Deallocate if already allocated.
-        allocate(x(ndx, get_flow_elem_max_nodes()))
-        ! initialize to 0
-        x = -1
-        do k=1,ndx
-            do i=1,size(nd(k)%nod,1)
-                x(k,i) =  nd(k)%nod(i)
-            end do
-        end do
-        xptr = c_loc(x)
-    case("kn")
-        xptr = c_loc(kn)
-    end select
-  end subroutine get_2d_int
+   type_name = 'BMI_INT'
+   c_type = string_to_char_array(trim(type_name), len(trim(type_name)))
+end subroutine get_attribute_type
+
+subroutine get_double_attribute(c_att_name, value)  bind(C, name="get_double_attribute")
+   use iso_c_binding, only: c_double, c_char
+   character(kind=c_char), intent(in) :: c_att_name(*)
+   real(c_double), intent(out)         :: value
+
+   ! The fortran name of the attribute name
+   character(len=strlen(c_att_name)) :: att_name
+   ! Store the name
+   att_name = char_array_to_string(c_att_name, strlen(c_att_name))
+
+   ! Look up the value of att_name
+   value = -1.0d0
+end subroutine get_double_attribute
+
+subroutine get_int_attribute(c_att_name, value)  bind(C, name="get_int_attribute")
+   use iso_c_binding, only: c_double, c_char
+   character(kind=c_char), intent(in) :: c_att_name(*)
+   integer(c_int), intent(out)         :: value
+
+   ! The fortran name of the attribute name
+   character(len=strlen(c_att_name)) :: att_name
+   ! Store the name
+   att_name = char_array_to_string(c_att_name, strlen(c_att_name))
+
+   ! Look up the value of att_name
+   value = -1
+end subroutine get_int_attribute
+
+subroutine get_string_attribute(c_att_name, c_value)  bind(C, name="get_string_attribute")
+   !DEC$ ATTRIBUTES DLLEXPORT :: get_string_attribute
+
+   use iso_c_binding, only: c_char
+   use m_flowtimes
+
+   character(kind=c_char), intent(in) :: c_att_name(*)
+   character(kind=c_char), intent(out) :: c_value(MAXSTRLEN)
+
+   ! The fortran name of the attribute name
+   character(len=strlen(c_att_name)) :: att_name
+   character(len=MAXSTRLEN) :: value
+   ! Store the name
+   att_name = char_array_to_string(c_att_name, strlen(c_att_name))
+
+   ! Lookup the type of the variable
+
+   select case(att_name)
+   case ("refdat")
+      value = refdat
+   case default
+      value = ''
+   end select
+
+   c_value = string_to_char_array(trim(value), len(trim(value)))
+end subroutine get_string_attribute
+
+! Variables
+subroutine get_var_count(c_var_count) bind(C, name="get_var_count") ! non-BMI
+   !DEC$ ATTRIBUTES DLLEXPORT :: get_var_count
+
+   use iso_c_binding, only: c_ptr, c_int
+
+   integer(c_int), intent(out)         :: c_var_count
+   include "bmi_get_var_count.inc"
+   ! plus extra local vars
+   c_var_count = var_count + var_count_compound + numconst + 9
+end subroutine get_var_count
+
+subroutine get_var_name(var_index, c_var_name) bind(C, name="get_var_name")
+   !DEC$ ATTRIBUTES DLLEXPORT :: get_var_name
+
+   use iso_c_binding, only: c_char, c_int
+
+   integer(kind=c_int), value, intent(in) :: var_index
+   character(kind=c_char), intent(out) :: c_var_name(MAXSTRLEN)
+   integer :: iloc
+
+   character(MAXSTRLEN) :: var_name
+
+   include "bmi_get_var_count.inc"
+
+   include "bmi_get_var_name.inc"
+
+
+   ! Var ordering:
+   ! 0:var_count-1 = autogenerated
+   ! var_count:var_count+var_count_compound-1 = compound types (pumps, weirs, orifices, gates, generalstructures, culverts, sourcesinks, dambreak, observations, crosssections, laterals)
+   ! var_count+var_count_compound:var_count+var_count_compound+numconst-1 = constituents (tracers, salt, etc.)
+   ! var_count+var_count_compound+numconst:end = remaining hand-crafted variables
+
+   select case(var_index)
+   case(var_count + 0)
+      var_name = "pumps"
+   case(var_count + 1)
+      var_name = "weirs"
+   case(var_count + 2)
+      var_name = "orifices"
+   case(var_count + 3)
+      var_name = "gates"
+   case(var_count + 4)
+      var_name = "generalstructures"
+   case(var_count + 5)
+      var_name = "culverts"
+   case(var_count + 6)
+      var_name = "sourcesinks"
+   case(var_count + 7)
+      var_name = "dambreak"
+   case(var_count + 8)
+      var_name = "observations"
+   case(var_count + 9)
+      var_name = "crosssections"
+   case(var_count + 10)
+      var_name = "laterals"
+   end select
+
+   if (var_index >= var_count + var_count_compound .and. var_index < var_count + var_count_compound + numconst) then
+      var_name = const_names(var_index - var_count - var_count_compound+1)
+   end if
+
+   iloc = var_index - (var_count + var_count_compound + numconst) + 1
+   select case (iloc)
+   case (1)
+      var_name = "uabs"
+   case (2)
+      var_name = "sed1"
+   case (3)
+      var_name = "netelemnode"
+   case(4)
+      var_name = "flowelemnode"
+   case(5)
+      var_name = "flowelemnbs"
+   case(6)
+      var_name = "flowelemlns"
+   case(7)
+      var_name = "flowelemcontour_x"
+   case(8)
+      var_name = "flowelemcontour_y"
+   case(9)
+      var_name = "kn"
+   end select
+   c_var_name = string_to_char_array(trim(var_name), len(trim(var_name)))
+
+end subroutine get_var_name
+
+subroutine get_var_names(names) bind(C, name="get_var_names")
+   use iso_c_binding, only: c_char, c_ptr
+   character(kind=c_char), dimension(MAXNAMES), intent(out) :: names(*)
+
+   ! I can't get this to work.....
+
+   ! http://stackoverflow.com/questions/9686532/arrays-of-strings-in-fortran-c-bridges-using-iso-c-binding
+   ! The way we do it is to use a C_PTR array to point to strings. For example:
+
+   ! CHARACTER(LEN=100), DIMENSION(numStrings), TARGET :: stringArray
+   ! TYPE(C_PTR), DIMENSION(numStrings) :: stringPtrs
+   ! then we set our strings in stringArray, remembering to null-terminate them such as:
+
+   ! DO ns = 1, numStrings
+   !    stringArray(ns) = "My String"//C_NULL_CHAR
+   !    stringPtrs(ns) = C_LOC(stringArray(ns))
+   ! END DO
+   ! and pass stringPtrs to the C function.
+
+   ! The C function has the interface:
+
+   ! void stringFunc(int *numStrings, char **stringArray) {
+   !     int i;
+   !     for(i=0;i<*numStrings;++i) {
+   !        printf("%s\n",stringArray[i]);
+   !     }
+   !  }
+end subroutine get_var_names
+
+subroutine get_var_type(c_var_name, c_type)  bind(C, name="get_var_type")
+   !DEC$ ATTRIBUTES DLLEXPORT :: get_var_type
+
+   character(kind=c_char), intent(in) :: c_var_name(*)
+   character(kind=c_char), intent(out) :: c_type(MAXSTRLEN)
+   character(len=MAXSTRLEN) :: type_name, var_name
+
+
+   ! Use one of the following types
+   ! BMI datatype        C datatype        NumPy datatype
+   ! BMI_STRING          char*             S<
+   ! BMI_INT             int               int16
+   ! BMI_LONG            long int          int32
+   ! BMI_FLOAT           float             float32
+   ! BMI_DOUBLE          double            float64
+   var_name = char_array_to_string(c_var_name, strlen(c_var_name))
+   include "bmi_get_var_type.inc"
+
+   select case(var_name)
+   case("netelemnode")
+      type_name = "int"
+   case("flowelemnode", "flowelemnbs", "flowelemlns")
+      type_name = "int"
+   case("flowelemcontour_x", "flowelemcontour_y")
+      type_name = "double"
+   end select
+
+   if (numconst > 0) then
+      iconst = findname(numconst, const_names, var_name)
+   endif
+   if (iconst /= 0) then
+      type_name = "double"
+   end if
+
+   c_type = string_to_char_array(trim(type_name), len(trim(type_name)))
+
+end subroutine get_var_type
+
+!> Returns the topological location on the unstructured grid of the requested variable.
+!! Possible return values are: "face", "edge", "node", or "" when location does not apply.
+!! In line with UGRID conventions.
+subroutine get_var_location(c_var_name, c_location)  bind(C, name="get_var_location")
+   !DEC$ ATTRIBUTES DLLEXPORT :: get_var_location
+
+   character(kind=c_char), intent(in) :: c_var_name(*)
+   character(kind=c_char), intent(out) :: c_location(MAXSTRLEN)
+   character(len=MAXSTRLEN) :: location_name, var_name
+
+
+   var_name = char_array_to_string(c_var_name, strlen(c_var_name))
+   include "bmi_get_var_location.inc"
+
+   !select case(var_name)
+   !   ! list of additional non-generated quantities.
+   !case("netelemnode")
+   !    type_name = "int"
+   !end select
+
+   c_location = string_to_char_array(trim(location_name), len(trim(location_name)))
+
+end subroutine get_var_location
+
+subroutine get_var_role(c_var_name, role) bind(C, name="get_var_role")
+   character(kind=c_char), intent(in) :: c_var_name(*)
+   character(kind=c_char), intent(out) :: role(*)
+   ! Roles:
+   ! BMI_INPUT
+   ! BMI_OUTPUT
+   ! BMI_INPUTOUTPUT
+end subroutine get_var_role
+
+subroutine get_var_units( c_var_name, unit )  bind(C, name="get_var_units")
+   character(kind=c_char), intent(in) :: c_var_name(*)
+   character(kind=c_char), intent(out) :: unit(*)
+end subroutine get_var_units
+
+!> Returns the rank of a variable, i.e., its dimensionality.
+!!
+!! rank = count(shape)
+!! @see get_var_shape
+subroutine get_var_rank(c_var_name, rank) bind(C, name="get_var_rank")
+   !DEC$ ATTRIBUTES DLLEXPORT :: get_var_rank
+
+   use iso_c_binding, only: c_int, c_char
+   character(kind=c_char), intent(in) :: c_var_name(*)
+   integer(c_int), intent(out) :: rank
+
+   ! The fortran name of the attribute name
+   character(len=strlen(c_var_name)) :: var_name
+   ! Store the name
+   var_name = char_array_to_string(c_var_name, strlen(c_var_name))
+
+   include "bmi_get_var_rank.inc"
+
+   select case(var_name)
+   case("netelemnode")
+      rank = 2
+   case("flowelemnode", "flowelemnbs", "flowelemlns", "flowelemcontour_x", "flowelemcontour_y")
+      rank = 2
+   case("pumps", "weirs", "orifices", "gates", "generalstructures", "culverts", "sourcesinks", "dambreak", "observations", "crosssections", "laterals") ! Compound vars: shape = [numobj, numfields_per_obj]
+      rank = 2
+   end select
+
+   if (numconst > 0) then
+      iconst = findname(numconst, const_names, var_name)
+   endif
+   if (iconst /= 0) then
+      rank = 1
+      return
+   end if
+end subroutine get_var_rank
+
+!> Returns the shape of a variable, i.e., an array with length equal to this variables's rank.
+!! NOTE: the reported shape is in C-compatible row-major order.
+!!
+!! count(shape) = rank
+!! @see get_var_rank
+subroutine get_var_shape(c_var_name, shape) bind(C, name="get_var_shape")
+   !DEC$ ATTRIBUTES DLLEXPORT :: get_var_shape
+
+   use iso_c_binding, only: c_int, c_char, c_loc
+
+   use m_flowgeom
+   use network_data
+   use m_observations, only: numobs, nummovobs, MAXNUMVALOBS2D, MAXNUMVALOBS3D, MAXNUMVALOBS3Dw
+   use m_monitoring_crosssections, only: ncrs, maxnval
+   use m_wind
+   use unstruc_channel_flow, only: network
+	
+   character(kind=c_char), intent(in) :: c_var_name(*)
+   integer(c_int), intent(inout) :: shape(MAXDIMS)
+
+   character(len=strlen(c_var_name)) :: var_name
+
+   var_name = char_array_to_string(c_var_name, strlen(c_var_name))
+   shape = (/0, 0, 0, 0, 0, 0/)
+
+   ! NOTE: report the shape below in row-major order (so, C-style, not FORTRAN-style)
+   select case(var_name)
+   case("netelemnode")
+      shape(1) = nump1d2d
+      shape(2) = get_net_elem_max_nodes()
+      return
+   case("flowelemnode")
+      shape(1) = ndx2d
+      shape(2) = get_flow_elem_max_nodes()
+      return
+   case("flowelemnbs", "flowelemlns")
+      shape(1) = ndx
+      shape(2) = get_flow_elem_max_nbs()
+      return
+   case("flowelemcontour_x", "flowelemcontour_y")
+      shape(1) = ndx
+      shape(2) = get_flow_elem_max_contour()
+      return
+
+! Compounds:
+   case("pumps")
+      shape(1) = npumpsg
+      shape(2) = 1
+      return
+   case("weirs")
+      shape(1) = nweirgen + network%sts%numWeirs
+      shape(2) = 2
+      return
+   case("orifices")
+      shape(1) = network%sts%numOrifices
+      shape(2) = 1
+      return
+   case("gates")
+      shape(1) = ngategen
+      shape(2) = 5
+      return
+   case("generalstructures")
+      shape(1) = ngenstru
+      shape(2) = 5
+   case("culverts")
+      shape(1) = network%sts%numCulverts
+      shape(2) = 1
+   case("sourcesinks")
+      shape(1) = numsrc
+      shape(2) = 3
+      return
+   case("observations")
+      shape(1) = numobs+nummovobs
+      shape(2) = MAXNUMVALOBS2D+MAXNUMVALOBS3D+MAXNUMVALOBS3Dw
+      return
+   case("crosssections")
+      shape(1) = ncrs
+      shape(2) = maxnval
+      return
+   case("laterals")
+	   shape(1) = numlatsg
+	   shape(2) = 1
+   end select
+
+   include "bmi_get_var_shape.inc"
+
+   if (numconst > 0) then
+      iconst = findname(numconst, const_names, var_name)
+   endif
+   if (iconst /= 0) then
+      shape(1) = ndkx
+      return
+   end if
+
+end subroutine get_var_shape
+
+subroutine get_2d_int(c_var_name, xptr) bind(C, name="get_2d_int")
+   !DEC$ ATTRIBUTES DLLEXPORT :: get_2d_int
+
+   use iso_c_binding
+   use m_flow
+   use m_flowgeom
+   use network_data
+   character(kind=c_char), intent(in) :: c_var_name(*)
+   type(c_ptr), intent(out) :: xptr
+
+   integer(c_int), target, allocatable, save :: x(:,:)
+
+   integer :: i,j,k
+   ! The fortran name of the attribute name
+   character(len=strlen(c_var_name)) :: var_name
+
+   ! Store the name
+   var_name = char_array_to_string(c_var_name, strlen(c_var_name))
+
+   select case(var_name)
+   case("netelemnode")
+      if (allocated(x)) deallocate(x)
+      ! Deallocate if already allocated.
+      allocate(x(nump, get_net_elem_max_nodes()))
+      ! initialize to 0
+      x = -1
+      do k=1,nump
+         do i=1,netcell(k)%n
+               x(k,i) =  netcell(k)%nod(i)
+         end do
+      end do
+      xptr = c_loc(x)
+
+   case("flowelemnode")
+      if (allocated(x)) deallocate(x)
+      ! Deallocate if already allocated.
+      allocate(x(ndx, get_flow_elem_max_nodes()))
+      ! initialize to 0
+      x = -1
+      do k=1,ndx
+         do i=1,size(nd(k)%nod,1)
+               x(k,i) =  nd(k)%nod(i)
+         end do
+      end do
+      xptr = c_loc(x)
+   case("kn")
+      xptr = c_loc(kn)
+   end select
+end subroutine get_2d_int
 
 !> Gets a pointer to a model variable, given its name.
 !!
 subroutine get_var(c_var_name, x) bind(C, name="get_var")
-  !DEC$ ATTRIBUTES DLLEXPORT :: get_var
-  ! Return a pointer to the variable
-  use iso_c_binding, only: c_double, c_char, c_loc
-  use iso_c_utils
-  use m_flow
-  use m_flowgeom
-  use m_sediment
-  use m_flowparameters
-  use network_data
-  use m_sobekdfm
-  use m_alloc
-  use string_module
+   !DEC$ ATTRIBUTES DLLEXPORT :: get_var
+   ! Return a pointer to the variable
+   use iso_c_binding, only: c_double, c_char, c_loc
+   use iso_c_utils
+   use m_flow
+   use m_flowgeom
+   use m_sediment
+   use m_flowparameters
+   use network_data
+   use m_sobekdfm
+   use m_alloc
+   use string_module
+   use m_cell_geometry ! TODO: UNST-1705: temp, replace by m_flowgeom
 
-  character(kind=c_char), intent(in) :: c_var_name(*) !< Variable name. May be slash separated string "name/item/field": then get_compound_field is called.
-  type(c_ptr), intent(inout) :: x
-  integer(c_int), target, allocatable, save :: xi(:,:)
-  real(c_double), target, allocatable, save :: xd(:,:)
+   character(kind=c_char), intent(in) :: c_var_name(*) !< Variable name. May be slash separated string "name/item/field": then get_compound_field is called.
+   type(c_ptr), intent(inout) :: x
+   integer(c_int), target, allocatable, save :: xi(:,:)
+   real(c_double), target, allocatable, save :: xd(:,:)
 
-  integer :: i, j, k, Lf, knb
-
-
-  ! The fortran name of the attribute name
-  character(len=strlen(c_var_name)) :: var_name
-  character(len=strlen(c_var_name)) :: tmp_var_name
-  character(len=strlen(c_var_name)) :: varset_name, item_name, field_name !< For parsing compound variable names.
-
-  ! Store the name
-  var_name = char_array_to_string(c_var_name)
+   integer :: i, j, k, Lf, knb
 
 
-  ! Please be conservative in adding variables here. Most variables
-  ! can be computed outside.
-  ! You can generate extra variables here.
-  select case(var_name)
-  case("uabs")
-     if (.not.allocated(uabs))  allocate(uabs(size(ucx)))
+   ! The fortran name of the attribute name
+   character(len=strlen(c_var_name)) :: var_name
+   character(len=strlen(c_var_name)) :: tmp_var_name
+   character(len=strlen(c_var_name)) :: varset_name, item_name, field_name !< For parsing compound variable names.
 
-     do i=1, size(ucx)
-        uabs(i) = dble(sqrt( ucx(i)*ucx(i) + ucy(i)*ucy(i) ))
-     end do
-
-     x = c_loc(uabs)
-     return
-  case("sed1") ! sediment concentration, fraction1
-     if (.not.allocated(sed1)) allocate(sed1(size(ucx)))
-
-     if(allocated(sed)) then
-        do i=1, size(ucx)
-           sed1(i) = sed(1, i)
-        end do
-     else
-        sed1 = 0
-     end if
-
-     x = c_loc(sed1)
-     return
-  case("netelemnode")
-     if (allocated(xi)) deallocate(xi)
-     ! Deallocate if already allocated.
-     allocate(xi(get_net_elem_max_nodes(), nump1d2d))
-
-     ! 1.... ndx2d, ndx2d+1...ndxi, ndxi+1...ndx
-     ! 2d flow    ,  1d flow      , boundary
+   ! Store the name
+   var_name = char_array_to_string(c_var_name)
 
 
-     ! initialize to 0
-     xi = -1
-     do k=1,nump1d2d
-        do i=1,netcell(k)%n
-           xi(i,k) =  netcell(k)%nod(i)
-        end do
-     end do
-     x = c_loc(xi)
-     return
-  case("flowelemnode")
-     if (allocated(xi)) deallocate(xi)
-     ! Deallocate if already allocated.
-     allocate(xi(get_flow_elem_max_nodes(), ndx2D))
-     ! initialize to 0
-     xi = -1
-     do k=1,ndx2D
-        do i=1,size(nd(k)%nod,1)
-           if (allocated(nd(k)%nod)) then
-              xi(i, k) =  nd(k)%nod(i)
-           end if
-        end do
-     end do
+   ! Please be conservative in adding variables here. Most variables
+   ! can be computed outside.
+   ! You can generate extra variables here.
+   select case(var_name)
+   case("uabs") ! TODO: AvD: UNST-2165, consider replacing by ucmag
+      if (.not.allocated(uabs))  allocate(uabs(size(ucx)))
 
-     x = c_loc(xi)
-     return
-  case("flowelemnbs") ! Neighbouring flow node numbers for each flow node
-     if (allocated(xi)) deallocate(xi)
-     ! Deallocate if already allocated.
-     allocate(xi(get_flow_elem_max_nbs(), ndx))
-     xi = -1
-     do k=1,ndx
-        do i=1,nd(k)%lnx
-           Lf = abs(nd(k)%ln(i))
-           knb = ln(1,Lf)
-           if (knb == k) then
-              knb = ln(2,Lf)
-           end if
+      do i=1, size(ucx)
+         uabs(i) = dble(sqrt( ucx(i)*ucx(i) + ucy(i)*ucy(i) ))
+      end do
 
-           xi(i, k) =  knb
-        end do
-     end do
+      x = c_loc(uabs)
+      return
+   case("sed1") ! sediment concentration, fraction1
+      if (.not.allocated(sed1)) allocate(sed1(size(ucx)))
 
-     x = c_loc(xi)
-     return
+      if(allocated(sed)) then
+         do i=1, size(ucx)
+            sed1(i) = sed(1, i)
+         end do
+      else
+         sed1 = 0
+      end if
+
+      x = c_loc(sed1)
+      return
+   case("netelemnode")
+      if (allocated(xi)) deallocate(xi)
+      ! Deallocate if already allocated.
+      allocate(xi(get_net_elem_max_nodes(), nump1d2d))
+
+      ! 1.... ndx2d, ndx2d+1...ndxi, ndxi+1...ndx
+      ! 2d flow    ,  1d flow      , boundary
+
+
+      ! initialize to 0
+      xi = -1
+      do k=1,nump1d2d
+         do i=1,netcell(k)%n
+            xi(i,k) =  netcell(k)%nod(i)
+         end do
+      end do
+      x = c_loc(xi)
+      return
+   case("flowelemnode")
+      if (allocated(xi)) deallocate(xi)
+      ! Deallocate if already allocated.
+      allocate(xi(get_flow_elem_max_nodes(), ndx2D))
+      ! initialize to 0
+      xi = -1
+      do k=1,ndx2D
+         do i=1,size(nd(k)%nod,1)
+            if (allocated(nd(k)%nod)) then
+               xi(i, k) =  nd(k)%nod(i)
+            end if
+         end do
+      end do
+
+      x = c_loc(xi)
+      return
+   case("flowelemnbs") ! Neighbouring flow node numbers for each flow node
+      if (allocated(xi)) deallocate(xi)
+      ! Deallocate if already allocated.
+      allocate(xi(get_flow_elem_max_nbs(), ndx))
+      xi = -1
+      do k=1,ndx
+         do i=1,nd(k)%lnx
+            Lf = abs(nd(k)%ln(i))
+            knb = ln(1,Lf)
+            if (knb == k) then
+               knb = ln(2,Lf)
+            end if
+
+            xi(i, k) =  knb
+         end do
+      end do
+
+      x = c_loc(xi)
+      return
      
-  case("flowelemlns") ! Neighbouring flow link numbers for each flow node
-     if (allocated(xi)) deallocate(xi)
-     ! Deallocate if already allocated.
-     allocate(xi(get_flow_elem_max_nbs(), ndx))
-     xi = -1
-     do k=1,ndx
-        xi(1:nd(k)%lnx, k) = abs(nd(k)%ln(1:nd(k)%lnx))
-     end do
+   case("flowelemlns") ! Neighbouring flow link numbers for each flow node
+      if (allocated(xi)) deallocate(xi)
+      ! Deallocate if already allocated.
+      allocate(xi(get_flow_elem_max_nbs(), ndx))
+      xi = -1
+      do k=1,ndx
+         xi(1:nd(k)%lnx, k) = abs(nd(k)%ln(1:nd(k)%lnx))
+      end do
 
-     x = c_loc(xi)
-     return
+      x = c_loc(xi)
+      return
 
-  case("flowelemcontour_x")
-     allocate(xd(get_flow_elem_max_contour(), ndx))
-     xd=0.d0 ! Set this to nan?
-     do i=1,ndx
-        xd(1:size(nd(i)%x), i) = nd(i)%x
-     enddo
-     x = c_loc(xd)
+   case("flowelemcontour_x")
+      allocate(xd(get_flow_elem_max_contour(), ndx))
+      xd=0.d0 ! Set this to nan?
+      do i=1,ndx
+         xd(1:size(nd(i)%x), i) = nd(i)%x
+      enddo
+      x = c_loc(xd)
 
-  case("flowelemcontour_y")
-     allocate(xd(get_flow_elem_max_contour(), ndx))
-     xd=0.d0 ! I would like to set nans here. but how?
-     do i=1,ndx
-        xd(1:size(nd(i)%x), i) = nd(i)%y
-     enddo
-     x = c_loc(xd)
+   case("flowelemcontour_y")
+      allocate(xd(get_flow_elem_max_contour(), ndx))
+      xd=0.d0 ! I would like to set nans here. but how?
+      do i=1,ndx
+         xd(1:size(nd(i)%x), i) = nd(i)%y
+      enddo
+      x = c_loc(xd)
      
-  case("kn")
-     x = c_loc(kn)
-     return
-  end select
+   case("kn")
+      x = c_loc(kn)
+      return
+   end select
 
-  ! Try to parse variable name as slash-separated id (e.g., 'weirs/Lith/crest_level')
-  tmp_var_name = var_name
-  call str_token(tmp_var_name, varset_name, DELIMS='/')
-  ! Check for valid group/set name (e.g. 'observations')
-  select case(varset_name)
-  case ("pumps", "weirs", "gates", "sourcesinks", "observations", "crosssections")
-     ! A valid group name, now parse the location id first...
-     call str_token(tmp_var_name, item_name, DELIMS='/')
-     if (len_trim(item_name) > 0) then
-        ! A valid item name, now parse the field name...
-        call str_token(tmp_var_name, field_name, DELIMS='/')
+   ! Try to parse variable name as slash-separated id (e.g., 'weirs/Lith/crest_level')
+   tmp_var_name = var_name
+   call str_token(tmp_var_name, varset_name, DELIMS='/')
+   ! Check for valid group/set name (e.g. 'observations')
+   select case(varset_name)
+   case ("pumps", "weirs", "orifices", "gates", "generalstructures", "culverts", "sourcesinks", "dambreak", "observations", "crosssections", "laterals")
+      ! A valid group name, now parse the location id first...
+      call str_token(tmp_var_name, item_name, DELIMS='/')
+      if (len_trim(item_name) > 0) then
+         ! A valid item name, now parse the field name...
+         call str_token(tmp_var_name, field_name, DELIMS='/')
 
-        if (len_trim(field_name) > 0) then
-           ! Finally, a field_name was found, call the compound getter and return directly.
-           call get_compound_field(string_to_char_array(varset_name), &
-                                   string_to_char_array(item_name), &
-                                   string_to_char_array(field_name), &
-                                   x)
-           return
-        end if
-     end if
-  case ("controllabledam")
-     call str_token(tmp_var_name, field_name, DELIMS='/')
+         if (len_trim(field_name) > 0) then
+            ! Finally, a field_name was found, call the compound getter and return directly.
+            call get_compound_field(string_to_char_array(varset_name), &
+                                    string_to_char_array(item_name), &
+                                    string_to_char_array(field_name), &
+                                    x)
+            return
+         end if
+      end if
+   case ("controllabledam")
+      call str_token(tmp_var_name, field_name, DELIMS='/')
 
-     select case(field_name)
-     case ("damlevel")
-        x = c_loc(zcdam(1))
-     end select
+      select case(field_name)
+      case ("damlevel")
+         x = c_loc(zcdam(1))
+      end select
 
 
-     ! If we return here, the var_name was no valid triplet 'weirs/Lith/crest_level',
-     ! so continue below with all default variables.
-     continue
-  end select
+      ! If we return here, the var_name was no valid triplet 'weirs/Lith/crest_level',
+      ! so continue below with all default variables.
+      continue
+   end select
 
-  !
-  ! check automatically generated interface
-  include "bmi_get_var.inc"
-! TODO: AvD: add returns to all auto generated cases to avoid unnecessary fall-through
+   !
+   ! check automatically generated interface
+   include "bmi_get_var.inc"
+   ! TODO: AvD: add returns to all auto generated cases to avoid unnecessary fall-through
 
-  if (numconst > 0) then
-     iconst = findname(numconst, const_names, var_name)
-  endif
-  if (iconst /= 0) then
-     call realloc(const_t, (/ ndkx, numconst /), keepExisting = .true.)
-     do k=1,ndkx
-        const_t(k, iconst) = constituents(iconst, k)
-     end do
-     x = c_loc(const_t(:,iconst))
-     return
-  end if
+   if (numconst > 0) then
+      iconst = findname(numconst, const_names, var_name)
+   endif
+   if (iconst /= 0) then
+      call realloc(const_t, (/ ndkx, numconst /), keepExisting = .true.)
+      do k=1,ndkx
+         const_t(k, iconst) = constituents(iconst, k)
+      end do
+      x = c_loc(const_t(:,iconst))
+      return
+   end if
 end subroutine get_var
 
 subroutine set_var(c_var_name, xptr) bind(C, name="set_var")
-  !DEC$ ATTRIBUTES DLLEXPORT :: set_var
-  ! Return a pointer to the variable
-  use iso_c_binding, only: c_double, c_char, c_loc, c_f_pointer
+   !DEC$ ATTRIBUTES DLLEXPORT :: set_var
+   ! Return a pointer to the variable
+   use iso_c_binding, only: c_double, c_char, c_loc, c_f_pointer
 
-  character(kind=c_char), intent(in) :: c_var_name(*)
-  type(c_ptr), value, intent(in) :: xptr
+   character(kind=c_char), intent(in) :: c_var_name(*)
+   type(c_ptr), value, intent(in) :: xptr
 
-  real(c_double), pointer :: x_0d_double_ptr
+   character(kind=c_char), dimension(:), pointer :: x_0d_char_ptr => null()
+   real(c_double), pointer :: x_0d_double_ptr
 
-  real(c_double), pointer :: x_1d_double_ptr(:)
-  real(c_double), pointer :: x_2d_double_ptr(:,:)
-  real(c_double), pointer :: x_3d_double_ptr(:,:,:)
-  integer(c_int), pointer :: x_0d_int_ptr
-  integer(c_int), pointer :: x_1d_int_ptr(:)
-  integer(c_int), pointer :: x_2d_int_ptr(:,:)
-  integer(c_int), pointer :: x_3d_int_ptr(:,:,:)
-  real(c_float), pointer  :: x_0d_float_ptr
-  real(c_float), pointer  :: x_1d_float_ptr(:)
-  real(c_float), pointer  :: x_2d_float_ptr(:,:)
-  real(c_float), pointer  :: x_3d_float_ptr(:,:,:)
-  ! The fortran name of the attribute name
-  character(len=strlen(c_var_name)) :: var_name
-  integer :: i
+   real(c_double), pointer :: x_1d_double_ptr(:)
+   real(c_double), pointer :: x_2d_double_ptr(:,:)
+   real(c_double), pointer :: x_3d_double_ptr(:,:,:)
+   integer(c_int), pointer :: x_0d_int_ptr
+   integer(c_int), pointer :: x_1d_int_ptr(:)
+   integer(c_int), pointer :: x_2d_int_ptr(:,:)
+   integer(c_int), pointer :: x_3d_int_ptr(:,:,:)
+   real(c_float), pointer  :: x_0d_float_ptr
+   real(c_float), pointer  :: x_1d_float_ptr(:)
+   real(c_float), pointer  :: x_2d_float_ptr(:,:)
+   real(c_float), pointer  :: x_3d_float_ptr(:,:,:)
+   ! The fortran name of the attribute name
+   character(len=strlen(c_var_name)) :: var_name
+   integer :: i
 
-  ! Store the name
-  var_name = char_array_to_string(c_var_name, strlen(c_var_name))
+   ! Store the name
+   var_name = char_array_to_string(c_var_name, strlen(c_var_name))
 
-  include "bmi_set_var.inc"
+   include "bmi_set_var.inc"
 
-  ! custom overrides
-  if (numconst > 0) then
-     iconst = findname(numconst, const_names, var_name)
-  endif
-  if (iconst /= 0) then
-     call c_f_pointer(xptr, x_1d_double_ptr, (/ ndkx /))
-     do i=1,ndkx
-        constituents(iconst, i) = x_1d_double_ptr(i)
-     end do
-     return
-  end if
-  !select case(var_name)
-  !case('debugLevel')
-  !        call c_f_pointer(xptr, x_1d_double_ptr, (/ 1 /))
-  !        call setMessageHandling(thresholdLevel = nint(x_1d_double_ptr(1)), prefix_logging = "dflow1d")
-  !end select
+   ! custom overrides
+   select case(var_name)
+   case("zk")
+      do i = 1, numk
+            call update_land_nodes(i, x_1d_double_ptr(i))
+      enddo
+      call land_change_callback()
+
+      return
+   end select
   
-       
-
+   if (numconst > 0) then
+      iconst = findname(numconst, const_names, var_name)
+   endif
+   if (iconst /= 0) then
+      call c_f_pointer(xptr, x_1d_double_ptr, (/ ndkx /))
+      do i=1,ndkx
+         constituents(iconst, i) = x_1d_double_ptr(i)
+      end do
+      return
+   end if
+   !select case(var_name)
+   !case('debugLevel')
+   !        call c_f_pointer(xptr, x_1d_double_ptr, (/ 1 /))
+   !        call setMessageHandling(thresholdLevel = nint(x_1d_double_ptr(1)), prefix_logging = "dflow1d")
+   !end select
 
 end subroutine set_var
 
 subroutine set_var_slice(c_var_name, c_start, c_count, xptr) bind(C, name="set_var_slice")
-  !DEC$ ATTRIBUTES DLLEXPORT :: set_var_slice
-  ! Return a pointer to the variable
-  use iso_c_binding, only: c_double, c_char, c_loc, c_f_pointer
+   !DEC$ ATTRIBUTES DLLEXPORT :: set_var_slice
+   ! Return a pointer to the variable
+   use iso_c_binding, only: c_double, c_char, c_loc, c_f_pointer
 
-  integer(c_int), intent(in)         :: c_start(*)
-  integer(c_int), intent(in)         :: c_count(*)
-  character(kind=c_char), intent(in) :: c_var_name(*)
-  type(c_ptr), value, intent(in) :: xptr
-  integer :: i
+   integer(c_int), intent(in)         :: c_start(*)
+   integer(c_int), intent(in)         :: c_count(*)
+   character(kind=c_char), intent(in) :: c_var_name(*)
+   type(c_ptr), value, intent(in) :: xptr
+   integer :: i
 
-  real(c_double), pointer :: x_0d_double_ptr
+   real(c_double), pointer :: x_0d_double_ptr
 
-  real(c_double), pointer :: x_1d_double_ptr(:)
-  real(c_double), pointer :: x_2d_double_ptr(:,:)
-  real(c_double), pointer :: x_3d_double_ptr(:,:,:)
-  integer(c_int), pointer :: x_0d_int_ptr
-  integer(c_int), pointer :: x_1d_int_ptr(:)
-  integer(c_int), pointer :: x_2d_int_ptr(:,:)
-  integer(c_int), pointer :: x_3d_int_ptr(:,:,:)
-  real(c_float), pointer  :: x_0d_float_ptr
-  real(c_float), pointer  :: x_1d_float_ptr(:)
-  real(c_float), pointer  :: x_2d_float_ptr(:,:)
-  real(c_float), pointer  :: x_3d_float_ptr(:,:,:)
+   real(c_double), pointer :: x_1d_double_ptr(:)
+   real(c_double), pointer :: x_2d_double_ptr(:,:)
+   real(c_double), pointer :: x_3d_double_ptr(:,:,:)
+   integer(c_int), pointer :: x_0d_int_ptr
+   integer(c_int), pointer :: x_1d_int_ptr(:)
+   integer(c_int), pointer :: x_2d_int_ptr(:,:)
+   integer(c_int), pointer :: x_3d_int_ptr(:,:,:)
+   real(c_float), pointer  :: x_0d_float_ptr
+   real(c_float), pointer  :: x_1d_float_ptr(:)
+   real(c_float), pointer  :: x_2d_float_ptr(:,:)
+   real(c_float), pointer  :: x_3d_float_ptr(:,:,:)
 
-  ! The fortran name of the attribute name
-  character(len=strlen(c_var_name)) :: var_name
+   ! The fortran name of the attribute name
+   character(len=strlen(c_var_name)) :: var_name
 
-  ! Store the name
-  var_name = char_array_to_string(c_var_name, strlen(c_var_name))
+   ! Store the name
+   var_name = char_array_to_string(c_var_name, strlen(c_var_name))
 
-  call c_f_pointer(xptr, x_1d_double_ptr, (/ c_count(1) /))
+   call c_f_pointer(xptr, x_1d_double_ptr, (/ c_count(1) /))
 
-  ! custom overrides
-  select case(var_name)
-  case("ucx")
+   include 'bmi_set_var_slice.inc'
+
+   ! custom overrides
+   select case(var_name)
+   case("ucx")
       !cell = netcell(index)
       !
       !do edgeIndex = 1, cell%n
@@ -1264,39 +1299,54 @@ subroutine set_var_slice(c_var_name, c_start, c_count, xptr) bind(C, name="set_v
       ! 3. for X component: V_link += Ux * cos(A)
 
       !ucx(index + 1) = value
-  !case("ucy")
+   !case("ucy")
       ! convert it to the velocity increment on cell interfaces
 
       !ucy(index + 1) = value
-  case("unorm")
+   case("unorm")
       ! u1(index + 1) = value
       u1(c_start(1) + 1 : c_start(1) + c_count(1)) = x_1d_double_ptr(1:c_count(1))
       return
-  case("zk")
+   case("zk")
       do i = 1, c_count(1)
-          call update_land(c_start(1), x_1d_double_ptr(i))
+            call update_land_nodes(c_start(1) + i-1, x_1d_double_ptr(i))
       enddo
+      call land_change_callback()
 
       !zkdropstep = value - zk(index + 1)
       !call dropland(xz(index + 1), yz(index + 1), 1)
       return
-  end select
+   end select
 
-  include 'bmi_set_var_slice.inc'
-
-  if (numconst > 0) then
-     iconst = findname(numconst, const_names, var_name)
-  endif
-  if (iconst /= 0) then
-     call c_f_pointer(xptr, x_1d_double_ptr, (/c_count(1)/))
-     do i=1,c_count(1)
-        constituents(iconst, c_start(1)+i) = x_1d_double_ptr(i)
-     end do
-     return
-  end if
+   if (numconst > 0) then
+      iconst = findname(numconst, const_names, var_name)
+   endif
+   if (iconst /= 0) then
+      call c_f_pointer(xptr, x_1d_double_ptr, (/c_count(1)/))
+      do i=1,c_count(1)
+         constituents(iconst, c_start(1)+i) = x_1d_double_ptr(i)
+      end do
+      return
+   end if
 
 end subroutine set_var_slice
 
+
+subroutine on_land_change() bind(C, name="on_land_change")
+!DEC$ ATTRIBUTES DLLEXPORT :: on_land_change
+   implicit none
+   call land_change_callback()
+end subroutine on_land_change
+
+
+subroutine update_land(c_node_index, c_new_zk) bind(C, name="update_land")
+!DEC$ ATTRIBUTES DLLEXPORT :: update_land
+   implicit none
+   integer(c_int), intent(in) :: c_node_index
+   real(c_double), intent(in) :: c_new_zk    
+    
+   call update_land_nodes(c_node_index, c_new_zk)
+end subroutine update_land
 
 !> Adds model features to the active model.
 !!
@@ -1421,158 +1471,305 @@ end function dfm_add_features
 !! To convert the returned pointer to an actual data type in your calling application,
 !! use get_compound_field_type to determine the correct data type.
 subroutine get_compound_field(c_var_name, c_item_name, c_field_name, x) bind(C, name="get_compound_field")
-  !DEC$ ATTRIBUTES DLLEXPORT :: get_compound_field
-  ! Return a pointer to the compound's field variable
-  use iso_c_binding, only: c_double, c_char, c_loc
-  use iso_c_utils
-  use m_flowexternalforcings
-  use m_observations
-  use m_monitoring_crosssections
+   !DEC$ ATTRIBUTES DLLEXPORT :: get_compound_field
+   ! Return a pointer to the compound's field variable
+   use iso_c_binding, only: c_double, c_char, c_loc
+   use iso_c_utils
+   use m_flowexternalforcings
+   use m_observations
+   use m_monitoring_crosssections
+   use m_strucs
+   use m_structures , only: valdambreak
+   use m_1d_structures
+   use m_wind
+   use unstruc_channel_flow, only: network
+   use unstruc_messages
+   use m_transport, only: NUMCONST, constituents, const_names, ITRA1
+  
+   character(kind=c_char), intent(in) :: c_var_name(*)   !< Name of the set variable, e.g., 'pumps'
+   character(kind=c_char), intent(in) :: c_item_name(*)  !< Name of a single item's index/location, e.g., 'Pump01'
+   character(kind=c_char), intent(in) :: c_field_name(*) !< Name of the field to get, e.g., 'capacity'
+   type(c_ptr),            intent(inout) :: x            !< Pointer (by reference) to requested value data, NULL if not available.
 
-  character(kind=c_char), intent(in) :: c_var_name(*)   !< Name of the set variable, e.g., 'pumps'
-  character(kind=c_char), intent(in) :: c_item_name(*)  !< Name of a single item's index/location, e.g., 'Pump01'
-  character(kind=c_char), intent(in) :: c_field_name(*) !< Name of the field to get, e.g., 'capacity'
-  type(c_ptr),            intent(inout) :: x            !< Pointer (by reference) to requested value data, NULL if not available.
+   integer :: item_index
+   logical :: is_in_network
 
-  integer :: item_index
+   integer :: iconst
+   integer :: itrac
 
+   ! The fortran name of the attribute name
+   character(len=MAXSTRLEN) :: var_name
+   character(len=MAXSTRLEN) :: item_name
+   character(len=MAXSTRLEN) :: field_name
+   ! Store the name
+   var_name   = char_array_to_string(c_var_name)
+   item_name  = char_array_to_string(c_item_name)
+   field_name = char_array_to_string(c_field_name)
 
-  ! The fortran name of the attribute name
-  character(len=MAXSTRLEN) :: var_name
-  character(len=MAXSTRLEN) :: item_name
-  character(len=MAXSTRLEN) :: field_name
-  ! Store the name
-  var_name   = char_array_to_string(c_var_name)
-  item_name  = char_array_to_string(c_item_name)
-  field_name = char_array_to_string(c_field_name)
-
-
-  select case(var_name)
-  ! PUMPS
-  case("pumps")
-     call getStructureIndex('pumps', item_name, item_index)
-     if (item_index == 0) then
+   select case(var_name)
+   ! PUMPS
+   case("pumps")
+      call getStructureIndex('pumps', item_name, item_index, is_in_network)
+      if (item_index <= 0) then
          return
-     endif
-     select case(field_name)
-     case("capacity")
-         x = c_loc(qpump(item_index))
+      endif
+      select case(field_name)
+      case("capacity")
+         if (is_in_network) then
+            x = get_pump_capacity_c_loc(network%sts%struct(item_index))
+         else
+            x = c_loc(qpump(item_index))
+         end if
          return
-     end select
-  ! WEIRS
-  case("weirs")
-     call getStructureIndex('weirs', item_name, item_index)
-     if (item_index == 0) then
+      end select
+
+   ! WEIRS
+   case("weirs")
+      call getStructureIndex('weirs', item_name, item_index, is_in_network)
+      if (item_index <= 0) then
          return
-     endif
-     select case(field_name)
-     case("crest_level")
+      endif
+
+      select case(field_name)
+      case("crest_level", "CrestLevel", "crestLevel")
+         if (is_in_network) then
+            x = get_crest_level_c_loc(network%sts%struct(item_index))  
+         else
+            x = c_loc(zcgen((item_index-1)*3+1))
+         end if
+         return
+      case("lat_contr_coeff")
+            ! TODO: RTC: AvD: get this from weir params
+            return
+      end select
+
+   ! ORIFICES
+   case("orifices")
+      call getStructureIndex('orifices', item_name, item_index, is_in_network)
+      if (item_index <= 0) then
+         return
+      endif
+
+      select case(field_name)
+      case("gateLowerEdgeLevel")
+         if (is_in_network) then
+            x = get_gate_lower_edge_level_c_loc(network%sts%struct(item_index))  
+         end if
+         return
+      end select
+
+   ! GATES
+   case("gates")
+      call getStructureIndex('gates', item_name, item_index, is_in_network)
+      if (item_index <= 0) then
+         return
+      endif
+      select case(field_name)
+      case("sill_level", "CrestLevel")
          x = c_loc(zcgen((item_index-1)*3+1))
          return
-     case("lat_contr_coeff")
-         ! TODO: RTC: AvD: get this from weir params
+      case("door_height", "GateHeight")
+         x = c_loc(generalstruc(item_index)%gatedoorheight)
          return
-     end select
-  ! GATES
-  case("gates")
-     call getStructureIndex('gates', item_name, item_index)
-     if (item_index == 0) then
-         return
-     endif
-     select case(field_name)
-     case("sill_level")
-         x = c_loc(zcgen((item_index-1)*3+1))
-         return
-     case("door_height")
-         ! TODO: RTC: AvD: get this from gate/genstru params.
-         return
-     case("lower_edge_level")
+      case("lower_edge_level", "GateLowerEdgeLevel")
          x = c_loc(zcgen((item_index-1)*3+2))
          return
-     case("opening_width")
+      case("opening_width", "GateOpeningWidth")
          x = c_loc(zcgen((item_index-1)*3+3))
          return
-     case("horizontal_opening_direction")
+      case("horizontal_opening_direction", "GateOpeningHorizontalDirection")
          ! TODO: RTC: AvD: get this from gate/genstru params
          return
-     end select
-  ! SOURCE-SINKS
-  case("sourcesinks")
-     call getStructureIndex('sourcesinks', item_name, item_index)
-     if (item_index == 0) then
+      end select
+
+   ! GENERALSTRUCTURES
+   case("generalstructures")
+      call getStructureIndex('generalstructures', item_name, item_index, is_in_network)
+      if (item_index <= 0) then
          return
-     endif
-     select case(field_name)
-     case("discharge")
+      endif
+      
+      select case(field_name)
+      case("CrestLevel", "crestLevel")
+         if (is_in_network) then
+            x = get_crest_level_c_loc(network%sts%struct(item_index))
+         else
+            x = c_loc(zcgen((item_index-1)*3+1))
+         end if
+         return
+      case("GateHeight", "gateHeight")
+         if (is_in_network) then
+            x = get_gate_door_height_c_loc(network%sts%struct(item_index))
+         else
+            x = c_loc(generalstruc(item_index)%gatedoorheight)
+         end if
+
+         return
+      case("GateLowerEdgeLevel", "gateLowerEdgeLevel")
+         if (is_in_network) then
+            x = get_gate_lower_edge_level_c_loc(network%sts%struct(item_index))
+         else
+            x = c_loc(zcgen((item_index-1)*3+2))
+         end if
+         return
+      case("GateOpeningWidth", "gateOpeningWidth")
+         if (is_in_network) then
+            x = get_gate_opening_width_c_loc(network%sts%struct(item_index))
+         else
+            x = c_loc(zcgen((item_index-1)*3+3))
+         end if
+         return
+      case("GateOpeningHorizontalDirection", "gateOpeningHorizontalDirection")
+         ! TODO: RTC: AvD: get this from gate/genstru params
+         return
+      end select
+
+      ! CULVERTS
+      case("culverts")
+         call getStructureIndex('culverts', item_name, item_index, is_in_network)
+         if (item_index <= 0) then
+            return
+         endif
+      
+         select case(field_name)
+         case("valveOpeningHeight")
+            if (is_in_network) then
+               x = get_valve_opening_height_c_loc(network%sts%struct(item_index))  
+            end if
+            return
+         end select
+   ! SOURCE-SINKS
+   case("sourcesinks")
+      call getStructureIndex('sourcesinks', item_name, item_index, is_in_network)
+      if (item_index <= 0) then
+         return
+      endif
+      select case(field_name)
+      case("discharge")
          x = c_loc(qstss((item_index-1)*3+1))
          return
-     case("change_in_salinity")
+      case("change_in_salinity")
          x = c_loc(qstss((item_index-1)*3+2))
          return
-     case("change_in_temperature")
+      case("change_in_temperature")
          x = c_loc(qstss((item_index-1)*3+3))
          return
-     end select
+      end select
+   ! Dambreak
+   case("dambreak")
+      call getStructureIndex('dambreak', item_name, item_index, is_in_network)
+      if (item_index <= 0) then
+         return
+      endif
+      select case(field_name)
+      case("dambreak_s1up")
+         x = c_loc(waterLevelsDambreakUpStream(item_index))
+         return
+      case("dambreak_s1dn")
+         x = c_loc(waterLevelsDambreakDownStream(item_index))
+         return
+      case("dambreak_breach_depth")
+         x = c_loc(breachDepthDambreak(item_index))
+         return
+      case("dambreak_breach_width")
+         x = c_loc(breachWidthDambreak(item_index))
+         return
+      case("dambreak_instantaneous_discharge")
+         x = c_loc(valdambreak(1, item_index))
+         return
+      case("dambreak_cumulative_discharge")
+         x = c_loc(valdambreak(2, item_index))
+         return
+      end select
 
-  ! OBSERVATION STATIONS
-  case("observations")
-     call getObservationIndex(item_name, item_index)
-     if (item_index == 0) then
-        return
-     end if
+   ! OBSERVATION STATIONS
+   case("observations")
+      call getObservationIndex(item_name, item_index)
+      if (item_index <= 0) then
+         return
+      end if
 
-     call updateValuesOnObervationStations()
+      call updateValuesOnObservationStations()
 
-     select case(field_name)
-     case("water_level")
-        x = c_loc(valobs(IPNT_S1, item_index))
-        return
-     case("water_depth")
-        x = c_loc(valobs(IPNT_HS, item_index))
-        return
-     case("salinity")
-        x = c_loc(valobs(IPNT_SA1, item_index))
-        return
-     case default
-        ! TODO: AvD: error to warn for unimplemented feature?
-        return
-     end select
-  ! MONITORING CROSSSECTIONS
-  case("crosssections")
-     call getCrosssectionIndex(item_name, item_index)
-     if (item_index == 0) then
-        return
-     end if
+      select case(field_name)
+      case("water_level")
+         x = c_loc(valobs(IPNT_S1, item_index))
+         return
+      case("water_depth")
+         x = c_loc(valobs(IPNT_HS, item_index))
+         return
+      case("salinity")
+         x = c_loc(valobs(IPNT_SA1, item_index))
+         return
+      case("temperature")
+         x = c_loc(valobs(IPNT_TEM1, item_index))
+         return
+      case default
+   !       assume this is a tracer
+   !       get constituent number for this tracer     
+         iconst = findname(NUMCONST, const_names, field_name)
+        
+         if ( iconst==0 ) then
+   !          tracer not found
+            call mess(LEVEL_ERROR, 'get_compound_field: cannot find ' // trim(var_name) // '/' // trim(item_name) // '/' // trim(field_name))
+         else
+            if ( kmx>1 ) then
+               call mess(LEVEL_ERROR, 'get_compound_field: 3D not supported for ' // trim(var_name) // '/' // trim(item_name) // '/' // trim(field_name))
+            else
+   !             find tracer number
+               itrac = iconst-ITRA1+1
+               x = c_loc(VALOBS(IPNT_TRA1+(itrac-1), item_index))
+            end if
+         end if
+         return
+      end select
+   ! MONITORING CROSSSECTIONS
+   case("crosssections")
+      call getCrosssectionIndex(item_name, item_index)
+      if (item_index <= 0) then
+         return
+      end if
 
-    call updateValuesOnCrossSections(time1)
-    if (jampi == 1) then
-       call updateValuesOnCrossSections_mpi(time1)
-    endif
+      call updateValuesOnCrossSections(time1)
+      if (jampi == 1) then
+         call updateValuesOnCrossSections_mpi(time1)
+      endif
 
-     select case(field_name)
-     case("discharge")
-        x = c_loc(crs(item_index)%sumvalcur(IPNT_Q1C))
-        return
-     case("velocity")
-        x = c_loc(crs(item_index)%sumvalcur(IPNT_U1A))
-        return
-     case("water_level")
-        x = c_loc(crs(item_index)%sumvalcur(IPNT_S1A))
-        return
-     case("water_depth")
-        x = c_loc(crs(item_index)%sumvalcur(IPNT_HUA))
-        return
-     case default
-        ! TODO: AvD: error to warn for unimplemented feature?
-        return
-     end select
+      select case(field_name)
+      case("discharge")
+         x = c_loc(crs(item_index)%sumvalcur(IPNT_Q1C))
+         return
+      case("velocity")
+         x = c_loc(crs(item_index)%sumvalcur(IPNT_U1A))
+         return
+      case("water_level")
+         x = c_loc(crs(item_index)%sumvalcur(IPNT_S1A))
+         return
+      case("water_depth")
+         x = c_loc(crs(item_index)%sumvalcur(IPNT_HUA))
+         return
+      case default
+         ! TODO: AvD: error to warn for unimplemented feature?
+         return
+      end select
+   ! LATERAL DISCHARGES
+   case("laterals")   
+      call getLateralIndex(item_name, item_index)
+      if (item_index <= 0) then
+         return
+      end if
+ 
+      select case(field_name)
+         case("water_discharge")
+            x = c_loc(qplat(item_index))
+            return
+      end select
+   end select ! var_name
 
-  end select ! var_name
+   ! check automatically generated interface
+   ! TODO: AvD: include "bmi_get_compound_field.inc"
 
-  ! check automatically generated interface
-  ! TODO: AvD: include "bmi_get_compound_field.inc"
-
-end subroutine get_compound_field
+   end subroutine get_compound_field
 
 
 !> Sets the value for a specific field for a specific item in a set-variable of compound values.
@@ -1583,105 +1780,235 @@ end subroutine get_compound_field
 !! The input value enters as a generic pointer, and will be converted to the required data type, e.g., double.
 !! If necessary, use get_compound_field_type and get_compound_field_shape to determine which input is expected.
 subroutine set_compound_field(c_var_name, c_item_name, c_field_name, xptr) bind(C, name="set_compound_field")
-  !DEC$ ATTRIBUTES DLLEXPORT :: set_compound_field
-  use iso_c_binding, only: c_double, c_char, c_loc, c_f_pointer
-  use iso_c_utils
-  use unstruc_messages
+   !DEC$ ATTRIBUTES DLLEXPORT :: set_compound_field
+   use iso_c_binding, only: c_double, c_char, c_loc, c_f_pointer
+   use iso_c_utils
+   use unstruc_messages
+   use m_strucs
+   use m_1d_structures
+   use m_wind
+   use unstruc_channel_flow, only: network
+   use m_General_Structure, only: update_widths
 
-  character(kind=c_char), intent(in) :: c_var_name(*)   !< Name of the set variable, e.g., 'pumps'
-  character(kind=c_char), intent(in) :: c_item_name(*)  !< Name of a single item's index/location, e.g., 'Pump01'
-  character(kind=c_char), intent(in) :: c_field_name(*) !< Name of the field to get, e.g., 'capacity'
-  type(c_ptr), value,     intent(in) :: xptr            !< Pointer (by value) to the C-compatible value data to be set.
+   character(kind=c_char), intent(in) :: c_var_name(*)   !< Name of the set variable, e.g., 'pumps'
+   character(kind=c_char), intent(in) :: c_item_name(*)  !< Name of a single item's index/location, e.g., 'Pump01'
+   character(kind=c_char), intent(in) :: c_field_name(*) !< Name of the field to get, e.g., 'capacity'
+   type(c_ptr), value,     intent(in) :: xptr            !< Pointer (by value) to the C-compatible value data to be set.
 
-  real(c_double), pointer :: x_0d_double_ptr
+   real(c_double), pointer :: x_0d_double_ptr
+   type(c_ptr) :: fieldptr  ! c_ptr to the structure's parameter
 
-  integer :: item_index
-  integer :: iostat
+   integer :: item_index
+   logical :: is_in_network
 
-  ! The fortran name of the attribute name
-  character(len=MAXSTRLEN) :: var_name
-  character(len=MAXSTRLEN) :: item_name
-  character(len=MAXSTRLEN) :: field_name
-  ! Store the name
-  var_name   = char_array_to_string(c_var_name)
-  item_name  = char_array_to_string(c_item_name)
-  field_name = char_array_to_string(c_field_name)
+   integer :: iostat
+
+   ! The fortran name of the attribute name
+   character(len=MAXSTRLEN) :: var_name
+   character(len=MAXSTRLEN) :: item_name
+   character(len=MAXSTRLEN) :: field_name
+   ! Store the name
+   var_name   = char_array_to_string(c_var_name)
+   item_name  = char_array_to_string(c_item_name)
+   field_name = char_array_to_string(c_field_name)
    ! Debugging printing only: guess that it's a scalar double value, for now.
    call c_f_pointer(xptr, x_0d_double_ptr)
    write(msgbuf, '(6a,f20.6,a)', iostat=iostat) 'set_compound_field for ', trim(var_name), '(', trim(item_name), ')::', trim(field_name), ', will be set to value = ', x_0d_double_ptr, '.'
    call dbg_flush()
-  ! TODO: AvD: include "bmi_set_compound_field.inc"
-  select case(var_name)
-  ! PUMPS
-  case("pumps")
-     call getStructureIndex('pumps', item_name, item_index)
-     select case(field_name)
-     case("capacity")
-         call c_f_pointer(xptr, x_0d_double_ptr)
-         qpump(item_index) = x_0d_double_ptr
-        return
-     end select
-
-  ! WEIRS
-  case("weirs")
-     call getStructureIndex('weirs', item_name, item_index)
-     select case(field_name)
-     case("crest_level")
-         call c_f_pointer(xptr, x_0d_double_ptr)
-         zcgen((item_index-1)*3+1) = x_0d_double_ptr
+   ! TODO: AvD: include "bmi_set_compound_field.inc"
+   select case(var_name)
+   ! PUMPS
+   case("pumps")
+      call getStructureIndex('pumps', item_name, item_index, is_in_network)
+      if (item_index <= 0) then
          return
-     case("lat_contr_coeff")
+      endif
+      
+      if (network%sts%struct(item_index)%pump%nrstages > 0) then
+         call mess(LEVEL_ERROR, 'set_compound_field for '''//trim(var_name)//'/'//trim(item_name)//'/'//trim(field_name)//''' : a staged pump cannot be controlled by RTC.')
+      end if
+         
+      select case(field_name)
+      case("capacity")
+         if (is_in_network) then
+            fieldptr = get_pump_capacity_c_loc(network%sts%struct(item_index))
+            fieldptr = xptr ! Set the scalar value of the structure's field pointed being to.
+         else
+            call c_f_pointer(xptr, x_0d_double_ptr)
+            qpump(item_index) = x_0d_double_ptr
+         end if
+         return
+      end select
+
+   ! WEIRS
+   case("weirs")
+      call getStructureIndex('weirs', item_name, item_index, is_in_network)
+      if (item_index <= 0) then
+         return
+      endif
+      select case(field_name)
+      case("crest_level", "CrestLevel", "crestLevel")
+         if (is_in_network) then
+            fieldptr = get_crest_level_c_loc(network%sts%struct(item_index))
+            fieldptr = xptr ! Set the scalar value of the structure's field pointed being to.
+         else
+            call c_f_pointer(xptr, x_0d_double_ptr)
+            zcgen((item_index-1)*3+1) = x_0d_double_ptr
+         end if
+         return
+      case("lat_contr_coeff")
          ! TODO: RTC: AvD: set this in weir params
          return
-     end select
+      end select
+      call update_zcgen_widths_and_heights()
 
-  ! GATES
-  case("gates")
-     call getStructureIndex('gates', item_name, item_index)
-     select case(field_name)
-     case("sill_level")
+   ! ORIFICES
+   case("orifices")
+      call getStructureIndex('orifices', item_name, item_index, is_in_network)
+      if (item_index <= 0) then
+         return
+      endif
+      select case(field_name)
+      case("gateLowerEdgeLevel")
+         if (is_in_network) then
+            fieldptr = get_gate_lower_edge_level_c_loc(network%sts%struct(item_index))
+            fieldptr = xptr ! Set the scalar value of the structure's field pointed being to.
+         end if
+         return
+      end select
+      call update_widths(network%sts%struct(item_index)%generalst, network%sts%struct(item_index)%numlinks, network%sts%struct(item_index)%linknumbers, wu, .true.)
+
+   ! GATES
+   case("gates")
+      call getStructureIndex('gates', item_name, item_index, is_in_network)
+      if (item_index <= 0) then
+         return
+      endif
+      select case(field_name)
+      case("sill_level", "CrestLevel")
          call c_f_pointer(xptr, x_0d_double_ptr)
          zcgen((item_index-1)*3+1) = x_0d_double_ptr
          return
-     case("door_height")
-         ! TODO: RTC: AvD: set this in gate/genstru params
+      case("door_height", "GateHeight")
+         call c_f_pointer(xptr, x_0d_double_ptr)
+         generalstruc(item_index)%gatedoorheight = x_0d_double_ptr ! Not time-controlled, set directly in generalstruc.
          return
-     case("lower_edge_level")
+      case("lower_edge_level", "GateLowerEdgeLevel")
          call c_f_pointer(xptr, x_0d_double_ptr)
          zcgen((item_index-1)*3+2) = x_0d_double_ptr
          return
-     case("opening_width")
+      case("opening_width", "GateOpeningWidth")
          call c_f_pointer(xptr, x_0d_double_ptr)
          zcgen((item_index-1)*3+3) = x_0d_double_ptr
          return
-     case("horizontal_opening_direction")
+      case("horizontal_opening_direction", "GateOpeningHorizontalDirection")
          ! TODO: RTC: AvD: set this once it's used
          return
-     end select
+      end select
+      call update_zcgen_widths_and_heights()
 
-  ! SOURCE-SINKS
-  case("sourcesinks")
-     call getStructureIndex('sourcesinks', item_name, item_index)
-     if (item_index == 0) then
+   ! GENERAL STRUCTURES
+   case("generalstructures")
+      call getStructureIndex('generalstructures', item_name, item_index, is_in_network)
+      if (item_index <= 0) then
          return
-     endif
-     select case(field_name)
-     case("discharge")
+      endif
+      
+      select case(field_name)
+      case("CrestLevel", "crestLevel")
+         if (is_in_network) then
+            fieldptr = get_crest_level_c_loc(network%sts%struct(item_index))
+            fieldptr = xptr ! Set the scalar value of the structure's field pointed being to.
+         else
+            call c_f_pointer(xptr, x_0d_double_ptr)
+            zcgen((item_index-1)*3+1) = x_0d_double_ptr
+         end if
+         return
+      case("GateHeight", "gateHeight")
+         if (is_in_network) then
+            fieldptr = get_gate_door_height_c_loc(network%sts%struct(item_index))
+            fieldptr = xptr ! Set the scalar value of the structure's field pointed being to.
+         else
+            call c_f_pointer(xptr, x_0d_double_ptr)
+            generalstruc(item_index)%gatedoorheight = x_0d_double_ptr ! Not time-controlled, set directly in generalstruc.
+         end if
+
+         return
+      case("GateLowerEdgeLevel", "gateLowerEdgeLevel")
+         if (is_in_network) then
+            fieldptr = get_gate_lower_edge_level_c_loc(network%sts%struct(item_index))
+            fieldptr = xptr ! Set the scalar value of the structure's field pointed being to.
+         else
+            call c_f_pointer(xptr, x_0d_double_ptr)
+            zcgen((item_index-1)*3+2) = x_0d_double_ptr
+         end if
+         return
+      case("GateOpeningWidth", "gateOpeningWidth")
+         if (is_in_network) then
+            fieldptr = get_gate_opening_width_c_loc(network%sts%struct(item_index))
+            fieldptr = xptr ! Set the scalar value of the structure's field pointed being to.
+         else
+            call c_f_pointer(xptr, x_0d_double_ptr)
+            zcgen((item_index-1)*3+3) = x_0d_double_ptr
+         end if
+         return
+      case("GateOpeningHorizontalDirection", "gateOpeningHorizontalDirection")
+         ! TODO: RTC: AvD: get this from gate/genstru params
+         return
+      end select
+      call update_zcgen_widths_and_heights()
+
+   ! CULVERTS
+   case("culverts")
+      call getStructureIndex('culverts', item_name, item_index, is_in_network)
+      if (item_index <= 0) then
+         return
+      endif
+      select case(field_name)
+      case("valveOpeningHeight")
+         if (is_in_network) then
+            fieldptr = get_valve_opening_height_c_loc(network%sts%struct(item_index))
+            fieldptr = xptr ! Set the scalar value of the structure's field pointed being to.
+         end if
+         return
+      end select
+      
+   ! SOURCE-SINKS
+   case("sourcesinks")
+      call getStructureIndex('sourcesinks', item_name, item_index, is_in_network)
+      if (item_index <= 0) then
+         return
+      endif
+      select case(field_name)
+      case("discharge")
          call c_f_pointer(xptr, x_0d_double_ptr)
          qstss((item_index-1)*3+1) = x_0d_double_ptr
          return
-     case("change_in_salinity")
+      case("change_in_salinity")
          call c_f_pointer(xptr, x_0d_double_ptr)
          qstss((item_index-1)*3+2) = x_0d_double_ptr
          return
-     case("change_in_temperature")
+      case("change_in_temperature")
          call c_f_pointer(xptr, x_0d_double_ptr)
          qstss((item_index-1)*3+3) = x_0d_double_ptr
          return
-     end select
-
-     ! NOTE: observations and crosssections are read-only!
-  end select
+      end select
+	 
+   ! LATERAL DISCHARGES
+   case("laterals")
+      call getLateralIndex(item_name, item_index)
+      if (item_index <= 0) then
+         return
+      endif
+      select case(field_name)
+      case("water_discharge")
+         call c_f_pointer(xptr, x_0d_double_ptr)
+         qplat(item_index) = x_0d_double_ptr
+         return
+      end select
+	 
+      ! NOTE: observations and crosssections are read-only!
+   end select
 end subroutine set_compound_field
 
 !> Gets the name for a specific field in a compound variable.
@@ -1690,93 +2017,128 @@ end subroutine set_compound_field
 !! each pump has the same list of fields, each with a name, for example 'capacity'.
 !! Use the returned field name to call other get_compound_field_* routines.
 subroutine get_compound_field_name(c_var_name, c_field_index, c_field_name) bind(C, name="get_compound_field_name")
-  !DEC$ ATTRIBUTES DLLEXPORT :: get_compound_field_name
-  use iso_c_binding, only: c_double, c_char, c_loc, c_f_pointer
-  use iso_c_utils
+   !DEC$ ATTRIBUTES DLLEXPORT :: get_compound_field_name
+   use iso_c_binding, only: c_double, c_char, c_loc, c_f_pointer
+   use iso_c_utils
 
-  character(kind=c_char), intent(in)  :: c_var_name(*)    !< Name of the set variable, e.g., 'pumps'
-  integer(kind=c_int),    intent(in)  :: c_field_index    !< Index of the field in the compound variable's field list
-  character(kind=c_char), intent(out) :: c_field_name(MAXSTRLEN)  !< Returned name of the field to , e.g., 'capacity'
+   character(kind=c_char), intent(in)  :: c_var_name(*)    !< Name of the set variable, e.g., 'pumps'
+   integer(kind=c_int),    intent(in)  :: c_field_index    !< Index of the field in the compound variable's field list
+   character(kind=c_char), intent(out) :: c_field_name(MAXSTRLEN)  !< Returned name of the field to , e.g., 'capacity'
 
-  integer :: field_index
+   integer :: field_index
 
-  ! The fortran name of the attribute name
-  character(len=MAXSTRLEN) :: var_name
-  character(len=MAXSTRLEN) :: field_name
-  ! Store the name
-  var_name   = char_array_to_string(c_var_name)
+   ! The fortran name of the attribute name
+   character(len=MAXSTRLEN) :: var_name
+   character(len=MAXSTRLEN) :: field_name
+   ! Store the name
+   var_name   = char_array_to_string(c_var_name)
 
-  field_index = c_field_index
+   field_index = c_field_index
 
-  select case(var_name)
-  ! PUMPS
-  case("pumps")
-     select case(field_index)
-     case(1)
+   select case(var_name)
+   ! PUMPS
+   case("pumps")
+      select case(field_index)
+      case(1)
          field_name = "capacity"
-     end select
-  ! WEIRS
-  case("weirs")
-     select case(field_index)
-     case(1)
-         field_name = "crest_level"
-     case(2)
+      end select
+   ! WEIRS
+   case("weirs")
+      select case(field_index)
+      case(1)
+         field_name = "crestLevel"
+      case(2)
          field_name = "lat_contr_coeff"
-     end select
-  ! GATES
-  case("gates")
-     select case(field_index)
-     case(1)
-         field_name = "sill_level"
-     case(2)
-         field_name = "door_height"
-     case(3)
-         field_name = "lower_edge_level"
-     case(4)
-         field_name = "opening_width"
-     case(5)
-         field_name = "horizontal_opening_direction"
-     end select
-  ! SOURCE-SINKS
-  case("sourcesinks")
-     select case(field_index)
-     case(1)
-         field_name = "discharge"
-     case(2)
-         field_name = "change_in_salinity"
-     case(3)
-         field_name = "change_in_temperature"
-     end select
-  ! OBSERVATION STATIONS
-  case("observations")
-     select case(field_index)
-     case(1)
-         field_name = "water_level"
-     case(2)
-         field_name = "water_depth"
-     case(3)
-         field_name = "salinity"
-     case default
-        return
-     end select
-  ! MONITORING CROSSSECTIONS
-  case("crosssections")
-     select case(field_index)
-     case(1)
-         field_name = "discharge"
-     case(2)
-         field_name = "velocity"
-     case(3)
-         field_name = "water_level"
-     case(4)
-         field_name = "water_depth"
-     case default
-        ! TODO: AvD: error to warn for unimplemented feature?
-        return
-     end select
-  end select ! var_name
+      end select
+   ! ORIFICES
+   case("orifices")
+      select case(field_index)
+      case(1)
+         field_name = "gateLowerEdgeLevel"
+      end select
+   ! GATES
+   case("gates")
+      select case(field_index)
+      case(1)
+         field_name = "CrestLevel"
+      case(2)
+         field_name = "GateHeight"
+      case(3)
+         field_name = "GateLowerEdgeLevel"
+      case(4)
+         field_name = "GateOpeningWidth"
+      case(5)
+         field_name = "GateOpeningHorizontalDirection"
+      end select
 
-  c_field_name = string_to_char_array(trim(field_name))
+   ! GENERALSTUCTURES
+   case("generalstructures")
+      select case(field_index)
+      case(1)
+         field_name = "crestLevel"
+      case(2)
+         field_name = "gateHeight"
+      case(3)
+         field_name = "gateLowerEdgeLevel"
+      case(4)
+         field_name = "gateOpeningWidth"
+      case(5)
+         field_name = "gateOpeningHorizontalDirection"
+      end select
+
+   ! CULVERTS
+   case("culverts")
+      select case(field_index)
+      case(1)
+         field_name = "valveOpeningHeight"
+      end select  
+   ! SOURCE-SINKS
+   case("sourcesinks")
+      select case(field_index)
+      case(1)
+         field_name = "discharge"
+      case(2)
+         field_name = "change_in_salinity"
+      case(3)
+         field_name = "change_in_temperature"
+      end select
+   ! OBSERVATION STATIONS
+   case("observations")
+      select case(field_index)
+      case(1)
+         field_name = "water_level"
+      case(2)
+         field_name = "water_depth"
+      case(3)
+         field_name = "salinity"
+      case default
+         return
+      end select
+   ! MONITORING CROSSSECTIONS
+   case("crosssections")
+      select case(field_index)
+      case(1)
+         field_name = "discharge"
+      case(2)
+         field_name = "velocity"
+      case(3)
+         field_name = "water_level"
+      case(4)
+         field_name = "water_depth"
+      case default
+         ! TODO: AvD: error to warn for unimplemented feature?
+         return
+      end select
+   case("laterals")
+      select case(field_index)
+      case(1)
+         field_name = "water_discharge"
+      case default
+         return
+      end select
+   end select ! var_name
+
+   c_field_name = string_to_char_array(trim(field_name))
 end subroutine get_compound_field_name
 
 
@@ -1786,26 +2148,26 @@ end subroutine get_compound_field_name
 !! each pump has the same list of fields, each with a type, for example 'double'.
 !! Use the returned field type to prepare for calls to the set/get_compound_field routines.
 subroutine get_compound_field_type(c_var_name, c_field_name, c_type_name) bind(C, name="get_compound_field_type")
-  !DEC$ ATTRIBUTES DLLEXPORT :: get_compound_field_type
-  use iso_c_binding, only: c_double, c_char, c_loc, c_f_pointer
-  use iso_c_utils
+   !DEC$ ATTRIBUTES DLLEXPORT :: get_compound_field_type
+   use iso_c_binding, only: c_double, c_char, c_loc, c_f_pointer
+   use iso_c_utils
 
-  character(kind=c_char), intent(in)  :: c_var_name(*)   !< Name of the set variable, e.g., 'pumps'
-  character(kind=c_char), intent(in)  :: c_field_name(*) !< Name of the field, e.g., 'capacity'
-  character(kind=c_char), intent(out) :: c_type_name(MAXSTRLEN)  !< Returned type of the field, e.g., 'double'
+   character(kind=c_char), intent(in)  :: c_var_name(*)   !< Name of the set variable, e.g., 'pumps'
+   character(kind=c_char), intent(in)  :: c_field_name(*) !< Name of the field, e.g., 'capacity'
+   character(kind=c_char), intent(out) :: c_type_name(MAXSTRLEN)  !< Returned type of the field, e.g., 'double'
 
 
-  ! The fortran name of the attribute name
-  character(len=MAXSTRLEN) :: var_name
-  character(len=MAXSTRLEN) :: field_name
-  character(len=MAXSTRLEN) :: type_name
-  ! Store the name
-  var_name   = char_array_to_string(c_var_name)
-  field_name = char_array_to_string(c_field_name)
+   ! The fortran name of the attribute name
+   character(len=MAXSTRLEN) :: var_name
+   character(len=MAXSTRLEN) :: field_name
+   character(len=MAXSTRLEN) :: type_name
+   ! Store the name
+   var_name   = char_array_to_string(c_var_name)
+   field_name = char_array_to_string(c_field_name)
 
-  type_name = "double"
+   type_name = "double"
 
-  c_type_name = string_to_char_array(trim(type_name))
+   c_type_name = string_to_char_array(trim(type_name))
 
 end subroutine get_compound_field_type
 
@@ -1816,24 +2178,24 @@ end subroutine get_compound_field_type
 !! each pump has the same list of fields, each with a rank, typically 0 (scalar).
 !! Use the returned field rank to prepare for calls to the set/get_compound_field routines.
 subroutine get_compound_field_rank(c_var_name, c_field_name, rank) bind(C, name="get_compound_field_rank")
-  !DEC$ ATTRIBUTES DLLEXPORT :: get_compound_field_rank
-  use iso_c_binding, only: c_double, c_char, c_loc, c_f_pointer
-  use iso_c_utils
+   !DEC$ ATTRIBUTES DLLEXPORT :: get_compound_field_rank
+   use iso_c_binding, only: c_double, c_char, c_loc, c_f_pointer
+   use iso_c_utils
 
-  character(kind=c_char), intent(in)  :: c_var_name(*)   !< Name of the set variable, e.g., 'pumps'
-  character(kind=c_char), intent(in)  :: c_field_name(*) !< Name of the field, e.g., 'capacity'
-  integer(kind=c_int),    intent(out) :: rank            !< Returned rank of the field, e.g., 1
+   character(kind=c_char), intent(in)  :: c_var_name(*)   !< Name of the set variable, e.g., 'pumps'
+   character(kind=c_char), intent(in)  :: c_field_name(*) !< Name of the field, e.g., 'capacity'
+   integer(kind=c_int),    intent(out) :: rank            !< Returned rank of the field, e.g., 1
 
 
-  ! The fortran name of the attribute name
-  character(len=MAXSTRLEN) :: var_name
-  character(len=MAXSTRLEN) :: field_name
+   ! The fortran name of the attribute name
+   character(len=MAXSTRLEN) :: var_name
+   character(len=MAXSTRLEN) :: field_name
 
-  ! Store the name
-  var_name   = char_array_to_string(c_var_name)
-  field_name = char_array_to_string(c_field_name)
+   ! Store the name
+   var_name   = char_array_to_string(c_var_name)
+   field_name = char_array_to_string(c_field_name)
 
-  rank = 0 ! for all scalar vars/fields now (unless pumps start to have multiple stages)
+   rank = 0 ! for all scalar vars/fields now (unless pumps start to have multiple stages)
 
 end subroutine get_compound_field_rank
 
@@ -1844,269 +2206,270 @@ end subroutine get_compound_field_rank
 !! each pump has the same list of fields, each with a shape, which is now only for completeness: shape(1:rank) = 0.
 !! Use the returned field shape to prepare for calls to the set/get_compound_field routines.
 subroutine get_compound_field_shape(c_var_name, c_field_name, shape) bind(C, name="get_compound_field_shape")
-  !DEC$ ATTRIBUTES DLLEXPORT :: get_compound_field_shape
-  use iso_c_binding, only: c_double, c_char, c_loc, c_f_pointer
-  use iso_c_utils
+   !DEC$ ATTRIBUTES DLLEXPORT :: get_compound_field_shape
+   use iso_c_binding, only: c_double, c_char, c_loc, c_f_pointer
+   use iso_c_utils
 
-  character(kind=c_char), intent(in)  :: c_var_name(*)   !< Name of the set variable, e.g., 'pumps'
-  character(kind=c_char), intent(in)  :: c_field_name(*) !< Name of the field, e.g., 'capacity'
-  integer(kind=c_int),    intent(inout) :: shape(MAXDIMS)           !< Returned shape of the field, e.g., [1]
+   character(kind=c_char), intent(in)  :: c_var_name(*)   !< Name of the set variable, e.g., 'pumps'
+   character(kind=c_char), intent(in)  :: c_field_name(*) !< Name of the field, e.g., 'capacity'
+   integer(kind=c_int),    intent(inout) :: shape(MAXDIMS)           !< Returned shape of the field, e.g., [1]
 
-  ! The fortran name of the attribute name
-  character(len=MAXSTRLEN) :: var_name
-  character(len=MAXSTRLEN) :: field_name
+   ! The fortran name of the attribute name
+   character(len=MAXSTRLEN) :: var_name
+   character(len=MAXSTRLEN) :: field_name
 
-  ! Store the name
-  var_name   = char_array_to_string(c_var_name)
-  field_name = char_array_to_string(c_field_name)
+   ! Store the name
+   var_name   = char_array_to_string(c_var_name)
+   field_name = char_array_to_string(c_field_name)
 
-  shape = 0 ! All fields now still scalar: rank=0, shape irrelevant.
+   shape = 0 ! All fields now still scalar: rank=0, shape irrelevant.
 
 end subroutine get_compound_field_shape
 
 
 subroutine get_1d_double(c_var_name, x) bind(C, name="get_1d_double")
-  !DEC$ ATTRIBUTES DLLEXPORT :: get_1d_double
+   !DEC$ ATTRIBUTES DLLEXPORT :: get_1d_double
 
- use iso_c_binding, only: c_double, c_char, c_loc
- use m_flow
- use network_data
- character(kind=c_char), intent(in) :: c_var_name(*)
- type(c_ptr), intent(inout) :: x
+   use iso_c_binding, only: c_double, c_char, c_loc
+   use m_flow
+   use network_data
+   character(kind=c_char), intent(in) :: c_var_name(*)
+   type(c_ptr), intent(inout) :: x
 
- ! The fortran name of the attribute name
- character(len=strlen(c_var_name)) :: var_name
- ! Store the name
- var_name = char_array_to_string(c_var_name, strlen(c_var_name))
+   ! The fortran name of the attribute name
+   character(len=strlen(c_var_name)) :: var_name
+   ! Store the name
+   var_name = char_array_to_string(c_var_name, strlen(c_var_name))
 
- select case(var_name)
-    case default
-       call get_var(c_var_name, x)
- end select
+   select case(var_name)
+      case default
+         call get_var(c_var_name, x)
+   end select
 
 end subroutine get_1d_double
 
 subroutine get_1d_int(c_var_name, x) bind(C, name="get_1d_int")
-  !DEC$ ATTRIBUTES DLLEXPORT :: get_1d_int
+   !DEC$ ATTRIBUTES DLLEXPORT :: get_1d_int
 
- use iso_c_binding, only: c_int, c_char, c_loc
- use m_flow
- use network_data
- character(kind=c_char), intent(in) :: c_var_name(*)
- type(c_ptr), intent(inout) :: x
+   use iso_c_binding, only: c_int, c_char, c_loc
+   use m_flow
+   use network_data
+   character(kind=c_char), intent(in) :: c_var_name(*)
+   type(c_ptr), intent(inout) :: x
 
- character(len=strlen(c_var_name)) :: var_name
- var_name = char_array_to_string(c_var_name, strlen(c_var_name))
+   character(len=strlen(c_var_name)) :: var_name
+   var_name = char_array_to_string(c_var_name, strlen(c_var_name))
 
- select case(var_name)
-    case default
-       call get_var(c_var_name, x)
- end select
+   select case(var_name)
+      case default
+         call get_var(c_var_name, x)
+   end select
 
 end subroutine get_1d_int
 
 
 subroutine get_2d_double(c_var_name, xptr) bind(C, name="get_2d_double")
-  !DEC$ ATTRIBUTES DLLEXPORT :: get_2d_double
+   !DEC$ ATTRIBUTES DLLEXPORT :: get_2d_double
 
-  use iso_c_binding, only: c_double, c_char, c_loc
-  use m_flow
-  use network_data
-  character(kind=c_char), intent(in) :: c_var_name(*)
-  type(c_ptr), intent(inout) :: xptr
+   use iso_c_binding, only: c_double, c_char, c_loc
+   use m_flow
+   use network_data
+   character(kind=c_char), intent(in) :: c_var_name(*)
+   type(c_ptr), intent(inout) :: xptr
 
-  real(c_double), target, allocatable, save :: x(:,:)
+   real(c_double), target, allocatable, save :: x(:,:)
 
-  integer :: i
-  ! The fortran name of the attribute name
-  character(len=strlen(c_var_name)) :: var_name
-  ! Store the name
-  var_name = char_array_to_string(c_var_name, strlen(c_var_name))
-  if (allocated(x)) deallocate(x)
-  select case(var_name)
-  case("flowelemcontour_x")
-     allocate(x(ndx, get_flow_elem_max_contour()))
-     x=0 ! Set this to nan?
-     do i=1,ndx
-        x(i,1:size(nd(i)%x)) = nd(i)%x
-     enddo
-     xptr = c_loc(x)
-  case("flowelemcontour_y")
-     allocate(x(ndx, get_flow_elem_max_contour()))
-     x=0 ! I would like to set nans here. but how?
-     do i=1,ndx
-        x(i,1:size(nd(i)%x)) = nd(i)%y
-     enddo
-     xptr = c_loc(x)
-  end select
+   integer :: i
+   ! The fortran name of the attribute name
+   character(len=strlen(c_var_name)) :: var_name
+   ! Store the name
+   var_name = char_array_to_string(c_var_name, strlen(c_var_name))
+   if (allocated(x)) deallocate(x)
+   select case(var_name)
+   case("flowelemcontour_x")
+      allocate(x(ndx, get_flow_elem_max_contour()))
+      x=0 ! Set this to nan?
+      do i=1,ndx
+         x(i,1:size(nd(i)%x)) = nd(i)%x
+      enddo
+      xptr = c_loc(x)
+   case("flowelemcontour_y")
+      allocate(x(ndx, get_flow_elem_max_contour()))
+      x=0 ! I would like to set nans here. but how?
+      do i=1,ndx
+         x(i,1:size(nd(i)%x)) = nd(i)%y
+      enddo
+      xptr = c_loc(x)
+   end select
 end subroutine get_2d_double
 
 subroutine set_1d_double_at_index(c_var_name, index, value)  bind(C, name="set_1d_double_at_index")
-  !DEC$ ATTRIBUTES DLLEXPORT :: set_1d_double_at_index
+   !DEC$ ATTRIBUTES DLLEXPORT :: set_1d_double_at_index
 
- use m_flow
- use network_data
- use m_flowparameters
- use iso_c_binding, only: c_double, c_char, c_int
+   use m_flow
+   use network_data
+   use m_flowparameters
+   use iso_c_binding, only: c_double, c_char, c_int
 
- character(kind=c_char), intent(in) :: c_var_name(*) !< Name of a BMI-available variable (should be associated with a 1d double array)
- integer(c_int), value,  intent(in) :: index         !< Position in array where to set the value. 0-based, pass by value.
- real(c_double), value,  intent(in) :: value         !< The new value to set in the array.
+   character(kind=c_char), intent(in) :: c_var_name(*) !< Name of a BMI-available variable (should be associated with a 1d double array)
+   integer(c_int), value,  intent(in) :: index         !< Position in array where to set the value. 0-based, pass by value.
+   real(c_double), value,  intent(in) :: value         !< The new value to set in the array.
 
- character(len=strlen(c_var_name)) :: var_name
+   character(len=strlen(c_var_name)) :: var_name
 
- type (tface) :: cell
- integer :: edgeIndex
- double precision :: linkX1, linkX2, linkY1, linkY2
- double precision :: angle
+   type (tface) :: cell
+   integer :: edgeIndex
+   double precision :: linkX1, linkX2, linkY1, linkY2
+   double precision :: angle
 
- real(c_double), target :: valuet
- type(c_ptr)      :: xptr
- integer(c_int)   :: size1(1)
+   real(c_double), target :: valuet
+   type(c_ptr)      :: xptr
+   integer(c_int)   :: size1(1)
 
- var_name = char_array_to_string(c_var_name, strlen(c_var_name))
+   var_name = char_array_to_string(c_var_name, strlen(c_var_name))
 
- select case(var_name)
- case("s1")
-    s1(index + 1) = value
- case("ucx")
-    cell = netcell(index)
+   select case(var_name)
+   case("s1")
+      s1(index + 1) = value
+   case("ucx")
+      cell = netcell(index)
 
-    do edgeIndex = 1, cell%n
-        ! calculate edge angle
-        linkX1 = XK(KN(1,edgeIndex))
-        linkX2 = XK(KN(2,edgeIndex))
-        linkY1 = YK(KN(1,edgeIndex))
-        linkY2 = YK(KN(2,edgeIndex))
+      do edgeIndex = 1, cell%n
+         ! calculate edge angle
+         linkX1 = XK(KN(1,edgeIndex))
+         linkX2 = XK(KN(2,edgeIndex))
+         linkY1 = YK(KN(1,edgeIndex))
+         linkY2 = YK(KN(2,edgeIndex))
 
-        angle = atan((linkY2 - linkY1) / (linkX2 - linkX1))
+         angle = atan((linkY2 - linkY1) / (linkX2 - linkX1))
 
-        u0(cell%lin(edgeIndex)) = value * cos(angle)
-        u1(cell%lin(edgeIndex)) = value * cos(angle)
-    enddo
+         u0(cell%lin(edgeIndex)) = value * cos(angle)
+         u1(cell%lin(edgeIndex)) = value * cos(angle)
+      enddo
 
-    ! convert it to the velocity increment on cell interfaces
+      ! convert it to the velocity increment on cell interfaces
 
-    ! update u0 - velocity at cell edges
+      ! update u0 - velocity at cell edges
 
-    ! a) calculate weights based on distances to the cell edges
-    ! b) project current velocity component to the cell edge tangential velocity
-    ! c) add resulting velocity increment to the every cell edge velocity
+      ! a) calculate weights based on distances to the cell edges
+      ! b) project current velocity component to the cell edge tangential velocity
+      ! c) add resulting velocity increment to the every cell edge velocity
 
-    ! for every link:
-    ! 1. A - angle of the link, relative to the X axis (or calculate it from the link coordinates = atan((y2-y1)/(x2-x1))
-    ! 2. for Y component: V_link += Uy * sin(A)
-    ! 3. for X component: V_link += Ux * cos(A)
+      ! for every link:
+      ! 1. A - angle of the link, relative to the X axis (or calculate it from the link coordinates = atan((y2-y1)/(x2-x1))
+      ! 2. for Y component: V_link += Uy * sin(A)
+      ! 3. for X component: V_link += Ux * cos(A)
 
-    !ucx(index + 1) = value
- case("ucy")
-     ! convert it to the velocity increment on cell interfaces
+      !ucx(index + 1) = value
+   case("ucy")
+      ! convert it to the velocity increment on cell interfaces
 
-     !ucy(index + 1) = value
- case("unorm")
-    u1(index + 1) = value
- case("zk")
-    call update_land(index + 1, value)
+      !ucy(index + 1) = value
+   case("unorm")
+      u1(index + 1) = value
+   case("zk")
+      call update_land_nodes(index + 1, value)
+      call land_change_callback()
 
-    !zkdropstep = value - zk(index + 1)
-    !call dropland(xz(index + 1), yz(index + 1), 1)
- case("fstuw")
-    fstuw(index + 1) = value
- case("froer")
-    froer(index + 1) = value
- case default
-    ! Fall back to any of the auto-generated BMI vars in set_var_slice (with slice count just 1)
-    size1(1) = 1
-    valuet = value
-    xptr = c_loc(valuet) ! To pass on this subroutine argument to set_var_slice as a C pointer
-    call set_var_slice(c_var_name, (/ index /), size1, xptr)
- end select
+      !zkdropstep = value - zk(index + 1)
+      !call dropland(xz(index + 1), yz(index + 1), 1)
+   case("fstuw")
+      fstuw(index + 1) = value
+   case("froer")
+      froer(index + 1) = value
+   case default
+      ! Fall back to any of the auto-generated BMI vars in set_var_slice (with slice count just 1)
+      size1(1) = 1
+      valuet = value
+      xptr = c_loc(valuet) ! To pass on this subroutine argument to set_var_slice as a C pointer
+      call set_var_slice(c_var_name, (/ index /), size1, xptr)
+   end select
 
 end subroutine set_1d_double_at_index
 
 
 
 subroutine set_1d_double(c_var_name, x) bind(C, name="set_1d_double")
-  !DEC$ ATTRIBUTES DLLEXPORT :: set_1d_double
+   !DEC$ ATTRIBUTES DLLEXPORT :: set_1d_double
 
- use iso_c_binding, only: c_double, c_char, c_loc
- use m_flow
- use network_data
- character(kind=c_char), intent(in) :: c_var_name(*)
- type(c_ptr), intent(in) :: x
+   use iso_c_binding, only: c_double, c_char, c_loc
+   use m_flow
+   use network_data
+   character(kind=c_char), intent(in) :: c_var_name(*)
+   type(c_ptr), intent(in) :: x
 
- ! The fortran name of the attribute name
- character(len=strlen(c_var_name)) :: var_name
- ! Store the name
- var_name = char_array_to_string(c_var_name, strlen(c_var_name))
+   ! The fortran name of the attribute name
+   character(len=strlen(c_var_name)) :: var_name
+   ! Store the name
+   var_name = char_array_to_string(c_var_name, strlen(c_var_name))
 
- select case(var_name)
-    case default
-       call set_var(c_var_name, x)
- end select
+   select case(var_name)
+      case default
+         call set_var(c_var_name, x)
+   end select
 
 end subroutine set_1d_double
 
 subroutine set_2d_double(c_var_name, x) bind(C, name="set_2d_double")
-  !DEC$ ATTRIBUTES DLLEXPORT :: set_2d_double
+   !DEC$ ATTRIBUTES DLLEXPORT :: set_2d_double
 
-  use iso_c_binding, only: c_double, c_char, c_loc
-  use m_flow
-  use network_data
-  character(kind=c_char), intent(in) :: c_var_name(*)
-  type(c_ptr), intent(in) :: x
+   use iso_c_binding, only: c_double, c_char, c_loc
+   use m_flow
+   use network_data
+   character(kind=c_char), intent(in) :: c_var_name(*)
+   type(c_ptr), intent(in) :: x
 
-  ! The fortran name of the attribute name
-  character(len=strlen(c_var_name)) :: var_name
-  ! Store the name
-  var_name = char_array_to_string(c_var_name, strlen(c_var_name))
+   ! The fortran name of the attribute name
+   character(len=strlen(c_var_name)) :: var_name
+   ! Store the name
+   var_name = char_array_to_string(c_var_name, strlen(c_var_name))
 
-  select case(var_name)
-  case default
-     call set_var(c_var_name, x)
-  end select
+   select case(var_name)
+   case default
+      call set_var(c_var_name, x)
+   end select
 
 end subroutine set_2d_double
 
 subroutine set_1d_int(c_var_name, x) bind(C, name="set_1d_int")
-  !DEC$ ATTRIBUTES DLLEXPORT :: set_1d_int
+   !DEC$ ATTRIBUTES DLLEXPORT :: set_1d_int
 
- use iso_c_binding, only: c_int, c_char, c_loc
- use m_flow
- use network_data
- character(kind=c_char), intent(in) :: c_var_name(*)
- type(c_ptr), intent(in) :: x
+   use iso_c_binding, only: c_int, c_char, c_loc
+   use m_flow
+   use network_data
+   character(kind=c_char), intent(in) :: c_var_name(*)
+   type(c_ptr), intent(in) :: x
 
- ! The fortran name of the attribute name
- character(len=strlen(c_var_name)) :: var_name
- ! Store the name
- var_name = char_array_to_string(c_var_name, strlen(c_var_name))
+   ! The fortran name of the attribute name
+   character(len=strlen(c_var_name)) :: var_name
+   ! Store the name
+   var_name = char_array_to_string(c_var_name, strlen(c_var_name))
 
- select case(var_name)
-    case default
-       call set_var(c_var_name, x)
- end select
+   select case(var_name)
+      case default
+         call set_var(c_var_name, x)
+   end select
 
 end subroutine set_1d_int
 
 subroutine set_2d_int(c_var_name, x) bind(C, name="set_2d_int")
-  !DEC$ ATTRIBUTES DLLEXPORT :: set_2d_int
+   !DEC$ ATTRIBUTES DLLEXPORT :: set_2d_int
 
-  use iso_c_binding, only: c_int, c_char, c_loc
-  use m_flow
-  use network_data
-  character(kind=c_char), intent(in) :: c_var_name(*)
-  type(c_ptr), intent(in) :: x
+   use iso_c_binding, only: c_int, c_char, c_loc
+   use m_flow
+   use network_data
+   character(kind=c_char), intent(in) :: c_var_name(*)
+   type(c_ptr), intent(in) :: x
 
-  ! The fortran name of the attribute name
-  character(len=strlen(c_var_name)) :: var_name
-  ! Store the name
-  var_name = char_array_to_string(c_var_name, strlen(c_var_name))
+   ! The fortran name of the attribute name
+   character(len=strlen(c_var_name)) :: var_name
+   ! Store the name
+   var_name = char_array_to_string(c_var_name, strlen(c_var_name))
 
-  select case(var_name)
-  case default
-     call set_var(c_var_name, x)
-  end select
+   select case(var_name)
+   case default
+      call set_var(c_var_name, x)
+   end select
 
 end subroutine set_2d_int
 
@@ -2117,69 +2480,69 @@ end subroutine set_2d_int
 ! Utility functions, move these to interop module
 ! Make functions pure so they can be used as input arguments.
 integer(c_int) pure function strlen(char_array)
- character(c_char), intent(in) :: char_array(MAXSTRLEN)
- integer :: inull, i
- strlen = 0
- do i = 1, size(char_array)
-    if (char_array(i) .eq. C_NULL_CHAR) then
-       strlen = i-1
-       exit
-    end if
- end do
+   character(c_char), intent(in) :: char_array(MAXSTRLEN)
+   integer :: inull, i
+   strlen = 0
+   do i = 1, size(char_array)
+      if (char_array(i) .eq. C_NULL_CHAR) then
+         strlen = i-1
+         exit
+      end if
+   end do
 end function strlen
 
 pure function char_array_to_string(char_array, length)
- integer(c_int), intent(in) :: length
- character(c_char),intent(in) :: char_array(length)
- character(len=length) :: char_array_to_string
- integer :: i
- do i = 1, length
-    char_array_to_string(i:i) = char_array(i)
- enddo
+   integer(c_int), intent(in) :: length
+   character(c_char),intent(in) :: char_array(length)
+   character(len=length) :: char_array_to_string
+   integer :: i
+   do i = 1, length
+      char_array_to_string(i:i) = char_array(i)
+   enddo
 end function char_array_to_string
 
 pure function string_to_char_array(string, length)
- integer(c_int),intent(in) :: length
- character(len=length), intent(in) :: string
- character(kind=c_char,len=1) :: string_to_char_array(length+1)
- integer :: i
- do i = 1, length
-    string_to_char_array(i) = string(i:i)
- enddo
- string_to_char_array(length+1) = C_NULL_CHAR
+   integer(c_int),intent(in) :: length
+   character(len=length), intent(in) :: string
+   character(kind=c_char,len=1) :: string_to_char_array(length+1)
+   integer :: i
+   do i = 1, length
+      string_to_char_array(i) = string(i:i)
+   enddo
+   string_to_char_array(length+1) = C_NULL_CHAR
 end function string_to_char_array
 
 
 !  TODO move to network_data...
 integer function get_net_elem_max_nodes()
- use network_data
- integer :: k
- ! Determine max nr. of vertices in NetElems (netcells)
- get_net_elem_max_nodes = 0
- do k=1,nump
-    get_net_elem_max_nodes = max(get_net_elem_max_nodes, netcell(k)%n)
- end do
+   use network_data
+   integer :: k
+   ! Determine max nr. of vertices in NetElems (netcells)
+   get_net_elem_max_nodes = 0
+   do k=1,nump
+      get_net_elem_max_nodes = max(get_net_elem_max_nodes, netcell(k)%n)
+   end do
 end function get_net_elem_max_nodes
 
 
 integer function get_flow_elem_max_nodes()
- use network_data
- integer :: k
- ! Determine max nr. of flow nodes
- get_flow_elem_max_nodes = 0
- do k=1,ndx
-    get_flow_elem_max_nodes = max(get_flow_elem_max_nodes, size(nd(k)%nod))
- end do
+   use network_data
+   integer :: k
+   ! Determine max nr. of flow nodes
+   get_flow_elem_max_nodes = 0
+   do k=1,ndx
+      get_flow_elem_max_nodes = max(get_flow_elem_max_nodes, size(nd(k)%nod))
+   end do
 end function get_flow_elem_max_nodes
 
 integer function get_flow_elem_max_contour()
- use network_data
- integer :: k
- ! Determine max nr. of flow contour points (TODO: nodes+1?)
- get_flow_elem_max_contour = 0
- do k=1,ndx
-    get_flow_elem_max_contour = max(get_flow_elem_max_contour, size(nd(k)%x))
- end do
+   use network_data
+   integer :: k
+   ! Determine max nr. of flow contour points (TODO: nodes+1?)
+   get_flow_elem_max_contour = 0
+   do k=1,ndx
+      get_flow_elem_max_contour = max(get_flow_elem_max_contour, size(nd(k)%x))
+   end do
 end function get_flow_elem_max_contour
 
 !> Determine max nr. of neighbouring flow nodes,
@@ -2402,62 +2765,62 @@ end function get_flow_elem_max_nbs
 ! Further custom api functions
 
 subroutine find_cells(c_net_file, c_numCells, c_maxPerCell, cptr_netElemNode) bind(C, name="find_cells")
-    !DEC$ ATTRIBUTES DLLEXPORT :: find_cells
+   !DEC$ ATTRIBUTES DLLEXPORT :: find_cells
 
-    use iso_c_binding, only: c_int, c_char, c_ptr
-    use network_data
-    use unstruc_files
-    use m_netw
+   use iso_c_binding, only: c_int, c_char, c_ptr
+   use network_data
+   use unstruc_files
+   use m_netw
 
-    character(kind=c_char),intent(in)       :: c_net_file(MAXSTRLEN)
-    integer(c_int), intent(out)             :: c_numCells
-    integer(c_int), intent(out)             :: c_maxPerCell
-    type(c_ptr), intent(inout)              :: cptr_netElemNode     ! return values (ptr to 2d int array)
+   character(kind=c_char),intent(in)       :: c_net_file(MAXSTRLEN)
+   integer(c_int), intent(out)             :: c_numCells
+   integer(c_int), intent(out)             :: c_maxPerCell
+   type(c_ptr), intent(inout)              :: cptr_netElemNode     ! return values (ptr to 2d int array)
 
-    integer, pointer                        :: netElemNode(:)
-    character(len=strlen(c_net_file))       :: net_file
-    integer :: numk_read, numl_read, istat
-    integer :: maxNodes, ci, ni, i
+   integer, pointer                        :: netElemNode(:)
+   character(len=strlen(c_net_file))       :: net_file
+   integer :: numk_read, numl_read, istat
+   integer :: maxNodes, ci, ni, i
 
-    call resetFullFlowModel()
-    call INIDAT()
+   call resetFullFlowModel()
+   call INIDAT()
 
-    ! read grid filename from c-ptr
-    net_file = char_array_to_string(c_net_file, strlen(c_net_file))
+   ! read grid filename from c-ptr
+   net_file = char_array_to_string(c_net_file, strlen(c_net_file))
 
-    ! read grid from netcdf
-    call loadNetwork(net_file, istat, 0)
+   ! read grid from netcdf
+   call loadNetwork(net_file, istat, 0)
 
-    nump = 0
+   nump = 0
 
-    ! find cells
-    call FINDCELLS(0)
+   ! find cells
+   call FINDCELLS(0)
 
-    maxNodes = 0 ! find max num of vertices per cell
-    do ci=1, nump ! nump = num cells
-        maxNodes = max(maxNodes, netcell(ci)%n)
-    end do
+   maxNodes = 0 ! find max num of vertices per cell
+   do ci=1, nump ! nump = num cells
+      maxNodes = max(maxNodes, netcell(ci)%n)
+   end do
 
-    ! allocate 1d array (for 2d data)
-    allocate(netElemNode(nump*maxNodes))
+   ! allocate 1d array (for 2d data)
+   allocate(netElemNode(nump*maxNodes))
 
-    ! fill NetElemNode array
-    i=1
-    do ci=1, nump
-        do ni=1, maxNodes
-            if (ni <= netcell(ci)%n) then
-                netElemNode(i) = netcell(ci)%nod(ni)
-            else
-                netElemNode(i) = -1
-            endif
-            i=i+1
-        end do
-    end do
+   ! fill NetElemNode array
+   i=1
+   do ci=1, nump
+      do ni=1, maxNodes
+         if (ni <= netcell(ci)%n) then
+            netElemNode(i) = netcell(ci)%nod(ni)
+         else
+            netElemNode(i) = -1
+         endif
+         i=i+1
+      end do
+   end do
 
-    ! copy to c variables
-    cptr_netElemNode = c_loc(netElemNode(1)) ! TODO: Fedor/Tiemen: please review whether this still works (was fix for GNU Fortran "Error: Argument 'netelemnode' to 'c_loc' at (1) must be an associated scalar POINTER")
-    c_numCells = nump
-    c_maxPerCell = maxNodes
+   ! copy to c variables
+   cptr_netElemNode = c_loc(netElemNode(1)) ! TODO: Fedor/Tiemen: please review whether this still works (was fix for GNU Fortran "Error: Argument 'netelemnode' to 'c_loc' at (1) must be an associated scalar POINTER")
+   c_numCells = nump
+   c_maxPerCell = maxNodes
 
 end subroutine find_cells
 
@@ -2467,6 +2830,9 @@ subroutine get_snapped_feature(c_feature_type, c_Nin, cptr_xin, cptr_yin, c_Nout
    use iso_c_binding, only: c_int, c_double, c_char, c_ptr, c_f_pointer
    use m_snappol
    use m_missing
+   use m_sferic
+   use geometry_module, only: comp_breach_point
+   use m_alloc
    implicit none
 
    character(kind=c_char),             intent(in)    :: c_feature_type(MAXSTRLEN)   !< feature type ('thindam')
@@ -2483,34 +2849,161 @@ subroutine get_snapped_feature(c_feature_type, c_Nin, cptr_xin, cptr_yin, c_Nout
 
    real(c_double), pointer                           :: ptr(:)                      ! temporary pointer
 
-   double precision, dimension(:), target, allocatable, save     :: xout, yout                  !< memory leak
-   integer,          dimension(:), target, allocatable, save     :: feature_ids                 !< memory leak
-
-   double precision, dimension(:), allocatable       :: xin, yin
-
+   double precision, dimension(:), target, allocatable, save      :: xout, yout      !< memory leak
+   integer,          dimension(:), target, allocatable, save      :: feature_ids     !< memory leak  
+   double precision, dimension(:), allocatable                    :: xintemp, yintemp
+   integer                                                        :: ntemp
+   double precision, dimension(:), allocatable                    :: xin, yin
+   
+   ! Dambreak
+   integer                                                        :: startIndex, i, noutSnapped, lstart, oldSize
+   double precision, dimension(:), target, allocatable            :: xSnapped, ySnapped 
+   double precision, allocatable, dimension(:,:)                  :: xSnappedLinks, ySnappedLinks 
+   double precision                                               :: start_location_x, start_location_y, x_breach, y_breach  
+   integer                                                        :: feautureIncrement
+   
    c_ierror = 1
 
-!     read feature type from c-ptr
+   !     read feature type from c-ptr
    feature_type = char_array_to_string(c_feature_type, strlen(c_feature_type))
 
-!     allocate
+   !     allocate
    allocate(xin(c_Nin), yin(c_Nin))
 
-!     copy pointers to fortran array
+   !     copy pointers to fortran array
    call c_f_pointer(cptr_xin, ptr, (/c_Nin/))
    xin(:) = ptr
    call c_f_pointer(cptr_yin, ptr, (/c_Nin/))
    yin(:) = ptr
 
+   ! xin, yin arrays store the coordinates of the feature and are terminated with a dmiss value. 
+   ! The last valid coordinate is thus stored at index size(xin)-1  
    select case( feature_type )
-   case("thindam")
+   case("thindam","roofs")
       call snappol(c_Nin, xin, yin, DMISS, 1, c_Nout, xout, yout, feature_ids, c_ierror)
    case("fixedweir", "crosssection", "gate", "weir", "pump")
       call snappol(c_Nin, xin, yin, DMISS, 2, c_Nout, xout, yout, feature_ids, c_ierror)
    case("obspoint")
       call snappnt(c_Nin, xin, yin, DMISS, c_Nout, xout, yout, feature_ids, c_ierror)
-   case DEFAULT
-      call snapbnd(feature_type, c_Nin, xin, yin, DMISS, c_Nout, xout, yout, feature_ids, c_ierror)
+   case("sourcesink")
+      startIndex = 1
+      i = 1
+      ntemp   = 0
+      oldSize = 0
+      if (allocated(xintemp)) deallocate(xintemp)
+      if (allocated(yintemp)) deallocate(yintemp)
+      do while (i <= size(xin))
+         if(xin(i) == dmiss) then
+            if (allocated(xintemp)) oldSize = size(xintemp)
+            if (i - startIndex > 1) then
+               ! it is a polyline with at least 2 vertexses
+               ntemp = oldSize + 3
+               call realloc(xintemp, ntemp, keepExisting = .true.)
+               call realloc(yintemp, ntemp, keepExisting = .true.)
+               xintemp(oldSize + 1) = xin(startIndex)
+               yintemp(oldSize + 1) = yin(startIndex)
+               xintemp(oldSize + 2) = xin(i - 1)
+               yintemp(oldSize + 2) = yin(i - 1)
+               xintemp(oldSize + 3) = dmiss
+               yintemp(oldSize + 3) = dmiss
+            elseif (i - startIndex == 1) then
+               ! just one point
+               ntemp = oldSize + 2
+               call realloc(xintemp, ntemp, keepExisting = .true.)
+               call realloc(yintemp, ntemp, keepExisting = .true.)
+               xintemp(oldSize + 1) = xin(startIndex)
+               yintemp(oldSize + 1) = yin(startIndex)
+               xintemp(oldSize + 2) = dmiss
+               yintemp(oldSize + 2) = dmiss
+            else if (i - startIndex < 0) then
+               startIndex =  i + 1
+               continue
+            end if
+            ! the next start index
+            startIndex =  i + 1
+      endif
+      i = i + 1
+   enddo
+   if (ntemp > 0) then
+      call snappnt(ntemp, xintemp, yintemp, DMISS, c_Nout, xout, yout, feature_ids, c_ierror)
+   endif
+   ! re-map feature_ids array
+   ntemp = 1 ! first feature Index
+   do i = 1, size(xout)
+      if (xintemp(i) == dmiss) then
+         ! Input was a separator value
+         ntemp = ntemp+1 ! hereafter starts a new feature Index
+         feature_ids(i) = 0 ! 0 means: separator
+      else
+         ! Input was an actual sourcesink start or endpoint. Check snapped value now.
+         if (xout(i) == dmiss) then
+            ! Input point lies outside of grid.
+            feature_ids(i) = 0 ! 0 means: non-snapped.
+         else
+            ! Input was snapped to a grid cell.
+            feature_ids(i) = ntemp ! ntemp is: current feature Index
+         endif
+      end if
+   enddo
+   case("dambreak")
+      ! Extract polygon and the breach point coordinates
+      startIndex = 1
+      c_Nout     = 0
+      i          = 1
+      oldSize    = 0
+      if (allocated(xout)) deallocate(xout)
+      if (allocated(yout)) deallocate(yout)
+      if (allocated(feature_ids)) deallocate(feature_ids)
+      do while (i <= size(xin))
+         if(xin(i) == dmiss) then
+            ntemp = i - startIndex  + 1
+            ! Deallocation of any previous result
+            noutSnapped = 0
+            if(allocated(xintemp))  deallocate(xintemp)
+            if(allocated(yintemp))  deallocate(yintemp)
+            if(allocated(xSnapped)) deallocate(xSnapped)
+            if(allocated(ySnapped)) deallocate(ySnapped)
+            if(allocated(xSnappedLinks)) deallocate(xSnappedLinks)
+            if(allocated(ySnappedLinks)) deallocate(ySnappedLinks)
+            ! Allocation and assignment: polyline, dimiss, breach point 
+            allocate(xintemp(ntemp))
+            allocate(yintemp(ntemp))
+            xintemp = xin(startIndex: i - 1)
+            yintemp = yin(startIndex: i - 1)
+            start_location_x = xin(i + 1)
+            start_location_y = yin(i + 1)
+            ! Determine the flow links intersected by the input polygon, save the coordinates in xSnapped, ySnapped      
+            call snappol(ntemp, xintemp, yintemp, dmiss, 2, noutSnapped, xSnapped, ySnapped, feature_ids, c_ierror)
+            ! Project the breach point into the input polygon, determines the flow link where the breach is starting and gives back the coordinates of the middle point (x_breach, y_breach)
+            ! note: default values for jsferic, jasfer3D and dmiss
+            allocate(xSnappedLinks(size(xSnapped)-1,2))
+            allocate(ySnappedLinks(size(ySnapped)-1,2))
+            xSnappedLinks(:,1)=xSnapped(1:size(xSnapped)-1)
+            ySnappedLinks(:,1)=ySnapped(1:size(ySnapped)-1)
+            xSnappedLinks(:,2)=xSnapped(2:size(xSnapped))
+            ySnappedLinks(:,2)=ySnapped(2:size(ySnapped))
+            call comp_breach_point(start_location_x, start_location_y, xintemp, yintemp, ntemp, xSnappedLinks, ySnappedLinks, lstart, x_breach, y_breach, jsferic, jasfer3D, dmiss)
+            ! Save the results (snapped line, dmiss, snapped point, dmiss)
+            if(allocated(xout)) oldSize = size(xout)
+            c_Nout = c_Nout + noutSnapped  + 2
+            call realloc(xout, c_Nout, keepExisting = .true.)
+            call realloc(yout, c_Nout, keepExisting = .true.)
+            xout(oldSize + 1 : oldSize + noutSnapped) = xSnapped
+            yout(oldSize + 1 : oldSize + noutSnapped) = ySnapped
+            xout(oldSize + noutSnapped + 1) = x_breach
+            yout(oldSize + noutSnapped + 1) = y_breach
+            xout(oldSize + noutSnapped + 2) = dmiss
+            yout(oldSize + noutSnapped + 2) = dmiss
+            call realloc(feature_ids,  c_Nout, keepExisting = .true.)
+            feature_ids(oldSize + noutSnapped + 1) = feature_ids(c_Nout - 3) + 1
+            feature_ids(oldSize + noutSnapped + 2) = 0
+            startIndex =  i  +  2
+            i = startIndex
+         endif
+         i = i + 1
+      enddo
+   case default
+      call snapbnd(feature_type, c_Nin, xin, yin, dmiss, c_Nout, xout, yout, feature_ids, c_ierror)
    end select
    if ( c_ierror /= 0 .or. c_Nout == 0) goto 1234
 
@@ -2543,7 +3036,7 @@ subroutine write_netgeom(c_net_file) bind(C, name="write_netgeom")
    if ( netstat.ne.NETSTAT_OK ) then
       call findcells(0)
    end if
-   call unc_write_net(netgeom_file, 1, 0, 0, 2)
+   call unc_write_net(netgeom_file, janetcell=1, janetbnd=0, jaidomain=0, jaiglobal_s = 0, iconventions = 2)
 end subroutine write_netgeom
 
 subroutine write_partition_metis(c_netfile_in, c_netfile_out, c_npart, c_jacontiguous) bind(C, name="write_partition_metis")
@@ -2656,5 +3149,63 @@ subroutine write_partition_pol(c_netfile_in, c_netfile_out, c_polfile) bind(C, n
    endif
 
 end subroutine write_partition_pol
+
+!> Get the flow links indexes crossed by a polyline
+!!
+!! numberOfInputVertices        :: size of input vertices
+!! c_xVerticesCoordinates       :: pointer to x array of coordinates
+!! c_yVerticesCoordinates       :: pointer to y array of coordinates
+!! numberOfOutputIndexes        :: number of intersected flow links
+!! c_indexes                    :: flow links indexes
+function get_snapped_flow_links_indexes( numberOfInputVertices, c_xVerticesCoordinates, c_yVerticesCoordinates, startIndex, numberOfOutputIndexes, c_indexes) result(ierr) bind(C, name="get_snapped_flow_links_indexes")
+   !DEC$ ATTRIBUTES DLLEXPORT :: get_snapped_flow_links_indexes
+
+   use m_flowgeom
+   use gridoperations
+   use array_module
+   use m_missing
+
+   implicit none 
+   integer(c_int), intent(in)         :: numberOfInputVertices
+   type(c_ptr), intent(in)            :: c_xVerticesCoordinates, c_yVerticesCoordinates
+   integer(c_int), intent(out)        :: numberOfOutputIndexes
+   type(c_ptr), intent(inout)         :: c_indexes
+   integer, intent(in)                :: startIndex 
+   !return error code
+   integer                            :: ierr
+   !locals
+   double precision                   :: xa, ya, xb, yb, xm, ym, crpm, distanceStartPolygon
+   double precision, pointer          :: xVerticesCoordinates(:), yVerticesCoordinates(:)
+   integer                            :: l, k1, k2, np, crossed, isec
+   integer, allocatable, target, save :: indexes(:) !as commented above, this is a memory leak of lnx integers
+
+   ierr= 0
+
+   call c_f_pointer(c_xVerticesCoordinates, xVerticesCoordinates, (/ numberOfInputVertices /))
+   call c_f_pointer(c_yVerticesCoordinates, yVerticesCoordinates, (/ numberOfInputVertices /))
+
+   if (allocated(indexes)) then
+      deallocate(indexes)
+   endif
+
+   allocate(indexes(lnx))
+
+   numberOfOutputIndexes = 0
+   do l  = 1,lnx
+      k1 = ln(1,l) ; k2 = ln(2,l)
+      xa = xz(k1)  ; ya = yz(k1)
+      xb = xz(k2)  ; yb = yz(k2)
+      call crosspoly(xa,ya,xb,yb,xVerticesCoordinates,yVerticesCoordinates,numberOfInputVertices,xm,ym,crpm,crossed,isec,distanceStartPolygon)
+      if (crossed == 1) then
+         numberOfOutputIndexes = numberOfOutputIndexes + 1
+         indexes(numberOfOutputIndexes) = l
+      end if
+   enddo
+
+
+   ierr = convert_start_index(indexes, imiss, 1, startIndex)
+   c_indexes = c_loc(indexes)
+
+end function get_snapped_flow_links_indexes
 
 end module bmi

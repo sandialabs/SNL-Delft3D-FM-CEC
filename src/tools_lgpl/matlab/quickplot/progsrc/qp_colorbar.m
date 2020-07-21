@@ -15,7 +15,7 @@ function handle=qp_colorbar(varargin)
 %   If called with COLORBAR(H) or for an existing colorbar, don't change
 %   the NextPlot property.
 
-%   $Id: qp_colorbar.m 7978 2018-01-03 16:10:35Z jagers $
+%   $Id: qp_colorbar.m 62942 2019-01-13 21:06:51Z jagers $
 
 changeNextPlot = 1;
 
@@ -105,6 +105,13 @@ lengthcmap=size(get(GCF,'colormap'),1);
 
 t = get(h,'clim');
 d = (t(2) - t(1))/lengthcmap;
+dmin = 1e-13;
+singleColor = d<dmin;
+if singleColor
+    d = dmin;
+    t = mean(t) + [-1 1]*lengthcmap*d/2;
+    singleColor = true;
+end
 t = [t(1)+d/2  t(2)-d/2];
 
 %
@@ -175,7 +182,6 @@ if loc(1)=='v', % Append vertical scale to right of current plot
    set(ax,'Ydir','normal')
    set(ax,'YAxisLocation','right')
    set(ax,'xtick',[])
-
    % set up axes deletefcn
    set(ax,'tag','Colorbar','deletefcn','qp_colorbar delete')
 

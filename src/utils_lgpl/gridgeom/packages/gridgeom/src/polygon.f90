@@ -1,6 +1,6 @@
 !----- AGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2017-2018.                                
+!  Copyright (C)  Stichting Deltares, 2017-2020.                                
 !                                                                               
 !  This file is part of Delft3D (D-Flow Flexible Mesh component).               
 !                                                                               
@@ -27,8 +27,8 @@
 !                                                                               
 !-------------------------------------------------------------------------------
 
-! $Id: polygon.f90 8044 2018-01-24 15:35:11Z mourits $
-! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_lgpl/gridgeom/packages/gridgeom/src/polygon.f90 $
+! $Id: polygon.f90 65778 2020-01-14 14:07:42Z mourits $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/gridgeom/packages/gridgeom/src/polygon.f90 $
    module m_tpoly !< tpoly-type polygon/polyline
    implicit none
 
@@ -463,19 +463,44 @@ end module m_tpoly
     end if
     end subroutine polorientation
     
-   subroutine allocpoladm()
+   subroutine allocpoladm(Numpoly, Npolypoints)
    use m_alloc
    use m_polygon
-   maxpoly = ceiling(maxpoly*1.1)
-   call realloc(xpmin, maxpoly, keepExisting=.true.)
-   call realloc(xpmax, maxpoly, keepExisting=.true.)
-   call realloc(ypmin, maxpoly, keepExisting=.true.)
-   call realloc(ypmax, maxpoly, keepExisting=.true.)
-   call realloc(zpmin, maxpoly, keepExisting=.true.)
-   call realloc(zpmax, maxpoly, keepExisting=.true.)
-   call realloc(iistart, maxpoly, keepExisting=.true.)
-   call realloc(iiend, maxpoly, keepExisting=.true.)
-   call realloc(ipsection, maxpoly, keepExisting=.true.)
+   integer, intent(in) :: NumPoly!< Desired array capacity for polygon administration
+   integer, intent(in) :: Npolypoints !< Desired array capacity for polygon point administration
+
+   integer :: maxpolycur, maxpolypts
+   
+   !inquire for size only if allocated
+   if(allocated(xpmin)) then
+      maxpolycur = size(xpmin)
+   else
+      maxpolycur = 0
+   endif
+   
+   if (numpoly > maxpolycur ) then 
+      maxpoly = ceiling(max(numpoly, maxpoly)*1.1)
+      call realloc(xpmin, maxpoly, keepExisting=.true.)
+      call realloc(xpmax, maxpoly, keepExisting=.true.)
+      call realloc(ypmin, maxpoly, keepExisting=.true.)
+      call realloc(ypmax, maxpoly, keepExisting=.true.)
+      call realloc(zpmin, maxpoly, keepExisting=.true.)
+      call realloc(zpmax, maxpoly, keepExisting=.true.)
+      call realloc(iistart, maxpoly, keepExisting=.true.)
+      call realloc(iiend, maxpoly, keepExisting=.true.)
+   endif
+   
+   if(allocated(ipsection)) then
+      maxpolypts = size(ipsection)
+   else
+      maxpolypts = 0
+   endif
+
+   if (Npolypoints > maxpolypts) then
+      maxpolypts = ceiling(Npolypoints*1.1)
+      call realloc(ipsection, maxpolypts, keepExisting=.true.)
+   endif
+      
    end subroutine allocpoladm
    
    subroutine deallocpoladm()
@@ -487,6 +512,7 @@ end module m_tpoly
    end subroutine deallocpoladm
 
      subroutine inwhichpolygon(xp,yp,in)  ! ALS JE VOOR VEEL PUNTEN MOET NAGAAN OF ZE IN POLYGON ZITTEN
+   use m_alloc
    use m_polygon
    use m_missing
    use geometry_module
@@ -508,18 +534,21 @@ end module m_tpoly
   
    !     initialization
    if ( in < 0 ) then
-      call allocpoladm()
       ipoint = 1
       ipoly = 0
-      do while ( ipoint.lt.NPL .and. ipoly.lt.MAXPOLY )
+      do while (ipoint.lt.NPL)
          ipoly = ipoly+1
+         call allocpoladm(ipoly, NPL)
 
          !           get polygon start and end pointer respectively
          call get_startend(NPL-ipoint+1,xpl(ipoint:NPL),ypl(ipoint:NPL), istart, iend, dmiss)
          istart = istart+ipoint-1
          iend   = iend  +ipoint-1
 
-         if ( istart.ge.iend .or. iend.gt.NPL ) exit ! done
+         if ( istart.ge.iend .or. iend.gt.NPL ) then
+            exit ! done
+         endif
+         
 
          xpmin(ipoly) = minval(xpl(istart:iend))
          xpmax(ipoly) = maxval(xpl(istart:iend))
@@ -533,8 +562,13 @@ end module m_tpoly
          ipoint = iend+2
       end do   ! do while ( ipoint.lt.NPL .and. ipoly.lt.MAXPOLY )
       Npoly = ipoly
+
+      !if (iend > size(ipsection)) then
+      !   call realloc(ipsection, iend, keepexisting= .true.)
+      !endif
    end if
 
+   
    in = 0
    do ipoly=1,Npoly
       istart = iistart(ipoly)

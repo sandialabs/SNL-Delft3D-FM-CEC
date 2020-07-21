@@ -1,7 +1,7 @@
 module flow_data
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
+!  Copyright (C)  Stichting Deltares, 2011-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -25,8 +25,8 @@ module flow_data
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: flow_data.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/engines_gpl/wave/packages/data/src/flow_data.f90 $
+!  $Id: flow_data.f90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/wave/packages/data/src/flow_data.f90 $
 !!--description-----------------------------------------------------------------
 !
 !!--pseudo code and references--------------------------------------------------
@@ -76,43 +76,54 @@ subroutine flow_init (mode, it01, tscale)
 !
    mud          = .false.
    subdom_names = ' '
-   if (mode==stand_alone .or. swan_run%flowgridfile/=' ') then
+   if (swan_run%flowgridfile/=' ') then
+      !
+      ! Running in Delft3D FM mode
+      ! mode may be stand_alone or not
+      !
       if (swan_run%useflowdata .or. swan_run%swwav) then
-         if (swan_run%flowgridfile == ' ') then
-            if (swan_run%comfile == ' ') then
-               swan_run%comfile = swan_run%casl
-               num_subdomains = 1
-            else
-               num_subdomains = count_words(swan_run%comfile)
-            endif
-            !
-               allocate (runids(num_subdomains))
-            write(*,'(a,i0,a)') '*** MESSAGE: Using data from the following FLOW domain(s):'
-            do idom = 1,num_subdomains
-               call str_token(swan_run%comfile,runids(idom))
-               write(*,'(13x,a)') trim(runids(idom))
-            enddo
-            !
-            ! Obtain time settings from first com file
-            !
-            write(filnam,'(2a)') 'com-',trim(runids(1))
-            call get_params(tscale, dummy, filnam)
+         num_subdomains = checkcomfiles(swan_run%flowgridfile)
+         if (num_subdomains == 1) then
+            write(*,'(3a)') '*** MESSAGE: Using data from NetCDF file "', trim(swan_run%flowgridfile), '".'
          else
-            num_subdomains = checkcomfiles(swan_run%flowgridfile)
-            if (num_subdomains == 1) then
-               write(*,'(3a)') '*** MESSAGE: Using data from NetCDF file "', trim(swan_run%flowgridfile), '".'
-            else
-               write(*,'(a,i0,a)') '*** MESSAGE: Using data from ', num_subdomains, ' NetCDF files'
-               write(*,'(2a)')     '             Base name: ', trim(swan_run%flowgridfile)
-               write(*,'(a,i4.4)')  '             Partition range: 0000 - ', num_subdomains-1
-            endif
+            write(*,'(a,i0,a)') '*** MESSAGE: Using data from ', num_subdomains, ' NetCDF files'
+            write(*,'(2a)')     '             Base name: ', trim(swan_run%flowgridfile)
+            write(*,'(a,i4.4)')  '             Partition range: 0000 - ', num_subdomains-1
          endif
          flow_data_initialized = .true.
       endif
-   else
+   elseif (mode==stand_alone) then
+      !
+      ! Running in Delft3D 4 stand alone mode
+      !
+      if (swan_run%useflowdata .or. swan_run%swwav) then
+         if (swan_run%comfile == ' ') then
+            swan_run%comfile = swan_run%casl
+            num_subdomains = 1
+         else
+            num_subdomains = count_words(swan_run%comfile)
+         endif
+         !
+         allocate (runids(num_subdomains))
+         write(*,'(a,i0,a)') '*** MESSAGE: Using data from the following FLOW domain(s):'
+         do idom = 1,num_subdomains
+            call str_token(swan_run%comfile,runids(idom))
+            write(*,'(13x,a)') trim(runids(idom))
+         enddo
+         !
+         ! Obtain time settings from first com file
+         !
+         write(filnam,'(2a)') 'com-',trim(runids(1))
+         call get_params(tscale, dummy, filnam)
+         flow_data_initialized = .true.
+      endif
+   else ! mode/=stand_alone .and. swan_run%flowgridfile==' '
+      !
+      ! Running in Delft3D 4 coupled mode
+      !
       write (*,'(a)') '  Waiting for initialisation from FLOW'
       num_subdomains = wave_from_flow_init(subdom_names, it01, d_tscale, mud)
-      tscale        = real(d_tscale,sp)
+      tscale         = real(d_tscale,sp)
       if (num_subdomains < 1) then
          write(*,'(a)') '*** ERROR: Delftio initialization WAVE side failed'
          call wavestop(1, '           Is file ''dioconfig.ini'' present?')

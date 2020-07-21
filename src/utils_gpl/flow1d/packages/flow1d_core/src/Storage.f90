@@ -1,7 +1,7 @@
 module m_Storage
 !----- AGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2017-2018.                                
+!  Copyright (C)  Stichting Deltares, 2017-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify              
 !  it under the terms of the GNU Affero General Public License as               
@@ -25,8 +25,8 @@ module m_Storage
 !  Stichting Deltares. All rights reserved.
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: Storage.f90 8044 2018-01-24 15:35:11Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_gpl/flow1d/packages/flow1d_core/src/Storage.f90 $
+!  $Id: Storage.f90 65948 2020-02-07 11:07:24Z noort $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_gpl/flow1d/packages/flow1d_core/src/Storage.f90 $
 !-------------------------------------------------------------------------------
 
    use MessageHandling
@@ -43,18 +43,14 @@ module m_Storage
    integer, public, parameter :: nt_Reservoir   = 2
    integer, public, parameter :: nt_Closed      = 3
    integer, public, parameter :: nt_Loss        = 4
+   double precision, public, parameter:: slot_area = 1d-2 ! value to be used for storageStreetArea when storageType is "closed"
    
    public realloc
    public dealloc
-   public create
 
    public addStorage
    public getVolume
    public getSurface
-   public getbedLevel
-   public getStreetLevel
-   public getStorageType
-   public noStreetStorage
    public printData
    public fill_hashtable
 
@@ -63,22 +59,17 @@ module m_Storage
       module procedure printStorage
    end interface
    
-   interface getbedLevel
-      module procedure getbedLevelStorage
-   end interface
-   
    interface GetVolume
-      module procedure GetVolumeByGridPoint
       module procedure GetVolumeByStorNode
    end interface GetVolume
+   
+   interface GetSurface
+      module procedure GetSurfaceByStorNode
+   end interface GetSurface
 
    interface fill_hashtable
       module procedure fill_hashtable_sto
    end interface 
-
-   interface create
-      module procedure createStorage
-   end interface
 
    interface realloc
       module procedure reallocStorage
@@ -91,37 +82,34 @@ module m_Storage
     !---------------------------------------------------------
   
    type, public :: t_storage
-      character(len=idlen)    :: id                      !< name of storage area
+      character(len=idlen)    :: id                      !< unique id of storage area
+      character(len=idlen)    :: nodeId                  !< Node Id
+      character(len=idlen)    :: name                    !< Long name in the user interface
       integer                 :: gridPoint               !< gridpoint index
-                                                         !> type of storage on street\n
-                                                         !! 0: no storage \n
-                                                         !! 2: reservoir storage \n
-                                                         !! 3: closed manhole \n
-                                                         !! 4: loss
-      integer                 :: storageType             
+      integer                 :: node_index              !< connection node index
+      integer                 :: storageType             !< type of storage on street\n
+                                                         !! 0: no storage\n
+                                                         !! 2: reservoir storage\n
+                                                         !! 3: closed manhole
       type(t_table), pointer  :: storageArea             !< table containing storage area and levels
       type(t_table), pointer  :: streetArea              !< table containing storage area and levels on street level
+      logical                 :: useStreetStorage        !< flag indicating whether streetstorage is to be used
+      double precision        :: x                       !< (optional) x-coordinate
+      double precision        :: y                       !< (optional) y-cooridnate
+      logical                 :: useTable                !< flag indicating whether table is to be used
    end type
    
    type, public :: t_storageSet
       integer                                               :: Size = 0
       integer                                               :: growsBy = 2000
       integer                                               :: Count= 0
+      integer                                               :: Count_xy = 0 ! Number of storage nodes that are defined by x-, y-coordinates
+      integer                                               :: Count_closed = 0 ! Number of storage nodes with storageType "closed"
       type(t_storage), pointer, dimension(:)                :: stor
-      integer, dimension(:), allocatable                    :: mapping
       type(t_hashlist)                                      :: hashlist
    end type t_storageSet
    
 contains
-
-   subroutine createStorage(storS, nnode, ngrid)
-      integer ngrid
-      integer nnode
-      type(t_storageSet)               :: storS
-      
-      allocate(storS%mapping(-nnode:ngrid))
-      storS%mapping = 0
-   end subroutine createStorage
     
    integer function addStorage(storS, id, gridPoint, storageType, levels, storageArea, interpolTypeStorage, lengthStorageArea,       &
                                levelsOnStreet, storageAreaOnStreet, interpolTypeStreet, lengthStreetArea)
@@ -161,14 +149,6 @@ contains
       nullify(storS%stor(istor)%storageArea)
       nullify(storS%stor(istor)%streetArea)
       
-      ! look for nodenumber, using gridpoint index
-      if (gridPoint >= lbound(storS%mapping,1) .and. gridPoint <= ubound(storS%mapping,1)) then
-         storS%mapping(gridpoint) = storS%Count
-      else
-         write(line, '(''Internal error: gridPoint in setStorage has value '', i5, '' values must be between 1 and '', i5)') gridPoint, size(storS%mapping) 
-         call Setmessage(level_fatal, line)
-      endif
-      
       storS%stor(istor)%storageType = storageType
       storS%stor(istor)%id = id 
       ! Look for gridpoint index in network
@@ -195,25 +175,23 @@ contains
    
       ! Program code
       if (storS%count > 0) then
-         do i = 1, storS%Count
-            if (associated(storS%stor(i)%storageArea)) then
-               call dealloc(storS%stor(i)%storageArea)
-               storS%stor(i)%storageArea => null()
-            endif
-            if (associated(storS%stor(i)%streetArea)) then
-               call dealloc(storS%stor(i)%streetArea)
-               storS%stor(i)%streetArea => null()
-            endif
-         enddo
-         deallocate(storS%stor)
+         if (associated(storS%stor)) then 
+            do i = 1, storS%Count
+               if (associated(storS%stor(i)%storageArea)) then
+                  call dealloc(storS%stor(i)%storageArea)
+                  storS%stor(i)%storageArea => null()
+               endif
+               if (associated(storS%stor(i)%streetArea)) then
+                  call dealloc(storS%stor(i)%streetArea)
+                  storS%stor(i)%streetArea => null()
+               endif
+            enddo
+            deallocate(storS%stor)
+         endif
       endif
       storS%stor => null()
       storS%Size  = 0
       storS%Count = 0
-      if (allocated(storS%mapping)) then
-         deallocate(storS%mapping)
-      endif
-      
       call dealloc(storS%hashlist)
 
    end subroutine
@@ -248,66 +226,30 @@ contains
       storS%Size = storS%Size+storS%growsBy
    end subroutine
    
-   
-   double precision function getSurface(storS, gridpoint, level)
+   double precision function getSurfaceByStorNode(storage, level)
       ! Modules
    
       implicit none
       ! Input/output parameters
-      type(t_storageSet), intent(in)         :: stors
-      integer, intent(in)                    :: gridpoint
+      type(t_storage), intent(in)            :: storage
       double precision, intent(in)           :: level
 
-      integer     istor
-      type(t_storage), pointer         :: storage
-      ! Program code
-      !         Check if storage on street is to be calculated:
-   
-      istor = storS%mapping(gridpoint)
-      if (istor/=0) then
-         storage=>stors%stor(istor)
-         if (associated(storage%streetArea) ) then
-            ! check if water level is above street level
-            if (level > storage%streetArea%x(1) ) then
-               getSurface = interpolate(storage%streetArea, level)
-               ! finished
-               return
-            endif
+      if (storage%useStreetStorage .and. (.not. storage%useTable)) then
+         ! check if water level is above street level
+         if (level >= storage%streetArea%x(1) ) then
+            getSurfaceByStorNode = interpolate(storage%streetArea, level)
+            ! finished
+            return
          endif
-         ! else : calculate well storage:
-         if (storage%storageType /= nt_None .and. level > getbedLevelStorage(storS, gridPoint, 0d0) ) then
-            getSurface = interpolate(storage%storageArea, level)
-         else
-            getSurface = 0d0
-         endif
-      else
-         getSurface = 0d0
-      endif   
-   end function getSurface
-
-   
-   double precision function getVolumeByGridPoint(storS, gridPoint, level)
-      ! Modules
-
-      implicit none
-      ! Input/output parameters
-      type(t_storageSet), intent(in)         :: stors
-      integer, intent(in)                    :: gridpoint
-      double precision, intent(in)           :: level
-
-      ! Local variables
-      integer     istor
-   
-      ! Program code
-
-      istor = storS%mapping(gridpoint)
-      if (istor/=0) then
-         getVolumeByGridPoint = getVolumeByStorNode(storS%stor(istor), level)
-      else
-         getVolumeByGridPoint = 0d0
       endif
-
-   end function getVolumeByGridPoint
+      ! else : calculate well storage:
+      if (storage%storageType /= nt_None .and. level >= storage%storageArea%x(1)-1d-4 ) then
+         getSurfaceByStorNode = interpolate(storage%storageArea, level)
+      else
+         getSurfaceByStorNode = 0d0
+      endif
+      
+   end function getSurfaceByStorNode
 
    double precision function getVolumeByStorNode(storage, level)
       ! Modules
@@ -326,7 +268,7 @@ contains
       if (storage%storagetype/=nt_none) then
          level2 = level
          getVolumeByStorNode = 0d0
-         if (associated(storage%streetArea) ) then
+         if (storage%useStreetStorage .and. (.not. storage%useTable)) then
             ! check if water level is above street level
             if (level > storage%streetArea%x(1)) then
                getVolumeByStorNode= integrate(storage%streetArea, level)
@@ -341,89 +283,6 @@ contains
          getVolumeByStorNode = 0d0
       endif
    end function getVolumeByStorNode
-
-   subroutine noStreetStorage(storS, gridPoint)
-      type(t_storageSet), intent(inout)  :: storS
-      integer, intent(in)                :: gridpoint
-
-      ! Local variables
-      integer                          :: istor
-      type(t_storage), pointer         :: storage
-      double precision                 :: street_level
-
-   
-      istor = storS%mapping(gridpoint)
-      if (istor/=0) then
-         storage=>stors%stor(istor)
-         if (associated(storage%streetArea)) then
-
-            ! Set Area to 0.0 but keep street level
-            street_level = storage%streetArea%x(1)
-
-            deallocate(storage%streetArea%x)
-            deallocate(storage%streetArea%y)
-
-            allocate(storage%streetArea%x(1))
-            allocate(storage%streetArea%y(1))
-
-            storage%streetArea%x(1) = street_level
-            storage%streetArea%y(1) = 0d0
-            storage%streetArea%length = 1
-            storage%streetArea%stCount = 0
-
-         endif
-      endif
-   end subroutine noStreetStorage
-
-
-   double precision function getbedLevelStorage(storS, gridPoint, default)
-      type(t_storageSet), intent(in)  :: storS
-      integer, intent(in)                    :: gridpoint
-
-      ! Local variables
-      integer     istor
-      type(t_storage), pointer         :: storage
-      double precision                 :: default     
-   
-      istor = storS%mapping(gridpoint)
-      if (istor/=0) then
-         storage=>stors%stor(istor)
-         getbedLevelStorage = storage%storageArea%x(1)
-      else
-         getbedLevelStorage = default
-      endif
-   end function getbedLevelStorage
-
-
-   double precision function getStreetLevel(storS, gridpoint)
-      type(t_storageSet), intent(inout)  :: storS
-      integer, intent(in)                :: gridpoint
-
-      ! Local variables
-      integer     istor
-      type(t_storage), pointer         :: storage
-   
-      getStreetLevel = 99999
-      istor = storS%mapping(gridpoint)
-      if (istor/=0) then
-         storage=>stors%stor(istor)
-         if (associated(storage%streetArea)) then
-            getStreetLevel = storage%streetArea%x(1)
-         endif
-      endif
-   end function getStreetLevel
-
-   integer function getStorageType(storS, gridpoint)
-      type(t_storageSet)     :: storS
-      integer                 :: gridpoint
-   
-      if (storS%mapping(gridpoint) /=0) then
-         getStorageType = storS%stor(storS%mapping(gridpoint))%storageType
-      else
-         getStorageType = nt_none
-      endif
-
-   end function getStorageType
 
    subroutine fill_hashtable_sto(storS)
    
@@ -476,5 +335,6 @@ contains
          call printData(storage%streetArea, unit)
       endif
    end subroutine printStorage
+
    
 end module m_Storage

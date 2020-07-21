@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2018.
+!!  Copyright (C)  Stichting Deltares, 2012-2020.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -26,6 +26,7 @@
 !
 module dlwq_netcdf
     use netcdf
+    use output, only: ncopt
 
     implicit none
 
@@ -92,25 +93,28 @@ end function dlwqnc_lowercase
 ! Arguments:
 !     ncid               ID of the NetCDF file
 !     attribute          Name of the attribute
+!     value              (Optionally) value of the attribute
 !     varid              ID of the requested variable
 !
 ! Returns:
 !     nf90_noerr if variable found, otherwise an error code
 !
-integer function dlwqnc_find_var_with_att( ncid, attribute, varid )
+integer function dlwqnc_find_var_with_att( ncid, attribute, varid, expected_value )
 
     implicit none
 
-    integer, intent(in)            :: ncid
-    character(len=*), intent(in)   :: attribute
-    integer, intent(out)           :: varid
+    integer, intent(in)                    :: ncid
+    character(len=*), intent(in)           :: attribute
+    integer, intent(out)                   :: varid
+    character(len=*), intent(in), optional :: expected_value
 
-    integer                        :: nvars
-    integer                        :: ierror
-    integer                        :: i
-    integer                        :: xtype, length, attnum
+    integer                                :: nvars
+    integer                                :: ierror
+    integer                                :: i
+    integer                                :: xtype, length, attnum
 
-    character(len=nf90_max_name)   :: varname
+    character(len=nf90_max_name)           :: varname
+    character(len=nf90_max_name)           :: att_value
 
     dlwqnc_find_var_with_att = -1
     varid                    = -1
@@ -129,7 +133,21 @@ integer function dlwqnc_find_var_with_att( ncid, attribute, varid )
         elseif ( ierror == nf90_noerr ) then
             varid = i
             ierror = nf90_inquire_variable( ncid, varid, name=varname )
-            exit
+
+            if ( present(expected_value) ) then
+                ierror = nf90_get_att( ncid, varid, attribute, att_value )
+                if ( ierror /= nf90_noerr ) then
+                    cycle ! Not the right type, it appears
+                else
+                    if ( att_value == expected_value ) then
+                        exit  ! Found the variable we are looking for
+                    else
+                        cycle ! Try and find another one
+                    endif
+                endif
+            else
+                exit ! No further checks needed
+            endif
         endif
     enddo
 
@@ -217,7 +235,7 @@ integer function dlwqnc_copy_mesh( ncidin, ncidout, meshidin, mesh_name, type_ug
 
     integer                           :: meshidout, varidin, varidout
     integer                           :: ierror
-    integer, dimension(7)             :: ierrorn
+    integer, dimension(10)            :: ierrorn
     integer                           :: meshvalue
     integer                           :: i, k
     integer                           :: xtype, length, attnum, crs_value
@@ -306,6 +324,8 @@ integer function dlwqnc_copy_mesh( ncidin, ncidout, meshidin, mesh_name, type_ug
             ierrorn(6) = dlwqnc_copy_associated( ncidin, ncidout, meshidin, meshidout, "face_edge_connectivity", dimsizes )
             ierrorn(7) = dlwqnc_copy_associated( ncidin, ncidout, meshidin, meshidout, &
                         trim(mesh_name)//"_edge_bc", dimsizes, use_attrib = .false. )
+            ierrorn(8) = dlwqnc_copy_associated( ncidin, ncidout, meshidin, meshidout, "projected_coordinate_system", &
+                        dimsizes, use_attrib = .false. )
         case ( type_ugrid_node_crds )
             warning_message = .true.
             ierrorn(1) = dlwqnc_copy_associated( ncidin, ncidout, meshidin, meshidout, "edge_coordinates", dimsizes )
@@ -313,6 +333,8 @@ integer function dlwqnc_copy_mesh( ncidin, ncidout, meshidin, mesh_name, type_ug
             ierrorn(3) = dlwqnc_copy_associated( ncidin, ncidout, meshidin, meshidout, "edge_node_connectivity", dimsizes )
             ierrorn(4) = dlwqnc_copy_associated( ncidin, ncidout, meshidin, meshidout, "edge_face_connectivity", dimsizes )
             ierrorn(5) = dlwqnc_copy_associated( ncidin, ncidout, meshidin, meshidout, "face_node_connectivity", dimsizes )
+            ierrorn(6) = dlwqnc_copy_associated( ncidin, ncidout, meshidin, meshidout, "projected_coordinate_system", &
+                        dimsizes, use_attrib = .false. )
             warning_message = .false.
     end select
 
@@ -576,8 +598,12 @@ recursive function dlwqnc_copy_associated( ncidin, ncidout, meshidin, meshidout,
         !       instead.
         !
 #ifdef NetCDF4
-        ierror = nf90_def_var( ncidout, trim(varname), xtype, dimids(1:ndims), newvarid, &
-                     deflate_level = dlwqnc_deflate )
+        if ( ncopt(4) == 1 .and. ncopt(2) /= 0 ) then
+            ierror = nf90_def_var( ncidout, trim(varname), xtype, dimids(1:ndims), newvarid, &
+                         deflate_level = dlwqnc_deflate )
+        else
+            ierror = nf90_def_var( ncidout, trim(varname), xtype, dimids(1:ndims), newvarid )
+        endif
 #else
         ierror = nf90_def_var( ncidout, trim(varname), xtype, dimids(1:ndims), newvarid )
 #endif
@@ -647,18 +673,23 @@ end function dlwqnc_copy_associated
 !     otherwise we get an error "nf90_eedge"
 !
 integer function dlwqnc_copy_int_var( ncidin, ncidout, varin, varout, ndims, dimids, dimsizes )
+!   use ISO_C_BINDING
+
     integer, intent(in)                   :: ncidin, ncidout, varin, varout, ndims
     integer, intent(in), dimension(:)     :: dimids, dimsizes
 
-    integer                               :: sz
+    integer                               :: sz, sz1
     integer                               :: ierror
     integer                               :: ierr
     integer                               :: i, j
     integer                               :: xtype, length, attnum
     integer                               :: oldvarid, newvarid
 
+!   integer(kind=c_int), dimension(:), allocatable    :: value
     integer, dimension(:), allocatable    :: value
     integer, dimension(:,:), allocatable  :: value2d
+
+    integer                               :: start, count, chunk
 
     dlwqnc_copy_int_var = -1
 
@@ -667,17 +698,11 @@ integer function dlwqnc_copy_int_var( ncidin, ncidout, varin, varout, ndims, dim
         do i = 1,ndims
             sz = sz * dimsizes(dimids(i))
         enddo
-        allocate( value(sz) )
+        allocate( value(sz), stat = ierr )
         ierror = nf90_get_var( ncidin, varin, value )
     else
-        allocate( value2d(dimsizes(dimids(1)),dimsizes(dimids(2))) )
+        allocate( value2d(dimsizes(dimids(1)),dimsizes(dimids(2))), stat = ierr )
         ierror = nf90_get_var( ncidin, varin, value2d )
-    endif
-
-    if ( ierror /= nf90_noerr ) then
-        dlwqnc_copy_int_var = ierror
-        if (dlwqnc_debug) write(*,*) 'Error retrieving integer values: ', ierror, ' -- size: ', sz
-        return
     endif
 
     if ( ndims /= 2 ) then
@@ -685,6 +710,7 @@ integer function dlwqnc_copy_int_var( ncidin, ncidout, varin, varout, ndims, dim
     else
         ierror = nf90_put_var( ncidout, varout, value2d )
     endif
+
     if ( ierror /= nf90_noerr ) then
         dlwqnc_copy_int_var = ierror
         return
@@ -1091,19 +1117,30 @@ integer function dlwqnc_create_wqvariable( ncidout, mesh_name, wqname, longname,
         endif
     enddo
 
+    !
+    ! TODO: support for chunking - this requires an array of chunksizes per dimension
+    !
     if ( nolayid /= dlwqnc_type2d ) then
 #ifdef NetCDF4
-        ierror = nf90_def_var( ncidout, name, nf90_float, (/ noseglid, nolayid, ntimeid /), wqid, &
-                     deflate_level= dlwqnc_deflate )
-#else
-        ierror = nf90_def_var( ncidout, name, nf90_float, (/ noseglid, nolayid, ntimeid /), wqid)
+        if ( ncopt(1) == 4 .and. ncopt(2) /= 0 ) then
+            ierror = nf90_def_var( ncidout, name, nf90_float, (/ noseglid, nolayid, ntimeid /), wqid, &
+                         deflate_level= ncopt(2) )
+        else
+#endif
+            ierror = nf90_def_var( ncidout, name, nf90_float, (/ noseglid, nolayid, ntimeid /), wqid)
+#ifdef NetCDF4
+        endif
 #endif
     else
 #ifdef NetCDF4
-        ierror = nf90_def_var( ncidout, name2d, nf90_float, (/ noseglid, ntimeid /), wqid, &
-                     deflate_level= dlwqnc_deflate )
-#else
-        ierror = nf90_def_var( ncidout, name2d, nf90_float, (/ noseglid, ntimeid /), wqid)
+        if ( ncopt(1) == 4 .and. ncopt(2) /= 0 ) then
+            ierror = nf90_def_var( ncidout, name2d, nf90_float, (/ noseglid, ntimeid /), wqid, &
+                         deflate_level= ncopt(2) )
+        else
+#endif
+            ierror = nf90_def_var( ncidout, name2d, nf90_float, (/ noseglid, ntimeid /), wqid)
+#ifdef NetCDF4
+        endif
 #endif
     endif
 !    ierror = nf90_def_var( ncidout, name, nf90_float, (/ noseglid, nolayid, ntimeid /), wqid )
@@ -1112,7 +1149,11 @@ integer function dlwqnc_create_wqvariable( ncidout, mesh_name, wqname, longname,
         dlwqnc_create_wqvariable = ierror
         return
     else if ( ierror == nf90_enameinuse ) then
-        ierror = nf90_inq_varid( ncidout, name, wqid )
+        if ( nolayid /= dlwqnc_type2d ) then
+            ierror = nf90_inq_varid( ncidout, name, wqid )
+        else
+            ierror = nf90_inq_varid( ncidout, name2d, wqid )
+        endif
     endif
 
     ierror = nf90_put_att( ncidout, wqid, "long_name", longname )
@@ -1128,7 +1169,7 @@ integer function dlwqnc_create_wqvariable( ncidout, mesh_name, wqname, longname,
     endif
 
     ierror = nf90_put_att( ncidout, wqid, "_FillValue", -999.0 )
-    if ( ierror /= 0 ) then
+    if ( ierror /= 0 .and. ierror /= nf90_elatefill ) then
         dlwqnc_create_wqvariable = ierror
         return
     endif

@@ -1,6 +1,6 @@
 !----- LGPL --------------------------------------------------------------------
 !
-!  Copyright (C)  Stichting Deltares, 2011-2018.
+!  Copyright (C)  Stichting Deltares, 2011-2020.
 !
 !  This library is free software; you can redistribute it and/or
 !  modify it under the terms of the GNU Lesser General Public
@@ -25,12 +25,13 @@
 !
 !-------------------------------------------------------------------------------
 
-!  $Id: coordinate_reference_system.F90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_lgpl/io_netcdf/packages/io_netcdf/src/coordinate_reference_system.F90 $
+!  $Id: coordinate_reference_system.F90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/io_netcdf/packages/io_netcdf/src/coordinate_reference_system.F90 $
 
 !> Module for utility types and functions for working with coordinates in different coordinate systems.
 module coordinate_reference_system
    use messagehandling
+   use netcdf
 
    implicit none
 
@@ -57,13 +58,166 @@ module coordinate_reference_system
 
    !> Container for information about coordinate reference system in a NetCDF-file.
    type t_crs
-      logical                         :: is_spherical  !< Whether or not spherical (otherwise some projected crs).
       character(len=64)               :: varname = ' ' !< Name of the NetCDF variable containing this CRS
       integer                         :: epsg_code     !< EPSG code (more info: http://spatialreference.org/)
+      character(len=1024)             :: proj_string   !< PROJ-string (more info: http://proj4.org)
       type(nc_attribute), allocatable :: attset(:)     !< General set with all/any attributes about this CRS.
    end type t_crs
 
    contains
+
+!!
+!! Inquiry functions: detecting coordinate reference systems, grid mappings, etc.
+!!
+
+!> Finds the (first eligible) grid_mapping variable in a NetCDF dataset.
+!! Search is in the following order:
+!! 1. user-specified preferred_name (if given)
+!! 2. 'projected_coordinate_system'
+!! 3. 'wgs84'
+!! 4. The first variable that has an attribute :grid_mapping_name
+function find_grid_mapping_var(ncid, varid, preferred_name) result(ierr)
+   integer,                    intent(in   ) :: ncid           !< NetCDF dataset id
+   integer,                    intent(  out) :: varid          !< The NetCDF variable ID pointing to the grid mapping variable, if found,
+   character(len=*), optional, intent(in   ) :: preferred_name !< Searches first for the given variable name, before trying the defaults.
+   integer                                   :: ierr           !< Result status (IONC_NOERR==NF90_NOERR) if successful.
+
+   integer :: i, numvar
+   logical :: found
+
+   ierr = 0 ! TODO: AvD: into separate ionc_constants.F90
+   found = .false.
+
+   ! 1. preferred_name
+   if (present(preferred_name)) then
+      ierr = nf90_inq_varid(ncid, preferred_name, varid)
+      if (ierr == nf90_noerr) then
+         found = is_grid_mapping(ncid, varid)
+      end if
+   end if
+
+   if (found) then
+      return
+   end if
+
+   ! 2. projected_coordinate_system
+   ierr = nf90_inq_varid(ncid, 'projected_coordinate_system', varid)
+   if (ierr == nf90_noerr) then
+      found = is_grid_mapping(ncid, varid)
+   end if
+
+   if (found) then
+      return
+   end if
+
+   ! 3. wgs84
+   ierr = nf90_inq_varid(ncid, 'wgs84', varid)
+   if (ierr /= nf90_noerr) then
+      ierr = nf90_inq_varid(ncid, 'WGS84', varid)  ! needed for DIMR sets 2.0.6, 2.0.7 and 2.0.8
+   end if
+   if (ierr == nf90_noerr) then
+      found = is_grid_mapping(ncid, varid)
+   end if
+
+   if (found) then
+      return
+   end if
+
+   ! 4. remaining variables
+   ierr = nf90_inquire(ncid, nVariables = numvar)
+   do i=1,numvar
+      found = is_grid_mapping(ncid, i)
+      if (found) then
+         varid = i
+         return
+      end if
+   end do
+   
+   ! X. Nothing found
+   ierr = 123 ! TODO: AvD: make a separate ionc_constants.F90 for this
+
+end function find_grid_mapping_var
+
+
+!> Returns whether the specified variable is a grid_mapping variable.
+!! A variable is considered a grid_mapping variable if it has the
+!! attribute :grid_mapping_name.
+function is_grid_mapping(ncid, varid)
+   integer,                    intent(in   ) :: ncid           !< NetCDF dataset id
+   integer,                    intent(in   ) :: varid          !< NetCDF variable id
+   logical :: is_grid_mapping !< Indicates whether the variable is a grid_mapping variable.
+   
+   integer :: ierr
+   integer :: attlen
+
+   ierr = nf90_inquire_attribute(ncid, varid, name='grid_mapping_name', len=attlen)
+   is_grid_mapping = (ierr == nf90_noerr) ! Note: we don't check on the actual attribute value.
+end function is_grid_mapping
+
+
+!> Detects and initializes the PROJ-string in a given coordinate reference system.
+!! Stored in the crs%proj_string attribute, for repeated use later.
+function detect_proj_string(crs) result(ierr)
+   use string_module, only: strcmpi, char_array_to_string_by_len
+   implicit none
+
+   type(t_crs),         intent(inout) :: crs         !< The coordinate reference system container.
+   integer                            :: ierr        !< Result status (IONC_NOERR==NF90_NOERR) if successful.
+
+   integer :: i, natts
+   logical :: found
+
+   ierr = 0 ! TODO: AvD
+   found = .false.
+   natts = size(crs%attset)
+   do i=1,natts
+      if (strcmpi(crs%attset(i)%attname, 'proj4_params') .and. crs%attset(i)%len > 0) then
+         crs%proj_string = char_array_to_string_by_len(crs%attset(i)%strvalue, crs%attset(i)%len)
+         found = .true.
+      end if
+   end do
+   
+   if (.not. found) then
+      ierr = get_proj_string_from_epsg(crs%epsg_code, crs%proj_string)
+   end if
+end function detect_proj_string
+
+
+!> Gives the PROJ-string for a given EPSG code.
+!! NOTE: This routine is a convenience callback. Preferrably, the strings come directly from attribute values in a data file.
+function get_proj_string_from_epsg(epsg, proj_string) result(ierr)
+   use string_module
+   implicit none
+
+   integer,             intent(in   ) :: epsg        !< The EPSG code for the coordinate reference system.
+   character(len=1024), intent(  out) :: proj_string !< The PROJ-string for the given crs.
+   integer                            :: ierr        !< Result status (IONC_NOERR==NF90_NOERR) if successful.
+
+   integer :: i, natts
+   logical :: found
+
+   ierr = 0 ! TODO: AvD
+
+   select case(epsg)
+   case (4326)
+      proj_string = WGS84_PROJ_STRING
+   case (28992)
+      proj_string = RIJKSDRIEHOEK_PROJ_STRING
+   case (25832)
+      proj_string = '+proj=utm +zone=32 +ellps=GRS80 +units=m +no_defs'
+   case(31467)
+      proj_string = '+proj=tmerc +lat_0=0 +lon_0=9 +k=1 +x_0=3500000 +y_0=0 +ellps=bessel +datum=potsdam +units=m +no_defs '
+   case default
+      ierr = 13 ! TODO: AvD
+   end select
+
+end function get_proj_string_from_epsg
+
+
+!!
+!! Transformation functions: the actual coordinate transformations
+!!
+
 
 #ifdef HAVE_PROJ
    !> Returns a projection object for the given projection string.
@@ -78,15 +232,14 @@ module coordinate_reference_system
       type(pj_object)     :: projection !< coordinate system object.
       character(len=1024) :: message !< Temporary variable for writing log messages.
 
-      write(message, *) 'Initializing projection for proj string: "', proj_string, '"'
       call mess(LEVEL_INFO, trim(message))
       projection = pj_init_plus(trim(proj_string)//char(0))
       if (.not. pj_associated(projection)) then
-         write(message, *) 'Cannot initialize projection for proj string: "', proj_string, '"'
          call mess(LEVEL_ERROR, trim(message))
          return
       endif
    end function
+
 
    !> Transforms the given coordinates from the given source coordinate system to the given destination coordinate system.
    !! This subroutine uses the proj4 library for coordinate transformations.

@@ -1,6 +1,6 @@
 !----- AGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2015-2018.                                
+!  Copyright (C)  Stichting Deltares, 2015-2020.                                
 !                                                                               
 !  This file is part of Delft3D (D-Flow Flexible Mesh component).               
 !                                                                               
@@ -32,9 +32,15 @@
      rank = 0
   case("iglobal_s")
      rank = 1
+  case("hwav")
+     rank = 1
   case("twav")
      rank = 1
   case("Uorb")
+     rank = 1
+  case("infilt")
+     rank = 1
+  case("infiltcap")
      rank = 1
   case("shx")
      rank = 1
@@ -58,8 +64,6 @@
      rank = 1
   case("vicushp")
      rank = 1
-  case("vos")
-     rank = 2
   case("shL")
      rank = 1
   case("shB")
@@ -82,11 +86,43 @@
      rank = 1
   case("wy")
      rank = 1
-  case("wmag")
-     rank = 1
   case("rain")
      rank = 1
   case("evap")
+     rank = 1
+  case("numlatsg")
+     rank = 0
+  case("qplat")
+     rank = 1
+  case("qqlat")
+     rank = 1
+  case("balat")
+     rank = 1
+  case("n1latsg")
+     rank = 1
+  case("n2latsg")
+     rank = 1
+  case("nnlat")
+     rank = 1
+  case("kclat")
+     rank = 1
+  case("qinext")
+     rank = 1
+  case("qinextreal")
+     rank = 1
+  case("vincum")
+     rank = 1
+  case("rainuni")
+     rank = 0
+  case("zbndz")
+     rank = 1
+  case("zbndu")
+     rank = 1
+  case("zbndq")
+     rank = 1
+  case("turkin1")
+     rank = 1
+  case("vicwws")
      rank = 1
   case("rnveg")
      rank = 1
@@ -101,6 +137,8 @@
   case("stemdiam")
      rank = 1
   case("stemheight")
+     rank = 1
+  case("Cdvegsp")
      rank = 1
   case("zws")
      rank = 1
@@ -124,6 +162,8 @@
      rank = 1
   case("vol1")
      rank = 1
+  case("vol1_f")
+     rank = 1
   case("hs")
      rank = 1
   case("ucx")
@@ -132,11 +172,15 @@
      rank = 1
   case("ucz")
      rank = 1
+  case("ucmag")
+     rank = 1
   case("sa0")
      rank = 1
   case("sa1")
      rank = 1
   case("satop")
+     rank = 1
+  case("sabot")
      rank = 1
   case("tem0")
      rank = 1
@@ -144,7 +188,11 @@
      rank = 1
   case("u1")
      rank = 1
+  case("u_to_umain")
+     rank = 1
   case("q1")
+     rank = 1
+  case("q1_main")
      rank = 1
   case("au")
      rank = 1
@@ -156,25 +204,17 @@
      rank = 1
   case("diusp")
      rank = 1
-  case("ndx2d")
-     rank = 0
   case("ndxi")
      rank = 0
   case("ndx1db")
      rank = 0
-  case("ndx")
-     rank = 0
   case("kfs")
      rank = 1
-  case("kfst0")
+  case("bare")
      rank = 1
-  case("ba")
+  case("ba_mor")
      rank = 1
   case("bl")
-     rank = 1
-  case("xz")
-     rank = 1
-  case("yz")
      rank = 1
   case("lnx1D")
      rank = 0
@@ -194,8 +234,20 @@
      rank = 1
   case("wu")
      rank = 1
+  case("wu_mor")
+     rank = 1
+  case("wu1D2D")
+     rank = 1
+  case("hh1D2D")
+     rank = 1
   case("bob")
      rank = 2
+  case("bob0")
+     rank = 2
+  case("xu")
+     rank = 1
+  case("yu")
+     rank = 1
   case("vort")
      rank = 1
   case("xzw")
@@ -212,6 +264,16 @@
      rank = 2
   case("numk")
      rank = 0
+  case("ndx2d")
+     rank = 0
+  case("ndx")
+     rank = 0
+  case("xz")
+     rank = 1
+  case("yz")
+     rank = 1
+  case("ba")
+     rank = 1
   case("zbnd1d2d1")
      rank = 1
   case("zbnd1d2d0")

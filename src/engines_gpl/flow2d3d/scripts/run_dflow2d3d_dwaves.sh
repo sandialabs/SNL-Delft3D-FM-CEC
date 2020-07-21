@@ -60,7 +60,7 @@ case $key in
     shift
     ;;
     *)
-    configfile="$*"
+    configfile="$key"
     break
     ;;
 esac
@@ -114,7 +114,8 @@ libdir=$D3D_HOME/lib
     #
 
     # Run
-export LD_LIBRARY_PATH=$bindir:$libdir:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=$libdir:$LD_LIBRARY_PATH
+export PATH=$bindir:$PATH
     echo "executing in the background:"
     echo "$bindir/d_hydro $configfile &"
     echo 
@@ -129,3 +130,8 @@ $bindir/wave $mdwfile 1
     # Wait until all child processes are finished
 wait
 
+    # Nefis files don't get write permission for the group bit
+    # Add it explicitly, only when stderr = 0
+if [ $? -eq 0 ]; then
+    chmod -R g+rw *.dat *.def &>/dev/null || true
+fi

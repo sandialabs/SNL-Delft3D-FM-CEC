@@ -7,7 +7,7 @@ function qp_error(msg,Ex,varargin)
 
 %----- LGPL --------------------------------------------------------------------
 %
-%   Copyright (C) 2011-2018 Stichting Deltares.
+%   Copyright (C) 2011-2020 Stichting Deltares.
 %
 %   This library is free software; you can redistribute it and/or
 %   modify it under the terms of the GNU Lesser General Public
@@ -32,8 +32,8 @@ function qp_error(msg,Ex,varargin)
 %
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_lgpl/matlab/quickplot/progsrc/private/qp_error.m $
-%   $Id: qp_error.m 7992 2018-01-09 10:27:35Z mourits $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/private/qp_error.m $
+%   $Id: qp_error.m 65778 2020-01-14 14:07:42Z mourits $
 
 stacklist = stack2str(Ex.stack,varargin{:});
 message = Ex.message;
@@ -51,4 +51,8 @@ elseif isequal(message(1:min(15,end)),'Error: <a href=')
     newline = find(message==char(10));
     message = message(newline(1)+5:end);
 end
-ui_message('error',{msg,message,stacklist{:}})
+if iscell(msg)
+    ui_message('error',{msg{:},message,stacklist{:}})
+else
+    ui_message('error',{msg,message,stacklist{:}})
+end

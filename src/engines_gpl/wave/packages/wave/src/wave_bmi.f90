@@ -1,7 +1,7 @@
 module bmi
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
+!  Copyright (C)  Stichting Deltares, 2011-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -25,8 +25,8 @@ module bmi
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: wave_bmi.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/engines_gpl/wave/packages/wave/src/wave_bmi.f90 $
+!  $Id: wave_bmi.f90 65793 2020-01-15 16:29:01Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/wave/packages/wave/src/wave_bmi.f90 $
 !!--description-----------------------------------------------------------------
 ! NONE
 !!--pseudo code and references--------------------------------------------------
@@ -63,6 +63,7 @@ integer(c_int) function initialize(c_mdw_file) result(c_iresult) bind(C, name="i
   !DEC$ ATTRIBUTES DLLEXPORT :: initialize
   use iso_c_binding, only: c_char
   use wave_main
+  use swan_input
   !
   ! Global
   character(kind=c_char),intent(in)    :: c_mdw_file(MAXSTRLEN)
@@ -182,6 +183,7 @@ subroutine get_start_time(t) bind(C, name="get_start_time")
   !DEC$ ATTRIBUTES DLLEXPORT :: get_start_time
   use iso_c_binding, only: c_double
   use wave_main
+  use swan_input
   !
   ! Global
   real(c_double), intent(out) :: t
@@ -429,8 +431,8 @@ end function char_array_to_string
 pure function string_to_char_array(string, length)
   !
   ! Global
-  character(len=length), intent(in) :: string
   integer(c_int),intent(in) :: length
+  character(len=length), intent(in) :: string
   !
   ! Return value
   character(kind=c_char,len=1) :: string_to_char_array(length+1)

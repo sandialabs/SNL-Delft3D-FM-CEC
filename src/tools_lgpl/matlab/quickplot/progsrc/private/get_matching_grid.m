@@ -8,7 +8,7 @@ function [G,GridFileName]=get_matching_grid(MapSeg,pn,filterspec)
 
 %----- LGPL --------------------------------------------------------------------
 %
-%   Copyright (C) 2011-2018 Stichting Deltares.
+%   Copyright (C) 2011-2020 Stichting Deltares.
 %
 %   This library is free software; you can redistribute it and/or
 %   modify it under the terms of the GNU Lesser General Public
@@ -33,19 +33,20 @@ function [G,GridFileName]=get_matching_grid(MapSeg,pn,filterspec)
 %
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_lgpl/matlab/quickplot/progsrc/private/get_matching_grid.m $
-%   $Id: get_matching_grid.m 7992 2018-01-09 10:27:35Z mourits $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/private/get_matching_grid.m $
+%   $Id: get_matching_grid.m 65778 2020-01-14 14:07:42Z mourits $
 
 GridSeg=-1;
 PerLayer=0;
-CouldReadGridData = 0;
-filters = {'*.cco;*.lga' 'Delft3D Grid (Aggregation) Files'
-    '*.m2b' 'SOBEK Grid Aggregation Files'
+filters = {'*.cco;*.lga;*.m2b;*.geo;geo*;*.slf;T2DD12;*.dwq;*.nc;*.shp' 'Any Supported Grid Files'
+    '*.cco;*.lga'      'Delft3D Grid (Aggregation) Files'
+    '*.m2b'            'SOBEK Grid Aggregation Files'
     '*.geo;geo*;*.slf' 'Telemac Grid Files'
-    'T2DD12;*.dwq' 'DIDO Aggregation File (for Telemac)'
-    '*.nc' 'UGRID netCDF Files (D-Flow FM, Untrim)'
-    '*.shp' 'Shape File'};
-telemacfilter = filters(3,:);
+    'T2DD12;*.dwq'     'DIDO Aggregation File (for Telemac)'
+    '*.nc'             'UGRID netCDF Files (D-Flow FM, Untrim)'
+    '*.shp'            'Shape File'
+    '*.*'              'All Files'};
+telemacfilter = filters(4,:);
 if nargin<3
     filterspec = '';
 end
@@ -236,11 +237,11 @@ while 1
                         C = cell(0,4);
                         for i=1:length(G.Dataset)
                             if strcmp(G.Dataset(i).Type,'ugrid_mesh')
-                                nNodeDim = G.Dataset(i).Mesh{4};
+                                nNodeDim = G.Dataset(i).Mesh{5};
                                 nNodes = G.Dimension(ustrcmpi(nNodeDim,{G.Dimension.Name})).Length;
                                 GridsChecked{end+1} = sprintf('UGRID mesh "%s", number of nodes = %i',G.Dataset(i).Name,nNodes);
-                                if length(G.Dataset(i).Mesh)>=6
-                                    nFaceDim = G.Dataset(i).Mesh{6};
+                                if length(G.Dataset(i).Mesh)>=7
+                                    nFaceDim = G.Dataset(i).Mesh{7};
                                     nFaces = G.Dimension(ustrcmpi(nFaceDim,{G.Dimension.Name})).Length;
                                     GridsChecked{end+1} = sprintf('UGRID mesh "%s", number of faces = %i',G.Dataset(i).Name,nFaces);
                                 else

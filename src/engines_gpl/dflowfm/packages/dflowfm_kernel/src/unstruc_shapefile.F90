@@ -1,6 +1,6 @@
 !----- AGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2017-2018.                                
+!  Copyright (C)  Stichting Deltares, 2017-2020.                                
 !                                                                               
 !  This file is part of Delft3D (D-Flow Flexible Mesh component).               
 !                                                                               
@@ -27,8 +27,11 @@
 !                                                                               
 !-------------------------------------------------------------------------------
 
-! $Id: unstruc_shapefile.F90 54191 2018-01-22 18:57:53Z dam_ar $
-! $HeadURL: https://repos.deltares.nl/repos/ds/trunk/additional/unstruc/src/unstruc_shapefile.F90 $
+! $Id: unstruc_shapefile.F90 65778 2020-01-14 14:07:42Z mourits $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/dflowfm/packages/dflowfm_kernel/src/unstruc_shapefile.F90 $
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
 
 !> Write shape files 
 module unstruc_shapefile
@@ -53,7 +56,7 @@ type(shpfileobject)         :: shphandle
 type(shpobject)             :: shpobj
 integer                     :: i, j, n, ii, ishape, nshp
 character(len=lencharattr)  :: filename, objectid
-character(len=4)            :: lenobj_loc
+character(len=6)            :: lenobj_loc
 integer                     :: id_objectid, id_flowlinknr
    if (jampi .eq. 0) then
       call mess(LEVEL_INFO, 'SHAPEFILE: Writing a shape file for cross sections.')
@@ -85,11 +88,10 @@ integer                     :: id_objectid, id_flowlinknr
    
    do n = 1, ncrs
       !call mess(LEVEL_INFO, 'SHAPEFILE: Adding shapes for cross section: '''//trim(crs(n)%NAME)//'''.')
-      
       nshp = crs(n)%PATH%LNX ! Nr. links(shapes)
       !! add nshp shapes
       do i = 0, nshp - 1
-         write(lenobj_loc, '(I4.4)') i
+         write(lenobj_loc, '(I6.6)') i
          objectid = trim(crs(n)%NAME)//'_'//lenobj_loc
          !call mess(LEVEL_INFO, 'SHAPEFILE: Creating shape: '''//trim(objectid)//'''.')
          
@@ -116,7 +118,10 @@ integer                     :: id_objectid, id_flowlinknr
          endif
          
          ! write flowlink nr.
-         j = dbfwriteattribute(shphandle, ishape, id_flowlinknr, crs(n)%PATH%LN(ii))
+         if(allocated(crs)) then
+             j = dbfwriteattribute(shphandle, ishape, id_flowlinknr, crs(n)%PATH%LN(ii))
+         end if
+         
          if (j /= 1) then
            call mess(LEVEL_ERROR, 'SHAPEFILE: Could not write attribute "FLOWLINKNR" to shape'''//trim(objectid)//'''.')
            return
@@ -218,14 +223,20 @@ integer                     :: id_objectid, id_origx, id_origy, id_flownodenr
       endif
       
       ! write original x-coordinate
-      j = dbfwriteattribute(shphandle, ishp, id_origx, xobs(ii))
+      if(allocated(xobs)) then
+          j = dbfwriteattribute(shphandle, ishp, id_origx, xobs(ii))
+      endif
+      
       if (j /= 1) then
         call mess(LEVEL_ERROR, 'SHAPEFILE: Could not write attribute "ORIG_X" to shape'''//trim(namobs(ii))//'''.')
         return
       endif
       
       ! write original y-coordinate
-      j = dbfwriteattribute(shphandle, ishp, id_origy, yobs(ii))
+      if(allocated(yobs)) then
+          j = dbfwriteattribute(shphandle, ishp, id_origy, yobs(ii))
+      endif
+      
       if (j /= 1) then
         call mess(LEVEL_ERROR, 'SHAPEFILE: Could not write attribute "ORIG_Y" to shape'''//trim(namobs(ii))//'''.')
         return
@@ -335,7 +346,10 @@ double precision            :: tmp_x(2), tmp_y(2)
          endif
          
          ! write initial crest level
-         j = dbfwriteattribute(shphandle, ishape, id_weirgen_cresth, zcgen((igen-1)*3+1))
+         if (allocated(zcgen)) then
+             j = dbfwriteattribute(shphandle, ishape, id_weirgen_cresth, zcgen((igen-1)*3+1))
+         end if
+         
          if (j /= 1) then
            call mess(LEVEL_ERROR, 'SHAPEFILE: Could not write attribute "FLOWLINKNR" to shape'''//trim(objectid)//'''.')
            return
@@ -473,15 +487,15 @@ double precision            :: tmp_x(2), tmp_y(2)
      return
    endif
    
-   id_silllev = dbfaddfield(shphandle, 'SILLLEV', ftdouble, 20, 8)
+   id_silllev = dbfaddfield(shphandle, 'CRESTLEV', ftdouble, 20, 8)
    if (id_silllev /= 1) then
-     call mess(LEVEL_ERROR, 'SHAPEFILE: Could not add field "SILLLEV" to shape file '''//trim(filename)//'''.')
+     call mess(LEVEL_ERROR, 'SHAPEFILE: Could not add field "CRESTLEV" to shape file '''//trim(filename)//'''.')
      return
    endif
    
-   id_sillwidth = dbfaddfield(shphandle, 'SILLWIDTH', ftdouble, 20, 8)
+   id_sillwidth = dbfaddfield(shphandle, 'CRESTWIDTH', ftdouble, 20, 8)
    if (id_sillwidth /= 2) then
-     call mess(LEVEL_ERROR, 'SHAPEFILE: Could not add field "SILLWIDTH" to shape file '''//trim(filename)//'''.')
+     call mess(LEVEL_ERROR, 'SHAPEFILE: Could not add field "CRESTWIDTH" to shape file '''//trim(filename)//'''.')
      return
    endif
    
@@ -497,9 +511,9 @@ double precision            :: tmp_x(2), tmp_y(2)
      return
    endif
    
-   id_doorheight = dbfaddfield(shphandle, 'DOORHEIGHT', ftdouble, 20, 8)
+   id_doorheight = dbfaddfield(shphandle, 'GATEHEIGHT', ftdouble, 20, 8)
    if (id_doorheight /= 5) then
-     call mess(LEVEL_ERROR, 'SHAPEFILE: Could not add field "DOORHEIGHT" to shape file '''//trim(filename)//'''.')
+     call mess(LEVEL_ERROR, 'SHAPEFILE: Could not add field "GATEHEIGHT" to shape file '''//trim(filename)//'''.')
      return
    endif
    
@@ -561,51 +575,72 @@ double precision            :: tmp_x(2), tmp_y(2)
            return
          endif
          
-         ! write SILLLEV
-         j = dbfwriteattribute(shphandle, ishape, id_silllev, zcgen((igen-1)*3+1))
+         ! write CRESTLEV
+         if(allocated(zcgen)) then
+             j = dbfwriteattribute(shphandle, ishape, id_silllev, zcgen((igen-1)*3+1))
+         end if
+         
          if (j /= 1) then
-           call mess(LEVEL_ERROR, 'SHAPEFILE: Could not write attribute "SILLLEV" to shape'''//trim(objectid)//'''.')
+           call mess(LEVEL_ERROR, 'SHAPEFILE: Could not write attribute "CRESTLEV" to shape'''//trim(objectid)//'''.')
            return
          endif
          
-         ! write SILLWIDTH
-         j = dbfwriteattribute(shphandle, ishape, id_sillwidth, min(1d10, gates(n)%sill_width))
+         ! write CRESTWIDTH
+         if(allocated(gates)) then
+             j = dbfwriteattribute(shphandle, ishape, id_sillwidth, min(1d10, gates(n)%sill_width))
+         end if
+         
          if (j /= 1) then
-           call mess(LEVEL_ERROR, 'SHAPEFILE: Could not write attribute "SILLWIDTH" to shape'''//trim(objectid)//'''.')
+           call mess(LEVEL_ERROR, 'SHAPEFILE: Could not write attribute "CRESTWIDTH" to shape'''//trim(objectid)//'''.')
            return
          endif
          
          ! write OPENWIDTH
-         j = dbfwriteattribute(shphandle, ishape, id_openwidth, zcgen((igen-1)*3+3))
+         if(allocated(zcgen)) then
+             j = dbfwriteattribute(shphandle, ishape, id_openwidth, zcgen((igen-1)*3+3))
+         end if
+         
          if (j /= 1) then
            call mess(LEVEL_ERROR, 'SHAPEFILE: Could not write attribute "OPENWIDTH" to shape'''//trim(objectid)//'''.')
            return
          endif
          
          ! write LOWEREDGEL
-         j = dbfwriteattribute(shphandle, ishape, id_loweredgel, zcgen((igen-1)*3+2))
+         if(allocated(zcgen)) then
+             j = dbfwriteattribute(shphandle, ishape, id_loweredgel, zcgen((igen-1)*3+2))
+         end if
+         
          if (j /= 1) then
            call mess(LEVEL_ERROR, 'SHAPEFILE: Could not write attribute "LOWEREDGEL" to shape'''//trim(objectid)//'''.')
            return
          endif
          
-         ! write DOORHEIGHT
-         j = dbfwriteattribute(shphandle, ishape, id_doorheight, gates(n)%door_height)
+         ! write GATEHEIGHT
+         if(allocated(gates)) then
+             j = dbfwriteattribute(shphandle, ishape, id_doorheight, gates(n)%door_height)
+         end if
+         
          if (j /= 1) then
-           call mess(LEVEL_ERROR, 'SHAPEFILE: Could not write attribute "DOORHEIGHT" to shape'''//trim(objectid)//'''.')
+           call mess(LEVEL_ERROR, 'SHAPEFILE: Could not write attribute "GATEHEIGHT" to shape'''//trim(objectid)//'''.')
            return
          endif
          
          ! write EFF_WU
          L0 = L-L1cgensg(igen)+1
-         j = dbfwriteattribute(shphandle, ishape, id_effwu, generalstruc(igen)%widthcenteronlink(L0))
+         if(allocated(generalstruc)) then
+             j = dbfwriteattribute(shphandle, ishape, id_effwu, generalstruc(igen)%widthcenteronlink(L0))
+         end if
+         
          if (j /= 1) then
            call mess(LEVEL_ERROR, 'SHAPEFILE: Could not write attribute "EFF_WU" to shape'''//trim(objectid)//'''.')
            return
          endif
          
          ! write EFF_LOWERE
-         j = dbfwriteattribute(shphandle, ishape, id_efflowere, generalstruc(igen)%gateheightonlink(L0))
+         if(allocated(generalstruc)) then
+             j = dbfwriteattribute(shphandle, ishape, id_efflowere, generalstruc(igen)%gateheightonlink(L0))
+         end if
+         
          if (j /= 1) then
            call mess(LEVEL_ERROR, 'SHAPEFILE: Could not write attribute "EFF_LOWERE" to shape'''//trim(objectid)//'''.')
            return
@@ -712,7 +747,10 @@ double precision            :: tmp_x(2), tmp_y(2)
             endif
             
             ! write CRESTLEV
-            j = dbfwriteattribute(shphandle, ishape, id_crestlev, zcrest1d2d(Lb))
+            if(allocated(zcrest1d2d)) then
+                j = dbfwriteattribute(shphandle, ishape, id_crestlev, zcrest1d2d(Lb))
+            end if
+            
             if (j /= 1) then
               call mess(LEVEL_ERROR, 'SHAPEFILE: Could not write attribute "CRESTLEV" to shape'''//trim(objectid)//'''.')
               return
@@ -742,7 +780,7 @@ type(shpfileobject)         :: shphandle
 type(shpobject)             :: shpobj
 integer                     :: i, j, Lf, La, L, k, k1, k2, ii, nshp, ishape
 character(len=lencharattr)  :: filename, objectid
-character(len=4)            :: lenobj_loc
+character(len=6)            :: lenobj_loc
 integer                     :: id_objectid, id_crestlev, id_crestlen, id_sillhl, id_sillhr, id_taludslpl, id_taludslpr, &
                                id_vegcoef, id_weirtype, id_advtype, id_effwu, id_flowlinknr 
 double precision            :: tmp_x(2), tmp_y(2)
@@ -840,7 +878,7 @@ double precision            :: tmp_x(2), tmp_y(2)
    ! add nshp shapes
    do i = 0, nshp - 1
       ii = i + 1
-      write(lenobj_loc, '(I4.4)') i
+      write(lenobj_loc, '(I6.6)') i
       objectid = 'Fixed_weir'//'_'//lenobj_loc
       !call mess(LEVEL_INFO, 'SHAPEFILE: Creating shape: '''//trim(objectid)//'''.')
          
@@ -873,74 +911,99 @@ double precision            :: tmp_x(2), tmp_y(2)
       endif
       
       ! write CRESTLEV
-      j = dbfwriteattribute(shphandle, ishape, id_crestlev, bob(1,La))
+      if (allocated(bob)) then
+          j = dbfwriteattribute(shphandle, ishape, id_crestlev, bob(1,La))
+      end if
+      
       if (j /= 1) then
         call mess(LEVEL_ERROR, 'SHAPEFILE: Could not write attribute "CRESTLEV" to shape'''//trim(objectid)//'''.')
         return
       endif
       
       ! write CRESTLEN
-      j = dbfwriteattribute(shphandle, ishape, id_crestlen, crestlxw(ii))
+      if (allocated(crestlxw)) then
+          j = dbfwriteattribute(shphandle, ishape, id_crestlen, crestlxw(ii))
+      end if
+      
       if (j /= 1) then
         call mess(LEVEL_ERROR, 'SHAPEFILE: Could not write attribute "CRESTLEN" to shape'''//trim(objectid)//'''.')
         return
       endif
       
       ! write SILLH_L
-      j = dbfwriteattribute(shphandle, ishape, id_sillhl, shlxw(ii))
+      if (allocated(shlxw)) then
+          j = dbfwriteattribute(shphandle, ishape, id_sillhl, shlxw(ii))
+      end if
+      
       if (j /= 1) then
         call mess(LEVEL_ERROR, 'SHAPEFILE: Could not write attribute "SILLH_L" to shape'''//trim(objectid)//'''.')
         return
       endif
       
       ! write SILLH_R
-      j = dbfwriteattribute(shphandle, ishape, id_sillhr, shrxw(ii))
+      if (allocated(shrxw)) then
+          j = dbfwriteattribute(shphandle, ishape, id_sillhr, shrxw(ii))
+      end if
+      
       if (j /= 1) then
         call mess(LEVEL_ERROR, 'SHAPEFILE: Could not write attribute "SILLH_R" to shape'''//trim(objectid)//'''.')
         return
       endif
       
       ! write TALUDSLP_L
-      j = dbfwriteattribute(shphandle, ishape, id_taludslpl, taludlxw(ii))
+      if (allocated(taludlxw)) then
+          j = dbfwriteattribute(shphandle, ishape, id_taludslpl, taludlxw(ii))
+      end if
+      
       if (j /= 1) then
         call mess(LEVEL_ERROR, 'SHAPEFILE: Could not write attribute "TALUDSLP_L" to shape'''//trim(objectid)//'''.')
         return
       endif
       
       ! write TALUDSLP_R
-      j = dbfwriteattribute(shphandle, ishape, id_taludslpr, taludrxw(ii))
+      if (allocated(taludrxw)) then
+          j = dbfwriteattribute(shphandle, ishape, id_taludslpr, taludrxw(ii))
+      end if
+      
       if (j /= 1) then
         call mess(LEVEL_ERROR, 'SHAPEFILE: Could not write attribute "TALUDSLP_R" to shape'''//trim(objectid)//'''.')
         return
       endif
       
       ! write VEGCOEF
-      j = dbfwriteattribute(shphandle, ishape, id_vegcoef, vegxw(ii))
+      if (allocated(vegxw)) then
+          j = dbfwriteattribute(shphandle, ishape, id_vegcoef, vegxw(ii))
+      end if
+      
       if (j /= 1) then
         call mess(LEVEL_ERROR, 'SHAPEFILE: Could not write attribute "VEGCOEF" to shape'''//trim(objectid)//'''.')
         return
       endif
       
       ! write WEIRTYPE
-      if (.not. allocated(iweirt)) then
-         allocate(iweirt(nfxw))
-         iweirt = -999  ! missing integer value
-      endif
-      j = dbfwriteattribute(shphandle, ishape, id_weirtype, iweirt(ii))
+      if (allocated(iweirtxw)) then
+         j = dbfwriteattribute(shphandle, ishape, id_weirtype, iweirtxw(ii))
+      end if
       if (j /= 1) then
         call mess(LEVEL_ERROR, 'SHAPEFILE: Could not write attribute "WEIRTYPE" to shape'''//trim(objectid)//'''.')
         return
       endif
       
       ! write ADVTYPE
-      j = dbfwriteattribute(shphandle, ishape, id_advtype, iadv(La))
+      if (allocated(iadv)) then
+          j = dbfwriteattribute(shphandle, ishape, id_advtype, iadv(La))
+      end if
+      
       if (j /= 1) then
         call mess(LEVEL_ERROR, 'SHAPEFILE: Could not write attribute "ADVTYPE" to shape'''//trim(objectid)//'''.')
         return
       endif
       
       ! write EFF_WU
-      j = dbfwriteattribute(shphandle, ishape, id_effwu, wu(La))
+      if (allocated(wu)) then
+          j = dbfwriteattribute(shphandle, ishape, id_effwu, wu(La))
+      end if
+      
       if (j /= 1) then
         call mess(LEVEL_ERROR, 'SHAPEFILE: Could not write attribute "EFF_WU" to shape'''//trim(objectid)//'''.')
         return
@@ -1068,7 +1131,10 @@ double precision            :: tmp_x(2), tmp_y(2), snkx, snky, srcx, srcy, tmp_q
          endif
          
          ! write area
-         j = dbfwriteattribute(shphandle, ishape, id_area, arsrc(i))
+         if(allocated(arsrc)) then
+             j = dbfwriteattribute(shphandle, ishape, id_area, arsrc(i))
+         end if
+         
          if (j /= 1) then
            call mess(LEVEL_ERROR, 'SHAPEFILE: Could not write attribute "AREA" to shape'''//trim(objectid)//'''.')
            return
@@ -1121,6 +1187,407 @@ double precision            :: tmp_x(2), tmp_y(2), snkx, snky, srcx, srcy, tmp_q
       
 end subroutine unc_write_shp_src
 
+!> Write a shape file for pumps
+! =================================================================================================
+! =================================================================================================
+subroutine unc_write_shp_pump()
+use m_flowexternalforcings
+use network_data, only: kn, xk, yk
+use m_flowgeom, only: ln2lne
+implicit none
+
+integer, parameter          :: lencharattr = 256, tshp = shpt_arc ! arcs (Polylines, possible in parts)
+type(shpfileobject)         :: shphandle
+type(shpobject)             :: shpobj
+integer                     :: i, j, n, ishape, igen, Lf, La, L, k, k1, k2
+character(len=lencharattr)  :: filename, objectid
+character(len=4)            :: lenobj_loc
+integer                     :: id_objectid, id_flowlinknr, id_weirgen_cresth
+double precision            :: tmp_x(2), tmp_y(2)
+   if (jampi .eq. 0) then
+      call mess(LEVEL_INFO, 'SHAPEFILE: Writing a shape file for pumps.')
+   else
+      call mess(LEVEL_INFO, 'SHAPEFILE: Writing a shape file for pumps for subdomain:', my_rank)
+   endif
+   
+   ! create a new shapefile object with data of type tshp and associate it to a file, filename does not include extension
+   filename = defaultFilename('shppump')
+   shphandle = shpcreate(trim(filename), tshp)
+   ! error check
+   if (shpfileisnull(shphandle) .OR. dbffileisnull(shphandle)) then
+     call mess(LEVEL_ERROR, 'SHAPEFILE: Could not open shape file '''//trim(filename)//''' for writing.')
+     return
+   endif
+   
+   ! add 2 dbf fields: ObjectID, FLOWLINKNR
+   id_objectid = dbfaddfield(shphandle, 'ObjectID', ftstring, lencharattr, 0)
+   if (id_objectid /= 0) then
+     call mess(LEVEL_ERROR, 'SHAPEFILE: Could not add field "ObjectID" to shape file '''//trim(filename)//'''.')
+     return
+   endif
+   
+   id_flowlinknr = dbfaddfield(shphandle, 'FLOWLINKNR', ftinteger, 10, 0)
+   if (id_flowlinknr /= 1) then
+     call mess(LEVEL_ERROR, 'SHAPEFILE: Could not add field "FLOWLINKNR" to shape file '''//trim(filename)//'''.')
+     return
+   endif
+   
+   do n = 1, npumpsg
+      i = 0
+      do L = L1pumpsg(n),L2pumpsg(n)
+         write(lenobj_loc, '(I4.4)') i
+         objectid = 'pump_'//lenobj_loc
+         !call mess(LEVEL_INFO, 'SHAPEFILE: Creating shape: '''//trim(objectid)//'''.')
+         
+         ! create a shape object with the "simple" method, for each shape 2 components are added x, y
+         Lf = kpump(3,L)
+         La = abs( Lf )
+         k = ln2lne(La)  ! netnode
+         k1 = kn(1,k)
+         k2 = kn(2,k)
+         tmp_x(1) = xk(k1); tmp_x(2) = xk(k2)
+         tmp_y(1) = yk(k1); tmp_y(2) = yk(k2)
+         shpobj = shpcreatesimpleobject(tshp, 2, tmp_x, tmp_y)
+      
+         ! write the shape object to the shapefile object as i-th element, -1 = append
+         ishape = shpwriteobject(shphandle, -1, shpobj)
+         if (ishape == -1) then
+           call mess(LEVEL_ERROR, 'SHAPEFILE: Could not write '''//trim(objectid)//'''shape object to shapefile object.')
+           return
+         endif
+         
+         ! destroy the shape object to avoid memory leaks
+         call shpdestroyobject(shpobj)
+         
+         ! write the attributes of different types for the i-th shape object to the shapefile object
+         ! write ObjectID
+         j = dbfwriteattribute(shphandle, ishape, id_objectid, trim(objectid))
+         if (j /= 1) then
+           call mess(LEVEL_ERROR, 'SHAPEFILE: Could not write attribute "ObjectID" to shape'''//trim(objectid)//'''.')
+           return
+         endif
+
+         ! write flowlink nr.
+         j = dbfwriteattribute(shphandle, ishape, id_flowlinknr, Lf)
+         if (j /= 1) then
+           call mess(LEVEL_ERROR, 'SHAPEFILE: Could not write attribute "FLOWLINKNR" to shape'''//trim(objectid)//'''.')
+           return
+         endif
+         
+         i = i + 1
+      enddo 
+   enddo
+   
+   ! close the shapefile object
+   call shpclose(shphandle)
+
+end subroutine unc_write_shp_pump
+
+!> Write a shape file for dry areas
+! =================================================================================================
+! =================================================================================================
+subroutine unc_write_shp_dry()
+use m_flowexternalforcings, only: nDryLinks, kdryarea
+use network_data, only: kn, xk, yk
+implicit none
+
+integer, parameter          :: lencharattr = 256, tshp = shpt_arc ! arcs (Polylines, possible in parts)
+type(shpfileobject)         :: shphandle
+type(shpobject)             :: shpobj
+integer                     :: i, j, n, ishape, igen, Lf, La, L, k, k1, k2
+character(len=lencharattr)  :: filename, objectid
+character(len=6)            :: lenobj_loc
+integer                     :: id_objectid, id_flowlinknr, id_linktype
+double precision            :: tmp_x(2), tmp_y(2)
+   if (jampi .eq. 0) then
+      call mess(LEVEL_INFO, 'SHAPEFILE: Writing a shape file for dry areas.')
+   else
+      call mess(LEVEL_INFO, 'SHAPEFILE: Writing a shape file for dry areas for subdomain:', my_rank)
+   endif
+   
+   ! create a new shapefile object with data of type tshp and associate it to a file, filename does not include extension
+   filename = defaultFilename('shpdry')
+   shphandle = shpcreate(trim(filename), tshp)
+   ! error check
+   if (shpfileisnull(shphandle) .OR. dbffileisnull(shphandle)) then
+     call mess(LEVEL_ERROR, 'SHAPEFILE: Could not open shape file '''//trim(filename)//''' for writing.')
+     return
+   endif
+   
+   ! add 3 dbf fields: ObjectID, FLOWLINKNR, LINKTYPE
+   id_objectid = dbfaddfield(shphandle, 'ObjectID', ftstring, lencharattr, 0)
+   if (id_objectid /= 0) then
+     call mess(LEVEL_ERROR, 'SHAPEFILE: Could not add field "ObjectID" to shape file '''//trim(filename)//'''.')
+     return
+   endif
+   
+   id_flowlinknr = dbfaddfield(shphandle, 'NETLINKNR', ftinteger, 10, 0)
+   if (id_flowlinknr /= 1) then
+     call mess(LEVEL_ERROR, 'SHAPEFILE: Could not add field "NETLINKNR" to shape file '''//trim(filename)//'''.')
+     return
+   endif
+   
+   id_linktype = dbfaddfield(shphandle, 'LINKTYPE', ftstring, 7, 0)
+   if (id_linktype /= 2) then
+     call mess(LEVEL_ERROR, 'SHAPEFILE: Could not add field "LINKTYPE" to shape file '''//trim(filename)//'''.')
+     return
+   endif
+
+   do L = 1,nDryLinks
+      write(lenobj_loc, '(I6.6)') L
+      objectid = 'dryarea_'//lenobj_loc
+      !call mess(LEVEL_INFO, 'SHAPEFILE: Creating shape: '''//trim(objectid)//'''.')
+         
+      ! create a shape object with the "simple" method, for each shape 2 components are added x, y
+      k = kdryarea(L)
+      k1 = kn(1,k)
+      k2 = kn(2,k)
+      tmp_x(1) = xk(k1); tmp_x(2) = xk(k2)
+      tmp_y(1) = yk(k1); tmp_y(2) = yk(k2)
+      shpobj = shpcreatesimpleobject(tshp, 2, tmp_x, tmp_y)
+      
+      ! write the shape object to the shapefile object as i-th element, -1 = append
+      ishape = shpwriteobject(shphandle, -1, shpobj)
+      if (ishape == -1) then
+         call mess(LEVEL_ERROR, 'SHAPEFILE: Could not write '''//trim(objectid)//'''shape object to shapefile object.')
+         return
+      endif
+         
+      ! destroy the shape object to avoid memory leaks
+      call shpdestroyobject(shpobj)
+         
+      ! write the attributes of different types for the i-th shape object to the shapefile object
+      ! write ObjectID
+      j = dbfwriteattribute(shphandle, ishape, id_objectid, trim(objectid))
+      if (j /= 1) then
+         call mess(LEVEL_ERROR, 'SHAPEFILE: Could not write attribute "ObjectID" to shape'''//trim(objectid)//'''.')
+         return
+      endif
+
+      ! write flowlink nr.
+      j = dbfwriteattribute(shphandle, ishape, id_flowlinknr, k)
+      if (j /= 1) then
+         call mess(LEVEL_ERROR, 'SHAPEFILE: Could not write attribute "NETLINKNR" to shape'''//trim(objectid)//'''.')
+         return
+      endif
+      
+      ! write LINKTYPE
+      j = dbfwriteattribute(shphandle, ishape, id_linktype, 'netlink')
+      if (j /= 1) then
+        call mess(LEVEL_ERROR, 'SHAPEFILE: Could not write attribute "LINKTYPE" to shape'''//trim(objectid)//'''.')
+        return
+      endif
+   enddo 
+
+   ! close the shapefile object
+   call shpclose(shphandle)
+
+end subroutine unc_write_shp_dry
+
+!> Write a shape file for general structures
+! =================================================================================================
+! =================================================================================================
+subroutine unc_write_shp_genstruc()
+use m_flowexternalforcings
+use network_data, only: kn, xk, yk
+use m_flowgeom, only: ln2lne, wu
+use m_strucs, only: generalstruc
+use m_structures, only: valgenstru
+use m_missing, only: dmiss
+implicit none
+
+integer, parameter          :: lencharattr = 256, tshp = shpt_arc ! arcs (Polylines, possible in parts)
+type(shpfileobject)         :: shphandle
+type(shpobject)             :: shpobj
+integer                     :: i, j, n, ishape, igen, Lf, La, L, k, k1, k2
+character(len=lencharattr)  :: filename, objectid
+character(len=4)            :: lenobj_loc
+integer                     :: id_objectid, id_crestlev, id_crestwid, id_gateheight, id_doorheight, &
+                               id_openwidth, id_effwu, id_flowlinknr
+integer                     :: checkerror
+double precision            :: tmp_x(2), tmp_y(2)
+
+   checkerror = 0
+   if (jampi .eq. 0) then
+      call mess(LEVEL_INFO, 'SHAPEFILE: Writing a shape file for general structures.')
+   else
+      call mess(LEVEL_INFO, 'SHAPEFILE: Writing a shape file for general structures for subdomain:', my_rank)
+   endif
+   
+   ! create a new shapefile object with data of type tshp and associate it to a file, filename does not include extension
+   filename = defaultFilename('shpgenstruc')
+   shphandle = shpcreate(trim(filename), tshp)
+   ! error check
+   if (shpfileisnull(shphandle) .OR. dbffileisnull(shphandle)) then
+     call mess(LEVEL_ERROR, 'SHAPEFILE: Could not open shape file '''//trim(filename)//''' for writing.')
+     return
+   endif
+   
+   ! add 8 dbf fields: ObjectID, CRESTLEV, CRESTWID, GATEHEIGHT(LOWEREDGEL), DOORHEIGHT, OPENWIDTH, EFF_WU, FLOWLINKNR
+   id_objectid = dbfaddfield(shphandle, 'ObjectID', ftstring, lencharattr, 0)
+   if (id_objectid /= checkerror) then
+     call mess(LEVEL_ERROR, 'SHAPEFILE: Could not add field "ObjectID" to shape file '''//trim(filename)//'''.')
+     return
+   endif
+   
+   checkerror = checkerror + 1
+   id_crestlev = dbfaddfield(shphandle, 'CRESTLEV', ftdouble, 20, 8)
+   if (id_crestlev /= checkerror) then
+     call mess(LEVEL_ERROR, 'SHAPEFILE: Could not add field "CRESTLEV" to shape file '''//trim(filename)//'''.')
+     return
+   endif
+   
+   checkerror = checkerror + 1
+   id_crestwid = dbfaddfield(shphandle, 'CRESTWIDTH', ftdouble, 20, 8)
+   if (id_crestwid /= checkerror) then
+     call mess(LEVEL_ERROR, 'SHAPEFILE: Could not add field "CRESTWIDTH" to shape file '''//trim(filename)//'''.')
+     return
+   endif
+   
+   checkerror = checkerror + 1
+   id_gateheight = dbfaddfield(shphandle, 'LOWEREDGEL', ftdouble, 20, 8)
+   if (id_gateheight /= checkerror) then
+     call mess(LEVEL_ERROR, 'SHAPEFILE: Could not add field "LOWEREDGEL" to shape file '''//trim(filename)//'''.')
+     return
+   endif
+   
+   checkerror = checkerror + 1
+   id_doorheight = dbfaddfield(shphandle, 'GATEHEIGHT', ftdouble, 20, 8)
+   if (id_doorheight /= checkerror) then
+     call mess(LEVEL_ERROR, 'SHAPEFILE: Could not add field "GATEHEIGHT" to shape file '''//trim(filename)//'''.')
+     return
+   endif
+   
+   checkerror = checkerror + 1
+   id_openwidth = dbfaddfield(shphandle, 'OPENWIDTH', ftdouble, 20, 8)
+   if (id_openwidth /= checkerror) then
+     call mess(LEVEL_ERROR, 'SHAPEFILE: Could not add field "OPENWIDTH" to shape file '''//trim(filename)//'''.')
+     return
+   endif
+   
+   checkerror = checkerror + 1
+   id_effwu = dbfaddfield(shphandle, 'EFF_WU', ftdouble, 20, 8)
+   if (id_effwu /= checkerror) then
+     call mess(LEVEL_ERROR, 'SHAPEFILE: Could not add field "EFF_WU" to shape file '''//trim(filename)//'''.')
+     return
+   endif
+   
+   checkerror = checkerror + 1
+   id_flowlinknr = dbfaddfield(shphandle, 'FLOWLINKNR', ftinteger, 10, 0)
+   if (id_flowlinknr /= checkerror) then
+     call mess(LEVEL_ERROR, 'SHAPEFILE: Could not add field "FLOWLINKNR" to shape file '''//trim(filename)//'''.')
+     return
+   endif
+
+   
+   do n = 1, ngenstru
+      igen = genstru2cgen(n)
+      call mess(LEVEL_INFO, 'SHAPEFILE: Adding shapes for general structure: '''//trim(cgen_ids(igen))//'''.')
+      
+      ! add shapes
+      i = 0
+      do L = L1cgensg(igen),L2cgensg(igen)
+         write(lenobj_loc, '(I4.4)') i
+         objectid = trim(cgen_ids(igen))//'_'//lenobj_loc
+         call mess(LEVEL_INFO, 'SHAPEFILE: Creating shape: '''//trim(objectid)//'''.')
+         
+         ! create a shape object with the "simple" method, for each shape 2 components are added x, y
+         Lf = kcgen(3,L)
+         La = abs( Lf )
+         k = ln2lne(La)  ! netnode
+         k1 = kn(1,k)
+         k2 = kn(2,k)
+         tmp_x(1) = xk(k1); tmp_x(2) = xk(k2)
+         tmp_y(1) = yk(k1); tmp_y(2) = yk(k2)
+         shpobj = shpcreatesimpleobject(tshp, 2, tmp_x, tmp_y)
+      
+         ! write the shape object to the shapefile object as i-th element, -1 = append
+         ishape = shpwriteobject(shphandle, -1, shpobj)
+         if (ishape == -1) then
+           call mess(LEVEL_ERROR, 'SHAPEFILE: Could not write '''//trim(objectid)//'''shape object to shapefile object.')
+           return
+         endif
+         
+         ! destroy the shape object to avoid memory leaks
+         call shpdestroyobject(shpobj)
+         
+         ! write the attributes of different types for the i-th shape object to the shapefile object
+         ! write ObjectID
+         j = dbfwriteattribute(shphandle, ishape, id_objectid, trim(objectid))
+         if (j /= 1) then
+           call mess(LEVEL_ERROR, 'SHAPEFILE: Could not write attribute "ObjectID" to shape'''//trim(objectid)//'''.')
+           return
+         endif
+         
+         ! write CRESTLEV
+         if(allocated(generalstruc)) then
+             j = dbfwriteattribute(shphandle, ishape, id_crestlev, generalstruc(igen)%levelcenter)
+         end if
+         if (j /= 1) then
+           call mess(LEVEL_ERROR, 'SHAPEFILE: Could not write attribute "CRESTLEV" to shape'''//trim(objectid)//'''.')
+           return
+         endif
+         
+         ! write CRESTWIDTH
+         if(allocated(generalstruc)) then
+             j = dbfwriteattribute(shphandle, ishape, id_crestwid, generalstruc(igen)%widthcenter)
+         end if
+         if (j /= 1) then
+           call mess(LEVEL_ERROR, 'SHAPEFILE: Could not write attribute "CRESTWIDTH" to shape'''//trim(objectid)//'''.')
+           return
+         endif
+         
+         ! write LOWEREDGEL
+         if(allocated(valgenstru)) then
+             j = dbfwriteattribute(shphandle, ishape, id_gateheight, valgenstru(7,n))
+         end if
+         if (j /= 1) then
+           call mess(LEVEL_ERROR, 'SHAPEFILE: Could not write attribute "LOWEREDGEL" to shape'''//trim(objectid)//'''.')
+           return
+         endif
+         
+         ! write GATEHEIGHT
+         if(allocated(generalstruc)) then
+             j = dbfwriteattribute(shphandle, ishape, id_doorheight, generalstruc(igen)%gatedoorheight)
+         end if
+         if (j /= 1) then
+           call mess(LEVEL_ERROR, 'SHAPEFILE: Could not write attribute "GATEHEIGHT" to shape'''//trim(objectid)//'''.')
+           return
+         endif
+         
+         ! write OPENWIDTH
+         if(allocated(valgenstru)) then
+             j = dbfwriteattribute(shphandle, ishape, id_openwidth, valgenstru(6,n))
+         end if
+         if (j /= 1) then
+           call mess(LEVEL_ERROR, 'SHAPEFILE: Could not write attribute "OPENWIDTH" to shape'''//trim(objectid)//'''.')
+           return
+         endif
+         
+         ! write EFF_WU
+         if(allocated(wu)) then
+             j = dbfwriteattribute(shphandle, ishape, id_effwu, wu(La))
+         end if
+         if (j /= 1) then
+           call mess(LEVEL_ERROR, 'SHAPEFILE: Could not write attribute "EFF_WU" to shape'''//trim(objectid)//'''.')
+           return
+         endif
+         
+         ! write flowlink nr.
+         j = dbfwriteattribute(shphandle, ishape, id_flowlinknr, Lf)
+         if (j /= 1) then
+           call mess(LEVEL_ERROR, 'SHAPEFILE: Could not write attribute "FLOWLINKNR" to shape'''//trim(objectid)//'''.')
+           return
+         endif
+         
+         i = i + 1
+      enddo 
+   enddo
+   
+   ! close the shapefile object
+   call shpclose(shphandle)
+
+end subroutine unc_write_shp_genstruc
 #endif
 
 end module unstruc_shapefile

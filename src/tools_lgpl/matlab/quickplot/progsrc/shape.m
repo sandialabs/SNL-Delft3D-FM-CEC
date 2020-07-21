@@ -50,7 +50,7 @@ function varargout=shape(cmd,varargin)
 
 %----- LGPL --------------------------------------------------------------------
 %
-%   Copyright (C) 2011-2018 Stichting Deltares.
+%   Copyright (C) 2011-2020 Stichting Deltares.
 %
 %   This library is free software; you can redistribute it and/or
 %   modify it under the terms of the GNU Lesser General Public
@@ -75,8 +75,8 @@ function varargout=shape(cmd,varargin)
 %
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_lgpl/matlab/quickplot/progsrc/shape.m $
-%   $Id: shape.m 7992 2018-01-09 10:27:35Z mourits $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/shape.m $
+%   $Id: shape.m 65778 2020-01-14 14:07:42Z mourits $
 
 if nargin==0
     if nargout>0
@@ -396,7 +396,11 @@ switch datatype
         fid=fopen([S.FileBase S.ShapeExt],'r','l');
         fseek(fid,S.Idx(1,shapes(1)),-1);
         TNPnt=0;
-        Out=repmat(NaN,S.NPnt+S.NPrt-1,2);
+        if S.ShapeTpName(end)=='z'
+            Out=repmat(NaN,S.NPnt+S.NPrt-1,3);
+        else
+            Out=repmat(NaN,S.NPnt+S.NPrt-1,2);
+        end
         Obj=repmat(NaN,S.NPnt+S.NPrt-1,1);
         for shp=shapes
             fseek(fid,S.Idx(1,shp),-1);

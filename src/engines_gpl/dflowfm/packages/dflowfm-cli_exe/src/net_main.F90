@@ -1,6 +1,6 @@
 !----- AGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2017-2018.                                
+!  Copyright (C)  Stichting Deltares, 2017-2020.                                
 !                                                                               
 !  This file is part of Delft3D (D-Flow Flexible Mesh component).               
 !                                                                               
@@ -27,8 +27,8 @@
 !                                                                               
 !-------------------------------------------------------------------------------
 
-! $Id: net_main.F90 54131 2018-01-18 14:02:31Z carniato $
-! $HeadURL: https://repos.deltares.nl/repos/ds/trunk/additional/unstruc/src/net_main.F90 $
+! $Id: net_main.F90 65778 2020-01-14 14:07:42Z mourits $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/dflowfm/packages/dflowfm-cli_exe/src/net_main.F90 $
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
@@ -70,6 +70,7 @@
    use unstruc_api
    use dfm_error
    use gridoperations
+   use m_commandline_option
    
    use m_partitioninfo
 #ifdef HAVE_MPI
@@ -103,6 +104,7 @@
    character(len=maxnamelen) :: restartfile     !< storing the name of the restart files
    character(len=maxnamelen) :: md_mapfile_base !< storing the user-defined map file
    character(len=maxnamelen) :: md_flowgeomfile_base !< storing the user-defined flowgeom file
+   character(len=maxnamelen) :: md_classmapfile_base !< storing the user-defined class map file
     
    integer, external         :: iget_jaopengl
    integer, external         :: read_commandline
@@ -229,6 +231,22 @@
        goto 1234
     end if
 
+    if ( md_jamake1d2dlinks .eq. 1 ) then
+       ! Make 1D2D links for already loaded net file.
+       imake1d2dtype = I1D2DTP_1TO1
+       ierr = make1D2Dinternalnetlinks() ! TODO: replace this by call to make1D2Dconnections, but check FILEMENU in batchmode.
+       if (ierr /= DFM_NOERR) then
+          write (msgbuf, '(a,a,a,i0,a)') 'Error, failed to create 1D2D links for file ''', trim(md_netfile), '''. Error code: ', ierr, '.'
+          call warn_flush()
+          goto 1234
+       end if
+       if (len_trim(iarg_outfile) == 0) then
+          iarg_outfile = md_netfile ! Overwrite existing file.
+       end if
+       call unc_write_net(iarg_outfile, janetcell = 1, janetbnd = 0, jaidomain = 0, iconventions = UNC_CONV_UGRID)
+       goto 1234
+    end if
+
     if (jabatch == 1) then 
        call dobatch()
     endif 
@@ -237,8 +255,7 @@
     if ( md_japartition.eq.1 ) then
         
        if ( len_trim(md_ident) > 0 ) then ! partitionmduparse
-          icgsolver = md_icgsolver
-          call partition_from_commandline(md_netfile, md_Ndomains, md_jacontiguous, icgsolver, md_pmethod, md_dryptsfile, md_genpolygon)
+          call partition_from_commandline(md_netfile, md_Ndomains, md_jacontiguous, md_icgsolver, md_pmethod, md_dryptsfile, md_encfile, md_genpolygon)
           L    = index(md_netfile, '_net')-1
           md_mdu = md_ident
           if (len_trim(md_restartfile) > 0) then ! If there is a restart file
@@ -249,11 +266,13 @@
                 restartfile = md_restartfile
                 Lrst = index(restartfile, '_rst.nc')
                 Lmap = index(restartfile, '_map.nc')
-            endif   
+            endif
           endif
-          
+
           md_mapfile_base = md_mapfile
           md_flowgeomfile_base = md_flowgeomfile
+          md_classmapfile_base = md_classmap_file
+
           do i = 0,  Ndomains - 1
              write(sdmn_loc, '(I4.4)') i
              md_netfile = trim(md_netfile(1:L)//'_'//sdmn_loc//'_net.nc')
@@ -278,10 +297,13 @@
              if (len_trim(md_flowgeomfile_base)>0) then
                 md_flowgeomfile = md_flowgeomfile_base(1:index(md_flowgeomfile_base,'.nc',back=.true.)-1)//'_'//sdmn_loc//".nc"
              endif
+             if (len_trim(md_classmapfile_base)>0) then
+                md_classmap_file = md_classmapfile_base(1:index(md_classmapfile_base,'.nc',back=.true.)-1)//'_'//sdmn_loc//".nc"
+             endif
              call generatePartitionMDUFile(trim(md_ident)//'.mdu', trim(md_mdu)//'_'//sdmn_loc//'.mdu')
-          enddo   
+          enddo
        else
-          call partition_from_commandline(md_netfile,md_ndomains,md_jacontiguous,md_icgsolver, md_pmethod, md_dryptsfile, md_genpolygon)
+          call partition_from_commandline(md_netfile,md_ndomains,md_jacontiguous,md_icgsolver, md_pmethod, md_dryptsfile, md_encfile, md_genpolygon)
        end if
 
        goto 1234  !      stop
@@ -313,7 +335,6 @@
    
     if (len_trim(md_ident) > 0) then
         ! An MDU file was read.
-        md_findcells = 0  ! try to bypass findcells
         ierr = flow_modelinit()
         if ( ierr /= DFM_NOERR ) goto 1234  ! error: finalize and stop
       
@@ -358,11 +379,13 @@
       ELSE IF (MODE .EQ. 5) THEN
          CALL EDITSAM(MODE,KEY)
       ELSE IF (MODE .EQ. 6) THEN
-         CALL EDITFLOW(MODE,KEY)
+         CALL EDITFLOW(MODE,KEY,51)
+      ELSE IF (MODE .EQ. 7) THEN
+         CALL EDITFLOW(MODE,KEY,52)
       ENDIF
       ! Catch invalid modes return from edit*-routines.
       ! Set back to last valid mode if necessary.
-      if (mode >= 1 .and. mode <= 6) then
+      if (mode >= 1 .and. mode <= 7) then
           lastmode = mode ! is a good mode
       else
           mode = lastmode ! return to last known good mode

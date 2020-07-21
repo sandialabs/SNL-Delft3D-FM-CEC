@@ -1,7 +1,7 @@
 module m_ini_noderel
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
+!  Copyright (C)  Stichting Deltares, 2011-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -25,12 +25,13 @@ module m_ini_noderel
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: ini_noderel.f90 7998 2018-01-09 16:45:07Z jagers $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_gpl/morphology/packages/morphology_io/src/ini_noderel.f90 $
+!  $Id: ini_noderel.f90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_gpl/morphology/packages/morphology_io/src/ini_noderel.f90 $
 !!--description-----------------------------------------------------------------
 private
 public ini_noderel
 public get_noderel_idx
+public clr_noderel
 
 contains
 
@@ -132,7 +133,7 @@ subroutine ini_noderel(nrd, sedpar, lsedtot)
          
          ! Get Data from File
          
-         ! First Get Name of Table File, so it is availabe when needed
+         ! First Get Name of Table File, so it is available when needed
          do inod = 1, size(nrd_ptr%child_nodes)
             block_ptr => nrd_ptr%child_nodes(inod)%node_ptr
             block_name = tree_get_name(block_ptr )
@@ -256,7 +257,7 @@ subroutine ini_noderel(nrd, sedpar, lsedtot)
    
 end subroutine ini_noderel
 
-integer function get_noderel_idx(iNod, pFrac, nodeID, branInID, nodbrt)
+integer function get_noderel_idx(iNod, pFrac, nodeIDIdx, branInIDLn, nodbrt)
 !
 !    Function: - Get the Nodal Point Relation for the Current Node/Branch
 !                If nothing Found return 0 (zero which means default)
@@ -267,8 +268,8 @@ integer function get_noderel_idx(iNod, pFrac, nodeID, branInID, nodbrt)
    ! Global variables
    integer                                :: iNod     !< Index of Actual Node
    type(t_nodefraction)                   :: pFrac
-   character(len=Charlen)                 :: nodeID
-   character(len=Charlen)                 :: branInID
+   integer                                :: nodeIDIdx
+   integer                                :: branInIDLn
    integer                                :: nodbrt
 
    ! Local variables
@@ -282,14 +283,14 @@ integer function get_noderel_idx(iNod, pFrac, nodeID, branInID, nodbrt)
    getFunctionRelation = .true.
    
    
-   if (branInID .ne. ' ' .and. branInID .ne. '#####' .and. nodbrt == 3) then
+   if (branInIDLn .ne. 0 .and. branInIDLn .ne. -444 .and. nodbrt == 3) then
       
       ! Only One Incoming Branch at a Real Bifurcation
       do iNodeRel = 1, pFrac%nNodeRelations
       
          pNodRel => pFrac%noderelations(iNodeRel)
          
-         if (pNodRel%Node == nodeID .and. pNodRel%BranchIn == branInID) then
+         if (pNodRel%NodeIdx == nodeIDIdx .and. pNodRel%BranchInLn == branInIDLn) then
          
             ! Found/Bingo
             get_noderel_idx = iNodeRel
@@ -307,7 +308,7 @@ integer function get_noderel_idx(iNod, pFrac, nodeID, branInID, nodbrt)
       
          pNodRel => pFrac%noderelations(iNodeRel)
          
-         if (pNodRel%Node == nodeID .and. pNodRel%BranchIn == ' ') then
+         if (pNodRel%NodeIdx == nodeIDIdx .and. pNodRel%BranchInLn == 0) then
          
             ! Found/Bingo
             get_noderel_idx = iNodeRel
@@ -319,6 +320,34 @@ integer function get_noderel_idx(iNod, pFrac, nodeID, branInID, nodbrt)
    endif
    
 end function get_noderel_idx
+
+subroutine clr_noderel(istat, nrd)
+
+!
+!    Function - Clear NodeRelation Data 
+!
+
+   use morphology_data_module, only : t_nodereldata, t_nodefraction, t_noderelation ! CHARLEN, , sedpar_type
+   use properties
+    
+   implicit none
+
+   ! Global variables
+   
+   type(t_nodereldata)                    , intent(inout)   :: nrd
+   integer                                , intent(out)   :: istat
+   
+   ! Local variables
+
+   
+!
+!! executable statements -------------------------------------------------------
+!
+   
+   if (associated(nrd%nodefractions))            deallocate(nrd%nodefractions   , STAT = istat)    ! do we need to traverse further down the tree?
+   if (istat==0 .and. associated(nrd%flnrd))     deallocate(nrd%flnrd           , STAT = istat)   
+
+end subroutine clr_noderel   
 
 subroutine GetAndCheckFileNames(nrd, sedpar, lsedtot)
 

@@ -1,7 +1,7 @@
    module sorting_algorithms
    !----- LGPL --------------------------------------------------------------------
    !
-   !  Copyright (C)  Stichting Deltares, 2011-2018.
+   !  Copyright (C)  Stichting Deltares, 2011-2020.
    !
    !  This library is free software; you can redistribute it and/or
    !  modify it under the terms of the GNU Lesser General Public
@@ -25,8 +25,8 @@
    !  Stichting Deltares. All rights reserved.
    !
    !-------------------------------------------------------------------------------
-   !  $Id: sorting_algorithms.f90 7992 2018-01-09 10:27:35Z mourits $
-   !  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_lgpl/deltares_common/packages/deltares_common/src/sorting_algorithms.f90 $
+   !  $Id: sorting_algorithms.f90 65778 2020-01-14 14:07:42Z mourits $
+   !  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/deltares_common/packages/deltares_common/src/sorting_algorithms.f90 $
    !!--description-----------------------------------------------------------------
    !
    ! This module includes sorting algorithms
@@ -34,9 +34,17 @@
    !!--pseudo code and references--------------------------------------------------
    ! NONE
    !!--declarations----------------------------------------------------------------
-   
-   contains 
-   
+
+   !> \page deltares_common
+   !! \section sorting Sorting algorithms
+   !! The module \em sorting_algorithms provides several basic routines for sorting
+   !! arrays, both integer and real (double precision).
+   !!
+   !! The relevant routine is:
+   !! \ref sort
+   !!
+   contains
+
    SUBROUTINE INDEXXI(N,ARRIN,INDX)
    implicit none
    integer :: i
@@ -87,7 +95,7 @@
      INDX(I)=INDXT
    GO TO 10
    END SUBROUTINE INDEXXi
-   
+
    SUBROUTINE INDEXX(N,ARRIN,INDX)
    implicit none
    integer :: i
@@ -140,8 +148,10 @@
    END SUBROUTINE INDEXX
 
 
+   !> \anchor sort
+   !! Sort a real (double precision) array in ascending order
+   !!
    subroutine sort(n,ra,wksp,iwksp)
-   !!--description-----------------------------------------------------------------
    ! Sorts an array, routine from Numerical Recipes
    !!--pseudo code and references--------------------------------------------------
    ! NONE
@@ -151,10 +161,10 @@
    !
    ! Global variables
    !
-   integer                              :: n
-   integer, dimension(n)                :: iwksp
-   real*8   , dimension(n)              :: ra
-   real*8   , dimension(n), intent(out) :: wksp
+   integer                              :: n          !< Number of elements in the array
+   integer, dimension(n)                :: iwksp      !< Integer workspace array
+   real*8   , dimension(n)              :: ra         !< Array to be sorted
+   real*8   , dimension(n), intent(out) :: wksp       !< Real workspace array
    !
    ! Local variables
    !
@@ -167,5 +177,5 @@
       wksp(j) = ra(iwksp(j))
    enddo
    end subroutine sort
-   
+
    end module sorting_algorithms

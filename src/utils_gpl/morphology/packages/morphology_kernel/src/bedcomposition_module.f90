@@ -1,7 +1,7 @@
 module bedcomposition_module
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
+!  Copyright (C)  Stichting Deltares, 2011-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -25,8 +25,8 @@ module bedcomposition_module
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: bedcomposition_module.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_gpl/morphology/packages/morphology_kernel/src/bedcomposition_module.f90 $
+!  $Id: bedcomposition_module.f90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_gpl/morphology/packages/morphology_kernel/src/bedcomposition_module.f90 $
 !!--module description----------------------------------------------------------
 !
 ! This module keeps track of the bed composition at one or more locations. The
@@ -192,8 +192,8 @@ subroutine bedcomposition_module_info(messages)
     !
     type(message_stack) :: messages
     !
-    call addmessage(messages,'$Id: bedcomposition_module.f90 7992 2018-01-09 10:27:35Z mourits $')
-    call addmessage(messages,'$URL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_gpl/morphology/packages/morphology_kernel/src/bedcomposition_module.f90 $')
+    call addmessage(messages,'$Id: bedcomposition_module.f90 65778 2020-01-14 14:07:42Z mourits $')
+    call addmessage(messages,'$URL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_gpl/morphology/packages/morphology_kernel/src/bedcomposition_module.f90 $')
 end subroutine bedcomposition_module_info
 !
 !

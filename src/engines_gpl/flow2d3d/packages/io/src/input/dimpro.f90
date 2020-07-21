@@ -9,7 +9,7 @@ subroutine dimpro(lunmd     ,lundia    ,error     ,nrrec     ,lsts      , &
                 & prgnm     ,lfsdu     ,lfsdus1   ,gdp       )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
+!  Copyright (C)  Stichting Deltares, 2011-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -33,8 +33,8 @@ subroutine dimpro(lunmd     ,lundia    ,error     ,nrrec     ,lsts      , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: dimpro.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/engines_gpl/flow2d3d/packages/io/src/input/dimpro.f90 $
+!  $Id: dimpro.f90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/io/src/input/dimpro.f90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: Reads the dimensions for processes from the

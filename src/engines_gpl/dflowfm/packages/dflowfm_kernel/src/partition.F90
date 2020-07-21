@@ -1,6 +1,6 @@
 !----- AGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2017-2018.                                
+!  Copyright (C)  Stichting Deltares, 2017-2020.                                
 !                                                                               
 !  This file is part of Delft3D (D-Flow Flexible Mesh component).               
 !                                                                               
@@ -27,8 +27,8 @@
 !                                                                               
 !-------------------------------------------------------------------------------
 
-! $Id: partition.F90 54199 2018-01-23 13:21:44Z zhao $
-! $HeadURL: https://repos.deltares.nl/repos/ds/trunk/additional/unstruc/src/partition.F90 $
+! $Id: partition.F90 65964 2020-02-10 11:27:22Z spee $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/dflowfm/packages/dflowfm_kernel/src/partition.F90 $
    
 !------------------------------------------------------------------------
 !  THOUGHTS:
@@ -292,7 +292,7 @@ use m_tpoly
             call find1dcells()
          end if
          
-         call delete_drypoints_from_netgeom(dryptsfile, 0, 0)
+         call delete_dry_points_and_areas()
       end if
       
 !     determine number of cells
@@ -572,7 +572,7 @@ use m_tpoly
 !      if ( ierror.ne.0 ) goto 1234
 
 !     begin DEBUG
-         call write_ghosts(trim(md_ident)//'_gst.pli')
+!         call write_ghosts(trim(md_ident)//'_gst.pli')
 !     end DEBUG
 
 !     determine overlapping nodes in solver
@@ -609,12 +609,11 @@ use m_tpoly
 !> make a domain, including the ghostcells, by removing the other parts of the network
 !>   based on combined ghostlevels
    subroutine partition_make_domain(idmn, numlay_cell, numlay_node, jacells, ierror)
-      use network_data
       use MessageHandling
       use dfm_error
       use m_polygon
       use m_missing, only: dmiss, intmiss
-      use network_data, only: xzw, yzw, cellmask
+      use network_data
       use m_alloc
       use gridoperations
 
@@ -718,7 +717,7 @@ use m_tpoly
       call findcells(100000)  ! output link permutation array "Lperm" (only used if jacells.eq.1)
       call find1dcells()
    
-      call delete_drypoints_from_netgeom(dryptsfile, 0, 0)
+      call delete_dry_points_and_areas()
   
       if (numk == 0 .or. numl == 0) then
          write(message,"('While making partition domain #', I0, ': empty domain (', I0, ' net nodes, ', I0, ' net links).')") idmn, numk, numl
@@ -1361,7 +1360,7 @@ use m_tpoly
       do i=0,ubound(nghostlist_u,1)
          do j=nghostlist_u(i-1)+1,nghostlist_u(i)
             NPL = NPL+1
-            Lf     = ighostlist_u(j)
+            Lf     = iabs(ighostlist_u(j))
             xpl(NPL) = xu(Lf)
             ypl(NPL) = yu(Lf)
             ipl(NPL) = i
@@ -2403,7 +2402,8 @@ use m_tpoly
       
       integer, intent(out) :: ierror
       
-      integer              :: LL
+      integer              :: LL, L
+      integer, allocatable :: kmxL1(:)
       
       ierror = 0   ! so far, so good
       
@@ -2437,9 +2437,15 @@ use m_tpoly
       call partition_fill_ghostsendlist_3d(nghostlist_u(ndomains-1), ighostlist_u, nghostlist_u, Lnx, Lbot, kmxL, nghostlist_u_3d)
       call partition_fill_ghostsendlist_3d(nsendlist_u(ndomains-1),  isendlist_u,  nsendlist_u,  Lnx, Lbot, kmxL, nsendlist_u_3d)
       
-      call partition_fill_ghostsendlist_3d(nghostlist_u(ndomains-1), ighostlist_u, nghostlist_u, Lnx, Lbot, kmxL+1, nghostlist_u_3dw)
-      call partition_fill_ghostsendlist_3d(nsendlist_u(ndomains-1),  isendlist_u,  nsendlist_u,  Lnx, Lbot, kmxL+1, nsendlist_u_3dw)
-      
+      if (allocated(kmxL1)) deallocate(kmxL1)  
+      allocate(kmxL1(lnx))
+      do L = 1,lnx
+         kmxL1(L) =  kmxL(L) + 1
+      enddo
+      call partition_fill_ghostsendlist_3d(nghostlist_u(ndomains-1), ighostlist_u, nghostlist_u, Lnx, Lbot, kmxL1, nghostlist_u_3dw)
+      call partition_fill_ghostsendlist_3d(nsendlist_u(ndomains-1),  isendlist_u,  nsendlist_u,  Lnx, Lbot, kmxL1, nsendlist_u_3dw)
+      deallocate(kmxL1)      
+
       ierror = 0
  1234 continue
  
@@ -3461,29 +3467,69 @@ end subroutine partition_make_globalnumbers
    end subroutine reduce_int4_max
    
    !> reduce an integer, take global sum
-   subroutine reduce_int_sum(ndx2d,ndx2dr)
+   subroutine reduce_int_sum(varin,varout)
 #ifdef HAVE_MPI
       use mpi
 #endif
 
       implicit none
       
-      integer, intent(inout) :: ndx2d,ndx2dr 
+      integer, intent(in)  :: varin
+      integer, intent(out) :: varout
       
 #ifdef HAVE_MPI
-      
-      integer, dimension(1)  :: dum, var_all
-   
       integer                :: ierror
 
-      dum    = (/ndx2d/)
-      call mpi_allreduce(dum,var_all,1,mpi_integer,mpi_sum,DFM_COMM_DFMWORLD,ierror)
-      ndx2dr = var_all(1)
+      call mpi_allreduce(varin,varout,1,mpi_integer,mpi_sum,DFM_COMM_DFMWORLD,ierror)
 #endif
 
       return
    end subroutine reduce_int_sum
    
+!> reduce an array of integers, take global sum
+   subroutine reduce_intN_sum(N, varin, varout)
+#ifdef HAVE_MPI
+      use mpi
+#endif
+
+      implicit none
+      
+      integer,               intent(in)  :: N      !< array size
+      integer, dimension(N), intent(in)  :: varin  !< variable
+      integer, dimension(N), intent(out) :: varout !< reduced variable
+#ifdef HAVE_MPI
+
+      integer                                     :: ierror
+      
+!      write(6,*) 'my_rank=', my_rank, 'N=', N
+      
+      call mpi_allreduce(varin,varout,N,mpi_integer,mpi_sum,DFM_COMM_DFMWORLD,ierror)
+#endif
+
+      return
+   end subroutine reduce_intN_sum
+
+   !> for an array over integers, take global sum over all subdomains (not over the array itself)
+   subroutine reduce_int_array_sum(N, var)
+#ifdef HAVE_MPI
+      use mpi
+#endif
+
+      implicit none
+      
+      integer,                        intent(in)    :: N  !< array size
+      integer, dimension(N),          intent(inout) :: var !< array with values to be summed over the subdomains (not an array summation)
+      
+      integer, dimension(N)                         :: dum
+      
+      integer :: ierror
+      
+#ifdef HAVE_MPI
+      call MPI_allreduce(var,dum,N,mpi_integer,mpi_sum,DFM_COMM_DFMWORLD,ierror)
+#endif
+      var = dum
+      return
+   end subroutine reduce_int_array_sum
     
 !> reduce key (also used for nonlin in setprofs1D)
 !>   take maximum
@@ -3593,6 +3639,27 @@ end subroutine partition_make_globalnumbers
 #endif      
       return
    end subroutine reduce_sum
+   
+   !> take maximum integer over all subdomains
+   subroutine reduce_int1_max(var)
+#ifdef HAVE_MPI
+      use mpi
+#endif
+
+      implicit none
+      
+      integer, intent(inout) :: var !< array with values to be summed over the subdomains (not an array summation)
+      
+      integer                :: dum
+      
+      integer                :: ierror
+      
+#ifdef HAVE_MPI
+      call MPI_allreduce(var,dum,1,mpi_integer,mpi_max,DFM_COMM_DFMWORLD,ierror)
+      var = dum
+#endif      
+      return
+   end subroutine reduce_int1_max
    
    
    
@@ -3840,13 +3907,11 @@ end subroutine partition_make_globalnumbers
 #ifdef HAVE_MPI
 
       
-!     disable oberservation stations with missing values in this domain
+!     disable observation stations with missing values in this domain
       do iobs=1,numobs
          do ival=1,numvals
             if ( valobs(ival,iobs).eq.DMISS ) then
-                valobs(1:numvals,iobs) = dsmall
-!               write(6,"(I4, ':', I4)") my_rank, iobs
-               exit
+                valobs(ival,iobs) = dsmall
             end if
          end do
       end do
@@ -3858,8 +3923,7 @@ end subroutine partition_make_globalnumbers
       do iobs=1,numobs
          do ival=1,numvals
             if ( valobs(ival,iobs).eq.dsmall ) then   ! safety, check all vals until not found (not necessary)
-               valobs(1:numvals,iobs) = DMISS
-               exit
+               valobs(ival,iobs) = DMISS
             end if
          end do
       end do
@@ -4404,7 +4468,7 @@ end subroutine partition_make_globalnumbers
          inew(ibra) = numcur
          
          icount        = icount+1
-         idum(icount)  = ibr
+         idum(icount)  = ibra
          iorient(ibra) = idir
          
          if ( idir.eq.1 ) then   ! walk right
@@ -4467,6 +4531,7 @@ end subroutine partition_make_globalnumbers
          integer, intent(out)               :: ierror   !< error (1) or not (0)
          
          integer                            :: La
+         integer :: ibr, inext
          
 !     see if any of the left/right links of other domain's branches is in a netbranch in this domain
          ibr_glob_left = 0
@@ -4589,7 +4654,7 @@ end subroutine partition_make_globalnumbers
                end if
             else if ( inext.lt.0 ) then
    !           opposite orientation: should connect with next left
-               if ( ibr_glob_left(inext).ne.-ibr ) then
+               if ( ibr_glob_left(-inext).ne.-ibr ) then
                   ibr_glob_left(ibr) = 0
                end if
             end if
@@ -4659,7 +4724,279 @@ end subroutine partition_make_globalnumbers
 
       return
    end subroutine
+
+
+   !> Generic function for weighted average on a quantities defined on cells or links, also applying optional filters
+   !> optional firstFilter is defined on a global weights array [1, ncells/nlinks]
+   !> optional secondFilter is defined on a local array [1,size(secondFilter)]
+   !> works also across multiple MPI ranks
+   function getAverageQuantityFromLinks(startLinks, endLinks, weights, indsWeight, quantity, indsQuantity, results, quantityType, &
+      firstFilter, firstFilterValue, secondFilter, secondFilterValue ) result(ierr)
+
+   use mpi
+   use m_flowexternalforcings
+   use m_timer
+
+   !inputs
+   integer,intent(in),dimension(:)               :: startLinks             !< start indexes [1,nsegments]
+   integer,intent(in),dimension(:)               :: endLinks               !< end   indexes [1,nsegments]
+   double precision,intent(in),dimension(:)      :: weights                !< global weights array
+   integer,intent(in),dimension(:)               :: indsWeight             !< local indexes on global weights array
+   double precision,intent(in),dimension(:)      :: quantity               !< global quantity array
+   integer,intent(in),dimension(:)               :: indsQuantity           !< local indexes on global quantity array
+   integer,intent(in)                            :: quantityType           !< The type of quantity: 0 scalar, 1 array (edge orientation matters)
    
+   double precision,intent(in),dimension(:), optional :: firstFilter       !< filter to apply on the global weights array
+   double precision,intent(in), optional              :: firstFilterValue  !< value to activate the first filter (activated if larger than filter value)
+
+   integer,intent(in), dimension(:), optional    :: secondFilter           !< filter to apply on the local weights array
+   integer,intent(in), optional                  :: secondFilterValue      !< value to activate the second filter (activated if larger than filter value)
+   !locals
+   integer                                       :: ns, nsegments, nl, indWeight, indQuantity
+   double precision                              :: sumQuantitiesByWeight, sumWeights
+   double precision                              :: quantitiesByWeight, weight
+   double precision, allocatable                 :: resultsSum(:,:)
+
+   !outputs
+   double precision,dimension(:,:),intent(inout) :: results
+   integer                                       :: ierr
+
+   ierr = 0
+   nsegments = size(startLinks)
+   allocate(resultsSum(2,nsegments))
+   results = 0.0d0
+
+   do ns = 1, nsegments
+
+      sumQuantitiesByWeight = 0d0
+      sumWeights            = 0d0
+
+      do nl  = startLinks(ns), endLinks(ns)
+
+         indWeight    = abs(indsWeight(nl))
+         indQuantity  = abs(indsQuantity(nl))
+         quantitiesByWeight = 0.0d0
+         weight = 0.0d0
+
+         if ( jampi.eq.1 ) then
+            ! Exclude ghost nodes
+            if ( idomain(indQuantity).ne.my_rank ) then
+               cycle
+            end if
+         end if
+
+
+         ! weights are always positive
+         weight = weights(indWeight)
+         if(quantityType == 1) then
+            if (indsQuantity(nl)< 0) then
+               quantitiesByWeight =   - quantity(indQuantity)*weight
+            else
+               quantitiesByWeight =   quantity(indQuantity)*weight
+            endif
+         else
+            quantitiesByWeight =  quantity(indQuantity)*weight
+         endif
+
+         if ( present(firstFilter).and.present(firstFilterValue)) then
+            if ( firstFilter(indWeight) <= firstFilterValue ) then
+               quantitiesByWeight =  0.0d0
+               weight             =  0.0d0
+            endif
+         endif
+
+         if ( present(secondFilter).and.present(secondFilterValue)) then
+            if ( secondFilter(nl) <= secondFilterValue ) then
+               quantitiesByWeight =  0.0d0
+               weight             =  0.0d0
+            endif
+         endif
+
+         sumQuantitiesByWeight   = sumQuantitiesByWeight + quantitiesByWeight
+         sumWeights              = sumWeights + weight
+
+      enddo
+      results(1,ns) = sumQuantitiesByWeight
+      results(2,ns) = sumWeights
+   end do
+
+   if ( jampi.eq.1 .and. japartqbnd.eq.1 ) then
+      ! Here we reduce the results
+      if ( jatimer.eq.1 ) call starttimer(IMPIREDUCE)
+#ifdef HAVE_MPI
+      call MPI_allreduce(results,resultsSum,2*nsegments,mpi_double_precision,mpi_sum,DFM_COMM_DFMWORLD, ierr)
+      results = resultsSum
+#endif  
+      if ( jatimer.eq.1 ) call stoptimer(IMPIREDUCE)
+   end if
+
+   end function getAverageQuantityFromLinks
+      
+      !> generate partitioning polygons 
+      ! Moved to module because of optional argument
+      ! Adaptations from original version to fix coupling with SWAN:
+      ! - myrank: write only polygon for points that are strictly in domain myrank (no ghostcell polygons)
+   subroutine generate_partition_pol_from_idomain(ierror, myrank)
+      use network_data
+      use m_polygon
+      use m_tpoly
+      use m_sferic
+      use unstruc_messages
+      use gridoperations
+      implicit none
+      
+      integer,               intent(out) :: ierror
+      integer, optional,     intent(in)  :: myrank
+      
+      integer, dimension(:), allocatable :: lnn_sav
+      
+      integer                            :: icL, icR, idmn, L
+      
+      integer                            :: jabound
+      integer                            :: myrank_
+      integer                            :: nstart, nstop
+      
+      ierror = 1
+      
+      myrank_ = -1
+            
+      if (present(myrank)) then
+         myrank_ = myrank         
+      endif
+      
+      if (myrank_>=0) then
+         nstart = myrank_
+         nstop  = myrank_ 
+      else
+         nstart = 1
+         nstop  = Ndomains-1
+      endif
+      
+      if ( netstat.eq.NETSTAT_CELLS_DIRTY ) then
+         call findcells(0)
+         call find1Dcells()
+         
+         call delete_dry_points_and_areas()
+      end if
+      
+!     check for 1D cells (not supported)
+      if ( nump1d2d.gt.nump ) then
+         call mess(LEVEL_WARN, 'generate_partition_pol_from_idomain: 1D not supported')
+         goto 1234
+      end if
+      
+!     allocate
+      allocate(lnn_sav(numL))
+      
+!     store
+      call savepol()
+      
+      do L=1,numL
+         lnn_sav(L) = lnn(L)
+      end do
+      
+!     generate polygons
+!        note: domain 0 is the default domain
+!     clean up previous tpoly-type partitioning polygon
+      call dealloc_tpoly(partition_pol)
+      npartition_pol = 0   ! current number
+      do idmn=nstart,nstop
+         do L=numL1D+1,numL   ! only 2D supported
+!           check if this netlink is a domain boundary
+            jabound = 0 ! default
+            icL = lne(1,L)
+            icR = lne(2,L)
+            if ( lnn(L).eq.1 ) then
+               if ( idomain(icL).eq.idmn ) jabound = 1
+            else if ( lnn(L).eq.2 ) then
+               if ( (idomain(icL).ne.idomain(icR)) .and.    &
+                      ( (idomain(icL).eq.idmn) .or. (idomain(icR).eq.idmn) ) ) then
+                     jabound = 1
+               end if
+            end if
+            
+!           modify lnn
+            if ( jabound.eq.1 ) then
+               lnn(L) = 1
+            else
+               lnn(L) = 2
+            end if
+         end do
+         
+!        delete current polygon (if applicable)
+         call delpol()
+         
+!        copy netbounds based on modified lnn to polygon
+         call copynetboundstopol(0, 0, 0, 1)
+         
+!        set polygon nodal value to domain number
+         zpl(1:NPL) = dble(idmn)
+         
+!        add polygon to tpoly-type partitioning polygons
+         call pol_to_tpoly(npartition_pol, partition_pol, keepExisting=.true.)
+         
+!        check number of partitioning polygons
+!         if ( npartition_pol.ne.idmn ) then
+!            call qnerror('generate_partition_pol_from_idomain: number of polygons and domains do not match', ' ', ' ')
+!         end if
+         
+!         call cls1()
+!         rlin(1:numL) = lnn(1:numL)
+!         call teknetstuff(key)
+!         call tekpolygon()
+!         write(message,"('domain ', I)") idmn
+!         call qnerror(trim(message), ' ', ' ')
+      
+!        restore lnn
+         do L=1,numL
+            lnn(L) = lnn_sav(L)
+         end do
+      end do   ! do idmn=0,Ndomains-1
+      
+      
+!     delete polygon
+      call delpol()
+      
+!     copy tpoly-type partition polygons to polygon
+      call tpoly_to_pol(partition_pol)
+      
+!     fix polygon for spheric, periodic coordinates
+      call fix_global_polygons(0,1)
+      
+      ierror = 0
+      
+1234  continue
+      
+!     deallocate
+      if ( allocated(lnn_sav) ) deallocate(lnn_sav)
+      
+      return
+   end subroutine generate_partition_pol_from_idomain
+   
+!> reduce error level, note that it is assumed that DFM_NOERR=0 and that all error levels >=0 
+   subroutine reduce_error(ierror) 
+      implicit none 
+      integer, intent(inout) :: ierror
+      
+      integer, dimension(1)  :: idum
+      
+      idum(1) = ierror
+      call reduce_int_max(1, idum)
+      ierror = idum(1)
+
+      return 
+   end subroutine reduce_error 
+   
+!> Abort all processes
+   subroutine abort_all()
+      use dfm_error, only: DFM_GENERICERROR
+      implicit none
+      integer :: ierr
+#ifdef HAVE_MPI      
+      call MPI_Abort(DFM_COMM_DFMWORLD, DFM_GENERICERROR, ierr)
+#endif
+      return
+   end subroutine abort_all
    end module m_partitioninfo
    
    
@@ -4675,7 +5012,7 @@ end subroutine partition_make_globalnumbers
       call MPI_barrier(DFM_COMM_DFMWORLD,ierr)
 
       if ( my_rank.eq.0 ) then
-         write(6,*) "press a key..."
+         write(6,*) "press a key from rank 0..."
          read(5,*)
       end if
 
@@ -5008,13 +5345,13 @@ end subroutine partition_make_globalnumbers
          end if
       end do
       
-!     make CSR arrays zero-based
-      iadj = iadj-1
-      jadj = jadj-1
-      
 !     edge weights
       allocate(adjw(iadj(nump1d2d+1)-1))
       adjw = 1
+      
+!     make CSR arrays zero-based
+      iadj = iadj-1
+      jadj = jadj-1
       
       netstat = NETSTAT_CELLS_DIRTY
 !      
@@ -5083,7 +5420,6 @@ end subroutine partition_make_globalnumbers
       use m_partitioninfo
       use MessageHandling
       use gridoperations
-      use network_data, only: dryptsfile
       
       implicit none
    
@@ -5106,7 +5442,7 @@ end subroutine partition_make_globalnumbers
 !     reenable polygons
       NPL = NPL_save
    
-      call delete_drypoints_from_netgeom(dryptsfile, 0, 0)
+      call delete_dry_points_and_areas()
       
       if ( NPL.gt.1 ) then ! use the polygons
          call generate_partitioning_from_pol()
@@ -5169,131 +5505,6 @@ end subroutine partition_make_globalnumbers
       
       return
    end subroutine partition_to_idomain
-   
-   
-!> generate partitioning polygons   
-   subroutine generate_partition_pol_from_idomain(ierror)
-      use m_partitioninfo
-      use network_data
-      use m_polygon
-      use m_tpoly
-      use m_sferic
-      use unstruc_messages
-      use gridoperations
-      implicit none
-      
-      integer,               intent(out) :: ierror
-      
-      integer, dimension(:), allocatable :: lnn_sav
-      
-      integer                            :: icL, icR, idmn, L
-      
-      integer                            :: jabound
-      
-      ierror = 1
-      
-      if ( netstat.eq.NETSTAT_CELLS_DIRTY ) then
-         call findcells(0)
-         call find1Dcells()
-         
-         call delete_drypoints_from_netgeom(dryptsfile, 0, 0)
-      end if
-      
-!     check for 1D cells (not supported)
-      if ( nump1d2d.gt.nump ) then
-         call mess(LEVEL_WARN, 'generate_partition_pol_from_idomain: 1D not supported')
-         goto 1234
-      end if
-      
-!     allocate
-      allocate(lnn_sav(numL))
-      
-!     store
-      call savepol()
-      
-      do L=1,numL
-         lnn_sav(L) = lnn(L)
-      end do
-      
-!     generate polygons
-!        note: domain 0 is the default domain
-!     clean up previous tpoly-type partitioning polygon
-      call dealloc_tpoly(partition_pol)
-      npartition_pol = 0   ! current number
-      do idmn=1,Ndomains-1
-         do L=numL1D+1,numL   ! only 2D supported
-!           check if this netlink is a domain boundary
-            jabound = 0 ! default
-            icL = lne(1,L)
-            icR = lne(2,L)
-            if ( lnn(L).eq.1 ) then
-               if ( idomain(icL).eq.idmn ) jabound = 1
-            else if ( lnn(L).eq.2 ) then
-               if ( (idomain(icL).ne.idomain(icR)) .and.    &
-                      ( (idomain(icL).eq.idmn) .or. (idomain(icR).eq.idmn) ) ) then
-                     jabound = 1
-               end if
-            end if
-            
-!           modify lnn
-            if ( jabound.eq.1 ) then
-               lnn(L) = 1
-            else
-               lnn(L) = 2
-            end if
-         end do
-         
-!        delete current polygon (if applicable)
-         call delpol()
-         
-!        copy netbounds based on modified lnn to polygon
-         call copynetboundstopol(0, 0, 0, 1)
-         
-!        set polygon nodal value to domain number
-         zpl(1:NPL) = dble(idmn)
-         
-!        add polygon to tpoly-type partitioning polygons
-         call pol_to_tpoly(npartition_pol, partition_pol, keepExisting=.true.)
-         
-!        check number of partitioning polygons
-!         if ( npartition_pol.ne.idmn ) then
-!            call qnerror('generate_partition_pol_from_idomain: number of polygons and domains do not match', ' ', ' ')
-!         end if
-         
-!         call cls1()
-!         rlin(1:numL) = lnn(1:numL)
-!         call teknetstuff(key)
-!         call tekpolygon()
-!         write(message,"('domain ', I)") idmn
-!         call qnerror(trim(message), ' ', ' ')
-      
-!        restore lnn
-         do L=1,numL
-            lnn(L) = lnn_sav(L)
-         end do
-      end do   ! do idmn=0,Ndomains-1
-      
-      
-!     delete polygon
-      call delpol()
-      
-!     copy tpoly-type partition polygons to polygon
-      call tpoly_to_pol(partition_pol)
-      
-!     fix polygon for spheric, periodic coordinates
-      call fix_global_polygons(0,1)
-      
-      ierror = 0
-      
-1234  continue
-      
-!     deallocate
-      if ( allocated(lnn_sav) ) deallocate(lnn_sav)
-      
-      return
-   end subroutine generate_partition_pol_from_idomain
-   
-   
    
    
 !!> get overlapping nodes (in solver only)

@@ -1,7 +1,7 @@
 module m_readCrossSections
 !----- AGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2017-2018.                                
+!  Copyright (C)  Stichting Deltares, 2017-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify              
 !  it under the terms of the GNU Affero General Public License as               
@@ -25,19 +25,19 @@ module m_readCrossSections
 !  Stichting Deltares. All rights reserved.
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: readCrossSections.f90 8044 2018-01-24 15:35:11Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_gpl/flow1d/packages/flow1d_io/src/readCrossSections.f90 $
+!  $Id: readCrossSections.f90 65972 2020-02-12 07:36:41Z chavarri $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_gpl/flow1d/packages/flow1d_io/src/readCrossSections.f90 $
 !-------------------------------------------------------------------------------
 
    use M_newcross
    use m_CrossSections
    use MessageHandling
-   use modelGlobalData
-   use flow1d_io_properties
+   use properties
    use m_network
    use m_GlobalParameters
    use m_hash_search
    use m_spatial_data
+   use string_module, only: strcmpi
 
 
    implicit none
@@ -50,21 +50,35 @@ module m_readCrossSections
    public write_cross_section_cache
    public write_convtab
    public read_convtab
+
+   !> The file version number of the cross section definition file format: d.dd, [config_major].[config_minor], e.g., 1.03
+   !!
+   !! Note: read config_minor as a 2 digit-number, i.e., 1.1 > 1.02 (since .1 === .10 > .02).
+   !! Convention for format version changes:
+   !! * if a new format is backwards compatible with old files, only
+   !!   the minor version number is incremented.
+   !! * if a new format is not backwards compatible (i.e., old files
+   !!   need to be converted/updated by user), then the major version number
+   !!   is incremented.
    
-   type, public  :: t_Crosslist
-         integer              :: n
-         integer, allocatable              :: crossnr(:)
-         double precision, allocatable     :: location(:)
-   end type
+   ! Cross section definition file current version: 3.00
+   integer, parameter :: CrsDefFileMajorVersion      = 3
+   integer, parameter :: CrsDefFileMinorVersion      = 0
+   integer, parameter :: CrsDefFileMajorVersionSobek = 1  !< Version number as used in Sobek 3
    
-   type(t_Crosslist), allocatable, public :: crs_by_brs(:)                ! keeping crosssections by branch ordered by chainage
+   ! History cross section definition file versions:
+   
+   ! 3.00 (2019-06-18): use strings, instead of integers, for "closed" and "frictionType(s)".
+   ! 2.00 (2019-05-29): A completely new description of cross section definition file. See more details in issue UNST-2387.
+   ! 1.01 (2019-03-12): First version of *.ini type cross section definition file.
 
    contains
     
+   !> Read the cross section location file
    subroutine readCrossSectionLocationFile(network, CrossSectionfile)
-
-      type(t_network), intent(inout) :: network
-      character(len=*), intent(in)   :: CrossSectionFile
+      use m_CrossSections
+      type(t_network), intent(inout) :: network                 !< Network structure
+      character(len=*), intent(in)   :: CrossSectionFile        !< name of the crossection location input file 
 
       type(tree_data), pointer       :: md_ptr
       integer                        :: istat
@@ -81,12 +95,14 @@ module m_readCrossSections
       character(len=Charln)          :: binfile
       logical                        :: file_exist
       integer                        :: pos, ibin
+      integer                        :: numcrs
+
 
       pos = index(CrossSectionFile, '.', back = .true.)
       binfile = CrossSectionFile(1:pos)//'cache'
       inquire(file=binfile, exist=file_exist)
       if (doReadCache .and. file_exist) then
-         open(newunit=ibin, file=binfile, status='old', form='binary', action='read', iostat=istat)
+         open(newunit=ibin, file=binfile, status='old', form='unformatted', access='stream', action='read', iostat=istat)
          if (istat /= 0) then
             call setmessage(LEVEL_FATAL, 'Error opening Cross-Section Location Cache file')
             ibin = 0
@@ -97,7 +113,7 @@ module m_readCrossSections
          return
       endif
       
-      call tree_create(trim(CrossSectionfile), md_ptr)
+      call tree_create(trim(CrossSectionfile), md_ptr, maxlenpar)
       call prop_file('ini',trim(CrossSectionfile),md_ptr,istat)
       numstr = 0
       if (associated(md_ptr%child_nodes)) then
@@ -105,6 +121,7 @@ module m_readCrossSections
       end if
 
       success = .true.
+      numcrs = 0
       do i = 1, numstr
          if (network%crs%count+1 > network%crs%size) then
             call realloc(network%crs)
@@ -112,39 +129,50 @@ module m_readCrossSections
          inext = network%crs%count+1
          pCrs => network%crs%cross(inext)
          
-         if (tree_get_name(md_ptr%child_nodes(i)%node_ptr) .ne. 'crosssection') then
+         if (.not. strcmpi(tree_get_name(md_ptr%child_nodes(i)%node_ptr), 'CrossSection')) then
             cycle
+         else
+            numcrs = numcrs + 1
          endif
          
          call prop_get_string(md_ptr%child_nodes(i)%node_ptr, '', 'id', pCrs%csid, success)
          if (.not. success) then
-            call SetMessage(LEVEL_ERROR, 'Incorrect CrossSection input for CrossSection on branch '//trim(branchid)// &
-               'no ID was given')
+            write (msgbuf, '(a,i0,a)') 'Incorrect CrossSection input for CrossSection #', numcrs, &
+               ' in '''//trim(CrossSectionFile)//'''. No id was given.'
+            call err_flush()
             cycle
          endif
 
-         call prop_get_string(md_ptr%child_nodes(i)%node_ptr, '', 'branchid', branchid, success)
+         call prop_get_string(md_ptr%child_nodes(i)%node_ptr, '', 'branchId', branchid, success)
          if (.not. success) then
-            call SetMessage(LEVEL_ERROR, 'Incorrect CrossSection input for CrossSection on branch '//trim(branchid)// &
-               'no BranchID was given')
+            call SetMessage(LEVEL_ERROR, 'Incorrect CrossSection input for CrossSection id '''//trim(pCrs%csid)// &
+               ''' in '''//trim(CrossSectionFile)//'''. No branchId was given.')
             cycle
          endif
          
          indx = hashsearch(network%brs%hashlist, branchid)
          pCrs%branchid = indx
-         call prop_get_double(md_ptr%child_nodes(i)%node_ptr, '', 'chainage', pCrs%location, success)
+         call prop_get_double(md_ptr%child_nodes(i)%node_ptr, '', 'chainage', pCrs%chainage, success)
          if (.not. success) then
             call SetMessage(LEVEL_ERROR, 'Incorrect CrossSection input for CrossSection on branch '//trim(branchid)// &
-               'no chainage was given')
+               '. No chainage was given.')
             cycle
          endif
-         call prop_get_string(md_ptr%child_nodes(i)%node_ptr, '', 'definition', defid, success)
-         iref = hashsearch(network%CSDefinitions%hashlist, defid)
-         if (iref < 1) then
-            call SetMessage(LEVEL_ERROR, 'Incorrect CrossSection input for CrossSection on branch '//trim(branchid)// &
-                  'no definition is given')
+         call prop_get_string(md_ptr%child_nodes(i)%node_ptr, '', 'definitionId', defid, success)
+         if (.not. success) call prop_get_string(md_ptr%child_nodes(i)%node_ptr, '', 'definition', defid, success) ! Backwards compatibility
+         if (success) then
+            iref = hashsearch(network%CSDefinitions%hashlist, defid)
+            if (iref < 1) then
+               call SetMessage(LEVEL_ERROR, 'Incorrect CrossSection input for CrossSection '''//trim(pCrs%csid)//''' on branch '''//trim(branchid)// &
+                     '''. Specified definitionId '''//trim(defid)//''' was not found in definitions.')
+               cycle
+            endif
+         else
+            call SetMessage(LEVEL_ERROR, 'Incorrect CrossSection input for CrossSection '''//trim(pCrs%csid)//''' on branch '''//trim(branchid)// &
+                  '''. No definitionId was given.')
             cycle
-         endif
+         end if
+
          pCrs%bedLevel = 0.0d0
          call prop_get_double(md_ptr%child_nodes(i)%node_ptr, '', 'shift', pCrs%shift, success)
          if (.not. success) pCrs%shift = 0.0d0
@@ -164,6 +192,8 @@ module m_readCrossSections
             allocate(pCrs%frictionValuePos(pCrs%tabDef%frictionSectionsCount))       !< Friction value for positive flow direction
             allocate(pCrs%frictionTypeNeg(pCrs%tabDef%frictionSectionsCount))        !< Friction type for negative flow direction
             allocate(pCrs%frictionValueNeg(pCrs%tabDef%frictionSectionsCount))       !< Friction value for negative flow direction
+            call realloc(pCrs%tabdef%frictionSectionFrom, pCrs%tabDef%frictionSectionsCount)
+            call realloc(pCrs%tabdef%frictionSectionto, pCrs%tabDef%frictionSectionsCount)
 
             pCrs%frictionSectionsCount = pCrs%tabDef%frictionSectionsCount
             pCrs%frictionSectionID     = pCrs%tabDef%frictionSectionID
@@ -186,87 +216,78 @@ module m_readCrossSections
 
       call tree_destroy(md_ptr)
       
-      ! Clean up not used any more roughness data from definitions
-      do i = 1, network%CSDefinitions%Count
-      
-         pCrsDef => network%CSDefinitions%CS(i)
-         
-         if (pCrsDef%frictionSectionsCount > 0) then
-            if (allocated(pCrsDef%frictionSectionID))   deallocate(pCrsDef%frictionSectionID)
-            if (allocated(pCrsDef%frictionSectionFrom)) deallocate(pCrsDef%frictionSectionFrom)
-            if (allocated(pCrsDef%frictionSectionTo))   deallocate(pCrsDef%frictionSectionTo)
-            pCrsDef%frictionSectionsCount = 0
-         endif
-      
-      enddo
-      
-      !call dumpCross(network%crs, 'dumpCrossFileRead')
-      
    end subroutine readCrossSectionLocationFile
- 
-   double precision function dist_line(xp, yp, x1, y1, x2, y2, xn, yn) result(res)
 
-      ! distance from point (xp,yp)  to the line defined by (x1,y1) and (x2,y2)
-
-      ! Result .true. : project to the line is within the interval (x1,y1) and (x2,y2)
-      !                 xn, yn the projection points on the line defined by (x1,y1) and (x2,y2)
-      !        .false.: projection of (xp,yp) not on interval (x1,y1), (x2,y2)
-      !                 dis2 is squared distance to closest point of interval (x1,y1), (x2,y2)
-
-      double precision :: xp
-      double precision :: yp
-      double precision :: x1
-      double precision :: y1
-      double precision :: x2
-      double precision :: y2
-      double precision :: xn
-      double precision :: yn
-      double precision :: dis2
-
-      double precision :: eps
-      double precision :: r2
-      double precision :: lambda
-      double precision :: xp1
-      double precision :: yp1
-      double precision :: x21
-      double precision :: y21
-
-      eps = 1d-10
-
-      x21 = x2-x1
-      y21 = y2-y1
-      xp1 = xp-x1
-      yp1 = yp-y1
-      r2 = (x21*x21 + y21*y21)
-      if (r2 >= eps) then
-         lambda = (xp1*x21 + yp1*y21) / r2
-         if (0.0d0 <= lambda .and. lambda <= 1.0d0) then
-            xn = x1 + lambda*x21
-            yn = y1 + lambda*y21
-            dis2 = sqrt( (xn-x1)*(xn-x1) + (yn-y1)*(yn-y1) )
-         else if (lambda < 0.0d0) then
-            xn = x1
-            yn = y1
-            dis2 = 0.0d0
-         else if (lambda > 1.0d0) then
-            xn = x2
-            yn = y2
-            dis2 = sqrt(r2)
-         end if
-      end if
-      res = dis2
-      return
-   end function
-
+   !> Read the cross section definitions file, taking the file version into account.
    subroutine readCrossSectionDefinitions(network, CrossSectionDefinitionFile)
 
-      type(t_network), target, intent(inout) :: network
-      character(len=*), intent(in)           :: CrossSectionDefinitionFile
-      
+      type(t_network), target, intent(inout) :: network                          !< network structure
+      character(len=*), intent(in)           :: CrossSectionDefinitionFile       !< name of the cross section definition file
       type(tree_data), pointer  :: md_ptr
       integer :: istat
+      logical :: success
+      integer                       :: pos
+      integer                       :: ibin = 0
+      character(len=Charln)         :: binfile
+      logical                       :: file_exist
+      character(len=Idlen)          :: fileVersion
+      integer                       :: major 
+      integer                       :: minor
+      
+      pos = index(CrossSectionDefinitionFile, '.', back = .true.)
+      binfile = CrossSectionDefinitionFile(1:pos)//'cache'
+      inquire(file=binfile, exist=file_exist)
+      if (doReadCache .and. file_exist) then
+         open(newunit=ibin, file=binfile, status='old', form='unformatted', access='stream', action='read', iostat=istat)
+         if (istat /= 0) then
+            call setmessage(LEVEL_FATAL, 'Error opening Cross-Section Definition Cache file')
+            ibin = 0
+         endif
+         call read_cross_section_definition_cache(ibin, network%CSDefinitions)
+         close(ibin)
+         ibin = 0
+         !call dumpCrossDefs(network%CSDefinitions, 'dumpCrossDefCacheRead')
+         return
+      endif
+
+      call tree_create(trim(CrossSectionDefinitionFile), md_ptr, maxlenpar)
+      call prop_file('ini',trim(CrossSectionDefinitionFile),md_ptr,istat)
+
+      call prop_get_version_number(md_ptr, major = major, minor = minor, success = success)
+      if (.not. success) then
+         major = 1
+         minor = 0
+      endif
+      
+      select case (major)
+      case (CrsDefFileMajorVersionSobek)
+         call parseCrossSectionDefinitionFile_v100(md_ptr, network)
+      case (CrsDefFileMajorVersion)
+         call parseCrossSectionDefinitionFile(md_ptr, network)
+      case default
+         call SetMessage(LEVEL_FATAL,'Unsupported fileVersion for cross section definition file:'//trim(fileVersion))
+      end select
+
+      call tree_destroy(md_ptr)
+      call fill_hashtable(network%CSDefinitions)
+      
+   end subroutine readCrossSectionDefinitions
+      
+      
+   !> Parse cross section definition file of the current version.
+   !! file must already have been read into an ini tree.
+   subroutine parseCrossSectionDefinitionFile(md_ptr, network)
+      use m_hash_search
+      use string_module, only: strcmpi
+      use m_read_roughness, only: frictionTypeStringToInteger
+      !use m_globalparameters, only: summerDikeTransitionHeight
+   
+      type(t_network), target,  intent(inout)   :: network        !< network structure
+      type(tree_data), pointer, intent(in   )   :: md_ptr         !< treedata pointer to cross section definitions, already created.
+   
+      !integer :: istat
       integer :: numstr
-      integer :: i
+      integer :: i, j
       integer :: crosstype
       logical :: success
       character(len=IdLen) :: id
@@ -282,58 +303,44 @@ module m_readCrossSections
       double precision              :: totalArea
       logical                       :: closed
       
-      double precision              :: slope                  ! Slope of trapezium (m)
-      double precision              :: maximumFlowWidth       ! Maximum flow width of trapezium (m)
-      double precision              :: bottomWidth            ! Bottom width of trapezium (m)
-
-      integer                       :: hasGroundLayer
-      logical                       :: groundlayerUsed
+      
+      logical                       :: groundlayerUsed = .false.
       double precision              :: groundlayer
       double precision              :: height
       integer                       :: inext
+      logical                       :: plural                 !< indicates whether friction input is plural or not (e.g. frictionId or frictionIds)
       type(t_CSType), pointer       :: pCS
-      integer                       :: pos
-      integer                       :: ibin = 0
-      character(len=Charln)         :: binfile
-      logical                       :: file_exist
+      character(len=IdLen), allocatable :: fricTypes(:)
+      integer                       :: maxnumsections ! Max number of friction sections, to realloc some arrays
       
-      pos = index(CrossSectionDefinitionFile, '.', back = .true.)
-      binfile = CrossSectionDefinitionFile(1:pos)//'cache'
-      inquire(file=binfile, exist=file_exist)
-      if (doReadCache .and. file_exist) then
-         open(newunit=ibin, file=binfile, status='old', form='binary', action='read', iostat=istat)
-         if (istat /= 0) then
-            call setmessage(LEVEL_FATAL, 'Error opening Cross-Section Definition Cache file')
-            ibin = 0
-         endif
-         call read_cross_section_definition_cache(ibin, network%CSDefinitions)
-         close(ibin)
-         ibin = 0
-         !call dumpCrossDefs(network%CSDefinitions, 'dumpCrossDefCacheRead')
-         return
-      endif
-
-      call tree_create(trim(CrossSectionDefinitionFile), md_ptr)
-      call prop_file('ini',trim(CrossSectionDefinitionFile),md_ptr,istat)
-
       numstr = 0
       if (associated(md_ptr%child_nodes)) then
          numstr = size(md_ptr%child_nodes)
       end if
 
-      !if (allocated(network%CSDefinitions%definitionindex)) then
-      !   deallocate(network%CSDefinitions%definitionindex)
-      !endif
-      do i = 1, numstr
+      maxnumsections = 3
+
+  crs:do i = 1, numstr
          
-         if (tree_get_name(md_ptr%child_nodes(i)%node_ptr) .ne. 'definition') then
-            cycle
-         endif
+         ! block [Global]
+         if (strcmpi(tree_get_name(md_ptr%child_nodes(i)%node_ptr), 'Global')) then
+             call prop_get_double(md_ptr%child_nodes(i)%node_ptr, '', 'leveeTransitionHeight',summerDikeTransitionHeight, success)
+             write(msgbuf,'(a,F6.3,a)') 'Levee transition height (summerdike) = ', summerDikeTransitionHeight, ' m'
+             call msg_flush()
+             
+         ! block [Definition]   
+         elseif (strcmpi(tree_get_name(md_ptr%child_nodes(i)%node_ptr), 'Definition')) then
          
          call prop_get_string(md_ptr%child_nodes(i)%node_ptr, '', 'id', id, success)
-         if (success) call prop_get_string(md_ptr%child_nodes(i)%node_ptr, '', 'type', typestr, success)
          if (.not. success) then
-            call SetMessage(LEVEL_ERROR, 'Incorrect CrossSection input for CrossSection with type '//trim(typestr)//' and id: '//trim(id))
+            write (msgbuf, '(a,i0,a)') 'Incorrect CrossSection input for CrossSection #', i, '. No id was given.'
+            call err_flush()
+            cycle
+         endif
+         call prop_get_string(md_ptr%child_nodes(i)%node_ptr, '', 'type', typestr, success)
+         if (.not. success) then
+            call SetMessage(LEVEL_ERROR, 'Incorrect CrossSection input for CrossSection '//trim(id)// &
+               '. No type was given.')
             cycle
          endif
          crossType = getCrosstype(typestr)
@@ -343,232 +350,168 @@ module m_readCrossSections
             call realloc(network%CSDefinitions)
          endif
          
+         plural = .false.
+
          pCS => network%CSDefinitions%CS(inext)
          pCS%id = id
          pCS%crossType = crosstype
          
          select case (crossType)
-            case(CS_TABULATED)
+         case(CS_TABULATED)
             
-               success = readTabulatedCS(pCS, md_ptr%child_nodes(i)%node_ptr) 
+            if (trim(typestr) == 'zwRiver') then
+               plural = .true.
+            endif
+            success = readTabulatedCS(pCS, md_ptr%child_nodes(i)%node_ptr) 
             
-            case(CS_RECTANGLE)
-               
-               numlevels = 1
-               allocate(level(numlevels + 1))
-               allocate(width(numlevels + 1))
-               level(numlevels) = 0.0d0
-               call prop_get_doubles(md_ptr%child_nodes(i)%node_ptr, '', 'width', width, numlevels, success)
+         case(CS_RECTANGLE)
+            
+            numlevels = 1
+            allocate(level(numlevels + 2))
+            allocate(width(numlevels + 2))
+            level(numlevels) = 0.0d0
+            call prop_get_doubles(md_ptr%child_nodes(i)%node_ptr, '', 'width', width, numlevels, success)
+            if (.not. success) then
+                call SetMessage(LEVEL_ERROR, 'Incorrect CrossSection input for CrossSection Definition with type '//trim(typestr)//' and id: '//trim(id)// &
+               '. No width was given.')
+            endif
+            
+            call prop_get_logical(md_ptr%child_nodes(i)%node_ptr, '', 'closed', closed, success)
+            if (.not. success) closed = .false. ! Default
+            
+            if (closed) then
+               call prop_get_double(md_ptr%child_nodes(i)%node_ptr, '', 'height', height, success)
                if (.not. success) then
-                   call SetMessage(LEVEL_ERROR, 'Incorrect CrossSection input for CrossSection with type '//trim(typestr)//' and id: '//trim(id))
+                  call SetMessage(LEVEL_ERROR, 'Incorrect CrossSection input for CrossSection Definition with type '//trim(typestr)//' and id: '//trim(id)// &
+                  '. No height was given.')
+                  cycle
                endif
+               numlevels = numlevels + 1
+               level(numLevels) = height
+               width(numLevels) = width(1)
                
-               call prop_get_logical(md_ptr%child_nodes(i)%node_ptr, '', 'closed', closed, success)
-               if (.not. success) closed = .false. ! Default
-               
-               if (closed) then
-                  call prop_get_double(md_ptr%child_nodes(i)%node_ptr, '', 'height', height, success)
-                  if (.not. success) then
-                     call SetMessage(LEVEL_ERROR, 'HEIGHT is obligatory for closed rectangular cross sections. Refer to cross section with id '//trim(id))
-                     cycle
-                  endif
-                  numlevels = numlevels + 1
-                  level(numLevels) = height
-                  width(numLevels) = width(1)
-               endif
+            endif
 
-               plains     = 0.0d0
-               crestLevel = 0.0d0
-               baseLevel  = 0.0d0
-               flowArea   = 0.0d0
-               totalArea  = 0.0d0
+            plains     = 0.0d0
+            crestLevel = 0.0d0
+            baseLevel  = 0.0d0
+            flowArea   = 0.0d0
+            totalArea  = 0.0d0
 
-               pCs%frictionSectionsCount = 1
-               
-               allocate(pCs%frictionSectionID  (pCs%frictionSectionsCount))      !< Friction Section Identification
-               allocate(pCs%frictionSectionFrom(pCs%frictionSectionsCount))    !<
-               allocate(pCs%frictionSectionTo  (pCs%frictionSectionsCount))      !<
-               pCs%frictionSectionID(1) = 'Main'
-               
-               ! Ground Layer
-               call prop_get_integer(md_ptr%child_nodes(i)%node_ptr, '', 'groundlayerUsed', hasGroundLayer, success)
-               if (success) then
-                  groundlayerUsed = (hasgroundlayer == 1)
-               else 
-                  groundlayerUsed =  .false.
-               endif
-               if (groundlayerUsed) then
-                  call prop_get_double(md_ptr%child_nodes(i)%node_ptr, '', 'groundlayer', groundlayer, success)
-               else
-                  groundlayer = 0.0d0
-               endif
-               
-               inext = AddCrossSectionDefinition(network%CSDefinitions, id, numLevels, level, width,               &
-                                                 width, plains, crestLevel, baseLevel, flowArea, totalArea,        &
-                                                 closed, groundlayerUsed, groundlayer)
-               deallocate(level, width)            
-            
-            case(CS_TRAPEZIUM)
-
-               call prop_get_double(md_ptr%child_nodes(i)%node_ptr, '', 'bottomWidth', bottomWidth, success)
-               if (success) call prop_get_double(md_ptr%child_nodes(i)%node_ptr, '', 'maximumFlowWidth', maximumFlowWidth, success)
-               if (success) call prop_get_double(md_ptr%child_nodes(i)%node_ptr, '', 'slope', slope, success)
-               if (.not. success) then
-                   call SetMessage(LEVEL_ERROR, 'Incorrect CrossSection input for CrossSection with type '//trim(typestr)//' and id: '//trim(id))
-               endif
-               
-               numlevels = 2
-               allocate(level(numlevels))
-               allocate(width(numlevels))
-               
-               level(1) = 0.0d0
-               width(1) = bottomWidth
-               level(2) = (maximumFlowWidth - bottomWidth) * 0.5d0 / slope
-               width(2) = maximumFlowWidth
+            pCs%frictionSectionsCount = 1
                 
-               pCs%frictionSectionsCount = 1
-               
-               allocate(pCs%frictionSectionID  (pCs%frictionSectionsCount))      !< Friction Section Identification
-               allocate(pCs%frictionSectionFrom(pCs%frictionSectionsCount))    !<
-               allocate(pCs%frictionSectionTo  (pCs%frictionSectionsCount))      !<
-               pCs%frictionSectionID(1) = 'Main'
+            inext = AddCrossSectionDefinition(network%CSDefinitions, id, numLevels, level, width,               &
+                                              width, plains, crestLevel, baseLevel, flowArea, totalArea,        &
+                                              closed, groundlayerUsed, groundlayer)
+            deallocate(level, width)            
+         
+         case(CS_CIRCLE, CS_EGG)
+            success = .true.
+            ! use analytical description of circle and egg profile
+            call prop_get_double(md_ptr%child_nodes(i)%node_ptr, '', 'diameter', diameter, success)
+            if (.not. success) then
+               call SetMessage(LEVEL_ERROR, 'Incorrect CrossSection input for CrossSection Definition with type '//trim(typestr)//' and id: '//trim(id)// &
+               '. No diameter was given.')
+            endif
 
-               plains     = 0.0d0
-               crestLevel = 0.0d0
-               baseLevel  = 0.0d0
-               flowArea   = 0.0d0
-               totalArea  = 0.0d0
+            pCs%frictionSectionsCount = 1
+            inext = AddCrossSectionDefinition(network%CSDefinitions, id, diameter, crossType, groundlayerUsed, groundlayer)
             
-               ! Ground Layer
-               call prop_get_integer(md_ptr%child_nodes(i)%node_ptr, '', 'groundlayerUsed', hasGroundLayer, success)
-               if (success) then
-                  groundlayerUsed = (hasgroundlayer == 1)
-               else 
-                  groundlayerUsed =  .false.
-               endif
-               if (groundlayerUsed) then
-                  call prop_get_double(md_ptr%child_nodes(i)%node_ptr, '', 'groundlayer', groundlayer, success)
-               else
-                  groundlayer = 0.0d0
-               endif
-               
-               inext = AddCrossSectionDefinition(network%CSDefinitions, id, numLevels, level, width,  &
-                                               & width, plains, crestLevel, baseLevel, flowArea, totalArea,              &
-                                               & .false., groundlayerUsed, groundlayer)
-               deallocate(level, width)            
+         case(CS_YZ_PROF)
+            plural = .true.
+            success = readYZCS(pCS, md_ptr%child_nodes(i)%node_ptr, network%sferic) 
             
-            case(CS_CIRCLE, CS_EGG)
-               call prop_get_double(md_ptr%child_nodes(i)%node_ptr, '', 'diameter', diameter, success)
-               if (.not. success) then
-                  call SetMessage(LEVEL_ERROR, 'DIAMETER not found for CrossSection with type '//trim(typestr)//' and id: '//trim(id))
-               endif
-
-               pCs%frictionSectionsCount = 1
-               
-               allocate(pCs%frictionSectionID  (pCs%frictionSectionsCount))      !< Friction Section Identification
-               allocate(pCs%frictionSectionFrom(pCs%frictionSectionsCount))    !<
-               allocate(pCs%frictionSectionTo  (pCs%frictionSectionsCount))      !<
-               pCs%frictionSectionID(1) = 'Main'
+         case default
+            call SetMessage(LEVEL_ERROR, 'Incorrect CrossSection type for CrossSection Definition with given type '//trim(typestr)//' and id: '//trim(id))
+            success = .false.
             
-               ! Ground Layer
-               call prop_get_integer(md_ptr%child_nodes(i)%node_ptr, '', 'groundlayerUsed', hasGroundLayer, success)
-               if (success) then
-                  groundlayerUsed = (hasgroundlayer == 1)
-               else 
-                  groundlayerUsed =  .false.
-               endif
-               if (groundlayerUsed) then
-                  call prop_get_double(md_ptr%child_nodes(i)%node_ptr, '', 'groundlayer', groundlayer, success)
-               else
-                  groundlayer = 0.0d0
-               endif
-               
-               inext = AddCrossSectionDefinition(network%CSDefinitions, id, diameter, crossType, groundlayerUsed, groundlayer)
-            
-            case(CS_YZ_PROF)
-               success = readYZCS(pCS, md_ptr%child_nodes(i)%node_ptr) 
-               
-            case default
-               call SetMessage(LEVEL_ERROR, 'Incorrect CrossSection type for CrossSection with given type '//trim(typestr)//' and id: '//trim(id))
-               success = .false.
-               
          end select
+            
+         allocate(pCs%frictionSectionID  (pCs%frictionSectionsCount))      !< Friction Section Identification
+         allocate(pCS%frictionSectionIndex(pCs%frictionSectionsCount))
+         allocate(pCS%frictionType       (pCs%frictionSectionsCount))
+         maxnumsections = max(maxnumsections, pCs%frictionSectionsCount)
+         call realloc(fricTypes, maxnumsections, keepExisting = .false.)
+         allocate(pCS%frictionValue      (pCs%frictionSectionsCount))
 
+         if (plural) then
+            call prop_get_strings(md_ptr%child_nodes(i)%node_ptr, '', 'frictionIds', pCs%frictionSectionsCount, pCS%frictionSectionID, success)
+         else
+            call prop_get_strings(md_ptr%child_nodes(i)%node_ptr, '', 'frictionId', pCs%frictionSectionsCount, pCS%frictionSectionID, success)
+         endif
+            
+         if (.not. success) then
+            if (plural) then
+               call prop_get_strings(md_ptr%child_nodes(i)%node_ptr, '', 'frictionTypes', pCs%frictionSectionsCount, fricTypes, success)
+            else
+               call prop_get_strings(md_ptr%child_nodes(i)%node_ptr, '', 'frictionType' , pCs%frictionSectionsCount, fricTypes, success)
+            end if
+            
+            if (success) then
+               do j = 1, pCs%frictionSectionsCount
+                  call frictionTypeStringToInteger(fricTypes(j), pCS%frictionType(j))
+                  if (pCS%frictionType(j) < 0) then
+                     write(msgbuf, '(a,i0,a)') 'Incorrect CrossSection input for CrossSection Definition with type '//trim(typestr)//' and id: '//trim(id)// &
+                                               '. frictionType '''//trim(fricTypes(j))//''' is wrong in section #', j, '.'
+                     call err_flush()
+                     cycle crs ! Skip this entire cross section
+                  endif
+               end do
+               
+               if (plural) then                  
+                  call prop_get(md_ptr%child_nodes(i)%node_ptr, '', 'frictionValues', pCS%frictionValue, pCs%frictionSectionsCount, success)
+               else
+                  call prop_get(md_ptr%child_nodes(i)%node_ptr, '', 'frictionValue' , pCS%frictionValue, pCs%frictionSectionsCount, success)
+               end if
+            endif
+               
+            if (.not. success) then
+               pCs%frictionSectionID(1) = 'Main'
+               if (pCs%frictionSectionsCount >=2) then
+                  pCs%frictionSectionID(2) = 'FloodPlain1'
+               endif
+               if (pCs%frictionSectionsCount ==3) then
+                  pCs%frictionSectionID(3) = 'FloodPlain2'
+               endif
+            else
+               do j = 1, pCs%frictionSectionsCount
+                  pCS%frictionSectionID(j) = ''
+               enddo
+            endif
+               
+         endif
+         success = .true.
+         
          if (success) then
             network%CSDefinitions%count = inext
          endif
          
-      enddo
+         do j = 1, pCs%frictionSectionsCount
+            pCs%frictionSectionIndex(j) = hashsearch(network%rgs%hashlist, pCS%frictionSectionID(j))
+         enddo
+         
+         endif !block test
+         
+      enddo crs
 
-      !call dumpCrossDefs(network%CSDefinitions, 'dumpCrossDefFileRead')
-      
-      call tree_destroy(md_ptr)
-      call fill_hashtable(network%CSDefinitions)
-      
-   end subroutine readCrossSectionDefinitions
+   end subroutine parseCrossSectionDefinitionFile
 
-   logical function readRectangularCS(pCS, node_ptr)  
-      type(t_CSType), pointer, intent(inout) :: pCS
-      type(tree_data), pointer, intent(in)    :: node_ptr
-      
-      integer :: numlevels
-      logical :: success, closed
-      
-      numlevels = 0
-      readRectangularCS= .false.
-      call prop_get_logical(node_ptr, '', 'closed', closed, success)
-
-      if (closed) then
-         numlevels = 3
-      else
-         numlevels = 2
-      endif
-      
-      call realloc(pCS%height, numlevels)
-      call realloc(pCS%width, numlevels)
-      call realloc(pCS%TotalWidth, numlevels)
-   !
-      pCS%levelsCount = numlevels
-      
-      pCS%height(1) = 0.0d0
-      call prop_get_double(node_ptr, '', 'height', pCS%height(2), success)
-      if (success) call prop_get_double(node_ptr, '', 'width', pCS%width(1), success)
-      if (.not. success) then
-            call SetMessage(LEVEL_ERROR, 'Incorrect CrossSection input for CrossSection id: '//trim(pCS%id)//'. Invalid levels/widths.')
-            return
-      endif
-      pCS%width(2) = pCS%width(1)
-      if (closed) then
-         pCS%height(3) = pCS%height(2)+1d-5
-         pCS%width(3) = 0.0d0
-      endif
-      pCS%totalWidth = PCS%width
-      
-      ! Initialize groundlayer information of the newly added cross-section
-      allocate(pCS%groundlayer)
-      call prop_get_logical(node_ptr, '', 'groundlayerUsed', pCS%groundlayer%used, success)
-      if (pCS%groundlayer%used .and. success) then
-         anyGroundLayer = .true.
-         call prop_get_double(node_ptr, '', 'groundlayer', pCS%groundlayer%thickness, success)
-      else
-         pCS%groundlayer%thickness = 0.0d0
-      endif
-      
-      readRectangularCS =  .true.
-      
-   end function readRectangularCS
-   
-    logical function readTabulatedCS(pCS, node_ptr)  
+   !> read tabulated cross section definition from treedata input
+   logical function readTabulatedCS(pCS, node_ptr)  
    
       use precision_basics
       
-      type(t_CSType), pointer, intent(inout) :: pCS
-      type(tree_data), pointer, intent(in)   :: node_ptr
+      type(t_CSType), pointer, intent(inout) :: pCS           !< cross section definition
+      type(tree_data), pointer, intent(in)   :: node_ptr      !< treedata node pointer to current cross section definition
       
       integer          :: numlevels, level_index_intersect
       logical          :: success
       double precision :: crestLevel
       double precision :: baseLevel
+      double precision :: maxFlowWidth
+      double precision :: Main
+      double precision :: FP1
+      double precision :: FP2
       double precision :: flowArea
       double precision :: totalArea
       double precision :: wintersect
@@ -583,7 +526,7 @@ module m_readCrossSections
       readTabulatedCS= .false.
       call prop_get_integer(node_ptr, '', 'numLevels', numlevels, success)
       if (numlevels == 0) then
-            call SetMessage(LEVEL_ERROR, 'Incorrect CrossSection input for CrossSection with id: '//trim(pCS%id)//'. NumLevels should be > 0.')
+            call SetMessage(LEVEL_ERROR, 'Incorrect Cross-Section input for Cross-Section Definition with id: '//trim(pCS%id)//'. NumLevels should be > 0.')
             return
       end if
 
@@ -601,7 +544,204 @@ module m_readCrossSections
          call prop_get_doubles(node_ptr, '', 'flowWidths', width, numlevels, success)
       endif
       if (.not. success) then
-            call SetMessage(LEVEL_ERROR, 'Incorrect CrossSection input for CrossSection id: '//trim(pCS%id)//'. Invalid levels/widths.')
+            call SetMessage(LEVEL_ERROR, 'Incorrect Cross-Section input for Cross-Section Definition id: '//trim(pCS%id)//'. Invalid levels/widths.')
+            return
+      endif
+      call prop_get_double(node_ptr, '', 'totalWidths', totalWidth(1), success)
+      if (success) then
+         call prop_get_doubles(node_ptr, '', 'totalWidths', totalWidth, numlevels, success)
+      else
+         totalWidth = width
+      endif
+   
+      ! summerdike
+      
+      call prop_get_double(node_ptr, '', 'leveeCrestLevel', crestLevel, success)
+      if (success) call prop_get_double(node_ptr, '', 'leveeBaseLevel', baseLevel, success)
+      if (success) call prop_get_double(node_ptr, '', 'leveeFlowArea',  flowArea,  success)
+      if (success) call prop_get_double(node_ptr, '', 'leveeTotalArea', totalArea, success)
+      if (success) then
+         if (flowArea > 1.0d-5 .or. totalArea > 1.0d-5) then
+            allocate(pCS%summerdike)
+            anySummerDike = .true.
+            pCS%summerdike%crestLevel = crestLevel
+            pCS%summerdike%baseLevel  = baseLevel
+            pCS%summerdike%flowArea   = flowArea
+            pCS%summerdike%totalArea  = totalArea
+         endif
+      endif
+      
+      ! Initialize groundlayer information of the newly added cross-section
+      allocate(pCS%groundlayer)
+      
+      pCS%closed = .false.
+            
+      pCS%plains = 0.0d0
+      
+      maxFlowWidth = width(1)
+      do i = 2, numlevels
+         maxFlowWidth = max( maxFlowWidth, width(i))
+      enddo
+      
+      call prop_get_double(node_ptr, '', 'mainWidth', Main, success)
+      if (.not. success)  Main = maxFlowWidth
+      call prop_get_double(node_ptr, '', 'fp1Width', FP1, success)
+      if (.not. success)  FP1 = 0.0d0
+      call prop_get_double(node_ptr, '', 'fp2Width', FP2, success)
+      if (.not. success)  FP2 = 0.0d0
+
+      ! Check and Make Consistent if Needed
+      if ((Main + FP1 + FP2) < (maxFlowWidth) - 0.001d0) then
+            call SetMessage(LEVEL_ERROR, 'Sum of all Sections less than Flow Width for Cross-Section Definition ID: '//trim(pCS%id))
+      endif
+         
+      if (FP1 <= 0.0d0 .and. FP2 > 0) then
+            call SetMessage(LEVEL_ERROR, 'Floodplain2 only allowed when Floodplain1 exists for Cross-Section Definition ID: '//trim(pCS%id))
+      endif
+         
+      ! Compensate for round off if needed
+      if ((Main + FP1 + FP2) < maxFlowWidth) then
+         Main = Main + 0.001d0
+      endif 
+            
+      pCS%plains(1) = Main
+      pCS%plains(2) = FP1
+      pCS%plains(3) = FP2
+                  
+      if ( (pCS%plains(2) == 0.0d0) .and. (pCS%plains(3) == 0.0d0) ) then
+         pCs%plainsLocation(1) = numlevels
+         pCs%plainsLocation(2) = 0
+         pCs%plainsLocation(3) = 0
+      else
+       
+         ! make sure transitions main - floodplain1 and floodplain1 - floodplain2 are always in table
+        
+         wintersect = 0d0
+         do i = 1, 2
+            wintersect = wintersect + pCs%plains(i)
+            level_index_intersect = 0
+            do j = 1, numlevels
+               if (wintersect+1d-5 < width(j)) then
+                  ! found an intersection
+                  level_index_intersect = j
+                  exit
+               endif
+            enddo
+            if ( level_index_intersect /= 0) then
+               if (j == 1) then
+                  pCs%plains(1) = width(1)
+               elseif ( abs(wintersect - width(level_index_intersect-1) ) < 1d-5 ) then
+                  pCs%plainsLocation(i) = level_index_intersect-1
+               elseif ( abs(wintersect - width(level_index_intersect) ) < 1d-5 ) then
+                  pCs%plainsLocation(i) = level_index_intersect
+               else
+                  ! extra level needed.
+                  factor = (wintersect - width(level_index_intersect-1))/(width(level_index_intersect) - width(level_index_intersect-1))
+                  do k = numlevels+1, level_index_intersect, -1
+                     width(k) = width(k-1)
+                     height(k) = height(k-1)
+                     totalwidth(k) = totalwidth(k-1)
+                  enddo
+                  width(level_index_intersect)      = factor * width(level_index_intersect+1)      + (1d0-factor) * width(level_index_intersect)
+                  height(level_index_intersect)     = factor * height(level_index_intersect+1)     + (1d0-factor) * height(level_index_intersect)
+                  totalwidth(level_index_intersect) = factor * totalwidth(level_index_intersect+1) + (1d0-factor) * totalwidth(level_index_intersect)
+                  pCs%plainsLocation(i) = level_index_intersect
+                  numlevels = numlevels+1
+               endif
+            elseif (comparerealdouble(wintersect, width(numlevels), eps) == 0) then
+                pCs%plainsLocation(i) = numlevels
+            endif
+         
+         enddo
+         pCs%plainsLocation(3) = numlevels
+      endif
+      
+      call realloc(pCS%height, numlevels)
+      call realloc(pCS%flowWidth, numlevels)
+      call realloc(pCS%totalWidth, numlevels)
+
+      call realloc(pCS%af_sub, 3, numlevels)
+      call realloc(pCS%width_sub, 3, numlevels)
+      call realloc(pCS%perim_sub, 3, numlevels)
+      call realloc(pCS%flowArea, numlevels)
+      call realloc(pCS%wetPerimeter, numlevels)
+      call realloc(pCS%totalArea, numlevels)
+      call realloc(pCS%area_min, numlevels)
+      call realloc(pCS%width_min, numlevels)
+      
+      pCs%levelsCount = numlevels
+      pCS%height      = height(1:numlevels)
+      pCS%flowWidth   = width(1:numlevels)
+      pCS%totalWidth  = totalwidth(1:numlevels)
+      
+      if (pCs%plains(3) > 0.0d0) then
+         pCs%frictionSectionsCount = 3
+      elseif (pCs%plains(2) > 0.0d0) then
+         pCs%frictionSectionsCount = 2
+      else
+         pCs%frictionSectionsCount = 1
+      endif
+            
+      ! Create Interpolation Tables
+      call createTablesForTabulatedProfile(pCs)
+      
+      deallocate(height)
+      deallocate(width)
+      deallocate(TotalWidth)
+
+      readTabulatedCS =  .true.
+      
+   end function readTabulatedCS
+
+   !> read tabulated cross section definition from treedata input
+   logical function readTabulatedCS_v100(pCS, node_ptr)  
+   
+      use precision_basics
+      
+      type(t_CSType), pointer, intent(inout) :: pCS           !< cross section definition
+      type(tree_data), pointer, intent(in)   :: node_ptr      !< treedata node pointer to current cross section definition
+      
+      integer          :: numlevels, level_index_intersect
+      logical          :: success
+      double precision :: crestLevel
+      double precision :: baseLevel
+      double precision :: maxFlowWidth
+      double precision :: Main
+      double precision :: FP1
+      double precision :: FP2
+      double precision :: flowArea
+      double precision :: totalArea
+      double precision :: wintersect
+      double precision :: factor
+      double precision, dimension(:), allocatable :: height
+      double precision, dimension(:), allocatable :: width
+      double precision, dimension(:), allocatable :: totalwidth
+      integer :: i, j, k
+      double precision, parameter   :: eps = 1d-5
+
+      numlevels = 0
+      readTabulatedCS_v100= .false.
+      call prop_get_integer(node_ptr, '', 'numLevels', numlevels, success)
+      if (numlevels == 0) then
+            call SetMessage(LEVEL_ERROR, 'Incorrect Cross-Section input for Cross-Section Definition with id: '//trim(pCS%id)//'. NumLevels should be > 0.')
+            return
+      end if
+
+      ! reserve space for extra support points at main - floodplain1 - floodplain2 transitions
+      allocate(height(numlevels+2))
+      allocate(width(numlevels+2))
+      allocate(TotalWidth(numlevels+2))
+   !
+      pCS%levelsCount = numlevels
+      
+      if (success) then
+         call prop_get_doubles(node_ptr, '', 'levels', height, numlevels, success)
+      endif
+      if (success) then
+         call prop_get_doubles(node_ptr, '', 'flowWidths', width, numlevels, success)
+      endif
+      if (.not. success) then
+            call SetMessage(LEVEL_ERROR, 'Incorrect Cross-Section input for Cross-Section Definition id: '//trim(pCS%id)//'. Invalid levels/widths.')
             return
       endif
       call prop_get_double(node_ptr, '', 'totalWidths', totalWidth(1), success)
@@ -625,7 +765,6 @@ module m_readCrossSections
             pCS%summerdike%baseLevel  = baseLevel
             pCS%summerdike%flowArea   = flowArea
             pCS%summerdike%totalArea  = totalArea
-            pCS%summerdike%hysteresis = .true.
          endif
       endif
       
@@ -642,49 +781,56 @@ module m_readCrossSections
       pCS%closed = .false.
             
       pCS%plains = 0.0d0
-      call prop_get_double(node_ptr, '', 'main', pCS%plains(1), success)
-      if (.not. success .or. pCS%Plains(1) <= 0.0d0) then
-         pCS%plains(1) = width(1)
-         do i = 2, numlevels
-            pCS%plains(1) = max(pCS%plains(1), width(1))
-         enddo  
-      else
          
-         if (width(numLevels) >= ThresholdForPreismannLock) then
+      if (width(numLevels) >= ThresholdForPreismannLock) then
+      
+         maxFlowWidth = width(numlevels)
+
+         call prop_get_double(node_ptr, '', 'main', Main, success)
+         if (.not. success)  Main = 0.0d0
+         call prop_get_double(node_ptr, '', 'floodPlain1', FP1, success)
+         if (.not. success)  FP1 = 0.0d0
+         call prop_get_double(node_ptr, '', 'floodPlain2',FP2, success)
+         if (.not. success)  FP2 = 0.0d0
+
+         ! Check and Make Consistent if Needed
+         if ((Main + FP1 + FP2) < (maxFlowWidth) - 0.001d0) then
+             call SetMessage(LEVEL_ERROR, 'Sum of all Sections less than Flow Width for Cross-Section Definition ID: '//trim(pCS%id))
+         elseif (FP1 <= 0.0d0 .and. FP2 > 0) then
+             call SetMessage(LEVEL_ERROR, 'Floodplain2 only allowed when Floodplain1 exists for Cross-Section Definition ID: '//trim(pCS%id))
+         else
          
-            if (pCS%plains(1) > width(numLevels)) then
-               pCS%plains(1) = width(numLevels)
-            endif
-            
-            call prop_get_double(node_ptr, '', 'floodPlain1', pCS%plains(2), success)
-            if (.not. success .or. pCS%plains(2) <= 0.0d0) then
-               if (pCS%plains(1) < width(numLevels)) then
-                  pCS%plains(1) = width(numLevels)
-                  call SetMessage(LEVEL_WARN, 'Main Section Width not Consistent, set to Flow Width for CrossSection ID: '//trim(pCS%id))                  
+            ! Compensate for rounf off if needed
+            if ((Main + FP1 + FP2) < maxFlowWidth) then
+               Main = Main + 0.001d0
                endif 
+         
+            if (Main >= maxFlowWidth) then
+               Main = maxFlowWidth
+               FP1  = 0.0d0
+               FP2  = 0.0d0
+            elseif ((Main + FP1) >= maxFlowWidth) then
+               FP1 = maxFlowWidth - Main
+               FP2 = 0.0d0
             else
-               pCS%plains(3) = width(numLevels) - pCS%plains(2) - pCS%plains(1)
-               if (pCS%plains(3) <= 0.0d0) then
-                  pCS%plains(2) = width(numLevels) - pCS%plains(1)
-                  pCS%plains(3) = 0.0d0
+               FP2 = maxFlowWidth - Main - FP1
                endif
             endif                  
+            
+            pCS%plains(1) = Main
+            pCS%plains(2) = FP1
+            pCS%plains(3) = FP2
                   
          else
-            pCS%plains(1) = width(1)
-            do i = 2, numlevels
-               pCS%plains(1) = max(pCS%plains(1), width(1))
-            enddo  
+            pCS%plains(1) = maxval(width(1:numlevels))
             pCS%plains(2) = 0.0d0
             pCS%plains(3) = 0.0d0
          endif
          
-      endif
-      
-      if ( (pCS%plains(2) == 0d0) .and. (pCS%plains(3) == 0d0) ) then
-         pCs%plainslocation(1) = numlevels
-         pCs%plainslocation(2) = 0
-         pCs%plainslocation(3) = 0
+      if ( (pCS%plains(2) == 0.0d0) .and. (pCS%plains(3) == 0.0d0) ) then
+         pCs%plainsLocation(1) = numlevels
+         pCs%plainsLocation(2) = 0
+         pCs%plainsLocation(3) = 0
       else
        
          ! make sure transitions main - floodplain1 and floodplain1 - floodplain2 are always in table
@@ -704,9 +850,9 @@ module m_readCrossSections
                if (j == 1) then
                   pCs%plains(1) = width(1)
                elseif ( abs(wintersect - width(level_index_intersect-1) ) < 1d-5 ) then
-                  pCs%plainslocation(i) = level_index_intersect-1
+                  pCs%plainsLocation(i) = level_index_intersect-1
                elseif ( abs(wintersect - width(level_index_intersect) ) < 1d-5 ) then
-                  pCs%plainslocation(i) = level_index_intersect
+                  pCs%plainsLocation(i) = level_index_intersect
                else
                   ! extra level needed.
                   factor = (wintersect - width(level_index_intersect-1))/(width(level_index_intersect) - width(level_index_intersect-1))
@@ -718,26 +864,35 @@ module m_readCrossSections
                   width(level_index_intersect)      = factor * width(level_index_intersect+1)      + (1d0-factor) * width(level_index_intersect)
                   height(level_index_intersect)     = factor * height(level_index_intersect+1)     + (1d0-factor) * height(level_index_intersect)
                   totalwidth(level_index_intersect) = factor * totalwidth(level_index_intersect+1) + (1d0-factor) * totalwidth(level_index_intersect)
-                  pCs%plainslocation(i) = level_index_intersect
+                  pCs%plainsLocation(i) = level_index_intersect
                   numlevels = numlevels+1
                endif
             elseif (comparerealdouble(wintersect, width(numlevels), eps) == 0) then
-                pCs%plainslocation(i) = numlevels
+                pCs%plainsLocation(i) = numlevels
             endif
          
          enddo
-         pCs%plainslocation(3) = numlevels
+         pCs%plainsLocation(3) = numlevels
       endif
       
       
       call realloc(pCS%height, numlevels)
-      call realloc(pCS%width, numlevels)
-      call realloc(pCS%TotalWidth, numlevels)
+      call realloc(pCS%flowWidth, numlevels)
+      call realloc(pCS%totalWidth, numlevels)
 
+      call realloc(pCS%af_sub, 3, numlevels)
+      call realloc(pCS%width_sub, 3, numlevels)
+      call realloc(pCS%perim_sub, 3, numlevels)
+      call realloc(pCS%flowArea, numlevels)
+      call realloc(pCS%wetPerimeter, numlevels)
+      call realloc(pCS%totalArea, numlevels)
+      call realloc(pCS%area_min, numlevels)
+      call realloc(pCS%width_min, numlevels)
+      
       pCs%levelsCount = numlevels
-      pCS%height     = height(1:numlevels)
-      pCS%width      = width(1:numlevels)
-      pCS%TotalWidth = TotalWidth(1:numlevels)
+      pCS%height      = height(1:numlevels)
+      pCS%flowWidth   = width(1:numlevels)
+      pCS%totalWidth  = totalwidth(1:numlevels)
       
       if (pCs%plains(3) > 0.0d0) then
          pCs%frictionSectionsCount = 3
@@ -746,36 +901,158 @@ module m_readCrossSections
       else
          pCs%frictionSectionsCount = 1
       endif
-      
-      allocate(pCs%frictionSectionID  (pCs%frictionSectionsCount))      !< Friction Section Identification
-      allocate(pCs%frictionSectionFrom(pCs%frictionSectionsCount))    !<
-      allocate(pCs%frictionSectionTo  (pCs%frictionSectionsCount))      !<
-      pCs%frictionSectionID(1) = 'Main'
-      if (pCs%frictionSectionsCount >=2) then
-         pCs%frictionSectionID(2) = 'FloodPlain1'
-      endif
-      if (pCs%frictionSectionsCount ==3) then
-         pCs%frictionSectionID(3) = 'FloodPlain2'
-      endif
+            
+      ! Create Interpolation Tables
+      call createTablesForTabulatedProfile(pCs)
       
       deallocate(height)
       deallocate(width)
       deallocate(TotalWidth)
 
-      readTabulatedCS =  .true.
+      readTabulatedCS_v100 =  .true.
       
-   end function readTabulatedCS
+   end function readTabulatedCS_v100
    
-   logical function readYZCS(pCS, node_ptr) 
-      type(t_CSType), pointer, intent(inout) :: pCS
-      type(tree_data), pointer, intent(in)    :: node_ptr
+   !> read YZ cross section from ini file
+   logical function readYZCS(pCS, node_ptr, sferic) 
+      use precision
+      use physicalconsts, only: earth_radius
+      
+      type(t_CSType), pointer,  intent(inout) :: pCS             !< cross section item
+      type(tree_data), pointer, intent(in)    :: node_ptr        !< treedata pointer to input for cross section
+      logical                 , intent(in)    :: sferic          !< indicates whether spherical coordinates are used or metric
+      integer :: numlevels
+      integer :: frictionCount
+      logical :: success, sferic_local
+      double precision, allocatable, dimension(:) :: positions
+      double precision, allocatable, dimension(:) :: xcoordinates, ycoordinates
+      integer          :: i
+      double precision :: locShift
+      logical          :: xyz_cross_section 
+      character(len=idlen) :: conv_text
+
+      
+      readYZCS = .false.
+      sferic_local = .false.
+      call prop_get_integer(node_ptr, '', 'yzCount', numlevels, success)
+      if (.not. success) then
+         xyz_cross_section = .true.
+         call prop_get_integer(node_ptr, '', 'xyzCount', numlevels, success)
+         ! only for xyz cross sections the coordinates may be spherical 
+         sferic_local = sferic
+      else
+         xyz_cross_section = .false.
+      endif
+      
+      if (success) call prop_get_integer(node_ptr, '', 'sectionCount', frictionCount, success)
+      if (.not. success .or. numLevels <= 0 .or. frictionCount <= 0) then
+            call SetMessage(LEVEL_ERROR, 'Error while reading number of levels/sections for YZ-Cross-Section Definition ID: '//trim(pCS%id))
+            return
+      endif
+
+      pCS%conveyanceType = CS_VERT_SEGM
+      conv_text = 'segmented'
+      call prop_get(node_ptr, '', 'conveyance', conv_text)
+      if (trim(conv_text) =='segmented') then
+         pCS%conveyanceType = CS_VERT_SEGM
+      elseif(trim(conv_text) =='lumped') then
+         pCS%conveyanceType = CS_LUMPED
+      else
+         msgbuf = 'Incorrect conveyance type for cross section definition '//trim(pCS%id)//': '//trim(conv_text)
+      endif
+         
+      if (frictionCount > 1 .and. pCS%conveyanceType == CS_LUMPED) then
+         msgbuf = 'In cross section definition '//trim(pCS%id)//' lumped conveyance in combination with multiple friction sections is used, this is not allowed'
+         call err_flush()
+      endif
+      
+      pCS%levelsCount           = numLevels
+      pCS%frictionSectionsCount = frictionCount
+      pCS%storLevelsCount       = 0
+      
+      call realloc(xcoordinates, numlevels)
+      call realloc(ycoordinates, numlevels)
+      call realloc(pCS%y, numlevels)
+      call realloc(pCS%z, numlevels)
+      call realloc(pCS%storLevels, 2)
+      call realloc(pCS%YZstorage, 2)
+      call realloc(pCS%frictionSectionFrom, frictionCount)
+      call realloc(pCS%frictionSectionTo, frictionCount)
+      allocate(positions(frictionCount+1))
+      
+      xcoordinates = 0d0
+      call prop_get_doubles(node_ptr, '', 'xCoordinates', xcoordinates, numlevels, success)
+      call prop_get_doubles(node_ptr, '', 'yCoordinates', ycoordinates, numlevels, success)
+      if (success) call prop_get_doubles(node_ptr, '', 'zCoordinates', pCS%z, numlevels, success)
+      if (.not. success) then
+          call SetMessage(LEVEL_ERROR, 'Error while reading number of yz-levels for YZ-Cross-Section Definition ID: '//trim(pCS%id))
+      endif
+      
+      if (xyz_cross_section) then
+         pCS%y(1) = 0d0
+         do i = 2, numlevels
+            call distance(sferic_local, xcoordinates(i-1), ycoordinates(i-1), xcoordinates(i), ycoordinates(i), pCS%y(i), earth_radius)
+            pCS%y(i) = pCS%y(i-1) + pCS%y(i) 
+         enddo
+      else
+         pcs%y = ycoordinates
+      endif
+      
+      pCS%storLevels = 0
+      
+      call prop_get_doubles(node_ptr, '', 'frictionPositions', positions, frictionCount+1, success)
+      
+      if (success) then
+         
+         ! Check Consistency of Rougness Positions
+         if (positions(1) .ne. pCS%y(1) .or. positions(frictionCount + 1) .ne. pCS%y(numLevels)) then
+            
+            if (positions(1) == 0.0d0  .and. positions(frictionCount+1) == (pCS%y(numLevels) - pCS%y(1))) then
+               ! Probably lined out wrong because of import from SOBEK2
+               locShift = positions(frictionCount + 1) - pCS%y(numLevels)
+               do i = 1, frictionCount + 1
+                  positions(i) = positions(i) - locShift
+               enddo
+               call SetMessage(LEVEL_WARN, 'Friction sections corrected for YZ-Cross-Section Definition ID: '//trim(pCS%id))
+            else
+               call SetMessage(LEVEL_ERROR, 'Section data not consistent for YZ-Cross-Section Definition ID: '//trim(pCS%id))
+            endif
+         
+         endif
+         
+      elseif (.not.success .and. frictionCount==1) then
+         positions(1) = pCS%y(1)
+         positions(2) = pCS%y(numLevels)
+         success = .true.
+      endif
+      
+      
+      pCS%frictionSectionFrom = positions(1:frictionCount)
+      pCS%frictionSectionTo = positions(2:frictionCount+1)
+         
+      allocate(pCS%groundlayer)
+      pCS%groundlayer%used      = .false.
+      pCS%groundlayer%thickness = 0.0d0
+      
+      deallocate(positions)
+      readYZCS = success
+   end function readYZCS
+   
+   !> read YZ cross section from ini file
+   logical function readYZCS_v100(pCS, node_ptr) 
+      type(t_CSType), pointer, intent(inout) :: pCS             !< cross section item
+      type(tree_data), pointer, intent(in)    :: node_ptr       !< treedata pointer to input for cross section
       
       integer :: numlevels
       integer :: frictionCount
       logical :: success
       double precision, allocatable, dimension(:) :: positions
+
+      integer          :: i
+      double precision :: locShift
+
       
-      readYZCS = .false.
+      readYZCS_v100 = .false.
       call prop_get_integer(node_ptr, '', 'yzCount', numlevels, success)
       if (.not. success) then
          call prop_get_integer(node_ptr, '', 'xyzCount', numlevels, success)
@@ -783,7 +1060,7 @@ module m_readCrossSections
       
       if (success) call prop_get_integer(node_ptr, '', 'sectionCount', frictionCount, success)
       if (.not. success .or. numLevels <= 0 .or. frictionCount <= 0) then
-            call SetMessage(LEVEL_ERROR, 'Error while reading number of levels/sections for YZ-CrossSection ID: '//trim(pCS%id))
+            call SetMessage(LEVEL_ERROR, 'Error while reading number of levels/sections for YZ-Cross-Section Definition ID: '//trim(pCS%id))
             return
       endif
       
@@ -803,22 +1080,43 @@ module m_readCrossSections
       call prop_get_doubles(node_ptr, '', 'yValues', pCS%y, numlevels, success)
       if (success) call prop_get_doubles(node_ptr, '', 'zValues', pCS%z, numlevels, success)
       if (.not. success) then
-          call SetMessage(LEVEL_ERROR, 'Error while reading number of yz-levels for YZ-CrossSection ID: '//trim(pCS%id))
+          call SetMessage(LEVEL_ERROR, 'Error while reading number of yz-levels for YZ-Cross-Section Definition ID: '//trim(pCS%id))
       endif
       
       pCS%storLevels = 0
       
       call prop_get_strings(node_ptr, '', 'roughnessNames', frictionCount, pCS%frictionSectionID, success)
       if (.not. success) then
-          call SetMessage(LEVEL_ERROR, 'Error while reading section IDs for YZ-CrossSection ID: '//trim(pCS%id))
+          call SetMessage(LEVEL_ERROR, 'Error while reading section IDs for YZ-Cross-Section Definition ID: '//trim(pCS%id))
       endif
       
       call prop_get_doubles(node_ptr, '', 'roughnessPositions', positions, frictionCount+1, success)
-      if (.not.success .and. frictionCount==1) then
+      
+      if (success) then
+         
+         ! Check Consistency of Rougness Positions
+         if (positions(1) .ne. pCS%y(1) .or. positions(frictionCount + 1) .ne. pCS%y(numLevels)) then
+            
+            if (positions(1) == 0.0d0  .and. positions(frictionCount+1) == (pCS%y(numLevels) - pCS%y(1))) then
+               ! Probably lined out wrong because of import from SOBEK2
+               locShift = positions(frictionCount + 1) - pCS%y(numLevels)
+               do i = 1, frictionCount + 1
+                  positions(i) = positions(i) - locShift
+               enddo
+               call SetMessage(LEVEL_WARN, 'Rougness sections corrected for YZ-Cross-Section Definition ID: '//trim(pCS%id))
+            else
+               call SetMessage(LEVEL_ERROR, 'Section data not consistent for YZ-Cross-Section Definition ID: '//trim(pCS%id))
+            endif
+         
+         endif
+         
+      elseif (.not.success .and. frictionCount==1) then
          positions(1) = pCS%y(1)
          positions(2) = pCS%y(numLevels)
          success = .true.
       endif
+      
+      
       pCS%frictionSectionFrom = positions(1:frictionCount)
       pCS%frictionSectionTo = positions(2:frictionCount+1)
          
@@ -827,15 +1125,16 @@ module m_readCrossSections
       pCS%groundlayer%thickness = 0.0d0
       
       deallocate(positions)
-      readYZCS = success
-   end function readYZCS
+      readYZCS_v100 = success
+   end function readYZCS_v100
    
+   !> write cross section definitions to cache file
    subroutine write_cross_section_definition_cache(ibin, defs)
    
-      type(t_CSDefinitionSet), intent(inout) :: defs
-      integer, intent(in) :: ibin
+      type(t_CSDefinitionSet), intent(inout) :: defs      !< cross section sdefinition
+      integer, intent(in) :: ibin                         !< binary cache file
       
-      integer :: i, j
+      integer :: i, j, k
       type(t_CSType), pointer :: pdef
 
       write(ibin) defs%count
@@ -846,17 +1145,24 @@ module m_readCrossSections
          write(ibin) pdef%id
          write(ibin) pdef%crossType
          write(ibin) pdef%levelsCount
-         write(ibin) pdef%reference
          write(ibin) pdef%closed
          write(ibin) pdef%diameter
          
          select case(pdef%crossType)
             case (CS_TABULATED) 
                write(ibin) (pdef%height(j), j = 1, pdef%levelscount)
-               write(ibin) (pdef%width(j), j = 1, pdef%levelscount)
-               write(ibin) (pdef%TotalWidth(j), j = 1, pdef%levelscount)
+               write(ibin) (pdef%flowWidth(j), j = 1, pdef%levelscount)
+               write(ibin) (pdef%totalWidth(j), j = 1, pdef%levelscount)
+               write(ibin) ((pdef%af_sub(j, k), j = 1, 3), k = 1, pdef%levelscount)
+               write(ibin) ((pdef%width_sub(j, k), j = 1, 3), k = 1, pdef%levelscount)
+               write(ibin) ((pdef%perim_sub(j, k), j = 1, 3), k = 1, pdef%levelscount)
+               write(ibin) (pdef%flowArea(j), j = 1, pdef%levelscount)
+               write(ibin) (pdef%wetPerimeter(j), j = 1, pdef%levelscount)
+               write(ibin) (pdef%totalArea(j), j = 1, pdef%levelscount)
+               write(ibin) (pdef%area_min(j), j = 1, pdef%levelscount)
+               write(ibin) (pdef%width_min(j), j = 1, pdef%levelscount)
                write(ibin) (pdef%plains(j), j = 1, 3)
-               write(ibin) (pdef%plainslocation(j), j = 1, 3)
+               write(ibin) (pdef%plainsLocation(j), j = 1, 3)
             
                write(ibin) associated(pdef%summerdike)
                if (associated(pdef%summerdike)) then
@@ -864,7 +1170,6 @@ module m_readCrossSections
                   write(ibin) pdef%summerdike%baseLevel
                   write(ibin) pdef%summerdike%flowArea
                   write(ibin) pdef%summerdike%totalArea
-                  write(ibin) pdef%summerdike%hysteresis
                endif
             case (CS_YZ_PROF)
                write(ibin) (pdef%y(j), j = 1, pdef%levelscount)
@@ -891,11 +1196,12 @@ module m_readCrossSections
       
    end subroutine write_cross_section_definition_cache
    
+   !> read cross section definitions from cache
    subroutine read_cross_section_definition_cache(ibin, defs)
-      type(t_CSDefinitionSet), intent(inout) :: defs
-      integer, intent(in) :: ibin
+      type(t_CSDefinitionSet), intent(inout) :: defs         !< cross section definitions
+      integer, intent(in)                    :: ibin         !< binary file
       
-      integer                 :: i, j
+      integer                 :: i, j, k
       logical                 :: isAssociated
       type(t_CSType), pointer :: pdef
 
@@ -910,20 +1216,35 @@ module m_readCrossSections
          read(ibin) pdef%id
          read(ibin) pdef%crossType
          read(ibin) pdef%levelsCount
-         read(ibin) pdef%reference
          read(ibin) pdef%closed
          read(ibin) pdef%diameter
          
          select case(pdef%crossType)
             case (CS_TABULATED) 
-               allocate(pdef%height    (pdef%levelscount))
-               allocate(pdef%width     (pdef%levelscount))
-               allocate(pdef%TotalWidth(pdef%levelscount))
+               allocate(pdef%height(pdef%levelscount))
+               allocate(pdef%flowWidth(pdef%levelscount))
+               allocate(pdef%totalWidth(pdef%levelscount))
+               allocate(pdef%af_sub(3, pdef%levelscount))
+               allocate(pdef%width_sub(3, pdef%levelscount))
+               allocate(pdef%perim_sub(3, pdef%levelscount))
+               allocate(pdef%flowArea(pdef%levelscount))
+               allocate(pdef%wetPerimeter(pdef%levelscount))
+               allocate(pdef%totalArea(pdef%levelscount))
+               allocate(pdef%area_min(pdef%levelscount))
+               allocate(pdef%width_min(pdef%levelscount))
                read(ibin) (pdef%height(j), j = 1, pdef%levelscount)
-               read(ibin) (pdef%width(j), j = 1, pdef%levelscount)
-               read(ibin) (pdef%TotalWidth(j), j = 1, pdef%levelscount)
+               read(ibin) (pdef%flowWidth(j), j = 1, pdef%levelscount)
+               read(ibin) (pdef%totalWidth(j), j = 1, pdef%levelscount)
+               read(ibin) ((pdef%af_sub(j, k), j = 1, 3), k = 1, pdef%levelscount)
+               read(ibin) ((pdef%width_sub(j, k), j = 1, 3), k = 1, pdef%levelscount)
+               read(ibin) ((pdef%perim_sub(j, k), j = 1, 3), k = 1, pdef%levelscount)
+               read(ibin) (pdef%flowArea(j), j = 1, pdef%levelscount)
+               read(ibin) (pdef%wetPerimeter(j), j = 1, pdef%levelscount)
+               read(ibin) (pdef%totalArea(j), j = 1, pdef%levelscount)
+               read(ibin) (pdef%area_min(j), j = 1, pdef%levelscount)
+               read(ibin) (pdef%width_min(j), j = 1, pdef%levelscount)
                read(ibin) (pdef%plains(j), j = 1, 3)
-               read(ibin) (pdef%plainslocation(j), j = 1, 3)
+               read(ibin) (pdef%plainsLocation(j), j = 1, 3)
                
                ! Summer Dike
                read(ibin) isAssociated
@@ -934,7 +1255,6 @@ module m_readCrossSections
                   read(ibin) pdef%summerdike%baseLevel
                   read(ibin) pdef%summerdike%flowArea
                   read(ibin) pdef%summerdike%totalArea
-                  read(ibin) pdef%summerdike%hysteresis
                endif
             case (CS_YZ_PROF)
                allocate(pdef%y(pdef%levelscount))
@@ -970,11 +1290,12 @@ module m_readCrossSections
       call fill_hashtable(defs)
 
    end subroutine read_cross_section_definition_cache
-   
+   !
+   !> write cross section data from binary file
    subroutine write_cross_section_cache(ibin, crs)
    
-      type(t_CrossSectionSet), intent(inout) :: crs
-      integer, intent(in)                    :: ibin
+      type(t_CrossSectionSet), intent(inout) :: crs      !< cross sections 
+      integer, intent(in)                    :: ibin     !< binary file
       
       integer                       :: i
       integer                       :: j
@@ -993,7 +1314,7 @@ module m_readCrossSections
          write(ibin) pcross%closed
          
          write(ibin) pcross%branchid
-         write(ibin) pcross%location
+         write(ibin) pcross%chainage
          
          write(ibin) pcross%surfaceLevel
          write(ibin) pcross%bedLevel
@@ -1001,8 +1322,6 @@ module m_readCrossSections
          write(ibin) pcross%charWidth
          write(ibin) pcross%shift
          
-         write(ibin) pcross%bedFrictionType
-         write(ibin) pcross%bedFriction
          write(ibin) pcross%groundFrictionType
          write(ibin) pcross%groundFriction
          
@@ -1033,11 +1352,12 @@ module m_readCrossSections
       
    end subroutine write_cross_section_cache
    !
+   !< read cross section data from binary file
    subroutine read_cross_section_cache(ibin, crs, defs)
    
-      type(t_CSDefinitionSet), intent(inout) :: defs
-      type(t_CrossSectionSet), intent(inout) :: crs
-      integer, intent(in)                    :: ibin
+      type(t_CSDefinitionSet), intent(inout) :: defs      !< cross section definitions
+      type(t_CrossSectionSet), intent(inout) :: crs       !< cross sections 
+      integer, intent(in)                    :: ibin      !< binary file
       
       integer                                :: i
       integer                                :: j
@@ -1059,7 +1379,7 @@ module m_readCrossSections
          read(ibin) pcross%closed
          
          read(ibin) pcross%branchid
-         read(ibin) pcross%location
+         read(ibin) pcross%chainage
          
          read(ibin) pcross%surfaceLevel
          read(ibin) pcross%bedLevel
@@ -1067,8 +1387,6 @@ module m_readCrossSections
          read(ibin) pcross%charWidth
          read(ibin) pcross%shift
          
-         read(ibin) pcross%bedFrictionType
-         read(ibin) pcross%bedFriction
          read(ibin) pcross%groundFrictionType
          read(ibin) pcross%groundFriction
          
@@ -1110,9 +1428,10 @@ module m_readCrossSections
       
    end subroutine read_cross_section_cache
 
+   !> Write conveyance table from cache file
    subroutine write_convtab(ibin, convtab)
-      integer, intent(in)      :: ibin
-      type(t_crsu), intent(in) :: convtab
+      integer, intent(in)      :: ibin           !< unit number of binary file
+      type(t_crsu), intent(in) :: convtab        !< conveyance table
       
       integer                  :: i, j, nhmax
       
@@ -1149,10 +1468,11 @@ module m_readCrossSections
       
    end subroutine write_convtab
    
+   !> Read conveyance table from cache file
    subroutine read_convtab(ibin, convtab)
    
-      integer, intent(in)         :: ibin
-      type(t_crsu), intent(inout) :: convtab
+      integer, intent(in)         :: ibin        !< unit number of binary file
+      type(t_crsu), intent(inout) :: convtab     !< conveyance table
       
       integer                     :: i, j, nhmax
       
@@ -1203,10 +1523,11 @@ module m_readCrossSections
 
    end subroutine read_convtab
    
+   !> write cross section definitions to file
    subroutine dumpCrossDefs(CSDEfs, fileName)
 
-      type(t_CSDefinitionSet), intent(inout) :: CSDEfs
-      character(len=*)                       :: fileName
+      type(t_CSDefinitionSet), intent(inout) :: CSDEfs            !< Set containing cross section definitions
+      character(len=*),        intent(in   ) :: fileName          !< name of the file
    
       type(t_CSType), pointer       :: pCSDef
       integer                       :: iDef
@@ -1222,7 +1543,6 @@ module m_readCrossSections
          write(dmpUnit, *) pCSDef%id
          write(dmpUnit, *) pCSDef%crossType
          write(dmpUnit, *) pCSDef%levelsCount
-         write(dmpUnit, *) pCSDef%reference
          write(dmpUnit, *) pCSDef%closed
          write(dmpUnit, *) pCSDef%diameter
          
@@ -1230,8 +1550,8 @@ module m_readCrossSections
             case (CS_TABULATED)
                write(dmpUnit, *) '#################### TABULATED #######################'
                write(dmpUnit, *) (pCSDef%height(j), j = 1, pCSDef%levelscount)
-               write(dmpUnit, *) (pCSDef%width(j), j = 1, pCSDef%levelscount)
-               write(dmpUnit, *) (pCSDef%TotalWidth(j), j = 1, pCSDef%levelscount)
+               write(dmpUnit, *) (pCSDef%flowWidth(j), j = 1, pCSDef%levelscount)
+               write(dmpUnit, *) (pCSDef%totalWidth(j), j = 1, pCSDef%levelscount)
                write(dmpUnit, *) (pCSDef%plains(j), j = 1, 3)
             
                write(dmpUnit, *) associated(pCSDef%summerdike)
@@ -1241,7 +1561,6 @@ module m_readCrossSections
                   write(dmpUnit, *) pCSDef%summerdike%baseLevel
                   write(dmpUnit, *) pCSDef%summerdike%flowArea
                   write(dmpUnit, *) pCSDef%summerdike%totalArea
-                  write(dmpUnit, *) pCSDef%summerdike%hysteresis
                endif
             case (CS_YZ_PROF)
                write(dmpUnit, *) '##################### YZ #########################'
@@ -1274,10 +1593,11 @@ module m_readCrossSections
       
    end subroutine dumpCrossDefs
    
+   !> Write all cross section information to file (not called in current solution)
    subroutine dumpCross(crs, fileName)
    
-      type(t_CrossSectionSet), intent(inout) :: crs
-      character(len=*)                       :: fileName
+      type(t_CrossSectionSet), intent(inout) :: crs              !< Cross section set
+      character(len=*),        intent(in   ) :: fileName         !< filename for writing output
       
       integer                       :: i
       type(t_CrossSection), pointer :: pcross
@@ -1298,9 +1618,9 @@ module m_readCrossSections
          write(dmpUnit, *) pcross%IsCopy
          write(dmpUnit, *) pcross%closed
          
-         write(dmpUnit, *) '############### LOCATION ####################'
+         write(dmpUnit, *) '############### chainage ####################'
          write(dmpUnit, *) pcross%branchid
-         write(dmpUnit, *) pcross%location
+         write(dmpUnit, *) pcross%chainage
                  
          write(dmpUnit, *) '############### LEVELS AND SIZES ####################'
          write(dmpUnit, *) pcross%surfaceLevel
@@ -1310,8 +1630,6 @@ module m_readCrossSections
          write(dmpUnit, *) pcross%shift
          
          write(dmpUnit, *) '################### FRICTION ######################'
-         write(dmpUnit, *) pcross%bedFrictionType
-         write(dmpUnit, *) pcross%bedFriction
          write(dmpUnit, *) pcross%groundFrictionType
          write(dmpUnit, *) pcross%groundFriction
          
@@ -1337,10 +1655,11 @@ module m_readCrossSections
       
    end subroutine dumpCross
    
+   !> Subroutine for writing conveyance table to file (not called in current solution)
    subroutine dumpConvtab(dmpUnit, convtab)
    
-      integer, intent(in)      :: dmpUnit
-      type(t_crsu), intent(in) :: convtab
+      integer, intent(in)      :: dmpUnit        !< unit number of file
+      type(t_crsu), intent(in) :: convtab        !< conveyance table
       
       integer                  :: i, j, nhmax
       
@@ -1377,10 +1696,12 @@ module m_readCrossSections
       
    end subroutine dumpConvtab
    
+   !> Retrieve the roughness for given cross section
    subroutine getRougnessForProfile(network, crs)
+      use m_read_roughness, only: RoughFileMajorVersion
    
-      type(t_network), intent(inout) :: network
-      type(t_CrossSection)           :: crs
+      type(t_network), intent(inout)      :: network      !< Network structure
+      type(t_CrossSection), intent(inout) :: crs          !< cross section
       
       integer                        :: i
       integer                        :: iRough
@@ -1391,7 +1712,7 @@ module m_readCrossSections
       integer                        :: iStatus
       
       if (crs%frictionSectionsCount <= 0) then
-         call SetMessage(LEVEL_ERROR, 'No Friction Section Data for CrossSection ID: '//trim(crs%csid))
+         call SetMessage(LEVEL_ERROR, 'No Friction Section Data for Cross-Section ID: '//trim(crs%csid))
          return
       endif
            
@@ -1399,11 +1720,17 @@ module m_readCrossSections
            
          iRough = hashsearch(network%rgs%hashlist, crs%frictionSectionID(i))
          if (iRough <= 0) then
-            call SetMessage(LEVEL_ERROR, 'No Data found for Section '//trim(crs%frictionSectionID(i))//' of CrossSection ID: '//trim(crs%csid))
+            call SetMessage(LEVEL_ERROR, 'No Data found for Section '//trim(crs%frictionSectionID(i))//' of Cross-Section ID: '//trim(crs%csid))
             cycle
          endif
          
          pRgs => network%rgs%rough(iRough)
+         if (network%rgs%version == RoughFileMajorVersion) then
+            call getFrictionParameters(pRgs,  1d0, crs%branchid, crs%chainage, crs%frictionTypePos(i), crs%frictionValuePos(i))
+            call getFrictionParameters(pRgs, -1d0, crs%branchid, crs%chainage, crs%frictionTypeNeg(i), crs%frictionValueNeg(i))
+            cycle
+         endif
+         
          if (pRgs%iSection == 0) then
             ! roughness section does not exist
             call setMessage(LEVEL_ERROR, 'Roughness section '// trim(crs%frictionSectionID(i)) //', used in '//trim(crs%csid)//' does not exist')
@@ -1419,7 +1746,7 @@ module m_readCrossSections
          endif
          
          if (pRgs%spd_pos_idx <= 0 .and. pRgs%spd_neg_idx <= 0) then
-            call SetMessage(LEVEL_ERROR, 'No Spatial Data specified for Section '//trim(crs%frictionSectionID(i))//' of CrossSection ID: '//trim(crs%csid))
+            call SetMessage(LEVEL_ERROR, 'No Spatial Data specified for Section '//trim(crs%frictionSectionID(i))//' of Cross-Section ID: '//trim(crs%csid))
             cycle
          endif
          
@@ -1428,7 +1755,7 @@ module m_readCrossSections
          
             pSpData => network%spData%quant(pRgs%spd_pos_idx)
             
-            iStatus = getValueAtLocation(pSpData, crs%branchid, crs%location, frictionValue, frictionType)
+            iStatus = getValueAtLocation(pSpData, crs%branchid, crs%chainage, frictionValue, frictionType)
             
             if (istatus >= 0) crs%frictionValuePos(i) = frictionValue
             if (istatus > 0)  crs%frictionTypePos(i)  = frictionType
@@ -1440,7 +1767,7 @@ module m_readCrossSections
          
             pSpData => network%spData%quant(pRgs%spd_neg_idx)
             
-            iStatus = getValueAtLocation(pSpData, crs%branchid, crs%location, frictionValue, frictionType)
+            iStatus = getValueAtLocation(pSpData, crs%branchid, crs%chainage, frictionValue, frictionType)
             
             if (istatus >= 0) crs%frictionValueNeg(i) = frictionValue
             if (istatus > 0)  crs%frictionTypeNeg(i)  = frictionType
@@ -1462,4 +1789,258 @@ module m_readCrossSections
          
    end subroutine getRougnessForProfile
    
+   !==========================================================================================================
+   !
+   !              Compatibility 
+   !
+   !==========================================================================================================
+   
+   !> Parse cross section definition file with fileVersion 1.00
+   subroutine parseCrossSectionDefinitionFile_v100(md_ptr, network)
+   
+      type(t_network), target,  intent(inout)   :: network        !< network structure
+      type(tree_data), pointer, intent(in   )   :: md_ptr         !< treedata pointer to cross section definitions
+   
+      !integer :: istat
+      integer :: numstr
+      integer :: i
+      integer :: crosstype
+      logical :: success
+      character(len=IdLen) :: id
+      character(len=IdLen) :: typestr
+      double precision :: diameter
+      integer :: numLevels
+      double precision, allocatable :: level(:)
+      double precision, allocatable :: width(:)
+      double precision              :: plains(3)
+      double precision              :: crestLevel
+      double precision              :: baseLevel
+      double precision              :: flowArea
+      double precision              :: totalArea
+      logical                       :: closed
+      
+      double precision              :: slope                  ! Slope of trapezium (m)
+      double precision              :: maximumFlowWidth       ! Maximum flow width of trapezium (m)
+      double precision              :: bottomWidth            ! Bottom width of trapezium (m)
+      
+      integer                       :: hasGroundLayer
+      integer                       :: j
+      logical                       :: groundlayerUsed
+      double precision              :: groundlayer
+      double precision              :: height
+      integer                       :: inext
+      type(t_CSType), pointer       :: pCS
+    
+      numstr = 0
+      if (associated(md_ptr%child_nodes)) then
+         numstr = size(md_ptr%child_nodes)
+      end if
+
+      do i = 1, numstr
+         
+         if (tree_get_name(md_ptr%child_nodes(i)%node_ptr) .ne. 'definition') then
+            cycle
+         endif
+         
+         call prop_get_string(md_ptr%child_nodes(i)%node_ptr, '', 'id', id, success)
+         if (success) call prop_get_string(md_ptr%child_nodes(i)%node_ptr, '', 'type', typestr, success)
+         if (.not. success) then
+            call SetMessage(LEVEL_ERROR, 'Incorrect Cross-Section input for Cross-Section Definition with type '//trim(typestr)//' and id: '//trim(id))
+            cycle
+         endif
+         crossType = getCrosstype(typestr)
+
+         inext = network%CSDefinitions%count + 1
+         if (network%CSDefinitions%count + 1 > network%CSDefinitions%size) then
+            call realloc(network%CSDefinitions)
+         endif
+         
+         pCS => network%CSDefinitions%CS(inext)
+         pCS%id = id
+         pCS%crossType = crosstype
+         
+         select case (crossType)
+            case(CS_TABULATED)
+            
+               success = readTabulatedCS_v100(pCS, md_ptr%child_nodes(i)%node_ptr) 
+            
+            case(CS_RECTANGLE)
+               
+               numlevels = 1
+               allocate(level(numlevels + 1))
+               allocate(width(numlevels + 1))
+               level(numlevels) = 0.0d0
+               call prop_get_doubles(md_ptr%child_nodes(i)%node_ptr, '', 'width', width, numlevels, success)
+               if (.not. success) then
+                   call SetMessage(LEVEL_ERROR, 'Incorrect Cross-Section input for Cross-Section Definition with type '//trim(typestr)//' and id: '//trim(id))
+               endif
+               
+               call prop_get_logical(md_ptr%child_nodes(i)%node_ptr, '', 'closed', closed, success)
+               if (.not. success) closed = .false. ! Default
+               
+               if (closed) then
+                  call prop_get_double(md_ptr%child_nodes(i)%node_ptr, '', 'height', height, success)
+                  if (.not. success) then
+                     call SetMessage(LEVEL_ERROR, 'HEIGHT is obligatory for closed rectangular cross sections. Refer to cross-section definition with id '//trim(id))
+                     cycle
+                  endif
+                  numlevels = numlevels + 1
+                  level(numLevels) = height
+                  width(numLevels) = width(1)
+               endif
+
+               plains     = 0.0d0
+               crestLevel = 0.0d0
+               baseLevel  = 0.0d0
+               flowArea   = 0.0d0
+               totalArea  = 0.0d0
+
+               pCs%frictionSectionsCount = 1
+                   
+               ! Ground Layer
+               call prop_get_integer(md_ptr%child_nodes(i)%node_ptr, '', 'groundlayerUsed', hasGroundLayer, success)
+               if (success) then
+                  groundlayerUsed = (hasgroundlayer == 1)
+               else 
+                  groundlayerUsed =  .false.
+               endif
+               success = .true.
+
+               if (groundlayerUsed) then
+                  call prop_get_double(md_ptr%child_nodes(i)%node_ptr, '', 'groundlayer', groundlayer, success)
+               else
+                  groundlayer = 0.0d0
+               endif
+               inext = AddCrossSectionDefinition(network%CSDefinitions, id, numLevels, level, width,               &
+                                                 width, plains, crestLevel, baseLevel, flowArea, totalArea,        &
+                                                 closed, groundlayerUsed, groundlayer)
+               deallocate(level, width)            
+            
+            case(CS_TRAPEZIUM)
+
+               call prop_get_double(md_ptr%child_nodes(i)%node_ptr, '', 'bottomWidth', bottomWidth, success)
+               if (success) call prop_get_double(md_ptr%child_nodes(i)%node_ptr, '', 'maximumFlowWidth', maximumFlowWidth, success)
+               if (success) call prop_get_double(md_ptr%child_nodes(i)%node_ptr, '', 'slope', slope, success)
+               if (.not. success) then
+                   call SetMessage(LEVEL_ERROR, 'Incorrect Cross-Section input for Cross-Section Definition with type '//trim(typestr)//' and id: '//trim(id))
+               endif
+               
+               numlevels = 2
+               allocate(level(numlevels))
+               allocate(width(numlevels))
+               
+               level(1) = 0.0d0
+               width(1) = bottomWidth
+               level(2) = (maximumFlowWidth - bottomWidth) * 0.5d0 / slope
+               width(2) = maximumFlowWidth
+                
+               pCs%frictionSectionsCount = 1
+
+               plains     = 0.0d0
+               crestLevel = 0.0d0
+               baseLevel  = 0.0d0
+               flowArea   = 0.0d0
+               totalArea  = 0.0d0
+            
+               ! Ground Layer
+               call prop_get_integer(md_ptr%child_nodes(i)%node_ptr, '', 'groundlayerUsed', hasGroundLayer, success)
+               if (success) then
+                  groundlayerUsed = (hasgroundlayer == 1)
+               else 
+                  groundlayerUsed =  .false.
+                  success = .true.
+               endif
+               if (groundlayerUsed) then
+                  call prop_get_double(md_ptr%child_nodes(i)%node_ptr, '', 'groundlayer', groundlayer, success)
+               else
+                  groundlayer = 0.0d0
+               endif
+               
+               inext = AddCrossSectionDefinition(network%CSDefinitions, id, numLevels, level, width,  &
+                                               & width, plains, crestLevel, baseLevel, flowArea, totalArea,              &
+                                               & .false., groundlayerUsed, groundlayer)
+               deallocate(level, width)            
+            
+            case(CS_CIRCLE, CS_EGG)
+               success = .true.
+               call prop_get_integer(md_ptr%child_nodes(i)%node_ptr, '', 'numLevels', numlevels, success)
+               
+               if (success) then
+                  ! also tabulated definition is available. Use this definition
+                  success = readTabulatedCS_v100(pCS, md_ptr%child_nodes(i)%node_ptr) 
+                  pCS%crossType = CS_TABULATED
+               else
+                  success = .true.
+                  ! use analytical description of circle and egg profile
+                  call prop_get_double(md_ptr%child_nodes(i)%node_ptr, '', 'diameter', diameter, success)
+                  if (.not. success) then
+                     call SetMessage(LEVEL_ERROR, 'DIAMETER not found for Cross-Section Definition with type '//trim(typestr)//' and id: '//trim(id))
+                  endif
+
+                  pCs%frictionSectionsCount = 1
+                  pCS%plains(1) = diameter
+                  pCS%plains(2) = 0.0d0
+                  pCS%plains(3) = 0.0d0
+
+                  ! Ground Layer
+                  call prop_get_integer(md_ptr%child_nodes(i)%node_ptr, '', 'groundlayerUsed', hasGroundLayer, success)
+                  if (success) then
+                     groundlayerUsed = (hasgroundlayer == 1)
+                  else 
+                     groundlayerUsed =  .false.
+                  endif
+                  if (groundlayerUsed) then
+                     call prop_get_double(md_ptr%child_nodes(i)%node_ptr, '', 'groundlayer', groundlayer, success)
+                  else
+                     groundlayer = 0.0d0
+                  endif
+                  success = .true.
+                  inext = AddCrossSectionDefinition(network%CSDefinitions, id, diameter, crossType, groundlayerUsed, groundlayer)
+      
+               endif
+               
+            case(CS_YZ_PROF)
+               success = readYZCS_v100(pCS, md_ptr%child_nodes(i)%node_ptr) 
+               
+            case default
+               call SetMessage(LEVEL_ERROR, 'Incorrect Cross-Section type for Cross-Section Definition with given type '//trim(typestr)//' and id: '//trim(id))
+               success = .false.
+               
+            end select
+            
+            if (success .and. crossType /= CS_YZ_PROF) then
+               allocate(pCs%frictionSectionID  (pCs%frictionSectionsCount))      !< Friction Section Identification
+               allocate(pCs%frictionSectionFrom(pCs%frictionSectionsCount))    !<
+               allocate(pCs%frictionSectionTo  (pCs%frictionSectionsCount))      !<
+               allocate(pCs%frictionSectionIndex(pCs%frictionSectionsCount))      !<
+               
+               call prop_get_strings(md_ptr%child_nodes(i)%node_ptr, '', 'roughnessNames', pCs%frictionSectionsCount, pCS%frictionSectionID, success)
+
+               if (.not. success) then
+                  ! use defaults
+                  pCs%frictionSectionID(1) = 'Main'
+                  if (pCs%frictionSectionsCount >=2) then
+                     pCs%frictionSectionID(2) = 'FloodPlain1'
+                  endif
+                  if (pCs%frictionSectionsCount ==3) then
+                     pCs%frictionSectionID(3) = 'FloodPlain2'
+                  endif
+               endif
+               success = .true.
+            endif
+            
+         if (success) then
+            network%CSDefinitions%count = inext
+         endif
+         
+         call realloc( pCs%frictionSectionIndex, pCs%frictionSectionsCount)
+         do j = 1, pCs%frictionSectionsCount
+            pCs%frictionSectionIndex(j) = hashsearch(network%rgs%hashlist, pCS%frictionSectionID(j))
+         enddo
+         
+      enddo
+
+      !call dumpCrossDefs(network%CSDefinitions, 'dumpCrossDefFileRead')
+   end subroutine parseCrossSectionDefinitionFile_v100
+
 end module m_readCrossSections

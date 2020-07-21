@@ -1,6 +1,6 @@
 !----- AGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2015-2018.                                
+!  Copyright (C)  Stichting Deltares, 2015-2020.                                
 !                                                                               
 !  This file is part of Delft3D (D-Flow Flexible Mesh component).               
 !                                                                               
@@ -34,9 +34,15 @@
        shape(1) = 0
     case("iglobal_s")
        shape(1) = ndx
+    case("hwav")
+       shape(1) = ndx
     case("twav")
        shape(1) = ndx
     case("Uorb")
+       shape(1) = ndx
+    case("infilt")
+       shape(1) = ndx
+    case("infiltcap")
        shape(1) = ndx
     case("shx")
        shape(1) = nshiptxy
@@ -60,9 +66,6 @@
        shape(1) = ndx
     case("vicushp")
        shape(1) = lnx
-    case("vos")
-       shape(2) = 2
-       shape(1) = lnx
     case("shL")
        shape(1) = 2
     case("shB")
@@ -85,12 +88,44 @@
        shape(1) = lnx
     case("wy")
        shape(1) = lnx
-    case("wmag")
-       shape(1) = lnx
     case("rain")
        shape(1) = ndx
     case("evap")
        shape(1) = ndx
+    case("numlatsg")
+       shape(1) = 0
+    case("qplat")
+       shape(1) = numlatsg
+    case("qqlat")
+       shape(1) = ndx
+    case("balat")
+       shape(1) = numlatsg
+    case("n1latsg")
+       shape(1) = numlatsg
+    case("n2latsg")
+       shape(1) = numlatsg
+    case("nnlat")
+       shape(1) = nlatnd
+    case("kclat")
+       shape(1) = ndx
+    case("qinext")
+       shape(1) = ndkx
+    case("qinextreal")
+       shape(1) = ndkx
+    case("vincum")
+       shape(1) = ndkx
+    case("rainuni")
+       shape(1) = 0
+    case("zbndz")
+       shape(1) = nbndz
+    case("zbndu")
+       shape(1) = nbndu
+    case("zbndq")
+       shape(1) = nbndu
+    case("turkin1")
+       shape(1) = lnkx
+    case("vicwws")
+       shape(1) = ndkx
     case("rnveg")
        shape(1) = ndkx
     case("diaveg")
@@ -105,6 +140,8 @@
        shape(1) = ndx
     case("stemheight")
        shape(1) = ndx
+    case("Cdvegsp")
+       shape(1) = ndkx
     case("zws")
        shape(1) = ndkx
     case("kbot")
@@ -127,6 +164,8 @@
        shape(1) = ndx
     case("vol1")
        shape(1) = ndx
+    case("vol1_f")
+       shape(1) = ndx
     case("hs")
        shape(1) = ndx
     case("ucx")
@@ -135,11 +174,15 @@
        shape(1) = ndkx
     case("ucz")
        shape(1) = ndkx
+    case("ucmag")
+       shape(1) = ndkx
     case("sa0")
        shape(1) = ndkx
     case("sa1")
        shape(1) = ndkx
     case("satop")
+       shape(1) = ndx
+    case("sabot")
        shape(1) = ndx
     case("tem0")
        shape(1) = ndkx
@@ -147,7 +190,11 @@
        shape(1) = ndkx
     case("u1")
        shape(1) = lnkx
+    case("u_to_umain")
+       shape(1) = lnkx
     case("q1")
+       shape(1) = lnkx
+    case("q1_main")
        shape(1) = lnkx
     case("au")
        shape(1) = lnkx
@@ -159,25 +206,17 @@
        shape(1) = lnx
     case("diusp")
        shape(1) = lnx
-    case("ndx2d")
-       shape(1) = 0
     case("ndxi")
        shape(1) = 0
     case("ndx1db")
        shape(1) = 0
-    case("ndx")
-       shape(1) = 0
     case("kfs")
        shape(1) = ndx
-    case("kfst0")
+    case("bare")
        shape(1) = ndx
-    case("ba")
+    case("ba_mor")
        shape(1) = ndx
     case("bl")
-       shape(1) = ndx
-    case("xz")
-       shape(1) = ndx
-    case("yz")
        shape(1) = ndx
     case("lnx1D")
        shape(1) = 0
@@ -199,8 +238,21 @@
        shape(1) = lnx
     case("wu")
        shape(1) = lnx
+    case("wu_mor")
+       shape(1) = lnx
+    case("wu1D2D")
+       shape(1) = lnx1D
+    case("hh1D2D")
+       shape(1) = lnx1D
     case("bob")
        shape(2) = 2
+       shape(1) = lnx
+    case("bob0")
+       shape(2) = 2
+       shape(1) = lnx
+    case("xu")
+       shape(1) = lnx
+    case("yu")
        shape(1) = lnx
     case("vort")
        shape(1) = ndx
@@ -219,6 +271,16 @@
        shape(1) = numl
     case("numk")
        shape(1) = 0
+    case("ndx2d")
+       shape(1) = 0
+    case("ndx")
+       shape(1) = 0
+    case("xz")
+       shape(1) = ndx
+    case("yz")
+       shape(1) = ndx
+    case("ba")
+       shape(1) = ndx
     case("zbnd1d2d1")
        shape(1) = nbnd1d2d
     case("zbnd1d2d0")

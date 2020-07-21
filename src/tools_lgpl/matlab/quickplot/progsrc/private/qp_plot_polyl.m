@@ -3,7 +3,7 @@ function [hNew,Thresholds,Param]=qp_plot_polyl(hNew,Parent,Param,data,Ops,Props)
 
 %----- LGPL --------------------------------------------------------------------
 %                                                                               
-%   Copyright (C) 2011-2018 Stichting Deltares.                                     
+%   Copyright (C) 2011-2020 Stichting Deltares.                                     
 %                                                                               
 %   This library is free software; you can redistribute it and/or                
 %   modify it under the terms of the GNU Lesser General Public                   
@@ -28,8 +28,8 @@ function [hNew,Thresholds,Param]=qp_plot_polyl(hNew,Parent,Param,data,Ops,Props)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_lgpl/matlab/quickplot/progsrc/private/qp_plot_polyl.m $
-%   $Id: qp_plot_polyl.m 7992 2018-01-09 10:27:35Z mourits $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/private/qp_plot_polyl.m $
+%   $Id: qp_plot_polyl.m 65778 2020-01-14 14:07:42Z mourits $
 
 T_=1; ST_=2; M_=3; N_=4; K_=5;
 
@@ -49,8 +49,12 @@ NVal       = Param.NVal;
 DimFlag=Props.DimFlag;
 Thresholds=Ops.Thresholds;
 
+NeedsCell = ~strcmp(Ops.facecolour,'none') || isfield(data,'Val');
+if NVal==4 && isfield(Ops,'presentationtype') && strcmp(Ops.presentationtype,'polylines')
+    NeedsCell = 0;
+end
 if isfield(data,'XY') && iscell(data.XY)
-    if ~strcmp(Ops.facecolour,'none') || isfield(data,'Val')
+    if NeedsCell
         % no change
     else
         len = cellfun('length',data.XY);
@@ -58,7 +62,7 @@ if isfield(data,'XY') && iscell(data.XY)
         XY = NaN(tlen,2);
         offset = 0;
         for i = 1:length(data.XY)
-            XY(offset+(1:len(i)),:) = data.XY{i};
+            XY(offset+(1:len(i)),:) = data.XY{i}(:,1:2); % quick fix: just copy the first two columns if XY contains Z
             offset = offset+len(i)+1;
         end
         data.XY = XY;
@@ -68,7 +72,7 @@ else
         data.XY = [data.X data.Y];
         data = rmfield(data,{'X','Y'});
     end
-    if ~strcmp(Ops.facecolour,'none') || isfield(data,'Val')
+    if NeedsCell
         breaks = none(isnan(data.XY),2);
         % could use mat2cell below, but this would keep all the singleton NaNs
         PolyStartEnd = findseries(breaks);
@@ -96,18 +100,22 @@ else
     end
 end
 %
-if isfield(Ops,'presentationtype') && ...
-        (strcmp(Ops.presentationtype,'markers') ...
-        || strcmp(Ops.presentationtype,'values') ...
-        || strcmp(Ops.presentationtype,'labels'))
-    if iscell(data.XY)
-        XY = zeros(length(data.XY),2);
-        for i = 1:length(data.XY)
-            d = pathdistance(data.XY{i}(:,1),data.XY{i}(:,2));
-            uNode = d~=[NaN;d(1:end-1)];
-            XY(i,:) = interp1(d(uNode),data.XY{i}(uNode,1:2),d(end)/2);
-        end
-        data.XY = XY;
+if isfield(Ops,'presentationtype')
+    switch Ops.presentationtype
+        case {'markers','values','labels'}
+            if iscell(data.XY)
+                XY = zeros(length(data.XY),2);
+                for i = 1:length(data.XY)
+                    d = pathdistance(data.XY{i}(:,1),data.XY{i}(:,2));
+                    uNode = d~=[NaN;d(1:end-1)];
+                    XY(i,:) = interp1(d(uNode),data.XY{i}(uNode,1:2),d(end)/2);
+                end
+                data.XY = XY;
+            end
+        otherwise
+            if NVal==4
+                NVal=0;
+            end
     end
 end
 switch NVal
@@ -131,7 +139,7 @@ switch NVal
             set(Parent,'layer','top')
         end
         qp_title(Parent,TStr,'quantity',Quant,'unit',Units,'time',TStr)
-    case 1
+    case {1,5,6}
         switch Ops.presentationtype
             case {'values'}
                 hNew=gentextfld(hNew,Ops,Parent,data.Val,data.XY(:,1),data.XY(:,2));

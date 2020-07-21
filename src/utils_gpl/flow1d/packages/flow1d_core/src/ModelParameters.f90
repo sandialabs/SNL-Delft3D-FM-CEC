@@ -1,7 +1,7 @@
 module ModelParameters
 !----- AGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2017-2018.                                
+!  Copyright (C)  Stichting Deltares, 2017-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify              
 !  it under the terms of the GNU Affero General Public License as               
@@ -25,8 +25,8 @@ module ModelParameters
 !  Stichting Deltares. All rights reserved.
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: ModelParameters.f90 8044 2018-01-24 15:35:11Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_gpl/flow1d/packages/flow1d_core/src/ModelParameters.f90 $
+!  $Id: ModelParameters.f90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_gpl/flow1d/packages/flow1d_core/src/ModelParameters.f90 $
 !-------------------------------------------------------------------------------
 
    use MessageHandling
@@ -269,23 +269,6 @@ contains
    end subroutine deallocParameter
 
 subroutine readini(stringhead, stringleft, stringright, lenstrright)
-!!--copyright-------------------------------------------------------------------
-! Copyright (c) 2003, Deltares. All rights reserved.
-!!--disclaimer------------------------------------------------------------------
-! This code is part of the Delft3D software system. Deltares has
-! developed c.q. manufactured this code to its best ability and according to the
-! state of the art. Nevertheless, there is no express or implied warranty as to
-! this software whether tangible or intangible. In particular, there is no
-! express or implied warranty as to the fitness for a particular purpose of this
-! software, whether tangible or intangible. The intellectual property rights
-! related to this software code remain with Deltares at all times.
-! For details on the licensing agreement, we refer to the Delft3D software
-! license and any modifications to this license, if applicable. These documents
-! are available upon request.
-!!--version information---------------------------------------------------------
-! $Author$
-! $Date$
-! $Revision$
 !!--description-----------------------------------------------------------------
 ! NONE
 !!--pseudo code and references--------------------------------------------------
@@ -595,12 +578,13 @@ end subroutine LogAllParameters
       character(len=*) :: file
       
       integer                 :: ioStat
+      logical                 :: file_exist
       integer                 :: i
       integer                 :: errStat
       integer                 :: isPos
       integer                 :: help
       integer                 :: posEnd
-      character(len=Charln)      :: line
+      character(len=Charln)   :: line
       character(len=Charln)   :: category = ''
       character(len=Charln)   :: par
       character(len=Charln)   :: value
@@ -608,6 +592,9 @@ end subroutine LogAllParameters
       integer                 :: ifileunit
       
       if (file == ' ') return
+      
+      inquire(file=file, exist=file_exist)
+      if (.not. file_exist) return
     
       open (newunit=ifileunit, file = file,iostat=errStat)
       if (errStat /= 0) then

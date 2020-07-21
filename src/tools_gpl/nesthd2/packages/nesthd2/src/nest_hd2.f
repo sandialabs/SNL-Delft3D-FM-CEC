@@ -1,12 +1,12 @@
       subroutine nest_hd2 (lun   ,extnef,nostat,notims,kmax  ,lstci ,
      *                     nobnd ,mincon,
-     *                     thick ,wl    ,uu    ,vv    ,alfas ,bndval,
-     *                     kfs   ,mcbsp ,ncbsp ,mnstat,
+     *                     thick ,wl    ,uu    ,vv    ,conc, alfas ,
+     *                     bndval,kfs   ,mcbsp ,ncbsp ,mnstat,
      *                     typbnd,nambnd,namcon                     )
       implicit none
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
+!  Copyright (C)  Stichting Deltares, 2011-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -30,8 +30,8 @@
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: nest_hd2.f 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_gpl/nesthd2/packages/nesthd2/src/nest_hd2.f $
+!  $Id: nest_hd2.f 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_gpl/nesthd2/packages/nesthd2/src/nest_hd2.f $
 !***********************************************************************
 ! Deltares                         marine and coastal management
 !
@@ -70,7 +70,8 @@
       integer       iwet  (nostat)
 
       double precision uu    (nostat,kmax  ,notims),
-     *                 vv    (nostat,kmax  ,notims,mincon)
+     *                 vv    (nostat,kmax  ,notims),
+     *                 conc  (nostat,kmax  ,notims, mincon)
 
       double precision bndval(nobnd ,notims,kmax  ,mincon,2)
       double precision grdang
@@ -81,10 +82,10 @@
       integer nolay
       integer nocon
       integer nostat
-      integer notims
-      integer kmax
-      integer lstci
-      integer nobnd
+      integer notims, itim
+      integer kmax, k
+      integer lstci, iconc
+      integer nobnd, ibnd
       integer mincon
 
       character*  1 typbnd(nobnd )
@@ -160,6 +161,7 @@
 
       call SIMHSH(lun(5), fout, extnef, kfs, wl, uu, vv,
      *            alfas, grdang, notims, nostat, kmax)
+     
       if (fout) goto 999
 
       call chkdry(iwet, kfs, notims, nostat)
@@ -189,13 +191,23 @@
       if (lstci .eq. 0) goto 999
 
       call SIMHSC(lun(5),fout  ,extnef,notims,nostat,kmax  ,lstci ,
-     *            vv                                              )
+     *            conc                                            )
       if (fout) goto 999
 
       bndval = 0.0d0
+      do ibnd = 1, nobnd
+          do itim = 1, notims
+              do k = 1, kmax
+                  do iconc = 1, lstci
+                      bndval(ibnd,itim,k,iconc,1)=0.0d0
+                      bndval(ibnd,itim,k,iconc,2)=0.0d0
+                  enddo
+              enddo
+          enddo
+      enddo
 
       call detcon (lun(5),fout  ,lun(2),bndval,mcbsp ,ncbsp ,
-     *             mnstat,vv    ,iwet  ,nobnd ,notims,nostat,
+     *             mnstat,conc  ,iwet  ,nobnd ,notims,nostat,
      *             kmax  ,lstci                             )
       if (fout) goto 999
 

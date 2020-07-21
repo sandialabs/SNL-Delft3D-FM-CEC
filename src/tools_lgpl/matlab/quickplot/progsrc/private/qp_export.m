@@ -3,7 +3,7 @@ function filename=qp_export(ExpType,filenm1,DataState)
 
 %----- LGPL --------------------------------------------------------------------
 %                                                                               
-%   Copyright (C) 2011-2018 Stichting Deltares.                                     
+%   Copyright (C) 2011-2020 Stichting Deltares.                                     
 %                                                                               
 %   This library is free software; you can redistribute it and/or                
 %   modify it under the terms of the GNU Lesser General Public                   
@@ -28,8 +28,8 @@ function filename=qp_export(ExpType,filenm1,DataState)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_lgpl/matlab/quickplot/progsrc/private/qp_export.m $
-%   $Id: qp_export.m 7992 2018-01-09 10:27:35Z mourits $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/private/qp_export.m $
+%   $Id: qp_export.m 65778 2020-01-14 14:07:42Z mourits $
 
 persistent savedir
 if ~ischar(savedir)
@@ -113,7 +113,7 @@ switch expType
             end
         end
         switch Ops.presentationtype
-            case {'patches','patches with lines','grid','polylines','polygons','edge',''}
+            case {'patches','patches with lines','grid','polylines','polygons','edges',''}
                 retrieve='gridcelldata';
             case {'markers','values'}
                 retrieve='griddata';
@@ -526,6 +526,7 @@ for f=1:ntim
                 switch expType
                     case 'spline'
                         expdata=squeeze(expdata);
+                        expdata=expdata(:,1:2); % don't write data or z coordinates ro spline file
                         %
                         % the following line initially made sense when skipping
                         % over small gaps in grid lines, but it doesn't work in
@@ -535,7 +536,7 @@ for f=1:ntim
                         %expdata(any(isnan(expdata),2),:)=[];
                     case 'landboundary file'
                         expdata=squeeze(expdata);
-                        expdata(any(isnan(expdata),2),:)=999.999;
+                        expdata(any(isnan(expdata(:,1:2)),2),:)=999.999;
                     otherwise
                         expdata(isnan(expdata))=-999;
                 end
@@ -589,7 +590,7 @@ for f=1:ntim
                 Ops.presentationtype = 'thin dams';
             end
             switch Ops.presentationtype
-                case {'patches','patches with lines','markers','values','grid','polylines','polygons','edge',''}
+                case {'patches','patches with lines','markers','values','grid','polylines','polygons','edges',''}
                     xy=[];
                     if isfield(Props,'Geom') && (strcmp(Props.Geom,'POLYL') || strcmp(Props.Geom,'POLYG'))
                         vNaN=isnan(data.X);
@@ -627,7 +628,7 @@ for f=1:ntim
                         shp_type = 'polygon';
                         if isfield(Props,'Geom') && strncmp(Props.Geom,'UGRID',5)
                             if Props.NVal==0 && isfield(data,'FaceNodeConnect')
-                                Props.Geom='UGRID-FACE';
+                                Props.Geom='UGRID2D-FACE';
                                 data.ValLocation='FACE';
                             end
                             switch Ops.presentationtype
@@ -636,7 +637,7 @@ for f=1:ntim
                                     xy=[data(d).X data(d).Y];
                                     rm=[];
                                 otherwise
-                                    switch Props.Geom(7:end)
+                                    switch Props.Geom(max(strfind(Props.Geom,'-'))+1:end)
                                         case 'NODE'
                                             retrieve='griddata';
                                             xy=[data(d).X data(d).Y];
@@ -650,6 +651,8 @@ for f=1:ntim
                                             xv=[data(d).X data(d).Y];
                                             fv=data(d).FaceNodeConnect;
                                             rm=[];
+                                        otherwise
+                                            error('Unsupported geometry ''%s''.',Props.Geom);
                                     end
                             end
                         elseif isfield(Props,'Tri') && Props.Tri

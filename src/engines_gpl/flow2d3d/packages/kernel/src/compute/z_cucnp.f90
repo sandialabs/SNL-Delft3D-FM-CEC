@@ -10,14 +10,14 @@ subroutine z_cucnp(j         ,nmmaxj    ,nmmax     ,kmax      ,icx       , &
                  & aak       ,bbk       ,cck       ,ddk       ,bbka      , &
                  & bbkc      ,vicuv     ,vnu2d     ,vicww     ,tgfsep    , &
                  & drhodx    ,wsu       ,wsbodyu   ,taubpu    ,taubsu    ,rxx       , &
-                 & rxy       ,windu     ,patm      ,fcorio    ,p0        , &
+                 & rxy       ,windsu    ,patm      ,fcorio    ,p0        , &
                  & tp        ,rlabda    ,dfu       ,deltau    ,fxw       , &
                  & ubrlsu    ,pship     ,diapl     ,rnpl      ,cfurou    , &
                  & qxk       ,qyk       ,umean     ,dps       ,s0        , &
                  & ustokes   ,gdp       )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
+!  Copyright (C)  Stichting Deltares, 2011-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -41,8 +41,8 @@ subroutine z_cucnp(j         ,nmmaxj    ,nmmax     ,kmax      ,icx       , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: z_cucnp.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/engines_gpl/flow2d3d/packages/kernel/src/compute/z_cucnp.f90 $
+!  $Id: z_cucnp.f90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/kernel/src/compute/z_cucnp.f90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: The coefficient for the momentum equations are
@@ -163,7 +163,7 @@ subroutine z_cucnp(j         ,nmmaxj    ,nmmax     ,kmax      ,icx       , &
     real(fp), dimension(gdp%d%nmlb:gdp%d%nmub)                      :: tp      !  Description and declaration in esm_alloc_real.f90
     real(fp), dimension(gdp%d%nmlb:gdp%d%nmub)                      :: umean   !  Description and declaration in esm_alloc_real.f90    
     real(fp), dimension(gdp%d%nmlb:gdp%d%nmub)                      :: vnu2d   !  Description and declaration in esm_alloc_real.f90
-    real(fp), dimension(gdp%d%nmlb:gdp%d%nmub)        , intent(in)  :: windu   !  Description and declaration in esm_alloc_real.f90
+    real(fp), dimension(gdp%d%nmlb:gdp%d%nmub)        , intent(in)  :: windsu  !  Description and declaration in esm_alloc_real.f90
     real(fp), dimension(gdp%d%nmlb:gdp%d%nmub)                      :: wsu     !  Description and declaration in esm_alloc_real.f90
     real(fp), dimension(gdp%d%nmlb:gdp%d%nmub)                      :: wsbodyu !  Description and declaration in esm_alloc_real.f90
     real(fp), dimension(gdp%d%nmlb:gdp%d%nmub, 0:kmax), intent(in)  :: vicww   !  Description and declaration in esm_alloc_real.f90
@@ -271,6 +271,7 @@ subroutine z_cucnp(j         ,nmmaxj    ,nmmax     ,kmax      ,icx       , &
     real(fp)           :: gsqi
     real(fp)           :: hl
     real(fp)           :: hr
+    real(fp)           :: h0fac
     real(fp)           :: drytrsh
     real(fp)           :: hugsqs  ! HU(NM/NMD) * GSQS(NM) Depending on UMDIS the HU of point NM or NMD will be used 
     real(fp)           :: qwind
@@ -534,8 +535,18 @@ subroutine z_cucnp(j         ,nmmaxj    ,nmmax     ,kmax      ,icx       , &
           !
           ! Bottom and wind shear stress
           !
+          ! Apply factor h0fac to reduce wind force from cells with small depth
+          ! Note that the direction of windsu is opposite to what is expected
+          ! This is due to the change in sign in windtogridc.f90
+          !
+          h0fac = 1.0_fp
+          if (windsu(nm) < 0.0_fp .and.  s0(nm)+real(dps(nm),fp) < 2.0_fp*dryflc) then
+             h0fac = (s0(nm)+real(dps(nm),fp)) / (2.0_fp*dryflc)
+          elseif (windsu(nm) > 0.0_fp .and.  s0(nmu)+real(dps(nmu),fp) < 2.0_fp*dryflc) then
+             h0fac = (s0(nmu)+real(dps(nmu),fp)) / (2.0_fp*dryflc)
+          endif          
+          qwind          = h0fac*windsu(nm) / max(dzu0(nm, kkmax),drytrsh)
           cbot           = taubpu(nm)
-          qwind          = windu(nm)/max(dzu0(nm, kkmax),drytrsh)
           bdmwrp         = cbot/max(dzu0(nm, kmin),drytrsh)
           bdmwrs         = taubsu(nm)/max(dzu0(nm, kmin),drytrsh)
           bbk(nm, kmin)  = bbk(nm, kmin) + bdmwrp
@@ -743,7 +754,7 @@ subroutine z_cucnp(j         ,nmmaxj    ,nmmax     ,kmax      ,icx       , &
     enddo
     call timer_stop(timer_cucnp_advdiffv, gdp)
     !
-    ! HORIZONTAL VISCOSTY
+    ! HORIZONTAL VISCOSITY
     !
     call timer_start(timer_cucnp_vih, gdp)
     if (irov>0) then

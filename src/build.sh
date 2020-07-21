@@ -8,7 +8,7 @@
 #   adri.mourits@deltares.nl
 #   02 Sep 2016
 #
-#   Copyright (C)  Stichting Deltares, 2011-2013.
+#   Copyright (C)  Stichting Deltares, 2011-2019.
 #-------------------------------------------------------------------------------
 #
 #   WARNINGS WARNINGS WARNINGS WARNINGS WARNINGS WARNINGS WARNINGS WARNINGS
@@ -20,16 +20,6 @@
 #   This script does not work on Mac
 #   
 #-------------------------------------------------------------------------------
-
-module purge
-module load sierra-devel/intel-14.0-openmpi-1.6.4
-
-## to find uuid.h and luuid
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/lib64
-
-
-
-#./clean.sh
 
 # This script must be executed in the directory where it resides
 orgdir=`pwd`
@@ -43,12 +33,12 @@ compiler=''
 configureArgs=''
 debug=0
 noMake=0
-platform='64bit'
+platform='intel64'
 useSp=0
 
 #-------------------------------------------------------------------------------
 function usage {
-    echo "Usage: `basename $0` <compiler> [-debug] [-make] [-32bit|-64bit] [-sp] [-configure <args>] [-?]"
+    echo "Usage: `basename $0` <compiler> [-debug] [-make] [-64bit] [-sp] [-configure <args>] [-?]"
     echo "Compiler is one of:"
     echo "    -gnu"
     echo "    -intel10"
@@ -56,6 +46,7 @@ function usage {
     echo "    -intel11.1"
     echo "    -intel12"
     echo "    -intel14 (-intel14.0.3)"
+    echo "    -intel16 (-intel16.0.3)"
     }
 
 
@@ -97,9 +88,6 @@ function witch {
 
 while [ $# -gt 0 ]; do
     case $1 in
-        -32bit)
-            platform='ia32'
-            ;;
         -64bit)
             platform='intel64'
             ;;
@@ -128,6 +116,9 @@ while [ $# -gt 0 ]; do
         -intel14|-intel14.0.3)
             compiler='intel14'
             ;;
+        -intel16|-intel16.0.3)
+            compiler='intel16'
+            ;;
         -m|-make)
             noMake=1
             ;;
@@ -147,13 +138,6 @@ while [ $# -gt 0 ]; do
     esac
     shift
 done
-
-
-#===============================================================================
-# Sandia Defaults
-#===============================================================================
-platform='intel64'
-compiler='intel14'
 
 if [ "$compiler" == '' ]; then
     echo "You must specify a compiler"
@@ -182,9 +166,14 @@ case $compiler in
         echo "Using GNU compilers in `witch gfortran`"
         ;;
 
+    intel16)
+        ifortInit=". /opt/intel/parallel_studio_cluster_2016_up3/bin/compilervars.sh $platform"
+        iccInit=""
+        echo "Using Intel 16.0.3 Fortran ($platform) compiler"
+        ;;
+
     intel14)
-        #ifortInit=". /opt/intel/composer_xe_2013_sp1.3.174/bin/compilervars.sh $platform"
-        ifortInit=". /projects/sierra/linux_rh6/SDK/compilers/intel/composer_xe_2013_sp1.4.211/bin/compilervars.sh $platform"
+        ifortInit=". /opt/intel/composer_xe_2013_sp1.3.174/bin/compilervars.sh $platform"
         iccInit=""
         echo "Using Intel 14.0.3 Fortran ($platform) compiler"
         ;;
@@ -240,7 +229,7 @@ esac
 if [ "$ifortInit" != '' ]; then
     eval $ifortInit
     if [ $? -ne 0 ]; then
-        echo 'Initialization of the Fortran compiler fails!'
+        echo 'ERROR: Initialization of the Fortran compiler fails!'
         cd $orgdir
         exit 1
     fi
@@ -249,7 +238,7 @@ fi
 if [ "$iccInit" != '' ]; then
     eval $iccInit
     if [ $? -ne 0 ]; then
-        echo 'Initialization of the C compiler fails!'
+        echo 'ERROR: Initialization of the C compiler fails!'
         cd $orgdir
         exit 1
     fi
@@ -273,20 +262,18 @@ addpath PATH \
 #---------------------
 # mpich2
 if [ "$compiler" = 'gnu' ]; then
-    addpath PATH /projects/sierra/linux_rh6/SDK/mpi/openmpi/1.6.4-intel-14.0-2013_sp1.4.211-RHEL6/bin
-    #export MPI_INCLUDE=/opt/mpich2-1.4.1-gcc-4.6.2/include
-    export MPI_INCLUDE=/projects/sierra/linux_rh6/SDK/mpi/openmpi/1.6.4-intel-14.0-2013_sp1.4.211-RHEL6/include
-    export MPILIBS_ADDITIONAL="-L/projects/sierra/linux_rh6/SDK/mpi/openmpi/1.6.4-intel-14.0-2013_sp1.4.211-RHEL6/lib -lfmpich -lmpich -lmpl"
+    addpath PATH /opt/mpich2-1.4.1-gcc-4.6.2/bin
+    export MPI_INCLUDE=/opt/mpich2-1.4.1-gcc-4.6.2/include
+    export MPILIBS_ADDITIONAL="-L/opt/mpich2-1.4.1-gcc-4.6.2/lib -lfmpich -lmpich -lmpl"
     # export MPILIBS_ADDITIONAL=" "
-    export MPIFC=/projects/sierra/linux_rh6/SDK/mpi/openmpi/1.6.4-intel-14.0-2013_sp1.4.211-RHEL6/bin/mpif90
+    export MPIFC=/opt/mpich2-1.4.1-gcc-4.6.2/bin/mpif90  
 else
     # Intel compilers
-    addpath PATH /projects/sierra/linux_rh6/SDK/mpi/openmpi/1.6.4-intel-14.0-2013_sp1.4.211-RHEL6/bin
-    export MPI_INCLUDE=/projects/sierra/linux_rh6/SDK/mpi/openmpi/1.6.4-intel-14.0-2013_sp1.4.211-RHEL6/include
-    #export MPILIBS_ADDITIONAL="-L/projects/sierra/linux_rh6/SDK/mpi/openmpi/1.6.4-intel-14.0-2013_sp1.4.211-RHEL6/lib -lfmpich -lmpich"
-    export MPILIBS_ADDITIONAL="-L/projects/sierra/linux_rh6/SDK/mpi/openmpi/1.6.4-intel-14.0-2013_sp1.4.211-RHEL6/lib"
+    addpath PATH /opt/mpich2-1.0.8-intel64/bin
+    export MPI_INCLUDE=/opt/mpich2-1.0.8-intel64-PIC/include
+    export MPILIBS_ADDITIONAL="-L/opt/mpich2-1.0.8-intel64-PIC/lib -lfmpich -lmpich"
     if [ "$platform" = 'intel64' ]; then
-        export MPIFC=/projects/sierra/linux_rh6/SDK/mpi/openmpi/1.6.4-intel-14.0-2013_sp1.4.211-RHEL6/bin/mpif90
+        export MPIFC=/opt/mpich2-1.0.8-intel64-PIC/bin/mpif90  
     fi
 fi
 
@@ -312,9 +299,7 @@ fi
 
 #---------------------
 # netcdf
- #export NETCDFROOT=/p/delft3d/opt/netcdf-4.1.3mt/intel11.1
- export NETCDFROOT=/usr/netpub/netcdf-fortran/
-
+ export NETCDFROOT=/p/delft3d/opt/netcdf-4.1.3mt/intel11.1
  export PKG_CONFIG_PATH=$NETCDFROOT/lib/pkgconfig:$PKG_CONFIG_PATH
  export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$NETCDFROOT/lib
 
@@ -358,18 +343,20 @@ fi
 #===============================================================================
 # autogen: sanity checks, libtoolize and autoreconf
 
-log='logs/autogen.log'
+log="`pwd`/logs/autogen.log"
 command="./autogen.sh --verbose &> $log"
-
-log "Running $command"
+log "Running $command in `pwd`"
 eval $command
+cd third_party_open/kdtree2
+log "Running $command in `pwd`"
+eval $command
+cd ../..
 
 if [ $? -ne 0 ]; then
-    log "Autogen fails!"
+    log "ERROR: Autogen fails!"
     cd $orgdir
     exit 1
 fi
-
 
 #===============================================================================
 # configure: Create makefiles
@@ -403,7 +390,7 @@ log "Running `echo $command | sed 's/ +/ /g'`"
 eval $command
 
 if [ $? -ne 0 ]; then
-    log "Configure fails!"
+    log "ERROR: Configure fails!"
     cd $orgdir
     exit 1
 fi
@@ -425,8 +412,17 @@ command="make ds-install &> $log"
 log "Running $command"
 eval $command
 
+# Build D-Flow FM, only when not in singlePrecision mode
+if [ $useSp -eq 0 ]; then
+    log='logs/make_dflowfm.log'
+    command="make ds-install -C engines_gpl/dflowfm &> $log"
+
+    log "Running $command"
+    eval $command
+fi
+
 if [ $? -ne 0 ]; then
-    log "Make fails!"
+    log "ERROR: Make fails!"
     cd $orgdir
     exit 1
 fi

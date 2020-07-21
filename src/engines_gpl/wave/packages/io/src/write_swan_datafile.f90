@@ -1,7 +1,7 @@
 module write_swan_datafile
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
+!  Copyright (C)  Stichting Deltares, 2011-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -25,8 +25,8 @@ module write_swan_datafile
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: write_swan_datafile.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/engines_gpl/wave/packages/io/src/write_swan_datafile.f90 $
+!  $Id: write_swan_datafile.f90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/wave/packages/io/src/write_swan_datafile.f90 $
 !!--module description----------------------------------------------------------
 !
 !!--module declarations---------------------------------------------------------
@@ -201,7 +201,7 @@ subroutine write_swan_file (var1  , var2       , mmax   , nmax, covered, &
                 ! then covered == -1 and the value at i,j is not changed
                 !
                 if (covered(i, j) == 0 .and. closestPoint(i, j, iindex)>0) then
-                   if (covered(closestPoint(i, j, iindex), closestPoint(i, j, jindex)) == 1) then
+                   if (covered(closestPoint(i, j, iindex), closestPoint(i, j, jindex)) > 0) then    ! multi-domain: covered can be greater than 1
                       var1(i, j) = var1(closestPoint(i, j, iindex), closestPoint(i, j, jindex))
                    endif
                 endif
@@ -217,7 +217,7 @@ subroutine write_swan_file (var1  , var2       , mmax   , nmax, covered, &
                 ! then covered == -1 and the value at i,j is not changed
                 !
                 if (covered(i, j) == 0 .and. closestPoint(i, j, iindex)>0) then
-                   if (covered(closestPoint(i, j, iindex), closestPoint(i, j, jindex)) == 1) then
+                   if (covered(closestPoint(i, j, iindex), closestPoint(i, j, jindex)) > 0) then
                       var2(i, j) = var2(closestPoint(i, j, iindex), closestPoint(i, j, jindex))
                    endif
                 endif

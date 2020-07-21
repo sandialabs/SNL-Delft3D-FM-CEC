@@ -8,11 +8,9 @@ include $(top_srcdir)/common.am
 #-------------------------------------------------------------------------------
 #Includes
 dist_bin_SCRIPTS = \
-	libifcore.so.5 \
-	libimf.so \
-	libintlc.so.5 \
-	libiomp5.so \
-	libsvml.so \
-	swan_4072ABCDE_del_l64_i11_mpi.exe \
-	swan_4072ABCDE_del_l64_i11_omp.exe
+	swan_mpi.exe \
+	swan_omp.exe
 
+install-exec-hook:
+	cp -p $(top_srcdir)/third_party_open/swan/bin/linux/libnetcdf.so.4 $(libdir)
+	cp -p $(top_srcdir)/third_party_open/swan/bin/linux/libnetcdff.so.4 $(libdir)

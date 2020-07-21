@@ -16,6 +16,10 @@ dfmoutput_SOURCES=\
 	dfmoutput_version.F90 \
 	dfm_params.F90 \
 	dfm_merge.F90 \
+	dfm_max25_read_nc_histories.f90 \
+	dfm_max25_write_extremes_his.f90 \
+	dfm_max25_getdata.f90 \
+	dfm_gen_filter.f90 \
 	dfmoutput_main.F90
 
 # Version number generation (only when in SVN source dir, not for tar.gz dist)
@@ -27,7 +31,7 @@ REGENERATE_VN=yes
 # We're in a working copy build dir, so always update the *version.F90
 dfmoutput_version.F90: dfmoutput_version.F90.svn .FORCE
 	$(top_builddir)/scripts_lgpl/linux/update_version.sh \
-	$(builddir)/dfmoutput_version.F90 $(srcdir) $(srcdir)/version_number.ini $(abs_top_builddir)
+	$(builddir)/dfmoutput_version.F90 $(srcdir) $(srcdir)/../res/version_number.ini $(abs_top_builddir)
  else
 # Do not force regeneration of *version.F90, because it is already shipped in a source distribution archive.
 dfmoutput_version.F90:
@@ -46,6 +50,7 @@ MOSTLYCLEANFILES = *.mod
 FINCLUDES +=
 
 FMODULES += \
+    -I$(top_builddir)/utils_lgpl/io_netcdf/packages/io_netcdf/src \
     -I$(top_builddir)/utils_lgpl/deltares_common/packages/deltares_common/src \
     -I$(top_builddir)/utils_lgpl/deltares_common/packages/deltares_common_mpi/src \
     -I$(top_builddir)/third_party_open/FLAP/Test_Driver/mod
@@ -72,6 +77,7 @@ LIBS+=${MPILIBS}
 endif
 
 EXTRALIBS=\
+        $(top_builddir)/utils_lgpl/io_netcdf/packages/io_netcdf/src/libIONetcdf.la \
         $(top_builddir)/utils_lgpl/deltares_common/packages/deltares_common/src/libDeltaresCommon.la \
         $(top_builddir)/utils_lgpl/deltares_common/packages/deltares_common_mpi/src/libDeltaresCommonMpi.la \
         $(top_builddir)/third_party_open/FLAP/Test_Driver/obj/ir_precision.o \

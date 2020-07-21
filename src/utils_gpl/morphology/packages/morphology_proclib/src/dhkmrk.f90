@@ -1,7 +1,7 @@
 subroutine dhkmrk ( iknmrk , kenmrk , knmrki )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2012-2018.                                
+!  Copyright (C)  Stichting Deltares, 2012-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -25,8 +25,8 @@ subroutine dhkmrk ( iknmrk , kenmrk , knmrki )
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: dhkmrk.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_gpl/morphology/packages/morphology_proclib/src/dhkmrk.f90 $
+!  $Id: dhkmrk.f90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_gpl/morphology/packages/morphology_proclib/src/dhkmrk.f90 $
 !!--description-----------------------------------------------------------------
 !
 ! Utility that evaluates a feature from the "feature" integer

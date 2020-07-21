@@ -1,6 +1,6 @@
 !----- AGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2017-2018.                                
+!  Copyright (C)  Stichting Deltares, 2017-2020.                                
 !                                                                               
 !  This file is part of Delft3D (D-Flow Flexible Mesh component).               
 !                                                                               
@@ -27,8 +27,8 @@
 !                                                                               
 !-------------------------------------------------------------------------------
 
-! $Id: d_flooding.f90 54191 2018-01-22 18:57:53Z dam_ar $
-! $HeadURL: https://repos.deltares.nl/repos/ds/trunk/additional/unstruc/src/d_flooding.f90 $
+! $Id: d_flooding.f90 65778 2020-01-14 14:07:42Z mourits $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/dflowfm/packages/dflowfm_kernel/src/d_flooding.f90 $
 
 module m_sobekdfm   ! 
    implicit none
@@ -171,8 +171,8 @@ end subroutine reset_sobekdfm
    subroutine dealloc_1d2d()
 ! todo: avd: one already deallocated...      
       deallocate ( xbnd1d2d, ybnd1d2d, xy2bnd1d2d, zbnd1d2d1, zbnd1d2d0, kbnd1d2d, &
-         zcrest1d2d, b1ds, b1dq, d1d, CFL, qzeta_1d2d, qlat_1d2d, width_1d, qtotal_1d2d, &
-         FlowCond, sb_1d2d, edgenumbers1d2d)
+         b1ds, b1dq, d1d, CFL, qzeta_1d2d, qlat_1d2d, width_1d, qtotal_1d2d, b_i,  &
+         FlowCond, sb_1d2d, edgenumbers1d2d, b_2dv, b_2di, d_2dv, s0_2d, s1_2d, s0_1d)
 
    end subroutine dealloc_1d2d
 

@@ -1,7 +1,7 @@
 module swan_input
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
+!  Copyright (C)  Stichting Deltares, 2011-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -25,8 +25,8 @@ module swan_input
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: swan_input.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/engines_gpl/wave/packages/data/src/swan_input.f90 $
+!  $Id: swan_input.f90 65863 2020-01-24 16:32:02Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/wave/packages/data/src/swan_input.f90 $
 !!--description-----------------------------------------------------------------
 !
 ! WAVE-GUI version number dependencies:
@@ -255,6 +255,7 @@ module swan_input
        logical                                 :: flowLinkConnectivity ! false: (default) use netlink connectivity from DFlowFM, true: use flowlink connectivity from DFlowFM
        !
        real                                    :: alpw
+       real                                    :: alfa
        real                                    :: cdd
        real                                    :: cfbr1
        real                                    :: cfbr2
@@ -262,7 +263,8 @@ module swan_input
        real                                    :: cftriad2
        real                                    :: css
        real                                    :: deltc            ! used when modsim = 3: Time step in non-stat SWAN runs
-       real                                    :: deltcom          ! used when modsim = 3: Interval of communication FLOW-WAVE
+       real                                    :: nonstat_interval ! used when modsim = 3: Interval of non-stat SWAN computation
+       real                                    :: deltcom          ! Not used: COM write interval
        real                                    :: inthotf
        real                                    :: depmin
        real                                    :: dh_abs
@@ -291,6 +293,7 @@ module swan_input
        real                                    :: veg_drag
        !
        real                                    :: wlevelcorr       ! Overall water level correction; see Time frame input in GUI
+       real                                    :: alfawind         ! Overall wind speed multiplication factor; 
        real          , dimension(:), pointer   :: timwav
        real          , dimension(:), pointer   :: zeta             ! Default water level of a selected time point (when running stand-alone); see Time frame input in GUI
        real          , dimension(:), pointer   :: ux0
@@ -331,7 +334,7 @@ module swan_input
        character(15)                            :: writehottime  = '00000000.000000'       ! Time in the name of the hotfile that has to be written by SWAN
        character(15)                            :: keephottime   = '00000000.000000'       ! Time in the name of the hotfile that should not be deleted
        character(50), dimension(:), allocatable :: pntfilnam     ! Name of file containing locations for which output is requested
-       character(20), dimension(:), allocatable :: pntfilnamtab  ! Name of file containing output on locations
+       character(50), dimension(:), allocatable :: pntfilnamtab  ! Name of file containing output on locations
        !
        type(handletype)                         :: tseriesfile
        !
@@ -1120,6 +1123,9 @@ end subroutine scan_mdw
 subroutine read_keyw_mdw(sr          ,wavedata   ,keywbased )
     use properties
     use read_grids
+    use time_module
+    use string_module
+    use netcdf_utils, only: ncu_format_to_cmode
     implicit none
     !
     type(swan)                  :: sr
@@ -1162,6 +1168,8 @@ subroutine read_keyw_mdw(sr          ,wavedata   ,keywbased )
     integer                     :: iter
     integer                     :: n_outpars
     integer                     :: par
+    integer                     :: slash_er
+    integer                     :: slash_ok
     integer, dimension(4)       :: def_ts_hs
     integer, dimension(4)       :: def_ts_tp
     integer, dimension(4)       :: def_ts_wd
@@ -1225,7 +1233,8 @@ subroutine read_keyw_mdw(sr          ,wavedata   ,keywbased )
     call prop_get_logical(mdw_ptr, 'General', 'OnlyInputVerify', flag)
     sr%compmode = .not. flag
     !
-    sr%deltc = -999.0
+    sr%deltc            = -999.0
+    sr%nonstat_interval = -999.0
     parname  = ''
     call prop_get_string (mdw_ptr, 'General', 'SimMode', parname)
     select case (parname)
@@ -1238,9 +1247,14 @@ subroutine read_keyw_mdw(sr          ,wavedata   ,keywbased )
        sr%modsim = 2
     case ('non-stationary')
        sr%modsim = 3
-       call prop_get_real   (mdw_ptr, 'General', 'TimeStep', sr%deltc)
+       call prop_get_real(mdw_ptr, 'General', 'TimeStep', sr%deltc)
        if (sr%deltc < 0.0) then
-          write(*,*) 'SWAN_INPUT: missing or invalid non-stationary time step'
+          write(*,*) '*** ERROR: Unable to read non-stationary parameter "TimeStep"'
+          goto 999
+       endif
+       call prop_get_real(mdw_ptr, 'General', 'TimeInterval', sr%nonstat_interval)
+       if (sr%nonstat_interval < 0.0) then
+          write(*,*) '*** ERROR: Unable to read non-stationary parameter "TimeInterval"'
           goto 999
        endif
     case default
@@ -1271,7 +1285,7 @@ subroutine read_keyw_mdw(sr          ,wavedata   ,keywbased )
     !
     parname = ''
     call prop_get_string (mdw_ptr, 'General', 'DirConvention', parname)
-    call lowercase(parname, len(parname))
+    call str_lower(parname, len(parname))
     select case (parname)
     case ('nautical')
       sr%nautconv = .true.
@@ -1298,7 +1312,7 @@ subroutine read_keyw_mdw(sr          ,wavedata   ,keywbased )
        goto 999
     endif
     call setrefdate(wavedata%time,refdate)
-    call juldat(refdate ,sr%refjulday)
+    sr%refjulday = ymd2jul(refdate)
     !
     tscale = 60.0
     call prop_get_real   (mdw_ptr, 'General', 'TScale', tscale)
@@ -1470,7 +1484,7 @@ subroutine read_keyw_mdw(sr          ,wavedata   ,keywbased )
     !
     parname = ''
     call prop_get_string (mdw_ptr, 'General', 'DirSpace', parname)
-    call lowercase(parname, len(parname))
+    call str_lower(parname, len(parname))
     def_dirspace = -999
     select case (parname)
     case ('circle')
@@ -1596,7 +1610,7 @@ subroutine read_keyw_mdw(sr          ,wavedata   ,keywbased )
     sr%cfbr1         = 1.0
     sr%cfbr2         = 0.73
     sr%triads        = .false.
-    sr%cftriad1      = 0.1
+    sr%cftriad1      = 0.8
     sr%cftriad2      = 2.2
     sr%frictype      = 1
     sr%frcof         = 0.067
@@ -1607,6 +1621,7 @@ subroutine read_keyw_mdw(sr          ,wavedata   ,keywbased )
     sr%quadruplets   = .false.
     sr%refraction    = .true.
     sr%fshift        = .true.
+    sr%alfawind      = 1.0
     !
     call prop_get_integer(mdw_ptr, 'Processes', 'GenModePhys', sr%genmode)
     if (sr%genmode < 0 .or. sr%genmode > 3) then
@@ -1628,7 +1643,7 @@ subroutine read_keyw_mdw(sr          ,wavedata   ,keywbased )
     !
     parname = ''
     call prop_get_string (mdw_ptr, 'Processes', 'BedFriction', parname)
-    call lowercase(parname,len(parname))
+    call str_lower(parname,len(parname))
     select case (parname)
     case ('none', ' ')
       sr%frictype = 0
@@ -1665,9 +1680,14 @@ subroutine read_keyw_mdw(sr          ,wavedata   ,keywbased )
     endif
     !
     call prop_get_logical(mdw_ptr, 'Processes', 'WindGrowth'  , sr%windgrowth)
+    call prop_get_real   (mdw_ptr, 'Processes', 'AlfaWind'    , sr%alfawind)
+    if (sr%alfawind<1d-6 .and. sr%alfawind>-1d-6) then
+       write (*,'(a)') 'SWAN_INPUT: AlfaWind is not allowed to be equal to 0.0.'
+       goto 999
+    endif
     parname = ''
     call prop_get_string (mdw_ptr, 'Processes', 'WhiteCapping', parname)
-    call lowercase(parname, len(parname))
+    call str_lower(parname, len(parname))
     select case (parname)
     case ('off')
       sr%whitecap = WC_OFF
@@ -1690,7 +1710,7 @@ subroutine read_keyw_mdw(sr          ,wavedata   ,keywbased )
     !
     parname = ''
     call prop_get_string (mdw_ptr, 'Processes', 'WaveForces', parname)
-    call lowercase(parname, len(parname))
+    call str_lower(parname, len(parname))
     select case (parname)
     case ('radiation stresses <2013')
       sr%swdis = 1
@@ -1717,14 +1737,16 @@ subroutine read_keyw_mdw(sr          ,wavedata   ,keywbased )
     sr%percwet = 98.0
     sr%itermx  = 15
     sr%gamma0  = 3.3
+    sr%alfa    = 0.0
     !
-    call prop_get_real   (mdw_ptr, 'Numerics', 'DirSpaceCDD'  , sr%cdd)
-    call prop_get_real   (mdw_ptr, 'Numerics', 'FreqSpaceCSS' , sr%css)
-    call prop_get_real   (mdw_ptr, 'Numerics', 'RChHsTm01'    , sr%drel)
-    call prop_get_real   (mdw_ptr, 'Numerics', 'RChMeanHs'    , sr%dh_abs)
-    call prop_get_real   (mdw_ptr, 'Numerics', 'RChMeanTm01'  , sr%dt_abs)
-    call prop_get_real   (mdw_ptr, 'Numerics', 'PercWet'      , sr%percwet)
-    call prop_get_integer(mdw_ptr, 'Numerics', 'MaxIter'      , sr%itermx)
+    call prop_get_real   (mdw_ptr, 'Numerics', 'DirSpaceCDD'    , sr%cdd)
+    call prop_get_real   (mdw_ptr, 'Numerics', 'FreqSpaceCSS'   , sr%css)
+    call prop_get_real   (mdw_ptr, 'Numerics', 'RChHsTm01'      , sr%drel)
+    call prop_get_real   (mdw_ptr, 'Numerics', 'RChMeanHs'      , sr%dh_abs)
+    call prop_get_real   (mdw_ptr, 'Numerics', 'RChMeanTm01'    , sr%dt_abs)
+    call prop_get_real   (mdw_ptr, 'Numerics', 'PercWet'        , sr%percwet)
+    call prop_get_integer(mdw_ptr, 'Numerics', 'MaxIter'        , sr%itermx)
+    call prop_get_real   (mdw_ptr, 'Numerics', 'AlfaUnderRelax' , sr%alfa)
     !
     ! General output options
     !
@@ -1743,6 +1765,7 @@ subroutine read_keyw_mdw(sr          ,wavedata   ,keywbased )
     sr%swflux              = .true.
     sr%swmapwritenetcdf    = .true.
     sr%netcdf_sp           = .false.
+    par                    = 0
     !
     ! Standard output options
     !
@@ -1763,6 +1786,8 @@ subroutine read_keyw_mdw(sr          ,wavedata   ,keywbased )
     call prop_get_logical(mdw_ptr, 'Output', 'AppendCOM'       , sr%append_com)
     call prop_get_logical(mdw_ptr, 'Output', 'MapWriteNetCDF'  , sr%swmapwritenetcdf)
     call prop_get_logical(mdw_ptr, 'Output', 'NetCDFSinglePrecision'  , sr%netcdf_sp)
+    call prop_get_integer(mdw_ptr, 'Output', 'ncFormat'  , par)
+    call set_ncmode(wavedata%output, ncu_format_to_cmode(par))
     !
     ! Check that the comfile is not a map file (not allowed. Was allowed in preliminary versions)
     !
@@ -1930,7 +1955,7 @@ subroutine read_keyw_mdw(sr          ,wavedata   ,keywbased )
        call prop_get_integer(mdw_ptr, 'General', 'FlowWind'      , sr%dom(1)%qextnd(q_wind))
        parname = ''
        call prop_get_string (mdw_ptr, 'General', 'FlowVelocityType', parname)
-       call lowercase(parname, len(parname))
+       call str_lower(parname, len(parname))
        select case (parname)
        case ('depth-averaged')
           sr%dom(1)%flowVelocityType = FVT_DEPTH_AVERAGED
@@ -2054,7 +2079,7 @@ subroutine read_keyw_mdw(sr          ,wavedata   ,keywbased )
        endif
        parname = ''
        call prop_get_string(tmp_ptr, '*', 'DirSpace', parname)
-       call lowercase(parname, len(parname))
+       call str_lower(parname, len(parname))
        select case (parname)
        case ('circle')
           dom%dirspace = 1
@@ -2109,7 +2134,7 @@ subroutine read_keyw_mdw(sr          ,wavedata   ,keywbased )
        if (sr%swuvt) then
           parname = ''
           call prop_get_string (tmp_ptr, '*', 'FlowVelocityType', parname)
-          call lowercase(parname, len(parname))
+          call str_lower(parname, len(parname))
           select case (parname)
           case ('depth-averaged')
              dom%flowVelocityType = FVT_DEPTH_AVERAGED
@@ -2355,14 +2380,14 @@ subroutine read_keyw_mdw(sr          ,wavedata   ,keywbased )
        !
        parname = ''
        call prop_get_string(bnd_ptr, '*', 'Definition', parname)
-       call lowercase(parname,len(parname))
+       call str_lower(parname,len(parname))
        select case (parname)
        case ('orientation')
           bnd%bndtyp = 1
           !
           parname = ''
           call prop_get_string(bnd_ptr, '*', 'Orientation' , parname)
-          call lowercase(parname,len(parname))
+          call str_lower(parname,len(parname))
           select case (parname)
           case ('n','north')
              bnd%orient = 1
@@ -2388,7 +2413,7 @@ subroutine read_keyw_mdw(sr          ,wavedata   ,keywbased )
           !
           parname = ''
           call prop_get_string(bnd_ptr, '*', 'DistanceDir'   , parname)
-          call lowercase(parname,len(parname))
+          call str_lower(parname,len(parname))
           select case (parname)
           case ('clockwise')
              bnd%turn = 0
@@ -2436,7 +2461,7 @@ subroutine read_keyw_mdw(sr          ,wavedata   ,keywbased )
        !
        parname = ''
        call prop_get_string(bnd_ptr, '*', 'SpectrumSpec'   , parname)
-       call lowercase(parname,len(parname))
+       call str_lower(parname,len(parname))
        select case (parname)
        case ('from file')
           bnd%parread = 1
@@ -2449,7 +2474,7 @@ subroutine read_keyw_mdw(sr          ,wavedata   ,keywbased )
           !
           parname = ''
           call prop_get_string(bnd_ptr, '*', 'SpShapeType'   , parname)
-          call lowercase(parname,len(parname))
+          call str_lower(parname,len(parname))
           select case (parname)
           case ('jonswap')
             bnd%sshape = 1
@@ -2457,6 +2482,8 @@ subroutine read_keyw_mdw(sr          ,wavedata   ,keywbased )
             bnd%sshape = 2
           case ('gauss')
             bnd%sshape = 3
+          case ('bin')
+            bnd%sshape = 4
           case default
              write(*,*) 'SWAN_INPUT: missing or invalid boundary spectrum shape type'
              goto 999
@@ -2464,7 +2491,7 @@ subroutine read_keyw_mdw(sr          ,wavedata   ,keywbased )
           !
           parname = ''
           call prop_get_string(bnd_ptr, '*', 'PeriodType'   , parname)
-          call lowercase(parname,len(parname))
+          call str_lower(parname,len(parname))
           select case (parname)
           case ('peak')
             bnd%periodtype = 1
@@ -2477,7 +2504,7 @@ subroutine read_keyw_mdw(sr          ,wavedata   ,keywbased )
           !
           parname = ''
           call prop_get_string(bnd_ptr, '*', 'DirSpreadType'   , parname)
-          call lowercase(parname,len(parname))
+          call str_lower(parname,len(parname))
           select case (parname)
           case ('power')
             bnd%dsprtype = 1
@@ -2705,7 +2732,7 @@ subroutine read_keyw_mdw(sr          ,wavedata   ,keywbased )
           !
           parname = ''
           call prop_get_string (tmp_ptr, '*', 'Type' , parname)
-          call lowercase(parname,len(parname))
+          call str_lower(parname,len(parname))
           select case (parname)
           case ('sheet')
              call prop_get_real(tmp_ptr, '*', 'TransmCoef'   , sr%trane(obstnr))
@@ -2718,7 +2745,7 @@ subroutine read_keyw_mdw(sr          ,wavedata   ,keywbased )
           !
           parname = ''
           call prop_get_string (tmp_ptr, '*', 'Reflections' , parname)
-          call lowercase(parname,len(parname))
+          call str_lower(parname,len(parname))
           select case (parname)
           case ('no')
              sr%reflection(obstnr) = 0
@@ -2761,11 +2788,21 @@ subroutine read_keyw_mdw(sr          ,wavedata   ,keywbased )
        enddo
     endif
     !
+    ! In paths:
+    ! Forward slash works fine on both Windows and Linux
+    ! Backward slash does not work on Linux
+    slash_ok = 47 ! /
+    slash_er = 92 ! \
+    call replace_char(sr%flowgridfile, slash_er, slash_ok)
+    do i = 1, sr%nloc
+       call replace_char(sr%pntfilnam(i), slash_er, slash_ok)
+    enddo
+    !
     write(*,*) 'Done reading input'
     !
     return
 999 continue
-    call wavestop(1, "ERROR whil reading keyword based mdw file")
+    call wavestop(1, "ERROR while reading keyword based mdw file")
 end subroutine read_keyw_mdw
 !
 !
@@ -3954,6 +3991,17 @@ subroutine write_swan_inp (wavedata, calccount, &
     myfr       = 0 !swani(12)
     npoints    = sr%npoints
     !
+    ! Dano modifications nfreq, flow and fhigh for shape=BIN
+    ! Only meant for parametric, uniform boundary conditions on all given boundaries
+    if (nb >= 1) then
+       bnd => sr%bnd(1)
+       if (bnd%sshape == 4) then
+          dom%nfreq   = 2
+          dom%freqmin = 1.d0/bnd%period(1)*0.9d0
+          dom%freqmax = 1.d0/bnd%period(1)/0.9d0
+       endif
+    endif
+    
     msc  = dom%nfreq
     mdc1 = dom%ndir
     cs   = dom%dirspace
@@ -4315,8 +4363,10 @@ subroutine write_swan_inp (wavedata, calccount, &
        !
        !        *** read wind grid ***
        !
-       line(1:20)  = 'READ WIN FAC= 1.   _'
-       line(21:)   = ' '
+       line(1:13)  = 'READ WIN FAC='
+       write (line(14:25), '(1X,F6.2)') sr%alfawind
+       line(26:28) = ' _ '
+       line(29:)   = ' '
        write (luninp, '(1X,A)') trim(line)
        line        = ' '
        ind         = index(wfil, ' ')
@@ -4345,7 +4395,11 @@ subroutine write_swan_inp (wavedata, calccount, &
           write (line(11:20), '(F10.2)') wvel
           line(21:25) = ' DIR='
           write (line(26:35), '(F10.2)') wdir
-          line(36:)   = ' '
+          !line(36:37)   = ' '
+          
+          line(36:) = ' DRAG WU'
+          
+          
           write (luninp, '(1X,A)') line
        else
        endif
@@ -4423,7 +4477,7 @@ subroutine write_swan_inp (wavedata, calccount, &
             ind = index(sr%specfile, ' ') - 1
             line(13:13 + ind) = sr%specfile
             line(13+ind:13+ind) = ''''''
-            line(13+ind+1:13+ind+5) = ' OPEN'
+            line(13+ind+1:13+ind+10) = ' FREE OPEN'
             write(luninp, '(1X,A)') line
             cycle
           endif
@@ -4440,6 +4494,8 @@ subroutine write_swan_inp (wavedata, calccount, &
              line(12:) = 'PM'
           elseif (shape==3) then
              write (line(12:), '(A, 1X, F6.2)') 'GAUSS', bnd%sigfr
+          elseif (shape==4) then
+             line(12:) = 'BIN'
           else
           endif
           if (periodtype==1) then
@@ -4603,6 +4659,9 @@ subroutine write_swan_inp (wavedata, calccount, &
           line  = 'INIT HOTS ''' // trim(fname) // ''''
           write (luninp, '(1X,A)') line
           write(*,'(2a)') '  Using SWAN hotstart file: ',trim(fname)
+       else
+          ! Set usehottime to 0.0 to flag that it isn't used
+          sr%usehottime    = '00000000.000000'
        endif
     endif
     !
@@ -4684,6 +4743,9 @@ subroutine write_swan_inp (wavedata, calccount, &
        line(1:10)  = 'OFF WCAP  '
        line(11:)   = ' '
        write (luninp, '(1X,A)') line
+    else if (sr%whitecap==1) then
+      line(1:20)  = 'WCAP KOMEN delta=0  '
+      write (luninp, '(1X,A)') line
     !else
     !   line(1:20)  = 'WCAP   CSM   4   2  '
     !   write (luninp, '(1X,A)') line
@@ -4692,12 +4754,6 @@ subroutine write_swan_inp (wavedata, calccount, &
     line(1:10)  = 'LIM  10 1 '
     write (luninp, '(1X,A)') line
     line        = ' '
-    if (.not.sr%refraction) then
-       line(1:10)  = 'OFF REFRAC'
-       line(11:)   = ' '
-       write (luninp, '(1X,A)') line
-       line        = ' '
-    endif
     if (.not.sr%fshift) then
        line(1:10)  = 'OFF FSHIFT'
        line(11:)   = ' '
@@ -4722,13 +4778,25 @@ subroutine write_swan_inp (wavedata, calccount, &
     line(48:)   = ' '
     write (luninp, '(1X,A)') trim(line)
     line        = ' '
+    if (.not.sr%refraction) then
+       line(1:10)  = 'OFF REFRAC'
+       line(11:)   = ' '
+       write (luninp, '(1X,A)') line
+       line        = ' '
+    endif
+    line        = ' '
     line(1:2)   = '$ '
     write (luninp, '(1X,A)') line
     line        = ' '
     line(1:10)  = 'NUM ACCUR '
     if ( sr%modsim /= 3 ) then
-        write (line(15:), '(F8.3,1X,F8.3,1X,F8.3,1X,F8.3,1X,I4)') &
-        & sr%drel, sr%dh_abs, sr%dt_abs, sr%percwet, sr%itermx
+        if (sr%alfa > 0.0) then
+            write (line(15:), '(F8.3,1X,F8.3,1X,F8.3,1X,F8.3,1X,A,1X,I4,1X,F8.3)') &
+                 & sr%drel, sr%dh_abs, sr%dt_abs, sr%percwet, 'STAT', sr%itermx, sr%alfa
+        else
+           write (line(15:), '(F8.3,1X,F8.3,1X,F8.3,1X,F8.3,1X,I4)') &
+           & sr%drel, sr%dh_abs, sr%dt_abs, sr%percwet, sr%itermx
+        endif
     else
         write (line(15:), '(F8.3,1X,F8.3,1X,F8.3,1X,F8.3,1X,A,1X,I4)') &
         & sr%drel, sr%dh_abs, sr%dt_abs, sr%percwet, &
@@ -4969,8 +5037,8 @@ subroutine write_swan_inp (wavedata, calccount, &
           j          = 16
           line(j:j)  = ''''''
           k          = k + 1
-          write (line(21:48), '(2(F10.2,4X))') xpcu(k), ypcu(k)
-          line(49:49) = '_'
+          write (line(21:56), '(2(F14.6,4X))') xpcu(k), ypcu(k)
+          line(57:57) = '_'
           write (luninp, '(1X,A)') line
           line        = ' '
           jendcrv     = nclin(k)
@@ -4978,9 +5046,9 @@ subroutine write_swan_inp (wavedata, calccount, &
              k = k + 1
              line       = ' '
              write (line(11:15), '(I5)') nclin(k)
-             write (line(21:48), '(2(F10.2,4X))') xpcu(k), ypcu(k)
+             write (line(21:56), '(2(F14.6,4X))') xpcu(k), ypcu(k)
              !              Modification
-             if (j/=jendcrv) line(50:50) = '_'
+             if (j/=jendcrv) line(57:57) = '_'
              write (luninp, '(1X,A)') line
              line       = ' '
           enddo
@@ -5267,7 +5335,20 @@ subroutine write_swan_inp (wavedata, calccount, &
           !
           ! endtime
           !
-          tendc = datetime_to_string(wavedata%time%refdate, wavedata%time%timsec + sr%deltcom * 60.0)
+          tendc = datetime_to_string(wavedata%time%refdate, real(wavedata%time%calctimtscale)* wavedata%time%tscale)
+          !
+          if (sr%hotfile .and. sr%usehottime /= '00000000.000000') then
+             !
+             ! A hotfile is being used
+             ! SWAN will stop if usehottime is not equal to tbegc
+             !
+             if (sr%usehottime > tbegc) then
+               write(*,'(5a)') "*** ERROR: Time of hotfile to read (", sr%usehottime, ") is bigger than the simulation start time (", &
+                        & tbegc, ")"
+               write(*,'(a,f8.2,a)') "           The non-stationary TimeInterval (", sr%nonstat_interval, ") must be equal to or smaller than the FLOW simulation interval"
+               call wavestop(1, "While preparing SWAN input file")
+             endif
+          endif
           !
           ! built line
           !
@@ -5350,7 +5431,9 @@ subroutine outputCurvesFromFile()
     do i = 1,size(pol_ptr%child_nodes)
        cur_ptr => pol_ptr%child_nodes(i)%node_ptr
        curname = tree_get_name(cur_ptr)
-       write(luninp,'(1x,3a)') 'CURVE  ''', trim(curname), '''  _'
+       line = trim(curname)
+       line = line(1:8)      ! sname can only be 8 characters long in SWAN source code (subroutine SWTABP)
+       write(luninp,'(1x,3a)') 'CURVE  ''', trim(line), '''  _'
        do j = 1,size(cur_ptr%child_nodes)
           tmp_ptr => cur_ptr%child_nodes(j)%node_ptr
 
@@ -5363,7 +5446,7 @@ subroutine outputCurvesFromFile()
           ! call transfer with a real(sp) constant as second parameter
           !
           inputvals = transfer( data_ptr, 0., 2 )
-          write(line,'(18x,2(f10.2,4x))') inputvals(1), inputvals(2)
+          write(line,'(18x,2(f14.6,4x))') inputvals(1), inputvals(2)   ! needed in case of spherical output, was f10.2
           if (j /= 1) then
              line(14:14) = '1'
           endif
@@ -5378,7 +5461,9 @@ subroutine outputCurvesFromFile()
           write (number, '(I6.6)') calccount
        endif
        write(luninp,'(1x,a)') '$ '
-       write(luninp,'(1x,6a)') 'TABLE  ''', trim(curname), '''    NOHEAD    ''SWANOUT_', trim(curname), trim(number), '''   _'
+       line = trim(curname)
+       line = line(1:8)      ! sname can only be 8 characters long in SWAN source code
+       write(luninp,'(1x,6a)') 'TABLE  ''', trim(line), '''    NOHEAD    ''SWANOUT_', trim(curname), trim(number), '''   _'
        write(luninp, '(4(2X,A),A)') varnam1(11), varnam1(12), varnam1(13),     &
                                   & varnam1(4), ' _'
        write(luninp, '(5(2X,A),A)') varnam1(1), varnam1(3), varnam1(2),        &

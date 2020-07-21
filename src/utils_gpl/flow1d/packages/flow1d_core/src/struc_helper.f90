@@ -1,7 +1,7 @@
 module m_struc_helper
 !----- AGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2017-2018.                                
+!  Copyright (C)  Stichting Deltares, 2017-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify              
 !  it under the terms of the GNU Affero General Public License as               
@@ -25,8 +25,8 @@ module m_struc_helper
 !  Stichting Deltares. All rights reserved.
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: struc_helper.f90 8044 2018-01-24 15:35:11Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_gpl/flow1d/packages/flow1d_core/src/struc_helper.f90 $
+!  $Id: struc_helper.f90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_gpl/flow1d/packages/flow1d_core/src/struc_helper.f90 $
 !-------------------------------------------------------------------------------
 
    implicit none
@@ -36,41 +36,42 @@ module m_struc_helper
    public UpAndDownstreamParameters
    public furu_iter
 
-contains
+   contains
 
-   subroutine UpAndDownstreamParameters(s1ml, s1mr, s2ml, s2mr, alm, arm, qtotal, velheight, &
-                                        rholeft, rhoright, crest, hu, hd, uu, ud, flowdir, relax)
+   !> Determine up and downstream parameters, depending on flow direction for structures.
+   !! All input parameters are oriented w.r.t. the flow link's orientation, i.e.,
+   !! independent of left-right orientation of the structure itself.
+   !! (Motivation: a single structure in 2D may be crossed by multiple flow links, with varying 1->2 orientation.)
+   subroutine UpAndDownstreamParameters(s1ml, s1mr, alm, arm, qtotal, velheight, &
+                                        rholeft, rhoright, crest, hu, hd, uu, ud, flowdir)
       !!--declarations----------------------------------------------------------------
       use m_GlobalParameters
       implicit none
       !
       ! Global variables
       !
-      logical, intent(in)            :: velheight
-      double precision, intent(in)   :: s1ml
-      double precision, intent(in)   :: s1mr
-      double precision, intent(in)   :: s2ml
-      double precision, intent(in)   :: s2mr
-      double precision, intent(in)   :: alm
-      double precision, intent(in)   :: arm
-      double precision, intent(in)   :: qtotal
-      double precision, intent(in)   :: crest
-      double precision               :: hd
-      double precision               :: hu
-      double precision, intent(in)   :: relax
-      double precision               :: rholeft
-      double precision               :: rhoright
-      double precision               :: flowdir
-      double precision               :: ud
-      double precision               :: uu
+      double precision, intent(in   ) :: s1ml          !< Water level at flow link's left side.
+      double precision, intent(in   ) :: s1mr          !< Water level at flow link's right side.
+      double precision, intent(in   ) :: alm           !< Flow area at flow link's left side.
+      double precision, intent(in   ) :: arm           !< Flow area at flow link's right side.
+      double precision, intent(in   ) :: qtotal        !< Total discharge through flow link (in case of compound structures this might be larger than the
+                                                       !< discharge through the actual structure).
+      logical,          intent(in   ) :: velheight     !< Indicates whether the velocity height is taken into account or if the water level is used.
+      double precision, intent(  out) :: rholeft       !< Water density at flow link's  left side of structure (unimplemented).
+      double precision, intent(  out) :: rhoright      !< Water density at flow link's right side of structure (unimplemented).
+      double precision, intent(in   ) :: crest         !< Crest level.
+      double precision, intent(  out) :: hu            !< Upstream water level.
+      double precision, intent(  out) :: hd            !< Downstream water level.
+      double precision, intent(  out) :: uu            !< Upstream velocity.
+      double precision, intent(  out) :: ud            !< Downstream velocity.
+      double precision, intent(  out) :: flowdir       !< Flow direction 1 positive direction, -1 negative direction.
       !
       !
       ! Local variables
       !
       double precision               :: eld
       double precision               :: elu
-      double precision               :: fac
-       double precision               :: temp
+      double precision               :: temp
       !
       !
       !! executable statements -------------------------------------------------------
@@ -78,10 +79,12 @@ contains
       rholeft = 1000.0D0
       rhoright = 1000.0D0
       !
-      if (relax>0.D0) then
-         hu = s1ml * relax + (1.0D0 - relax) * s2ml
-         hd = s1mr * relax + (1.0D0 - relax) * s2mr
-      endif
+      !if (relax>0.D0) then
+      !   hu = s1ml * relax + (1.0D0 - relax) * s2ml
+      !   hd = s1mr * relax + (1.0D0 - relax) * s2mr
+      !endif
+      hu = s1ml
+      hd = s1mr
       !
       if (velheight) then
          if (alm < 1.0D-6) then
@@ -101,21 +104,6 @@ contains
       endif
       !
       !     Calculate discharge ratio of the last 2 successive iteration steps
-      !
-      fac = qtotal
-      if (abs(fac)<=1d-10) then
-         fac = 0.5d0
-      else
-         fac = qtotal/fac
-      endif
-      !
-      fac = 0.0d0
-      if (fac < 0.8d0) then
-      !
-      !        The direction of flow is determined by the sign of
-      !        the force difference per unit width
-      !
-      !
       !
       if (hu>crest) then
          elu = hu + (uu * uu) / (2.0d0 * gravity)
@@ -137,16 +125,6 @@ contains
          flowdir = -1.0d0
       endif
       !
-      elseif (qtotal > 0.0d0) then
-         !
-         !        The direction of flow is assumed to be equal to the
-         !        direction in the previous iteration step
-         !
-         flowdir = 1.0d0
-      else
-         flowdir = -1.0d0
-      endif
-      !
       !     Water levels & Velocities for reverse flow
       !
       if (flowdir < 0.0d0) then
@@ -161,30 +139,9 @@ contains
       endif
        
    end subroutine UpAndDownstreamParameters
-          
-   subroutine furu_iter(fum, rum, s1m2, s1m1, u1m, u0m, q0m, aum, fr, cu, rhsc, dxdt)
-      !!--copyright-------------------------------------------------------------------
-      ! Copyright (c) 2003, Deltares. All rights reserved.
-      !!--disclaimer------------------------------------------------------------------
-      ! This code is part of the Delft3D software system. Deltares has
-      ! developed c.q. manufactured this code to its best ability and according to the
-      ! state of the art. Nevertheless, there is no express or implied warranty as to
-      ! this software whether tangible or intangible. In particular, there is no
-      ! express or implied warranty as to the fitness for a particular purpose of this
-      ! software, whether tangible or intangible. The intellectual property rights
-      ! related to this software code remain with Deltares at all times.
-      ! For details on the licensing agreement, we refer to the Delft3D software
-      ! license and any modifications to this license, if applicable. These documents
-      ! are available upon request.
-      !!--version information---------------------------------------------------------
-      ! $Author$
-      ! $Date$
-      ! $Revision$
-      !!--description-----------------------------------------------------------------
-      ! NONE
-      !!--pseudo code and references--------------------------------------------------
-      ! NONE
-      !!--declarations----------------------------------------------------------------
+   
+   !> Calculate FU and RU
+   subroutine furu_iter(fuL, ruL, s1k2, s1k1, u1L, qL, auL, fr, cu, rhsc, dxdt, dx_struc, hs1w, lambda, Cz)
       !=======================================================================
       !                       Deltares
       !                One-Two Dimensional Modelling System
@@ -213,33 +170,44 @@ contains
       ! Global variables
       !
       !
-      double precision, intent(out)    :: fum
-      double precision, intent(out)    :: rum
-      double precision, intent(in)     :: fr
-      double precision, intent(in)     :: cu
-      double precision, intent(in)     :: rhsc
-      double precision, intent(in)     :: s1m2
-      double precision, intent(in)     :: s1m1
-      double precision, intent(in)     :: q0m
-      double precision, intent(in)     :: aum
-      double precision, intent(in)     :: u0m
-      double precision, intent(inout)  :: u1m
-      double precision, intent(in)     :: dxdt
+      double precision, intent(out)             :: fuL      !< Fu component of momentum equation.
+      double precision, intent(out)             :: ruL      !< Right hand side component of momentum equation.
+      double precision, intent(in)              :: fr       !< Structure velocity (u_s).
+      double precision, intent(in)              :: cu       !< Coefficient for calculating fuL = cu/bu.
+      double precision, intent(in)              :: rhsc     !< Right hand side term in structure equation.
+      double precision, intent(in)              :: s1k2     !< water level s1(k2).
+      double precision, intent(in)              :: s1k1     !< water level s1(k1).
+      double precision, intent(in)              :: qL       !< discharge on flow link through structure.
+      double precision, intent(in)              :: auL      !< Flow area of structure.
+      double precision, intent(inout)           :: u1L      !< Flow velocity on flow link through structure.
+      double precision, intent(in)              :: dxdt     !< dx/dt
+      double precision, intent(in), optional    :: Cz       !< Chezy value, used for resistance on structure, see also ::dx_struc.
+      double precision, intent(in), optional    :: lambda   !< Extra resistance.
+      double precision, intent(in), optional    :: hs1w     !< Upstream water depth (based on water level).
+      double precision, intent(in), optional    :: dx_struc !< Crest length (in flow direction), used only when lambda is 0 or absent. For resistance on structure.
       !
       ! Local variables
       !
       !
       double precision                 :: bu
       double precision                 :: du
+      double precision                 :: dxfrL
 
       !
       !! executable statements -------------------------------------------------------
       !
-      bu   = dxdt + fr
-      du   = (strucalfa  * q0m / max(aum, 1.0d-4) + (1 - strucalfa) * u0m) * dxdt + rhsc
-      fum  = cu / bu
-      rum  = du / bu
-      u1m  = rum - fum * (s1m2 - s1m1)
+      dxfrL = 0d0
+      if (present(Cz) .and. present(lambda) .and. present(hs1w) .and. present(dx_struc)) then
+         if (lambda == 0d0 .and. Cz > 0d0 .and. hs1w > 0d0) then
+            dxfrl = dx_struc*gravity/(Cz*Cz*hs1w)
+         endif
+      endif
+      
+      bu   = dxdt + (1+dxfrL) * fr
+      du   = (strucalfa  * qL / max(auL, 1.0d-4) + (1 - strucalfa) * u1L) * dxdt + rhsc
+      fuL  = cu / bu
+      ruL  = du / bu
+      u1L  = ruL - fuL * (s1k2 - s1k1)
       
    end subroutine furu_iter
 

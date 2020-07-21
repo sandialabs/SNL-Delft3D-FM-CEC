@@ -6,7 +6,7 @@ subroutine calseddf2004(ustarc    ,ws        ,tp        ,hrms      ,h1        , 
                       & epspar    ,eps       ,vonkar    ,salmax    ,wave      )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
+!  Copyright (C)  Stichting Deltares, 2011-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -30,8 +30,8 @@ subroutine calseddf2004(ustarc    ,ws        ,tp        ,hrms      ,h1        , 
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: calseddf2004.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_gpl/morphology/packages/morphology_kernel/src/calseddf2004.f90 $
+!  $Id: calseddf2004.f90 65875 2020-01-28 09:57:58Z j.reyns $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_gpl/morphology/packages/morphology_kernel/src/calseddf2004.f90 $
 !!--description-----------------------------------------------------------------
 !
 ! Compute sediment diffusion coefficient

@@ -1,6 +1,6 @@
 !----- AGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2017-2018.                                
+!  Copyright (C)  Stichting Deltares, 2017-2020.                                
 !                                                                               
 !  This file is part of Delft3D (D-Flow Flexible Mesh component).               
 !                                                                               
@@ -27,8 +27,8 @@
 !                                                                               
 !-------------------------------------------------------------------------------
 
-! $Id: calibration.f90 54191 2018-01-22 18:57:53Z dam_ar $
-! $HeadURL: https://repos.deltares.nl/repos/ds/trunk/additional/unstruc/src/calibration.f90 $
+! $Id: calibration.f90 65778 2020-01-14 14:07:42Z mourits $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/dflowfm/packages/dflowfm_kernel/src/calibration.f90 $
 
 !> This module reads and handles the computation of calibration factors.
 !!
@@ -54,6 +54,7 @@ integer, parameter, public :: CL_NOT_IN_SUBDOMAIN = -77777
 integer, parameter, public :: CL_WATERLEVEL_TYPE  = 1
 integer, parameter, public :: CL_DISCHARGE_TYPE   = 2
 integer, parameter, public :: CLD_MAXFLD = 4
+integer, parameter, public :: CLD_MAXCHR = 80
 integer, parameter, public :: CLL_MAXFLD = 5
 integer, parameter, public :: CLD_MAXDEF = 10000
 
@@ -149,7 +150,7 @@ subroutine read_cldfile(md_cldfile, clddata, phase)
     integer                          :: nrflds
     integer                          :: prev_cld_no    = CL_UNDEFINED
     integer                          :: prev_cld_type  = CL_UNDEFINED
-    character(30), dimension(CLD_MAXFLD) :: cfield
+    character(CLD_MAXCHR), dimension(CLD_MAXFLD) :: cfield
     character(len=255)               :: filtmp
     character(len=132)               :: rec132
     logical                          :: error 
@@ -281,7 +282,7 @@ subroutine read_cldfile(md_cldfile, clddata, phase)
            call mess(LEVEL_INFO,'    Number of other definitions               = ', ncldnrm )
            call mess(LEVEL_INFO,'    ____________________________________________________________')
            call mess(LEVEL_INFO,'    Total number of definitions               = ', ncld )
-           call mess(LEVEL_INFO,'*** Succesfully read calibration defintition input ')
+           call mess(LEVEL_INFO,'*** Succesfully read calibration definition input ')
        endif 
     
        close (luntmp)
@@ -432,6 +433,26 @@ subroutine read_cldfile(md_cldfile, clddata, phase)
                 goto 9999
             end if                
         endif
+    elseif (nrflds .eq. -1) then 
+        errmsg = 'One ore more parameters wrong in rd_cldfile() on line: '// rec132
+        call mess(LEVEL_ERROR, errmsg)
+        error = .true.
+        goto 9999
+    elseif (nrflds .eq. -2) then 
+        write (errmsg, '(A,i4,A,A)'), 'More than ', CLD_MAXFLD, ' fields in rd_cldfile() on line: ', rec132
+        call mess(LEVEL_ERROR, errmsg)
+        error = .true.
+        goto 9999
+    elseif (nrflds .eq. -3) then 
+        write (errmsg, '(A,i4,A,A)'), 'Character string longer than ', CLD_MAXCHR, ' characters in rd_cldfile() on line: ', rec132
+        call mess(LEVEL_ERROR, errmsg)
+        error = .true.
+        goto 9999
+    elseif (nrflds .eq. -4) then 
+        errmsg = 'Unmatching quotes in rd_cldfile() on line: '// rec132
+        call mess(LEVEL_ERROR, errmsg)
+        error = .true.
+        goto 9999
     endif
     goto 110
 
@@ -815,8 +836,8 @@ subroutine f_from_table_of_x( xvals, fvals, idx_start, idx_end, fslope, fcross, 
         ! value is smaller than first value in table, 
         ! so take first value from the table 
         f = fvals(idx_start)
-    elseif (x > xvals(idx_end)) then 
-        ! value is larger than last value in table, 
+    elseif (x .ge. xvals(idx_end)) then 
+        ! value is larger than or equal to the last value in table, 
         ! so take last value from the table 
         f = fvals(idx_end)
     else

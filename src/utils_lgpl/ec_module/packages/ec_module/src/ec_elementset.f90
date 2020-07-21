@@ -1,6 +1,6 @@
 !----- LGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2018.                                
+!  Copyright (C)  Stichting Deltares, 2011-2020.                                
 !                                                                               
 !  This library is free software; you can redistribute it and/or                
 !  modify it under the terms of the GNU Lesser General Public                   
@@ -23,8 +23,8 @@
 !  are registered trademarks of Stichting Deltares, and remain the property of  
 !  Stichting Deltares. All rights reserved.                                     
 
-!  $Id: ec_elementset.f90 7992 2018-01-09 10:27:35Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_lgpl/ec_module/packages/ec_module/src/ec_elementset.f90 $
+!  $Id: ec_elementset.f90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/ec_module/packages/ec_module/src/ec_elementset.f90 $
 
 !> This module contains all the methods for the datatype tEcElementSet.
 !! @author arjen.markus@deltares.nl
@@ -649,6 +649,7 @@ module m_ec_elementSet
          integer                        :: newSize       !< size of maskArray
          integer                        :: istat         !< reallocate status
          integer                        :: i             !< loop counter
+         logical, save                  :: isFirst = .true.
          !
          success = .true.
          elementSetPtr => null()
@@ -682,7 +683,10 @@ module m_ec_elementSet
                   elementSetPtr%mask => elementSetPtr%maskArray
                end if
             else
-               call setECMessage("WARNING: ec_elementSet::ecElementSetSetMaskArray: Won't set a mask for this ElementSet type.")
+               if (isFirst) then
+                  call setECMessage("WARNING: ec_elementSet::ecElementSetSetMaskArray: Won't set a mask for this ElementSet type.")
+                  isFirst = .false.
+               endif
             end if
          else
             call setECMessage("ERROR: ec_elementSet::ecElementSetSetMaskArray: Cannot find an ElementSet with the supplied id.")

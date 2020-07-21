@@ -40,7 +40,7 @@ function shapewrite(filename,varargin)
 
 %----- LGPL --------------------------------------------------------------------
 %
-%   Copyright (C) 2011-2018 Stichting Deltares.
+%   Copyright (C) 2011-2020 Stichting Deltares.
 %
 %   This library is free software; you can redistribute it and/or
 %   modify it under the terms of the GNU Lesser General Public
@@ -65,8 +65,8 @@ function shapewrite(filename,varargin)
 %
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_lgpl/matlab/quickplot/progsrc/private/shapewrite.m $
-%   $Id: shapewrite.m 7992 2018-01-09 10:27:35Z mourits $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/private/shapewrite.m $
+%   $Id: shapewrite.m 65778 2020-01-14 14:07:42Z mourits $
 
 DataType=5; % polygon
 IncludeID=1;
@@ -268,11 +268,19 @@ if iscell(XY)
         ranges(3)=max(ranges(3),max(XY{i}(:,1)));
         ranges(4)=max(ranges(4),max(XY{i}(:,2)));
     end
-else
+elseif DataType==1
     ranges(1)=min(XY(:,1));
     ranges(2)=min(XY(:,2));
     ranges(3)=max(XY(:,1));
     ranges(4)=max(XY(:,2));
+else
+    pMin = min(Patch(:));
+    Patch(isnan(Patch)) = pMin;
+    xy = XY(Patch,:);
+    ranges(1)=min(xy(:,1));
+    ranges(2)=min(xy(:,2));
+    ranges(3)=max(xy(:,1));
+    ranges(4)=max(xy(:,2));
 end
 fwrite(fid,ranges,'float64');
 fwrite(fidx,ranges,'float64');

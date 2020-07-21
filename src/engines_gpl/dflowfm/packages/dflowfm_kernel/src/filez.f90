@@ -1,6 +1,6 @@
 !----- AGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2017-2018.                                
+!  Copyright (C)  Stichting Deltares, 2017-2020.                                
 !                                                                               
 !  This file is part of Delft3D (D-Flow Flexible Mesh component).               
 !                                                                               
@@ -27,8 +27,8 @@
 !                                                                               
 !-------------------------------------------------------------------------------
 
-! $Id: filez.f90 51585 2017-07-10 14:01:15Z kernkam $
-! $HeadURL: https://repos.deltares.nl/repos/ds/trunk/additional/unstruc/src/filez.f90 $
+! $Id: filez.f90 65778 2020-01-14 14:07:42Z mourits $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/dflowfm/packages/dflowfm_kernel/src/filez.f90 $
 !> Opens an existing file for reading.
 !!
 !! When file does not exist or is already open, program stops with
@@ -107,7 +107,7 @@ subroutine doclose(minp)
 use unstruc_files
 implicit none
     integer, intent(inout) :: minp
-    if (minp == 0) return
+    if (minp <= 0) return
     close (minp)
     call mess(LEVEL_INFO, 'Closed file : ', filenames(minp))
     call reg_file_close(minp)
@@ -207,23 +207,6 @@ endif
 end subroutine newnewfil
 
 function iwordlength(rec)
-!!--copyright-------------------------------------------------------------------
-! Copyright (c) 2003, WL | Delft Hydraulics. All rights reserved.
-!!--disclaimer------------------------------------------------------------------
-! This code is part of the Delft3D software system. WL|Delft Hydraulics has
-! developed c.q. manufactured this code to its best ability and according to the
-! state of the art. Nevertheless, there is no express or implied warranty as to
-! this software whether tangible or intangible. In particular, there is no
-! express or implied warranty as to the fitness for a particular purpose of this
-! software, whether tangible or intangible. The intellectual property rights
-! related to this software code remain with WL|Delft Hydraulics at all times.
-! For details on the licensing agreement, we refer to the Delft3D software
-! license and any modifications to this license, if applicable. These documents
-! are available upon request.
-!!--version information---------------------------------------------------------
-! $Author$
-! $Date$
-! $Revision$
 !!--description-----------------------------------------------------------------
 ! NONE
 !!--pseudo code and references--------------------------------------------------
@@ -261,23 +244,6 @@ function iwordlength(rec)
 end function iwordlength
 
 subroutine nummer12(rec, i1, i2, num)
-!!--copyright-------------------------------------------------------------------
-! Copyright (c) 2003, WL | Delft Hydraulics. All rights reserved.
-!!--disclaimer------------------------------------------------------------------
-! This code is part of the Delft3D software system. WL|Delft Hydraulics has
-! developed c.q. manufactured this code to its best ability and according to the
-! state of the art. Nevertheless, there is no express or implied warranty as to
-! this software whether tangible or intangible. In particular, there is no
-! express or implied warranty as to the fitness for a particular purpose of this
-! software, whether tangible or intangible. The intellectual property rights
-! related to this software code remain with WL|Delft Hydraulics at all times.
-! For details on the licensing agreement, we refer to the Delft3D software
-! license and any modifications to this license, if applicable. These documents
-! are available upon request.
-!!--version information---------------------------------------------------------
-! $Author$
-! $Date$
-! $Revision$
 !!--description-----------------------------------------------------------------
 ! NONE
 !!--pseudo code and references--------------------------------------------------
@@ -327,23 +293,6 @@ subroutine nummer12(rec, i1, i2, num)
     enddo
 end subroutine nummer12
 function numbersonline(rec)
-!!--copyright-------------------------------------------------------------------
-! Copyright (c) 2003, WL | Delft Hydraulics. All rights reserved.
-!!--disclaimer------------------------------------------------------------------
-! This code is part of the Delft3D software system. WL|Delft Hydraulics has
-! developed c.q. manufactured this code to its best ability and according to the
-! state of the art. Nevertheless, there is no express or implied warranty as to
-! this software whether tangible or intangible. In particular, there is no
-! express or implied warranty as to the fitness for a particular purpose of this
-! software, whether tangible or intangible. The intellectual property rights
-! related to this software code remain with WL|Delft Hydraulics at all times.
-! For details on the licensing agreement, we refer to the Delft3D software
-! license and any modifications to this license, if applicable. These documents
-! are available upon request.
-!!--version information---------------------------------------------------------
-! $Author$
-! $Date$
-! $Revision$
 !!--description-----------------------------------------------------------------
 ! NONE
 !!--pseudo code and references--------------------------------------------------
@@ -415,23 +364,6 @@ end function numbersonline
 
 
 function empty(rec)
-!!--copyright-------------------------------------------------------------------
-! Copyright (c) 2003, WL | Delft Hydraulics. All rights reserved.
-!!--disclaimer------------------------------------------------------------------
-! This code is part of the Delft3D software system. WL|Delft Hydraulics has
-! developed c.q. manufactured this code to its best ability and according to the
-! state of the art. Nevertheless, there is no express or implied warranty as to
-! this software whether tangible or intangible. In particular, there is no
-! express or implied warranty as to the fitness for a particular purpose of this
-! software, whether tangible or intangible. The intellectual property rights
-! related to this software code remain with WL|Delft Hydraulics at all times.
-! For details on the licensing agreement, we refer to the Delft3D software
-! license and any modifications to this license, if applicable. These documents
-! are available upon request.
-!!--version information---------------------------------------------------------
-! $Author$
-! $Date$
-! $Revision$
 !!--description-----------------------------------------------------------------
 ! NONE
 !!--pseudo code and references--------------------------------------------------
@@ -643,7 +575,7 @@ implicit none
     if (index(rec, trim(key2) ) /= 0) then
         ja = 1
         l1 = index(rec,'=') + 1
-        read(rec(l1:),*) value
+        value = rec(l1:)
         ! call mess(LEVEL_INFO, 'Found optional keyword', trim(key) )
         return
     else
@@ -676,8 +608,8 @@ subroutine unstruc_errorhandler(level)
 
     ierr=0
     
-    if (level >= LEVEL_ERROR) then
-        call close_all_files
+    if (level >= threshold_abort) then
+        call close_all_files()
         close(mdia)
 #ifdef HAVE_MPI
          call MPI_Abort(DFM_COMM_DFMWORLD, DFM_GENERICERROR, ierr)
@@ -688,23 +620,6 @@ end subroutine unstruc_errorhandler
 
 
 subroutine error(w1, w2, w3)
-!!--copyright-------------------------------------------------------------------
-! Copyright (c) 2003, WL | Delft Hydraulics. All rights reserved.
-!!--disclaimer------------------------------------------------------------------
-! This code is part of the Delft3D software system. WL|Delft Hydraulics has
-! developed c.q. manufactured this code to its best ability and according to the
-! state of the art. Nevertheless, there is no express or implied warranty as to
-! this software whether tangible or intangible. In particular, there is no
-! express or implied warranty as to the fitness for a particular purpose of this
-! software, whether tangible or intangible. The intellectual property rights
-! related to this software code remain with WL|Delft Hydraulics at all times.
-! For details on the licensing agreement, we refer to the Delft3D software
-! license and any modifications to this license, if applicable. These documents
-! are available upon request.
-!!--version information---------------------------------------------------------
-! $Author$
-! $Date$
-! $Revision$
 !!--description-----------------------------------------------------------------
 ! NONE
 !!--pseudo code and references--------------------------------------------------
@@ -733,23 +648,6 @@ end subroutine error
 
 function thisisanumber(rec)
 use string_module, only: find_first_char
-!!--copyright-------------------------------------------------------------------
-! Copyright (c) 2003, WL | Delft Hydraulics. All rights reserved.
-!!--disclaimer------------------------------------------------------------------
-! This code is part of the Delft3D software system. WL|Delft Hydraulics has
-! developed c.q. manufactured this code to its best ability and according to the
-! state of the art. Nevertheless, there is no express or implied warranty as to
-! this software whether tangible or intangible. In particular, there is no
-! express or implied warranty as to the fitness for a particular purpose of this
-! software, whether tangible or intangible. The intellectual property rights
-! related to this software code remain with WL|Delft Hydraulics at all times.
-! For details on the licensing agreement, we refer to the Delft3D software
-! license and any modifications to this license, if applicable. These documents
-! are available upon request.
-!!--version information---------------------------------------------------------
-! $Author$
-! $Date$
-! $Revision$
 !!--description-----------------------------------------------------------------
 ! NONE
 !!--pseudo code and references--------------------------------------------------
@@ -788,23 +686,6 @@ end function thisisanumber
 
 
 function ifirstnum(rec)  ! first digit
-!!--copyright-------------------------------------------------------------------
-! Copyright (c) 2003, WL | Delft Hydraulics. All rights reserved.
-!!--disclaimer------------------------------------------------------------------
-! This code is part of the Delft3D software system. WL|Delft Hydraulics has
-! developed c.q. manufactured this code to its best ability and according to the
-! state of the art. Nevertheless, there is no express or implied warranty as to
-! this software whether tangible or intangible. In particular, there is no
-! express or implied warranty as to the fitness for a particular purpose of this
-! software, whether tangible or intangible. The intellectual property rights
-! related to this software code remain with WL|Delft Hydraulics at all times.
-! For details on the licensing agreement, we refer to the Delft3D software
-! license and any modifications to this license, if applicable. These documents
-! are available upon request.
-!!--version information---------------------------------------------------------
-! $Author$
-! $Date$
-! $Revision$
 !!--description-----------------------------------------------------------------
 ! NONE
 !!--pseudo code and references--------------------------------------------------
@@ -841,23 +722,6 @@ function ifirstnum(rec)  ! first digit
     enddo
 end function ifirstnum
 function ilastnum(rec)
-!!--copyright-------------------------------------------------------------------
-! Copyright (c) 2003, WL | Delft Hydraulics. All rights reserved.
-!!--disclaimer------------------------------------------------------------------
-! This code is part of the Delft3D software system. WL|Delft Hydraulics has
-! developed c.q. manufactured this code to its best ability and according to the
-! state of the art. Nevertheless, there is no express or implied warranty as to
-! this software whether tangible or intangible. In particular, there is no
-! express or implied warranty as to the fitness for a particular purpose of this
-! software, whether tangible or intangible. The intellectual property rights
-! related to this software code remain with WL|Delft Hydraulics at all times.
-! For details on the licensing agreement, we refer to the Delft3D software
-! license and any modifications to this license, if applicable. These documents
-! are available upon request.
-!!--version information---------------------------------------------------------
-! $Author$
-! $Date$
-! $Revision$
 !!--description-----------------------------------------------------------------
 ! NONE
 !!--pseudo code and references--------------------------------------------------
@@ -918,23 +782,6 @@ end subroutine eoferror
 
 
 subroutine message(w1, w2, w3)
-!!--copyright-------------------------------------------------------------------
-! Copyright (c) 2003, WL | Delft Hydraulics. All rights reserved.
-!!--disclaimer------------------------------------------------------------------
-! This code is part of the Delft3D software system. WL|Delft Hydraulics has
-! developed c.q. manufactured this code to its best ability and according to the
-! state of the art. Nevertheless, there is no express or implied warranty as to
-! this software whether tangible or intangible. In particular, there is no
-! express or implied warranty as to the fitness for a particular purpose of this
-! software, whether tangible or intangible. The intellectual property rights
-! related to this software code remain with WL|Delft Hydraulics at all times.
-! For details on the licensing agreement, we refer to the Delft3D software
-! license and any modifications to this license, if applicable. These documents
-! are available upon request.
-!!--version information---------------------------------------------------------
-! $Author$
-! $Date$
-! $Revision$
 !!--description-----------------------------------------------------------------
 ! NONE
 !!--pseudo code and references--------------------------------------------------

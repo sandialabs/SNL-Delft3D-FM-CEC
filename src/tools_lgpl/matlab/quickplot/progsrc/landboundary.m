@@ -42,7 +42,7 @@ function varargout=landboundary(cmd,varargin)
 
 %----- LGPL --------------------------------------------------------------------
 %                                                                               
-%   Copyright (C) 2011-2018 Stichting Deltares.                                     
+%   Copyright (C) 2011-2020 Stichting Deltares.                                     
 %                                                                               
 %   This library is free software; you can redistribute it and/or                
 %   modify it under the terms of the GNU Lesser General Public                   
@@ -67,8 +67,8 @@ function varargout=landboundary(cmd,varargin)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/tools_lgpl/matlab/quickplot/progsrc/landboundary.m $
-%   $Id: landboundary.m 7992 2018-01-09 10:27:35Z mourits $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/landboundary.m $
+%   $Id: landboundary.m 65778 2020-01-14 14:07:42Z mourits $
 
 if nargout>0
     varargout=cell(1,nargout);
@@ -234,6 +234,11 @@ for c = 1:Ncell
     else
         if ndims(data1)>2
             error('Invalid size of data array %i.',c)
+        elseif size(data1,2)==3
+            if size(data1,1)==2
+                data1 = data1';
+            else % accept third column as z coordinate
+            end
         elseif size(data1,2)~=2
             if size(data1,1)==2
                 data1 = data1';

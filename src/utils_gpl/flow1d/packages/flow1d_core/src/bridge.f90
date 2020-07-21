@@ -1,7 +1,7 @@
 module m_Bridge
 !----- AGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2017-2018.                                
+!  Copyright (C)  Stichting Deltares, 2017-2020.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify              
 !  it under the terms of the GNU Affero General Public License as               
@@ -25,114 +25,64 @@ module m_Bridge
 !  Stichting Deltares. All rights reserved.
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: bridge.f90 8044 2018-01-24 15:35:11Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal/src/utils_gpl/flow1d/packages/flow1d_core/src/bridge.f90 $
+!  $Id: bridge.f90 65778 2020-01-14 14:07:42Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_gpl/flow1d/packages/flow1d_core/src/bridge.f90 $
 !-------------------------------------------------------------------------------
    
    ! Modules
    use m_GlobalParameters
    use m_CrossSections
+   use m_Roughness
 
    implicit none
 
    public ComputeBridge
 
    type, public :: t_bridge
-      double precision              :: bedLevel
-      double precision              :: pillarwidth
-      double precision              :: formfactor
-      integer                       :: allowedflowdir  ! 0 all directions
-                                                       ! 1 only positive flow
-                                                       ! 2 only negative flow
-                                                       ! 3 no flow allowed
-      logical                       :: useOwnCrossSection
-      type(t_crosssection), pointer :: pcross => null()              
-      integer                       :: crosssectionnr
-      integer                       :: bedFrictionType
-      integer                       :: groundFrictionType
-      double precision              :: bedFriction
-      double precision              :: groundFriction
-      double precision              :: length
-      double precision              :: inletlosscoeff
-      double precision              :: outletlosscoeff
+      double precision              :: bedLevel             !< bedlevel of the standard bridge
+      double precision              :: bedLevel_actual      !< used bedlevel of the bridge
+      double precision              :: flowArea             !< flow area as defined in the cross section of the standard bridge
+      double precision              :: flowArea_actual      !< used flow area of the bridge
+      double precision              :: pillarwidth          !< pillar width
+      double precision              :: formfactor          
+      integer                       :: allowedflowdir       !< 0 all directions
+                                                            !< 1 only positive flow
+                                                            !< 2 only negative flow
+                                                            !< 3 no flow allowed
+      logical                       :: useOwnCrossSection 
+      type(t_crosssection), pointer :: pcross => null()     
+      integer                       :: crosssectionnr     
+      integer                       :: bedFrictionType    
+      double precision              :: bedFriction        
+      double precision              :: length             
+      double precision              :: inletlosscoeff     
+      double precision              :: outletlosscoeff    
    end type
 
    private
 
 contains
 
-   subroutine ComputeBridge(bridge, glThick, fum, rum, aum, dadsm, wtm, wtgm, kfum, convm,             &
-                            cmustr, s1m1, s1m2, qm, q0m, u1m, u0m, dxm, dt,                            &
-                            wetup, widthup, wperimup, convup, bobup, wetdown, infuru)
-      !!--copyright-------------------------------------------------------------------
-      ! Copyright (c) 2003, Deltares. All rights reserved.
-      !!--disclaimer------------------------------------------------------------------
-      ! This code is part of the Delft3D software system. Deltares has
-      ! developed c.q. manufactured this code to its best ability and according to the
-      ! state of the art. Nevertheless, there is no express or implied warranty as to
-      ! this software whether tangible or intangible. In particular, there is no
-      ! express or implied warranty as to the fitness for a particular purpose of this
-      ! software, whether tangible or intangible. The intellectual property rights
-      ! related to this software code remain with Deltares at all times.
-      ! For details on the licensing agreement, we refer to the Delft3D software
-      ! license and any modifications to this license, if applicable. These documents
-      ! are available upon request.
-      !
-      !=======================================================================
-      !                       Deltares
-      !                One-Two Dimensional Modelling System
-      !                           S O B E K
-      !
-      ! Subsystem:          Flow Module
-      !
-      ! Programmer:         J Dhondia
-      !
-      ! Module:             bridge (BRIDGE)
-      !
-      ! Module description:Computes coefficients for momentum equation in bridge
-      !                    (uses four types of bridges)
-      !
-      !
-      !     update information
-      !     person                    date
-      !
-      !     Dhondia                   01-08-2001
-      !
-      !
-      !
-      !     coefficients for momentum equation in wet bridge point
-      !
-
+   subroutine ComputeBridge(bridge, fum, rum, aum, dadsm, kfum, s1m1, s1m2, u1m,              &
+                            dxm, dt, as1, as2, bob)
       implicit none
       !
       ! Global variables
       !
-      type(t_bridge), pointer, intent(in)       :: bridge
-      double precision                          :: glThick
-      integer, intent(inout)                    :: kfum
-      double precision, intent(out)             :: aum
-      double precision, intent(out)             :: convm
-      double precision, intent(out)             :: dadsm
-      double precision, intent(out)             :: wtm
-      double precision, intent(out)             :: wtgm
-      double precision, intent(out)             :: cmustr
-      double precision, intent(out)             :: fum
-      double precision, intent(inout)           :: q0m
-      double precision, intent(out)             :: qm
-      double precision, intent(out)             :: rum
-      double precision, intent(in)              :: u0m
-      double precision, intent(inout)           :: u1m
-      double precision, intent(in)              :: s1m2
-      double precision, intent(in)              :: s1m1
-      double precision, intent(in)              :: dxm
-      double precision, intent(in)              :: dt
-      double precision, intent(in)              :: wetup
-      double precision, intent(in)              :: widthup
-      double precision, intent(in)              :: wperimup
-      double precision, intent(in)              :: convup
-      double precision, intent(in)              :: bobup
-      double precision, intent(in)              :: wetdown
-      logical, intent(in)                       :: infuru
+      type(t_bridge), pointer, intent(in    )   :: bridge    !< Object, containing bridge specific data
+      double precision,        intent(  out)    :: fum       !< FU
+      double precision,        intent(  out)    :: rum       !< RU
+      double precision,        intent(  out)    :: aum       !< Flow area
+      double precision,        intent(inout)    :: dadsm     !< Flow width
+      integer         ,        intent(inout)    :: kfum      !< Drying flooding flag
+      double precision,        intent(in   )    :: s1m1      !< Waterlevel at left side of culvert
+      double precision,        intent(in   )    :: s1m2      !< Waterlevel at right side of culvert
+      double precision,        intent(in   )    :: u1m       !< Flow velocity
+      double precision,        intent(in   )    :: dxm       !< Delta x
+      double precision,        intent(in   )    :: dt        !< Time step
+      double precision,        intent(in   )    :: as1       !< Left flow area 
+      double precision,        intent(in   )    :: as2       !< Right flow area 
+      double precision,        intent(in   )    :: bob(2)    !< BOB's at left and right of the bridge
       !
       !
       ! Local variables
@@ -140,7 +90,10 @@ contains
       integer                                   :: dir
       integer                                   :: allowedFlowDir
       
-      double precision                          :: cmus
+      double precision                          :: cmus      
+      double precision                          :: bobup      
+      double precision                          :: wetup      
+      double precision                          :: wetdown      
       double precision                          :: smax
       double precision                          :: smin
       double precision                          :: gl_thickness
@@ -176,18 +129,25 @@ contains
       fr           = 0.0d0
       bu           = 0.0d0
       du           = 0.0d0
+      bridge%bedLevel_actual = bridge%bedLevel
 
       ! Initialize with flow
       kfum = 1
       
       ! Find the flow direction
       if (s1m1 > s1m2) then
-         smax = s1m1
-         smin = s1m2
+         smax    = s1m1
+         smin    = s1m2
+         wetup   = as1
+         wetdown = as2
+         bobup   = bob(1)
          dir  = 1
       else
-         smax = s1m2
-         smin = s1m1
+         smax    = s1m2
+         smin    = s1m1
+         wetup   = as2
+         wetdown = as1
+         bobup   = bob(2)
          dir  = -1
       endif
 
@@ -196,54 +156,34 @@ contains
           (dir == 1  .and. allowedFlowDir == 2) .or. &
           (dir == -1 .and. allowedFlowDir == 1)) then
          kfum = 0
-         if (infuru) then
-            fum = 0.0d0
-            rum = 0.0d0
-         endif
-         !        same as weir
-         u1m = 0.0d0
-         qm  = 0.0d0
-         q0m = 0.0d0
+         fum = 0.0d0
+         rum = 0.0d0
          return
       endif
       
       if (.not. bridge%useOwnCrossSection) then
-
+         !
+         ! NOTE: Under UNST-2907 the pillar bridge support was removed from readBridge().
+         !       Computational code below is kept for future re-enabling or complete removal.
+         !
          ! Pillar Bridge; wetted profile at upstream side
-         convm = convup
          aum   = wetup
-         dadsm = widthup
-         wtm   = wperimup
 
          if (bridge%pillarwidth > 1.0d-5) then
 
             depth = smax - bobup  ! Already corrected for Ground Layer and positive
       
-            if (glThick > 1.0d-5) then
-               wtgm = wtgm - bridge%pillarwidth
-               if (wtgm <= 0.0d0) kfum = 0
-            elseif (wtm > 1.0d-5) then
-               wtm = wtm - bridge%pillarwidth
-               if (wtm <= 0.0d0) kfum = 0
-            endif
-         
             aum = aum - bridge%pillarwidth * depth
             if (aum <= 0.0d0) kfum = 0
 
-            if (dadsm > 1.0d-5) then
-               dadsm = dadsm - bridge%pillarwidth   !hk: Only true if pillar length equals link length
-               if (dadsm <= 0.0d0) kfum = 0
+            dadsm = dadsm - bridge%pillarwidth   !hk: Only true if pillar length equals link length
+            if (dadsm <= 0.0d0) then
+               kfum = 0
             endif
             
             if (kfum == 0) then
-               if (infuru) then
-                  fum = 0.0
-                  rum = 0.0
-               endif
-               !        same as weir
-               u1m = 0.0d0
-               qm  = 0.0d0
-               q0m = 0.0d0
+               fum = 0.0
+               rum = 0.0
                return
             endif
 
@@ -255,14 +195,12 @@ contains
          endif
       
       else
-
-         ! Abutment Bridge 33, Fixed Bed Bridge 34 and
-         ! Soil Bed Bridge 35
+         ! standard bridge
          
-         ! Check on drying with dead band and groundlayer
          gl_thickness = getGroundLayer(bridge%pcross)
       
-         crestLevel = bridge%bedlevel
+         crestLevel = max(bob(1), bob(2), bridge%bedlevel)
+         bridge%bedLevel_actual = crestLevel
 
          if ((smax - crestLevel - gl_thickness) < thresholdDry) then
             kfum = 0
@@ -270,23 +208,27 @@ contains
             kfum = 1
          endif
          if (kfum == 0) then
-            if (infuru) then
-               fum = 0.0
-               rum = 0.0
-            endif
-            !        same as weir
-            u1m = 0.0d0
-            qm  = 0.0d0
-            q0m = 0.0d0
+            fum = 0.0
+            rum = 0.0
             return
          endif
 
          ! Initialize = bridge%pcross
          depth = smax - crestLevel
-         call GetCSParsFlow(bridge%pcross, depth, u0m, chezyBridge, wArea, wPerimiter, wWidth, dummy)     
+         call GetCSParsFlow(bridge%pcross, depth, wArea, wPerimiter, wWidth)   
+         bridge%flowArea = wArea
+         
+         ! in case the flow area is limited by the upstream flow area, the hydraulic radius
+         ! is still based on the cross section of the bridge
+         hydrRadius = wArea / wPerimiter
+         
+         ! Limit the flow area to the upstream flow area
+         wArea = min(wArea, wetup)
+         bridge%flowArea_actual = wArea
+         
 
          ! Friction Loss
-         hydrRadius = wArea / wPerimiter
+         chezyBridge = getchezy(bridge%pcross%frictionTypePos(1), bridge%pcross%frictionValuePos(1), warea/wPerimiter, depth, 1d0)
          frictLoss = 2.0d0 * gravity * bridge%length / (chezyBridge * chezyBridge * hydrRadius)
 
          ! Exit Loss
@@ -304,17 +246,13 @@ contains
 
       endif
 
-      cmustr = cmus
 
-      if (infuru) then
-      
-         cu = cmustr * cmustr * 2  *gravity / dxm
-         fr = abs(u0m) / dxm
-         bu = 1.0d0 / dt + fr
-         du = u0m / dt
-         fum = cu / bu
-         rum = du / bu
-      endif
+      cu = cmus * cmus * 2  *gravity / dxm
+      fr = abs(u1m) / dxm
+      bu = 1.0d0 / dt + fr
+      du = u1m / dt
+      fum = cu / bu
+      rum = du / bu
       
    end subroutine ComputeBridge
       
