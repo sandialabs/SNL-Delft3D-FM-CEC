@@ -295,7 +295,7 @@ end subroutine init_turbines
 !!
 !! @param[in]      lundia       diagnostic file unit number
 !! @param[in]      nturbines    number of turbines required
-!! @param[out]     %error       returns .false. if memory could not be allocated
+!! @param[out]     %error       returns .true. if memory could not be allocated
 !! @param[inout]   turbines     structure_turbines type
 subroutine allocate_turbines(turbines,nturbines,lundia,error)
 !
