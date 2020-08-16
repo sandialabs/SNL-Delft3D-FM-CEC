@@ -1,1 +1,85 @@
-.svn
+# Subversion
+*.svn
+
+# Documentation
+src/delft3d-apidoc
+src/delwaq-apidoc
+
+# Build
+src/bin
+
+# Visual Studio
+src/.vs
+src/*.sln
+*.vcxproj.filters
+*.user
+*.FileListAbsolute.txt
+
+# Prerequisites
+*.d
+
+# Compiled Object files
+*_i.c
+*_p.c
+*.ilk
+*.meta
+*.obj
+*.pdb
+*.pgc
+*.pgd
+*.rsp
+*.sbr
+*.tlb
+*.tli
+*.tlh
+*.tmp
+*.log
+*.tlog
+*.u2d
+*.vspscc
+*.vssscc
+
+# Logs
+*BuildLog.txt
+*BuildLog*.htm
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Fortran module files
+*.mod
+*.smod
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+
+# NuGet packages
+*.nupkg
+
+# Others
+*.res
+*.rc
+*.cs
+*.cache
+*__genmod.f90
+*_version.F90
+*_version.h
+*.intermediate.manifest
+*.exp
+*.map
+*build.force
+*version_number.h
