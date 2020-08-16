@@ -210,95 +210,97 @@ integer :: jaoldstr !< tmp backwards comp: we cannot mix structures from EXT and
 
  ! TIDAL TURBINES: Insert allocatable of type structure_turbines here
 
- type structure_turbine
-     integer, dimension(2)             :: thrustcrvnr    ! index of turbine thurst curve
-     integer, dimension(2)             :: powercrvnr     ! index of turbine power curve
-     integer                           :: vertpos        ! vertical positioning type of turbine: 0 = fixed z level, 1 = turbine axis at fixed depth relative to water surface
-     integer                           :: turbtype       ! BJ 20150326: turbine type: 0 = circular, 1 = rectangular
-     real(fp)                          :: angle          ! orientation of turbine indicated by angle between turbine axis and positive x/lon direction
-     real(fp)                          :: csturb         ! cosine of orientation angle
-     real(fp)                          :: snturb         ! sine of orientation angle
-     real(fp)                          :: diam           ! diameter of turbine (turbtype=0)
-     real(fp)                          :: width          ! BJ 20150326: width of turbine (turbtype=1)
-     real(fp)                          :: height         ! BJ 20150326: height of turbine (turbtype=1)
-     real(fp)                          :: turbarea       ! turbine area (0.25*pi*D**2)
-     real(fp), dimension(3)            :: xyz            ! (relative) position of turbine
-     character(256)                    :: name           ! name of turbine
-     character(MAXTABLECLENGTH)        :: thrustcrvname  ! name of turbine thrust curve
-     character(MAXTABLECLENGTH)        :: powercrvname   ! name of turbine power curve
+ type structure_turbine                                  !< turbine structure type containing data pertaining to tidal current turbines
+     integer, dimension(2)             :: thrustcrvnr    !< index of turbine thurst curve
+     integer, dimension(2)             :: powercrvnr     !< index of turbine power curve
+     integer                           :: vertpos        !< vertical positioning type of turbine: 0 = fixed z level, 1 = turbine axis at fixed depth relative to water surface
+     integer                           :: turbtype       !< BJ 20150326: turbine type: 0 = circular, 1 = rectangular
+     real(fp)                          :: angle          !< orientation of turbine indicated by angle between turbine axis and positive x/lon direction
+     real(fp)                          :: csturb         !< cosine of orientation angle
+     real(fp)                          :: snturb         !< sine of orientation angle
+     real(fp)                          :: diam           !< diameter of turbine (turbtype=0)
+     real(fp)                          :: width          !< BJ 20150326: width of turbine (turbtype=1)
+     real(fp)                          :: height         !< BJ 20150326: height of turbine (turbtype=1)
+     real(fp)                          :: turbarea       !< turbine area (0.25*pi*D**2)
+     real(fp), dimension(3)            :: xyz            !< (relative) position of turbine
+     character(256)                    :: name           !< name of turbine
+     character(MAXTABLECLENGTH)        :: thrustcrvname  !< name of turbine thrust curve
+     character(MAXTABLECLENGTH)        :: powercrvname   !< name of turbine power curve
      !
-     integer                           :: turbinemodel   ! turbine model used 0: default deltares model, 1: SNL model
-     integer                           :: turbulencemodel! turbulence model used at turbine 0: none 1: Rethore implementation 2: Rados implementation
-     real(fp)                          :: beta_p         ! Beta_p coefficient
-     real(fp)                          :: beta_d         ! Beta_d coefficient
-     real(fp)                          :: cep4           ! Cepsilon4 coefficient
-     real(fp)                          :: cep5           ! Cepsilon5 coefficient
-     real(fp)                          :: friccoef       ! latest friction coefficient
-     real(fp)                          :: powercoef      ! latest power coefficient
-     real(fp)                          :: thrustcoef     ! latest thrust coefficient
+     integer                           :: turbinemodel   !< turbine model used 0: default deltares model, 1: SNL model
+     integer                           :: turbulencemodel!< turbulence model used at turbine 0: none 1: Rethore implementation 2: Rados implementation
+     real(fp)                          :: beta_p         !< Beta_p coefficient
+     real(fp)                          :: beta_d         !< Beta_d coefficient
+     real(fp)                          :: cep4           !< Cepsilon4 coefficient
+     real(fp)                          :: cep5           !< Cepsilon5 coefficient
+     real(fp)                          :: friccoef       !< latest friction coefficient
+     real(fp)                          :: powercoef      !< latest power coefficient
+     real(fp)                          :: thrustcoef     !< latest thrust coefficient
      !
-     real(fp)                          :: current_uref       ! latest reference velocity
-     real(fp)                          :: current_zlevel     ! latest vertical position
-     real(fp)                          :: current_sim_thrust ! latest simulated thrust
-     real(fp)                          :: cumul_sim_thrust   ! integrated simulated thrust
-     real(fp)                          :: current_thrust     ! latest analytical thrust
-     real(fp)                          :: cumul_thrust       ! integrated analytical thrust
-     real(fp)                          :: current_power      ! latest analytical power
-     real(fp)                          :: cumul_power        ! integrated analytical power
+     real(fp)                          :: current_uref       !< latest reference velocity
+     real(fp)                          :: current_zlevel     !< latest vertical position
+     real(fp)                          :: current_sim_thrust !< latest simulated thrust
+     real(fp)                          :: cumul_sim_thrust   !< integrated simulated thrust
+     real(fp)                          :: current_thrust     !< latest analytical thrust
+     real(fp)                          :: cumul_thrust       !< integrated analytical thrust
+     real(fp)                          :: current_power      !< latest analytical power
+     real(fp)                          :: cumul_power        !< integrated analytical power
      !
-     integer                           :: cellnr         ! index of cell in which turbine is located
-     real(fp), dimension(2)            :: relhpos        ! relative location within cell
+     integer                           :: cellnr         !< index of cell in which turbine is located
+     real(fp), dimension(2)            :: relhpos        !< relative location within cell
      !
-     real(fp)                          :: ndiamu         ! distance of velocity measurement point "up- & downstream"
-     integer, dimension(2)             :: cellu          ! indices of "up- & downstream" cells for velocity
+     real(fp)                          :: ndiamu         !< distance of velocity measurement point "up- & downstream"
+     integer, dimension(2)             :: cellu          !< indices of "up- & downstream" cells for velocity
      !
-     character(1)                      :: edgetype       ! type of edge/link on which structure is located
-     integer                           :: numedges       ! number of flowlinks in rotorplane
-     integer , dimension(:)  , pointer :: edgelist       ! indices of edges on which structure is located
-     real(fp), dimension(:)  , pointer :: reldist        ! distance along edges measured relative to location of turbine
-     real(fp), dimension(:,:), pointer :: zlevel         ! work array of right size to store levels of layer interfaces per cell
-     real(fp), dimension(:,:), pointer :: area           ! work array to store full    exchange area          per layer and cell
-     real(fp), dimension(:,:), pointer :: blockfrac      ! work array to store blocked exchange area fraction per layer and cell
+     character(1)                      :: edgetype       !< type of edge/link on which structure is located
+     integer                           :: numedges       !< number of flowlinks in rotorplane
+     integer , dimension(:)  , pointer :: edgelist       !< indices of edges on which structure is located
+     real(fp), dimension(:)  , pointer :: reldist        !< distance along edges measured relative to location of turbine
+     real(fp), dimension(:,:), pointer :: zlevel         !< work array of right size to store levels of layer interfaces per cell
+     real(fp), dimension(:,:), pointer :: area           !< work array to store full    exchange area          per layer and cell
+     real(fp), dimension(:,:), pointer :: blockfrac      !< work array to store blocked exchange area fraction per layer and cell
      
      double precision, dimension(:), allocatable    :: xi1, xi2
  end type structure_turbine
 
+!< type for storing array of turbine structure types and performance curves
  type structure_turbines
-     type(structure_turbine)   , dimension(:)    , pointer :: nr         ! pointer to individual turbines
-     !
-     type(handletype)                                      :: curves     ! thrust and power curve tables
+     type(structure_turbine)   , dimension(:)    , pointer :: nr         !< pointer to individual turbines
+     type(handletype)                                      :: curves     !< thrust and power curve tables
  end type structure_turbines
 
  type (structure_turbines) :: turbines
 
    contains
 
+!> @brief Initialize turbine data records
+!!
+!! @param[out]      turbines    a turbine data structure
 subroutine init_turbines(turbines)
-!!--description-----------------------------------------------------------------
-!
-! Initialize turbine data records
-!
-!!--declarations----------------------------------------------------------------
+
     implicit none
 !
 ! Call variables
 !
     type(structure_turbines)     , intent(out) :: turbines
+
 !
-! Local variables
-!
-!
-!! executable statements -------------------------------------------------------
+! executable statements
 !
     nullify(turbines%nr)
+
 end subroutine init_turbines
 
+!> @brief Allocate turbine data records
+!!
+!! @param[in]      lundia       diagnostic file unit number
+!! @param[in]      nturbines    number of turbines required
+!! @param[out]     %error       returns .false. if memory could not be allocated
+!! @param[inout]   turbines     structure_turbines type
 subroutine allocate_turbines(turbines,nturbines,lundia,error)
-!!--description-----------------------------------------------------------------
 !
-! Allocate turbine data records
+! Declarations
 !
-!!--declarations----------------------------------------------------------------
     use message_module, only: write_error
     implicit none
 !
@@ -314,7 +316,7 @@ subroutine allocate_turbines(turbines,nturbines,lundia,error)
     integer :: i
     integer :: istat
 !
-!! executable statements -------------------------------------------------------
+! Executable statements
 !
     error = .false.
     allocate(turbines%nr  (nturbines)  , stat=istat)
@@ -374,25 +376,28 @@ subroutine allocate_turbines(turbines,nturbines,lundia,error)
     enddo
 end subroutine allocate_turbines
 
-
+!> @brief Deallocate turbine data records
+!!
+!! @param[inout]   turbines     structure_turbines type
 subroutine deallocate_turbines(turbines)
-!!--description-----------------------------------------------------------------
+
 !
-! Deallocate turbine data records
+! declarations
 !
-!!--declarations----------------------------------------------------------------
     implicit none
 !
 ! Call variables
 !
     type(structure_turbines)    , intent(inout) :: turbines
+    
 !
 ! Local variables
 !
     integer :: i
     integer :: istat
+    
 !
-!! executable statements -------------------------------------------------------
+! executable statements
 !
     if (associated(turbines%nr)) then
        do i = 1,size(turbines%nr)
@@ -410,27 +415,28 @@ subroutine deallocate_turbines(turbines)
     call cleartable(turbines%curves)
 end subroutine deallocate_turbines
 
+!> @brief Calculate proportion of exchange area that is blocked by the turbine
 subroutine intersect_turbine(reldist,zlevel,z0,diam,width,height,turbtype,area,blockfrac)
     use precision
     implicit none
 !
 ! Call variables
 !
-    real(fp), dimension(2)   , intent(in)  :: reldist   ! horizontal distance relative to turbine
-    real(fp), dimension(2)   , intent(in)  :: zlevel    ! vertical position of layer interfaces
-    real(fp)                 , intent(in)  :: z0        ! z coordinate of turbine axis
-    real(fp)                 , intent(in)  :: diam      ! turbine diameter
-    real(fp)                 , intent(in)  :: width     ! turbine width
-    real(fp)                 , intent(in)  :: height    ! turbine height
-    integer                  , intent(in)  :: turbtype  ! turbine type
-    real(fp)                 , intent(out) :: area      ! full    exchange area
-    real(fp)                 , intent(out) :: blockfrac ! blocked exchange area fraction
+    real(fp), dimension(2)   , intent(in)  :: reldist   !< horizontal distance relative to turbine
+    real(fp), dimension(2)   , intent(in)  :: zlevel    !< vertical position of layer interfaces
+    real(fp)                 , intent(in)  :: z0        !< z coordinate of turbine axis
+    real(fp)                 , intent(in)  :: diam      !< turbine diameter
+    real(fp)                 , intent(in)  :: width     !< turbine width
+    real(fp)                 , intent(in)  :: height    !< turbine height
+    integer                  , intent(in)  :: turbtype  !< turbine type
+    real(fp)                 , intent(out) :: area      !< full    exchange area
+    real(fp)                 , intent(out) :: blockfrac !< blocked exchange area fraction
 !
 ! Local variables
 !
     real(fp) :: rad
 !
-!! executable statements -------------------------------------------------------
+! executable statements
 !
     rad = diam/2.0_fp
     !
@@ -444,20 +450,21 @@ subroutine intersect_turbine(reldist,zlevel,z0,diam,width,height,turbtype,area,b
     endif   ! BJ 20150326
 end subroutine intersect_turbine
 
+!> @brief Calculate area of the intersection of rectangle with circle
 function intersect_circle_rect(x1,x2,z1,z2,rad,x0,z0) result (area)
     use precision
     implicit none
 !
 ! Call variables
 !
-    real(fp), intent(in)  :: x1    ! x coordinate of corner 1
-    real(fp), intent(in)  :: x2    ! x coordinate of corner 2
-    real(fp), intent(in)  :: z1    ! z coordinate of corner 1
-    real(fp), intent(in)  :: z2    ! z coordinate of corner 2
-    real(fp), intent(in)  :: rad   ! radius of circle
-    real(fp), intent(in)  :: x0    ! x coordinate of circle centre
-    real(fp), intent(in)  :: z0    ! z coordinate of circle centre
-    real(fp)              :: area  ! intersection area
+    real(fp), intent(in)  :: x1    !< x coordinate of corner 1
+    real(fp), intent(in)  :: x2    !< x coordinate of corner 2
+    real(fp), intent(in)  :: z1    !< z coordinate of corner 1
+    real(fp), intent(in)  :: z2    !< z coordinate of corner 2
+    real(fp), intent(in)  :: rad   !< radius of circle
+    real(fp), intent(in)  :: x0    !< x coordinate of circle centre
+    real(fp), intent(in)  :: z0    !< z coordinate of circle centre
+    real(fp)              :: area  !< intersection area
 !
 ! Local variables
 !
@@ -472,7 +479,7 @@ function intersect_circle_rect(x1,x2,z1,z2,rad,x0,z0) result (area)
     real(fp)              :: area3 ! area of intersection with circle part 1 (180 - 270 deg)
     real(fp)              :: area4 ! area of intersection with circle part 1 (270 - 360 deg)
 !
-!! executable statements -------------------------------------------------------
+! executable statements
 !
     !
     ! convert to coordinates relative to centre of circle
@@ -497,19 +504,19 @@ function intersect_circle_rect(x1,x2,z1,z2,rad,x0,z0) result (area)
     area  = area1 + area2 + area3 + area4
 end function intersect_circle_rect
 
-
+!> @brief Calculate area of the intersection of rectangle with circle quadrant
 function intersect_circle_rect4(dxmin,dxmax,dzmin,dzmax,rad) result (area)
     use precision
     implicit none
 !
 ! Call variables
 !
-    real(fp), intent(in)  :: dxmin ! minimum relative x coordinate (x=0 at circle centre)
-    real(fp), intent(in)  :: dxmax ! maximum relative x coordinate (x=0 at circle centre)
-    real(fp), intent(in)  :: dzmin ! minimum relative z coordinate (z=0 at circle centre)
-    real(fp), intent(in)  :: dzmax ! maximum relative z coordinate (z=0 at circle centre)
-    real(fp), intent(in)  :: rad   ! radius of circle
-    real(fp)              :: area  ! intersection area
+    real(fp), intent(in)  :: dxmin !< minimum relative x coordinate (x=0 at circle centre)
+    real(fp), intent(in)  :: dxmax !< maximum relative x coordinate (x=0 at circle centre)
+    real(fp), intent(in)  :: dzmin !< minimum relative z coordinate (z=0 at circle centre)
+    real(fp), intent(in)  :: dzmax !< maximum relative z coordinate (z=0 at circle centre)
+    real(fp), intent(in)  :: rad   !< radius of circle
+    real(fp)              :: area  !< intersection area
 !
 ! Local variables
 !
@@ -523,7 +530,7 @@ function intersect_circle_rect4(dxmin,dxmax,dzmin,dzmax,rad) result (area)
     real(fp)              :: dz1   ! z coordinate of intersection point 1
     real(fp)              :: dz2   ! z coordinate of intersection point 2
 !
-!! executable statements -------------------------------------------------------
+! executable statements
 !
     rad2 = rad*rad
     !
@@ -565,6 +572,7 @@ function intersect_circle_rect4(dxmin,dxmax,dzmin,dzmax,rad) result (area)
     endif
 end function intersect_circle_rect4
 
+!> @brief Retrieve turbine thrust coefficient for a given velocity
 function turbinecurve(curves, curvenr, u, errorstring) result(thrustcoef)
     use precision
     use table_handles, only: gettabledata  
@@ -572,11 +580,11 @@ function turbinecurve(curves, curvenr, u, errorstring) result(thrustcoef)
 !
 ! Call variables
 !
-    integer, dimension(2), intent(in) :: curvenr     ! index of turbine thrust curve
-    type(handletype)     , intent(in) :: curves      ! thrust and power curve tables
-    real(fp)             , intent(in) :: u           ! velocity u
-    real(fp)                          :: thrustcoef  ! resulting thrust coefficient
-    character(256)       ,intent(out) :: errorstring ! error string
+    integer, dimension(2), intent(in) :: curvenr     !< index of turbine thrust curve
+    type(handletype)     , intent(in) :: curves      !< thrust and power curve tables
+    real(fp)             , intent(in) :: u           !< velocity u
+    real(fp)                          :: thrustcoef  !< resulting thrust coefficient
+    character(256)       ,intent(out) :: errorstring !< error string
 !
 ! Local variables
 !
