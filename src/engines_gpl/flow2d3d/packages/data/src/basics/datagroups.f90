@@ -25,8 +25,8 @@ module datagroups
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: datagroups.f90 140618 2022-01-12 13:12:04Z klapwijk $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/flow2d3d/packages/data/src/basics/datagroups.f90 $
+!  $Id$
+!  $HeadURL$
 !!--description-----------------------------------------------------------------
 !   NONE
 !!--declarations----------------------------------------------------------------
@@ -830,6 +830,12 @@ subroutine defnewgrp_core(fds, ifile, gname, gdp, filnam, grpdim, errlog)
           nefisunit = '[ KG/S/M]'
        case ('kg/(m3 s)')
           nefisunit = '[KG/M3/S]'
+       ! SNL-Edits
+       case ('N')		
+          nefisunit = '[   N   ]'		
+       case ('N s')		
+          nefisunit = '[  N S  ]'
+       ! End-Edits
        case ('N/m2')
           nefisunit = '[  N/M2 ]'
        case ('m')
@@ -860,6 +866,12 @@ subroutine defnewgrp_core(fds, ifile, gname, gdp, filnam, grpdim, errlog)
           nefisunit = '[  1/S2 ]'
        case ('s/m{1/3}')
           nefisunit = '[S/M{1/3}]'
+       ! SNL-Edits
+       case ('W')	
+          nefisunit = '[   W   ]'	
+       case ('W s')	
+          nefisunit = '[  W S  ]'
+       ! End-Edits
        case ('W/m2')
           nefisunit = '[ W/M2 ]'
        case ('W/(m2 K)')

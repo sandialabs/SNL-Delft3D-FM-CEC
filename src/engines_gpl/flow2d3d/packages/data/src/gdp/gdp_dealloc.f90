@@ -25,8 +25,8 @@ subroutine gdp_dealloc(gdp)
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: gdp_dealloc.f90 140618 2022-01-12 13:12:04Z klapwijk $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/flow2d3d/packages/data/src/gdp/gdp_dealloc.f90 $
+!  $Id$
+!  $HeadURL$
 !!--description-----------------------------------------------------------------
 !
 ! NONE
@@ -45,7 +45,11 @@ subroutine gdp_dealloc(gdp)
     use globaldata
     use dfparall
     use dredge_data_module, only: clrdredge
-    !
+
+    ! SNL-Edits
+    use turbine_module, only: deallocate_turbines
+    ! End-Edits
+
     implicit none
     !
     type(globdat),target :: gdp
@@ -220,7 +224,12 @@ subroutine gdp_dealloc(gdp)
     deallocate (gdp%gdusrpar, STAT = istat)
     deallocate (gdp%gdzmodel, STAT = istat)
     deallocate (gdp%gdnonhyd, STAT = istat)
-    !
+
+    ! SNL-Edits
+    call deallocate_turbines(gdp%turbines)	
+    deallocate (gdp%turbines, STAT = istat)
+    ! End-Edits
+
     call clrbedformpar(istat, gdp)
     deallocate (gdp%gdbedformpar, STAT = istat)
     deallocate (gdp%gdbetaro    , STAT = istat)

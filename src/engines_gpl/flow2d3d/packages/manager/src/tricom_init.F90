@@ -25,8 +25,8 @@ subroutine tricom_init(olv_handle, gdp)
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: tricom_init.F90 140618 2022-01-12 13:12:04Z klapwijk $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/flow2d3d/packages/manager/src/tricom_init.F90 $
+!  $Id$
+!  $HeadURL$
 !!--description-----------------------------------------------------------------
 !
 !    Function: - Read md-file
@@ -57,6 +57,7 @@ subroutine tricom_init(olv_handle, gdp)
     use globaldata
     use dfparall
     use d3d_olv_class
+    use m_rdturbine, only: mapturbine, updturbine
     !
     implicit none
     !
@@ -213,6 +214,8 @@ subroutine tricom_init(olv_handle, gdp)
     integer(pntrsize)                   , pointer :: dps
     integer(pntrsize)                   , pointer :: dpu
     integer(pntrsize)                   , pointer :: dpv
+    integer(pntrsize)                   , pointer :: dzu1
+    integer(pntrsize)                   , pointer :: dzv1
     integer(pntrsize)                   , pointer :: ewabr0
     integer(pntrsize)                   , pointer :: ewabr1
     integer(pntrsize)                   , pointer :: ewave0
@@ -423,6 +426,7 @@ subroutine tricom_init(olv_handle, gdp)
     logical                                       :: commrd
     logical                                       :: cyclic        ! Flag = TRUE if cyclic system assumed 
     logical                                       :: error         ! Flag=TRUE if an error is encountered 
+    logical                                       :: error_turbine ! Flag=TRUE if an error is encountered 
     logical                                       :: success       ! Flag = false when an error is encountered
     logical                                       :: ex            ! Help flag = TRUE when file is found 
     real(fp)                                      :: dtmin         ! DT in minutes
@@ -593,6 +597,8 @@ subroutine tricom_init(olv_handle, gdp)
     dps                 => gdp%gdr_i_ch%dps
     dpu                 => gdp%gdr_i_ch%dpu
     dpv                 => gdp%gdr_i_ch%dpv
+    dzu1                => gdp%gdr_i_ch%dzu1
+    dzv1                => gdp%gdr_i_ch%dzv1
     ewabr0              => gdp%gdr_i_ch%ewabr0
     ewabr1              => gdp%gdr_i_ch%ewabr1
     ewave0              => gdp%gdr_i_ch%ewave0
@@ -776,6 +782,7 @@ subroutine tricom_init(olv_handle, gdp)
     nmaxddb   = nmax + 2*gdp%d%ddbound
     !
     error     = .false.
+    error_turbine = .false.
     commrd    = .true.
     !
     itstrt    = -1
@@ -1084,6 +1091,10 @@ subroutine tricom_init(olv_handle, gdp)
     if (culvert) then
        call rdcul(nsrc, ch(namsrc), i(mnksrc) ,r(voldis), gdp)       
     endif
+    
+    call mapturbine(gdp%turbines, r(xcor), r(ycor), r(guu), r(gvv), i(kcu), i(kcv), error_turbine, gdp)
+    if (error) goto 9996
+    
     !
     ! Put header on the screen
     !
@@ -1544,6 +1555,14 @@ subroutine tricom_init(olv_handle, gdp)
                      & r(sig)    ,r(s1)     ,d(dps)    ,r(r0)     , &
                      & nsluv     ,r(cbuv)   ,nsrc      ,r(disch)  , &
                      & gdp)
+    !
+    ! Update turbines before first wrh_main call ...
+    !
+    if (.not. error_turbine) then
+       call updturbine(gdp%turbines, r(dzu1), r(dzv1), r(dpu), r(dpv), &
+                     & r(hu), r(hv), r(s1), r(thick), r(u1), r(v1), &
+                     & r(alfas), 0.0_fp, nmaxddb, gdp)
+    endif
     !
     ! End of synchronisation point 2
     ! ==============================

@@ -41,8 +41,8 @@ subroutine z_cucnp(j         ,nmmaxj    ,nmmax     ,kmax      ,icx       , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: z_cucnp.f90 140618 2022-01-12 13:12:04Z klapwijk $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/flow2d3d/packages/kernel/src/compute/z_cucnp.f90 $
+!  $Id$
+!  $HeadURL$
 !!--description-----------------------------------------------------------------
 !
 !    Function: The coefficient for the momentum equations are
@@ -478,7 +478,8 @@ subroutine z_cucnp(j         ,nmmaxj    ,nmmax     ,kmax      ,icx       , &
     call timer_start(timer_cucnp_eloss, gdp)
     call usrbrl(icx       ,icy       ,nmmax     ,kmax      ,kfu       , &
               & kspu      ,gvu       ,u0        ,v1        ,bbk       , &
-              & ubrlsu    ,diapl     ,rnpl      ,gdp       )
+              & ubrlsu    ,diapl     ,rnpl      ,.false.   ,u0        , &
+              & gdp       ,ddk) ! use u0 dummy for u1
     call timer_stop(timer_cucnp_eloss, gdp)
     !
     call timer_start(timer_cucnp_stress, gdp)

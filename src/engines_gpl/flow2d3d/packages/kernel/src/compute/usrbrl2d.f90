@@ -2,7 +2,7 @@ subroutine usrbrl2d(icx       ,icy       ,nmmax     ,kmax      ,kfu       , &
                   & kspu      ,guu       ,gvu       ,qxk       ,bbk       , &
                   & ddk       ,ubrlsu    ,dps       ,hkru      ,s0        , &
                   & hu        ,umean     ,thick     ,dteu      ,taubpu    , &
-                  & gdp       )
+                  & mom_output,u1        ,gdp       )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
 !  Copyright (C)  Stichting Deltares, 2011-2022.                                
@@ -29,8 +29,8 @@ subroutine usrbrl2d(icx       ,icy       ,nmmax     ,kmax      ,kfu       , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: usrbrl2d.f90 140618 2022-01-12 13:12:04Z klapwijk $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/flow2d3d/packages/kernel/src/compute/usrbrl2d.f90 $
+!  $Id$
+!  $HeadURL$
 !!--description-----------------------------------------------------------------
 !
 ! The routine adds additional energy losses due to 2D  hydraulic structures.
@@ -56,6 +56,7 @@ subroutine usrbrl2d(icx       ,icy       ,nmmax     ,kmax      ,kfu       , &
     real(fp)               , pointer :: eps
     real(fp)               , pointer :: ag
     real(fp)               , pointer :: thetaw
+    real(fp), dimension(:,:)          , pointer :: mom_m_struct        ! structure momentum term
 !
 ! Global variables
 !
@@ -84,6 +85,9 @@ subroutine usrbrl2d(icx       ,icy       ,nmmax     ,kmax      ,kfu       , &
     real(fp)  , dimension(gdp%d%nmlb:gdp%d%nmub)        , intent(in)  :: taubpu !  Description and declaration in esm_alloc_real.f90
     real(fp)  , dimension(gdp%d%nmlb:gdp%d%nmub, kmax)  , intent(in)  :: ubrlsu !  Description and declaration in esm_alloc_real.f90
     real(fp)  , dimension(kmax)                         , intent(in)  :: thick  !  Description and declaration in esm_alloc_real.f90
+    logical                                             , intent(in)  :: mom_output
+    real(fp), dimension(gdp%d%nmlb:gdp%d%nmub, kmax)    , intent(in)  :: u1     !  Description and declaration in esm_alloc_real.f90
+                                                                                !  Only used in case mom_output = .true.
 !
 ! Local variables
 !
@@ -109,6 +113,7 @@ subroutine usrbrl2d(icx       ,icy       ,nmmax     ,kmax      ,kfu       , &
     real(fp)     :: qov
     real(fp)     :: qunit  ! Discharge at weir crest
     real(fp)     :: qvolk  ! Maximal discharge (super critical flow ) 
+    real(fp)     :: term
     real(fp)     :: vbov
     real(fp)     :: vov
     real(fp)     :: wsben  ! Water level d/s 
@@ -120,6 +125,13 @@ subroutine usrbrl2d(icx       ,icy       ,nmmax     ,kmax      ,kfu       , &
     eps       => gdp%gdconst%eps
     ag        => gdp%gdphysco%ag
     thetaw    => gdp%gdrivpro%thetaw
+    if (mom_output) then
+       if (icx==1) then ! solve V/N component
+          mom_m_struct => gdp%gdflwpar%mom_n_struct
+       else ! solve U/M component
+          mom_m_struct => gdp%gdflwpar%mom_m_struct
+       endif
+    endif
     !
     avolk = 2.0*sqrt(2.0*ag/3.0)/3.0
     !
@@ -213,8 +225,12 @@ subroutine usrbrl2d(icx       ,icy       ,nmmax     ,kmax      ,kfu       , &
           absvbov = abs(vbov)
           if (absvbov>eps) then
              do k = 1, kmax
-                bbk(nm, k) = bbk(nm, k) + (ag*dteu(nm)/absvbov)*ubrlsu(nm, k)      &
-                           & /(gvu(nm)*thick(k))
+                term = (ag*dteu(nm)/vbov)*ubrlsu(nm, k)/(gvu(nm)*thick(k))
+                if (mom_output) then
+                   mom_m_struct(nm, k) = mom_m_struct(nm, k) - term*u1(nm, k)
+                else
+                   bbk(nm, k) = bbk(nm, k) + term
+                endif
              enddo
           endif
        endif

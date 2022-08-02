@@ -25,8 +25,8 @@ recursive subroutine init_mom_output(gdp       )
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: init_mom_output.f90 140618 2022-01-12 13:12:04Z klapwijk $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/flow2d3d/packages/kernel/src/inichk/init_mom_output.f90 $
+!  $Id$
+!  $HeadURL$
 !!--description-----------------------------------------------------------------
 !
 ! This subroutine initializes and resets the momentum output variables.
@@ -72,6 +72,10 @@ recursive subroutine init_mom_output(gdp       )
           if (istat==0) allocate (gdp%gdflwpar%mom_m_waveforce(gdp%d%nmlb:gdp%d%nmub, gdp%d%kmax), stat = istat)
           if (istat==0) allocate (gdp%gdflwpar%mom_m_convec(gdp%d%nmlb:gdp%d%nmub, gdp%d%kmax), stat = istat)
           if (istat==0) allocate (gdp%gdflwpar%mom_m_xadvec(gdp%d%nmlb:gdp%d%nmub, gdp%d%kmax), stat = istat)
+          
+          ! SNL-Edits
+          if (istat==0) allocate (gdp%gdflwpar%mom_m_struct(gdp%d%nmlb:gdp%d%nmub, gdp%d%kmax), stat = istat)
+          ! End-Edits
           !
           if (istat==0) allocate (gdp%gdflwpar%mom_n_velchange(gdp%d%nmlb:gdp%d%nmub, gdp%d%kmax), stat = istat)
           if (istat==0) allocate (gdp%gdflwpar%mom_n_densforce(gdp%d%nmlb:gdp%d%nmub, gdp%d%kmax), stat = istat)
@@ -85,6 +89,10 @@ recursive subroutine init_mom_output(gdp       )
           if (istat==0) allocate (gdp%gdflwpar%mom_n_waveforce(gdp%d%nmlb:gdp%d%nmub, gdp%d%kmax), stat = istat)
           if (istat==0) allocate (gdp%gdflwpar%mom_n_convec(gdp%d%nmlb:gdp%d%nmub, gdp%d%kmax), stat = istat)
           if (istat==0) allocate (gdp%gdflwpar%mom_n_xadvec(gdp%d%nmlb:gdp%d%nmub, gdp%d%kmax), stat = istat)
+
+          ! SNL-Edits
+          if (istat==0) allocate (gdp%gdflwpar%mom_n_struct(gdp%d%nmlb:gdp%d%nmub, gdp%d%kmax), stat = istat)
+          ! End-Edits
           !
           if (istat /= 0) then
              call prterr(lundia, 'U021', 'MOM_OUTPUT_INIT: memory alloc error')
@@ -106,6 +114,10 @@ recursive subroutine init_mom_output(gdp       )
        gdp%gdflwpar%mom_m_waveforce  = 0.0_fp
        gdp%gdflwpar%mom_m_convec     = 0.0_fp
        gdp%gdflwpar%mom_m_xadvec     = 0.0_fp
+
+       ! SNL-Edits
+       gdp%gdflwpar%mom_m_struct     = 0.0_fp
+       ! End-Edits
        !
        gdp%gdflwpar%mom_n_velchange  = 0.0_fp
        gdp%gdflwpar%mom_n_densforce  = 0.0_fp
@@ -119,5 +131,10 @@ recursive subroutine init_mom_output(gdp       )
        gdp%gdflwpar%mom_n_waveforce  = 0.0_fp
        gdp%gdflwpar%mom_n_convec     = 0.0_fp
        gdp%gdflwpar%mom_n_xadvec     = 0.0_fp
+
+       ! SNL-Edits
+       gdp%gdflwpar%mom_n_struct     = 0.0_fp
+       ! End-Edits
+
     endif
 end subroutine init_mom_output

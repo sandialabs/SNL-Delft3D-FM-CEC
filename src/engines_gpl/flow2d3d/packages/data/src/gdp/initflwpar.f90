@@ -25,8 +25,8 @@ subroutine initflwpar(gdp)
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: initflwpar.f90 140618 2022-01-12 13:12:04Z klapwijk $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/flow2d3d/packages/data/src/gdp/initflwpar.f90 $
+!  $Id$
+!  $HeadURL$
 !!--description-----------------------------------------------------------------
 ! NONE
 !!--pseudo code and references--------------------------------------------------
@@ -93,7 +93,11 @@ subroutine initflwpar(gdp)
     nullify(gdp%gdflwpar%mom_m_waveforce)
     nullify(gdp%gdflwpar%mom_m_convec)
     nullify(gdp%gdflwpar%mom_m_xadvec)
-    !
+
+    ! SNL-Edits
+    nullify(gdp%gdflwpar%mom_m_struct)
+    ! End-Edits
+
     nullify(gdp%gdflwpar%mom_n_velchange)
     nullify(gdp%gdflwpar%mom_n_densforce)
     nullify(gdp%gdflwpar%mom_n_flowresist)
@@ -106,7 +110,11 @@ subroutine initflwpar(gdp)
     nullify(gdp%gdflwpar%mom_n_waveforce)
     nullify(gdp%gdflwpar%mom_n_convec)
     nullify(gdp%gdflwpar%mom_n_xadvec)
-    !
+
+    ! SNL-Edits
+    nullify(gdp%gdflwpar%mom_n_struct)
+    ! End-Edits
+
     nullify(gdp%gdflwpar%fcrbnd) 
     !
     gdp%gdflwpar%fbccorrection = .false.

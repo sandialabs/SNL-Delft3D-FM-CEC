@@ -25,8 +25,8 @@ module globaldata
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: globaldata.f90 140618 2022-01-12 13:12:04Z klapwijk $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/flow2d3d/packages/data/src/basics/globaldata.f90 $
+!  $Id$
+!  $HeadURL$
 !!--description-----------------------------------------------------------------
 !
 ! This module contains the definition of the
@@ -50,6 +50,7 @@ module globaldata
     !use ec_typedefs
     use bedcomposition_module, only:bedcomp_data
     use dredge_data_module, only: dredge_type
+    use turbine_module, only:structure_turbines
     use morphology_data_module, only:morpar_type, sedpar_type, moroutputtype, &
                               & mornumericstype, bedbndtype, cmpbndtype, &
                               & trapar_type, sedtra_type
@@ -199,6 +200,7 @@ module globaldata
        type (gd_zmodel)   , pointer :: gdzmodel
        type (gd_nonhyd)   , pointer :: gdnonhyd
        type (gd_waqpar)   , pointer :: gdwaqpar
+       type (structure_turbines), pointer :: turbines
        !
        type (sv_cline)    , pointer :: gdcline
        type (sv_culver)   , pointer :: gdculver

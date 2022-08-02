@@ -32,8 +32,8 @@ subroutine trisol(dischy    ,solver    ,icreep    ,ithisc    , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: trisol.f90 140618 2022-01-12 13:12:04Z klapwijk $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/flow2d3d/packages/kernel/src/main/trisol.f90 $
+!  $Id$
+!  $HeadURL$
 !!--description-----------------------------------------------------------------
 !
 ! This routine basically carries out the hydrodynamics
@@ -47,6 +47,7 @@ subroutine trisol(dischy    ,solver    ,icreep    ,ithisc    , &
     use SyncRtcFlow
     use flow2d3d_timers
     use flow_tables
+    use m_rdturbine, only : updturbine, updturbinethrust
     !
     use globaldata
     !
@@ -1609,6 +1610,10 @@ subroutine trisol(dischy    ,solver    ,icreep    ,ithisc    , &
           call timer_stop(timer_updbar, gdp)
        endif
        !
+       call updturbine(gdp%turbines, r(dzu0), r(dzv0), r(dpu), r(dpv), &	
+                     & r(hu), r(hv), r(s0), r(thick), r(u0), r(v0), &	
+                     & r(alfas), hdt, nmaxddb, gdp)	
+       !
        ! Computation of V1, i.e. evaluate momentum equation for one half
        ! timest calculate HV and set KFV = 0 for HV < HTRSH (.5*DRYFLC)
        !
@@ -1647,6 +1652,10 @@ subroutine trisol(dischy    ,solver    ,icreep    ,ithisc    , &
               & r(wrkb11) ,r(wrkb12) ,r(wrkb13) ,r(wrkb14) ,r(wrkb15) , &
               & r(wrkb16) ,sbkol     ,r(disnf)  ,r(precip) ,gdp       )
        call timer_stop(timer_1stadi, gdp)
+       !	
+       call updturbinethrust(gdp%turbines, r(u0), r(u1), r(v0), r(v1), &	
+                           & r(gvu), r(guv), r(wrkb2), nmaxddb, hdt, gdp)	
+       !
        if (roller) then
           !
           ! Introduce time varying mass-flux associated with infragravity waves
@@ -2627,6 +2636,10 @@ subroutine trisol(dischy    ,solver    ,icreep    ,ithisc    , &
                     & r(sig)    ,r(zwork)  ,gdp       )
           call timer_stop(timer_updbar, gdp)
        endif
+       !	
+       call updturbine(gdp%turbines, r(dzu0), r(dzv0), r(dpu), r(dpv), &	
+                     & r(hu), r(hv), r(s0), r(thick), r(u0), r(v0), &	
+                     & r(alfas), hdt, nmaxddb, gdp)
        !
        ! Computation of U1, i.e. evaluate momentum equation for one half
        ! timest calculate HU and set KFU = 0 for HU < HTRSH (.5*DRYFLC)
@@ -2666,6 +2679,10 @@ subroutine trisol(dischy    ,solver    ,icreep    ,ithisc    , &
               & r(wrkb11) ,r(wrkb12) ,r(wrkb13) ,r(wrkb14) ,r(wrkb15) , &
               & r(wrkb16) ,sbkol     ,r(disnf)  ,r(precip) ,gdp       )
        call timer_stop(timer_2ndadi, gdp)
+       !	
+       call updturbinethrust(gdp%turbines, r(u0), r(u1), r(v0), r(v1), &	
+                           & r(gvu), r(guv), r(wrkb2), nmaxddb, hdt, gdp)	
+       !
        if (roller) then
           !
           ! Introduce time varying mass-flux associated with infragravity waves

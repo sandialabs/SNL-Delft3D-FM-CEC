@@ -41,8 +41,8 @@ subroutine cucnp(dischy    ,icreep    ,dpdksi    ,s0        ,u0        , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: cucnp.f90 140618 2022-01-12 13:12:04Z klapwijk $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/flow2d3d/packages/kernel/src/compute/cucnp.f90 $
+!  $Id$
+!  $HeadURL$
 !!--description-----------------------------------------------------------------
 !
 ! The coefficient for the momentum equations are computed and the stored in the
@@ -549,11 +549,12 @@ subroutine cucnp(dischy    ,icreep    ,dpdksi    ,s0        ,u0        , &
                    & kspu      ,guu       ,gvu       ,qxk       ,bbk       , &
                    & ddk       ,ubrlsu    ,dps       ,hkru      ,s0        , &
                    & hu        ,umean     ,thick     ,dteu      ,taubpu    , &
-                   & gdp       )
+                   & mom_output,u1        ,gdp       )
     endif
     call usrbrl(icx       ,icy       ,nmmax     ,kmax      ,kfu       , &
               & kspu      ,gvu       ,u0        ,v1        ,bbk       , &
-              & ubrlsu    ,diapl     ,rnpl      ,gdp       )
+              & ubrlsu    ,diapl     ,rnpl      ,mom_output,u1        , &
+              & gdp       ,ddk       )
     call timer_stop(timer_cucnp_eloss, gdp)
     !
     ndm = -icy

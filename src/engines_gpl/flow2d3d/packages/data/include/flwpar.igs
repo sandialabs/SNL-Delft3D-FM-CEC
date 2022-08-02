@@ -24,8 +24,8 @@
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: flwpar.igs 140618 2022-01-12 13:12:04Z klapwijk $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/flow2d3d/packages/data/include/flwpar.igs $$
+!  $Id$
+!  $HeadURL$$
 !-------------------------------------------------------------------------------
 type flwoutputtype
     integer :: iteroutputsteps     ! number of steps since calculation start during whick iteration info is printed to diag-file
@@ -98,6 +98,8 @@ type gd_flwpar
     real(fp), dimension(:,:)          , pointer :: mom_m_waveforce     ! wave forces in u dir
     real(fp), dimension(:,:)          , pointer :: mom_m_convec        ! convection u*du/dx term
     real(fp), dimension(:,:)          , pointer :: mom_m_xadvec        ! cross-advection v*du/dy term
+    ! SNL-Edits
+    real(fp), dimension(:,:)          , pointer :: mom_m_struct        ! hydraulic structure term
     !
     real(fp), dimension(:,:)          , pointer :: mom_n_velchange     ! momentum dv/dt term
     real(fp), dimension(:,:)          , pointer :: mom_n_densforce     ! density force term in v dir
@@ -111,6 +113,8 @@ type gd_flwpar
     real(fp), dimension(:,:)          , pointer :: mom_n_waveforce     ! wave forces in v dir
     real(fp), dimension(:,:)          , pointer :: mom_n_convec        ! convection v*dv/dy term
     real(fp), dimension(:,:)          , pointer :: mom_n_xadvec        ! cross-advection u*dv/dx term
+    ! SNL-Edits
+    real(fp), dimension(:,:)          , pointer :: mom_n_struct        ! hydraulic structure term
     !
     real(fp), dimension(:,:,:)        , pointer :: fluxu     ! constituent flux xi direction
     real(fp), dimension(:,:,:)        , pointer :: fluxuc    ! cumulative constituent flux xi direction

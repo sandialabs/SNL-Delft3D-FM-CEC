@@ -32,8 +32,8 @@ subroutine rdstru(lunmd     ,lundia    ,error     ,mdfrec    ,nrrec     , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: rdstru.f90 140618 2022-01-12 13:12:04Z klapwijk $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/flow2d3d/packages/io/src/input/rdstru.f90 $
+!  $Id$
+!  $HeadURL$
 !!--description-----------------------------------------------------------------
 !
 !    Function: - Read rigid lid factor from MDF file
@@ -53,6 +53,9 @@ subroutine rdstru(lunmd     ,lundia    ,error     ,mdfrec    ,nrrec     , &
 !!--declarations----------------------------------------------------------------
     use precision
     use properties
+
+    ! SNL-Edits
+    use m_rdturbine, only: rdturbine, echoturbine
     !
     use globaldata
     !
@@ -134,6 +137,7 @@ subroutine rdstru(lunmd     ,lundia    ,error     ,mdfrec    ,nrrec     , &
     character(256)         :: fillwl !!  File name for Local Weirs
     character(256)         :: filppl !!  File name for Porous Plates
     character(256)         :: filrgs !!  File name for Rigid Sheets
+    character(256)         :: filtrb !!  File name for Turbines (SNL-Edits)
     character(256)         :: filcdw 
 !
 !! executable statements -------------------------------------------------------
@@ -150,6 +154,17 @@ subroutine rdstru(lunmd     ,lundia    ,error     ,mdfrec    ,nrrec     , &
     !
     struct = .false.
     riglid = 1.0
+
+    ! SNL-Edits	
+    filtrb = ' '	
+    call prop_get(gdp%mdfile_ptr,'*','FilTrb',filtrb)	
+    if (filtrb /= ' ') then	
+       call rdturbine(filtrb, lundia, gdp%turbines, error)	
+       if (error) return	
+       call echoturbine(gdp%turbines, lundia)	
+    endif
+    ! End-Edits
+
     !
     ! Look for Rigid lid factor
     !

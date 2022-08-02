@@ -1,6 +1,7 @@
 subroutine usrbrl(icx       ,icy       ,nmmax     ,kmax      ,kfu       , &
                 & kspu      ,gvu       ,u0        ,v         ,bbk       , &
-                & ubrlsu    ,diapl     ,rnpl      ,gdp       )
+                & ubrlsu    ,diapl     ,rnpl      ,mom_output,u1        , &
+                & gdp       ,ddk)
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
 !  Copyright (C)  Stichting Deltares, 2011-2022.                                
@@ -27,8 +28,8 @@ subroutine usrbrl(icx       ,icy       ,nmmax     ,kmax      ,kfu       , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: usrbrl.f90 140618 2022-01-12 13:12:04Z klapwijk $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/flow2d3d/packages/kernel/src/compute/usrbrl.f90 $
+!  $Id$
+!  $HeadURL$
 !!--description-----------------------------------------------------------------
 !
 ! The routine adds additional energy losses due to 3D hydraulic structures.
@@ -46,6 +47,7 @@ subroutine usrbrl(icx       ,icy       ,nmmax     ,kmax      ,kfu       , &
 !!--declarations----------------------------------------------------------------
     use precision
     use globaldata
+    use m_rdturbine, only : applyturbines
     !
     implicit none
     !
@@ -54,6 +56,8 @@ subroutine usrbrl(icx       ,icy       ,nmmax     ,kmax      ,kfu       , &
     ! The following list of pointer parameters is used to point inside the gdp structure
     !
     logical , pointer :: veg3d
+    real(fp), dimension(:,:)          , pointer :: mom_m_flowresist    ! vegetation resistance in u dir
+    real(fp), dimension(:,:)          , pointer :: mom_m_struct        ! structure momentum term
 !
 ! Global variables
 !
@@ -69,6 +73,8 @@ subroutine usrbrl(icx       ,icy       ,nmmax     ,kmax      ,kfu       , &
     real(fp), dimension(gdp%d%nmlb:gdp%d%nmub)       , intent(in)  :: gvu    !  Description and declaration in esm_alloc_real.f90
     real(fp), dimension(gdp%d%nmlb:gdp%d%nmub, kmax)               :: bbk    !!  Internal work array, coefficient la-
                                                                              !!  yer velocity in (N,M,K) implicit part
+    real(fp), dimension(gdp%d%nmlb:gdp%d%nmub, kmax) , intent(inout), optional :: ddk    !!  Internal work array, coefficient la-
+                                                                             !!  yer velocity in (N,M,K) implicit part
     real(fp), dimension(gdp%d%nmlb:gdp%d%nmub, kmax) , intent(in)  :: diapl  !  Description and declaration in esm_alloc_real.f90
     real(fp), dimension(gdp%d%nmlb:gdp%d%nmub, kmax) , intent(in)  :: rnpl   !  Description and declaration in esm_alloc_real.f90
     real(fp), dimension(gdp%d%nmlb:gdp%d%nmub, kmax) , intent(in)  :: u0     !  Description and declaration in esm_alloc_real.f90
@@ -76,6 +82,9 @@ subroutine usrbrl(icx       ,icy       ,nmmax     ,kmax      ,kfu       , &
     real(fp), dimension(gdp%d%nmlb:gdp%d%nmub, kmax) , intent(in)  :: v      !!  V-velocities at new/old time level
                                                                              !!  depending on the ADI-stage (calling
                                                                              !!  routines)
+    logical                                          , intent(in)  :: mom_output
+    real(fp), dimension(gdp%d%nmlb:gdp%d%nmub, kmax) , intent(in)  :: u1     !  Description and declaration in esm_alloc_real.f90
+                                                                             !  Only used in case mom_output = .true.
 !
 ! Local variables
 !
@@ -88,12 +97,22 @@ subroutine usrbrl(icx       ,icy       ,nmmax     ,kmax      ,kfu       , &
     real(fp):: dia
     real(fp):: fplant
     real(fp):: rn
+    real(fp):: term
     real(fp):: uuu  ! Total velocity in U-point NM 
     real(fp):: vvv  ! Mean value of 4 surrounding v-vel. in U-point of NM 
 !
 !! executable statements -------------------------------------------------------
 !
     veg3d     => gdp%gdprocs%veg3d
+    if (mom_output) then
+       if (icx==1) then ! solve V/N component
+          mom_m_struct     => gdp%gdflwpar%mom_n_struct
+          mom_m_flowresist => gdp%gdflwpar%mom_n_flowresist
+       else ! solve U/M component
+          mom_m_struct     => gdp%gdflwpar%mom_m_struct
+          mom_m_flowresist => gdp%gdflwpar%mom_m_flowresist
+       endif
+    endif
     !
     ! either: general local weir (3D); quadratic friction (KSPU=3)
     ! or    : rigid sheet, linear friction (KSPU=5), or CDW (quadratic as well)
@@ -108,21 +127,29 @@ subroutine usrbrl(icx       ,icy       ,nmmax     ,kmax      ,kfu       , &
           nmu  = nmu + 1
           ksp  = kfu(nm)*abs(kspu(nm, 0))*kspu(nm, k)
           if (ksp==5) then
-             bbk(nm, k) = bbk(nm, k) + ubrlsu(nm, k)/gvu(nm)
+             term = ubrlsu(nm, k)/gvu(nm)
           elseif ((ksp==3) .or. (ksp==6) .or. (ksp==7)) then
              vvv = .25*(v(ndm, k) + v(ndmu, k) + v(nm, k) + v(nmu, k))
              uuu = sqrt(u0(nm, k)**2 + vvv**2)
-             bbk(nm, k) = bbk(nm, k) + uuu*ubrlsu(nm, k)/gvu(nm)
-          else
-          endif
-          if ((kfu(nm)*kspu(nm,0) == 10 .or. kfu(nm)*kspu(nm,0) == 4) &
+             term = uuu*ubrlsu(nm, k)/gvu(nm)
+          elseif ((kfu(nm)*kspu(nm,0) == 10 .or. kfu(nm)*kspu(nm,0) == 4) &
             & .and. kspu(nm, k) == 0                                   ) then
              vvv = .25*(v(ndm, k) + v(ndmu, k) + v(nm, k) + v(nmu, k))
              uuu = sqrt(u0(nm, k)**2 + vvv**2)
-             bbk(nm, k) = bbk(nm, k) + uuu*ubrlsu(nm, k)/gvu(nm)
+             term = uuu*ubrlsu(nm, k)/gvu(nm)
+          else
+             cycle ! term not defined, so don't add it
+          endif
+          !
+          if (mom_output) then
+             mom_m_struct(nm, k) = mom_m_struct(nm, k) - term*u1(nm, k)
+          else
+             bbk(nm, k) = bbk(nm, k) + term
           endif
        enddo
     enddo
+    
+    call applyturbines(gdp%turbines, u0, v, gvu, icx, icy, mom_output, bbk, u1, gdp, ddk=ddk)
     !
     ! (Rigid) 3D Vegetation Model
     !
@@ -141,7 +168,11 @@ subroutine usrbrl(icx       ,icy       ,nmmax     ,kmax      ,kfu       , &
                 dia    = 0.5*(diapl(nm, k) + diapl(nmu, k))
                 rn     = 0.5*(rnpl(nm, k) + rnpl(nmu, k))
                 fplant = 0.5*dia*rn*sqrt(uuu*uuu + vvv*vvv)
+                if (mom_output) then
+                   mom_m_flowresist(nm, k) = mom_m_flowresist(nm, k) - fplant*u1(nm, k)
+                else
                 bbk(nm, k) = bbk(nm, k) + fplant
+                endif
              endif
           enddo
        enddo

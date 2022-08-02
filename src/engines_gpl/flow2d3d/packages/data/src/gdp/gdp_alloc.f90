@@ -25,8 +25,8 @@ subroutine gdp_alloc(gdp)
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: gdp_alloc.f90 140618 2022-01-12 13:12:04Z klapwijk $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/flow2d3d/packages/data/src/gdp/gdp_alloc.f90 $
+!  $Id$
+!  $HeadURL$
 !!--description-----------------------------------------------------------------
 !
 ! NONE
@@ -107,7 +107,11 @@ subroutine gdp_alloc(gdp)
     allocate (gdp%gdusrpar)
     allocate (gdp%gdzmodel)
     allocate (gdp%gdnonhyd)
-    !
+    
+    ! SNL-Edits
+    allocate (gdp%turbines)
+    ! End-Edits
+    
     allocate (gdp%gdbetaro)
     allocate (gdp%gdbcdat)
     allocate (gdp%gdcline)

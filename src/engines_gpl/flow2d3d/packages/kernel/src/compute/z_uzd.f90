@@ -44,8 +44,8 @@ subroutine z_uzd(j         ,nmmaxj    ,nmmax     ,kmax      ,icx       , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: z_uzd.f90 140618 2022-01-12 13:12:04Z klapwijk $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/flow2d3d/packages/kernel/src/compute/z_uzd.f90 $
+!  $Id$
+!  $HeadURL$
 !!--description-----------------------------------------------------------------
 !
 ! This subroutine evaluates/solves the horizontal momentum equation for a Z-layer
@@ -593,7 +593,8 @@ subroutine z_uzd(j         ,nmmaxj    ,nmmax     ,kmax      ,icx       , &
        call timer_start(timer_uzd_eloss, gdp)
        call usrbrl(icx       ,icy       ,nmmax     ,kmax      ,kfu       , &
                  & kspu      ,gvu       ,u0        ,v0        ,bbk       , &
-                  & ubrlsu    ,diapl     ,rnpl      ,gdp       )
+                 & ubrlsu    ,diapl     ,rnpl      ,.false.   ,u0        , &
+                 & gdp       ,ddk) ! use u0 dummy for u1
        call timer_stop(timer_uzd_eloss, gdp)
        !
        call timer_start(timer_uzd_stress, gdp)

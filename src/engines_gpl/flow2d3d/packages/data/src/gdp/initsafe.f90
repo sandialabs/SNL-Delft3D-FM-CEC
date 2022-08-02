@@ -25,8 +25,8 @@ subroutine initsafe(gdp)
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: initsafe.f90 140618 2022-01-12 13:12:04Z klapwijk $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/flow2d3d/packages/data/src/gdp/initsafe.f90 $
+!  $Id$
+!  $HeadURL$
 !!--description-----------------------------------------------------------------
 !
 ! NONE
@@ -38,6 +38,11 @@ subroutine initsafe(gdp)
     use sp_buffer
     use message_module
     use bedcomposition_module
+
+    ! SNL-Edits
+    use turbine_module, only: init_turbines
+    ! SNL-Edits
+
     use morphology_data_module
     use dredge_data_module, only: initdredge
     !
@@ -103,6 +108,11 @@ subroutine initsafe(gdp)
     call initwrline    (gdp)
     call initz_initcg  (gdp)
     call initzmodel    (gdp)
+
+    ! SNL-Edits
+    call init_turbines (gdp%turbines)
+    ! SNL-Edits
+
     call initsdu       (gdp)
     !
     call sbuff_init
