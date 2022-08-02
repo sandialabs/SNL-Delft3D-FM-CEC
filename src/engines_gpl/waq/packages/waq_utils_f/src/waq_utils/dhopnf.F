@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -51,26 +51,28 @@
 !     SUBROUTINE CALLED  : SRSTOP, stopexecution
 
 !     LOGICAL UNITS      : LUN = unit to be opened
-
+      use cwd, only: getCWD
       implicit none
 
 !     Parameters          :
 
 !     kind           function         name        description
 
-      integer      , intent(in   ) :: lun       !< unit number of file to be opened
+      integer      , intent(inout) :: lun       !< unit number of file to be opened
       character*(*), intent(in   ) :: finam     !< name of the file to be opened
       integer      , intent(in   ) :: nropen    !< Delwaq number of the file to be opened
       integer      , intent(in   ) :: opmode    !< Indicator how file must be opened
       integer      , intent(inout) :: ierr      !< Error flag
-
 !     Local variables     :
 
-      integer       ierr2
-      logical       lexist   , lopened
+      integer                         ierr2     !< Error flag
+      logical                         ierr_cwd  !< Error flag for obtaining current working directory
+      character(256)                  wd_path   !< Current working directory path
+      
+      ierr   =   0
 
-      IERR   =   0
 
+      
 !     get the correct open statement
 
       select case ( nropen )
@@ -79,7 +81,7 @@
                case ( 1 )
                   open ( lun, file = finam, err = 910, form='unformatted', access='stream', status = 'replace' )
                case ( 2 )
-                  open ( lun, file = finam, err = 910, form='unformatted', access='stream', status = 'old' )
+                  open ( newunit=lun, file = finam, err = 910, form='unformatted', access='stream', status = 'old' )
                case ( 3 )
                   open ( lun, file = finam, err = 910, form='unformatted', access='stream' )
                   close( lun, status = 'delete', err = 910 )
@@ -332,8 +334,8 @@
          case ( 19 )                          !     DELWAQ2 monitoring file (.mon)
             select case ( opmode )
                case ( 1 )
-                  call dhdelf ( finam, ierr2 )
-                  open ( lun, file = finam, err = 910 )
+                  !call dhdelf ( finam, ierr2 )
+                  open ( newunit=lun, file = finam, err = 910 )
                case default
                   ierr = 3
             end select
@@ -341,8 +343,8 @@
          case ( 20 )                          !     dump file
             select case ( opmode )
                case ( 1 )
-                  call dhdelf ( finam, ierr2 )
-                  open ( lun, file = finam, err = 910 )
+                  !call dhdelf ( finam, ierr2 )
+                  open ( newunit=lun, file = finam, err = 910 )
                case default
                   ierr = 3
             end select
@@ -350,8 +352,8 @@
          case ( 21 )                          !     history file
             select case ( opmode )
                case ( 1 )
-                  call dhdelf ( finam, ierr2 )
-                  open ( lun, file = finam, err = 910, form='unformatted', access='stream', status = 'replace'  )
+                  !call dhdelf ( finam, ierr2 )
+                  open ( newunit=lun, file = finam, err = 910, form='unformatted', access='stream', status = 'replace'  )
                case default
                   ierr = 3
             end select
@@ -359,8 +361,8 @@
          case ( 22 )                          !     map file
             select case ( opmode )
                case ( 1 )
-                  call dhdelf ( finam, ierr2 )
-                  open ( lun, file = finam, err = 910, form='unformatted', access='stream', status = 'replace'  )
+                  !call dhdelf ( finam, ierr2 )
+                  open ( newunit=lun, file = finam, err = 910, form='unformatted', access='stream', status = 'replace'  )
                case default
                   ierr = 3
             end select
@@ -368,8 +370,8 @@
          case ( 23 )                          !     restart file
             select case ( opmode )
                case ( 1 )
-                  call dhdelf ( finam, ierr2 )
-                  open ( lun, file = finam, err = 910, form='unformatted', access='stream', status = 'replace'  )
+                  !call dhdelf ( finam, ierr2 )
+                  open ( newunit=lun, file = finam, err = 910, form='unformatted', access='stream', status = 'replace'  )
                case default
                   ierr = 3
             end select
@@ -496,13 +498,17 @@
          case ( 37 )                          !     bal file
             select case ( opmode )
                case ( 1 )
-                  call dhdelf(finam,ierr2)
-                  open ( lun, file = finam, err = 910, form='unformatted', access='stream' )
+                  !call dhdelf(finam,ierr2)
+                  open ( newunit=lun, file = finam, err = 910, form='unformatted', access='stream' )
                case default
                   ierr = 3
             end select
 
          case ( 40 )                          !     Binary segment attribute file
+            !
+            ! Because of the reserved range of LU-numbers (see dlwqt4.f) it is not all that easy to
+            ! use NEWUNIT= here - leave the old method for the moment
+            !
             select case ( opmode )
                case (  1 )
                   open ( lun, file = finam, err = 910, form='unformatted', access='stream', status = 'replace'  )
@@ -514,16 +520,16 @@
                   open ( lun, file = finam, err = 910, form='unformatted', status = 'old' )
                case ( 21 )
                   open ( lun, file = finam, err = 910, form   ='unformatted', access='stream',
-     &                                                 convert='big_endian' )
+     &                                                         convert='big_endian' )
                case ( 22 )
                   open ( lun, file = finam, err = 910, form='unformatted', access='stream', status = 'old',
-     &                                                 convert='big_endian' )
+     &                                                         convert='big_endian' )
                case ( 31 )
                   open ( lun, file = finam, err = 910, form   ='unformatted',
-     &                                                 convert='big_endian' )
+     &                                                         convert='big_endian' )
                case ( 32 )
                   open ( lun, file = finam, err = 910, form='unformatted', status = 'old',
-     &                                                 convert='big_endian' )
+     &                                                         convert='big_endian' )
                case default
                   ierr = 3
             end select
@@ -578,9 +584,18 @@
 !     error while opening STOP with message
 
   910 continue
-      write ( * , 2000 ) nropen, lun, trim(finam)
+!     get current working directory
+      wd_path = ''
+      ierr_cwd = getCWD(wd_path)
+      if (ierr_cwd /= 0) then
+         wd_path = 'Current working directory not found!'
+      endif
+      
+      write ( * , 2000 ) nropen, lun, trim(finam), trim(wd_path)
       call srstop ( 1 )
 
  2000 format (   ' ERROR opening file number:',I3,' on unit:',I3  ,
-     *         /,' Filename is: ',A )
+     *         /,' Filename is: ',A ,
+     *         /,' Searching in working directory: ',
+     *         /,'  ' A )
       end

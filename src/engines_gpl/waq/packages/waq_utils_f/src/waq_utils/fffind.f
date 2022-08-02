@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -24,12 +24,11 @@
       SUBROUTINE FFFIND ( LUNUT , SGET , AFILE , BFILE , ISTEP ,
      *                    IT2   , IT3  , IT4   , NUMBR , IERR  )
 !
+      use m_sysi          ! Timer characteristics
+      
       CHARACTER*25  SGET  , S1
       CHARACTER*255 AFILE , BFILE
-!
-!     COMMON  /  SYSI   /   System timers
-!
-      INCLUDE 'sysi.inc'
+
 !
 !     local declarations
 !

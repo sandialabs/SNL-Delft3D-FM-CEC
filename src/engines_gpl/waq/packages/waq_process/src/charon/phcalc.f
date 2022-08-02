@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -32,7 +32,7 @@
 !        4-69
 !        phcalc uses double precision version of
 !           alog
-      include  'char1.inc'
+      use m_char1
 !        aliter is the constant used in the ph calculation
       mta = kl(1)
       mtb = kl(2) - 1

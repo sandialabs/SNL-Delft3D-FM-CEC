@@ -1,6 +1,6 @@
 //---- LGPL --------------------------------------------------------------------
 //
-// Copyright (C)  Stichting Deltares, 2011-2020.
+// Copyright (C)  Stichting Deltares, 2011-2022.
 //
 // This library is free software; you can redistribute it and/or
 // modify it under the terms of the GNU Lesser General Public
@@ -24,8 +24,8 @@
 // Stichting Deltares. All rights reserved.
 //
 //------------------------------------------------------------------------------
-// $Id: getputarray.cpp 65778 2020-01-14 14:07:42Z mourits $
-// $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/deltares_common/packages/deltares_common_c/src/getputarray.cpp $
+// $Id: getputarray.cpp 140618 2022-01-12 13:12:04Z klapwijk $
+// $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_lgpl/deltares_common/packages/deltares_common_c/src/getputarray.cpp $
 //------------------------------------------------------------------------------
 //  Interface to TCP/IP Stream library for getarray/putarray functionality
 //
@@ -42,7 +42,7 @@
 
 #include "getputarray.h"
 
-#if HAVE_CONFIG_H
+#if defined(linux)
 #define Sleep usleep
 #define SEC 1000000.0
 #else

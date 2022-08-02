@@ -1,6 +1,6 @@
 !----- LGPL --------------------------------------------------------------------
 !
-!  Copyright (C)  Stichting Deltares, 2011-2020.
+!  Copyright (C)  Stichting Deltares, 2011-2022.
 !
 !  This library is free software; you can redistribute it and/or
 !  modify it under the terms of the GNU Lesser General Public
@@ -25,8 +25,11 @@
 !
 !-------------------------------------------------------------------------------
 
-!  $Id: coordinate_reference_system.F90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/io_netcdf/packages/io_netcdf/src/coordinate_reference_system.F90 $
+!  $Id: coordinate_reference_system.F90 141359 2022-06-14 13:11:19Z mooiman $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_lgpl/io_netcdf/packages/io_netcdf/src/coordinate_reference_system.F90 $
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
 
 !> Module for utility types and functions for working with coordinates in different coordinate systems.
 module coordinate_reference_system
@@ -56,11 +59,14 @@ module coordinate_reference_system
       ! TODO: AvD: support BYTE/short as well?
    end type nc_attribute
 
-   !> Container for information about coordinate reference system in a NetCDF-file.
+   !> Container for information about coordinate reference system in a netCDF-file.
    type t_crs
-      character(len=64)               :: varname = ' ' !< Name of the NetCDF variable containing this CRS
+      character(len=64)               :: varname = ' ' !< Name of the netCDF variable containing this CRS
+      character(len=64)               :: name = ' '    !< Name of the coordinate reference system, like "Amersfoort / RD New"
+      character(len=64)               :: grid_mapping_name = ' '    !< Name of the grid mapping
       integer                         :: epsg_code     !< EPSG code (more info: http://spatialreference.org/)
       character(len=1024)             :: proj_string   !< PROJ-string (more info: http://proj4.org)
+      character(len=1024)             :: wkt   !< Well Known Text
       type(nc_attribute), allocatable :: attset(:)     !< General set with all/any attributes about this CRS.
    end type t_crs
 
@@ -78,11 +84,12 @@ module coordinate_reference_system
 !! 4. The first variable that has an attribute :grid_mapping_name
 function find_grid_mapping_var(ncid, varid, preferred_name) result(ierr)
    integer,                    intent(in   ) :: ncid           !< NetCDF dataset id
-   integer,                    intent(  out) :: varid          !< The NetCDF variable ID pointing to the grid mapping variable, if found,
+   integer,                    intent(  out) :: varid          !< The NetCDF variable ID pointing to the grid mapping variable, if found (1-based).
    character(len=*), optional, intent(in   ) :: preferred_name !< Searches first for the given variable name, before trying the defaults.
    integer                                   :: ierr           !< Result status (IONC_NOERR==NF90_NOERR) if successful.
 
-   integer :: i, numvar
+   integer :: numvar        !< number of variables in the netCDF file.
+   integer :: loc_varid     !< The NetCDF variable ID used in loop (1-based).
    logical :: found
 
    ierr = 0 ! TODO: AvD: into separate ionc_constants.F90
@@ -125,10 +132,10 @@ function find_grid_mapping_var(ncid, varid, preferred_name) result(ierr)
 
    ! 4. remaining variables
    ierr = nf90_inquire(ncid, nVariables = numvar)
-   do i=1,numvar
-      found = is_grid_mapping(ncid, i)
+   do loc_varid = 1,numvar
+      found = is_grid_mapping(ncid, loc_varid)
       if (found) then
-         varid = i
+         varid = loc_varid
          return
       end if
    end do
@@ -232,10 +239,10 @@ end function get_proj_string_from_epsg
       type(pj_object)     :: projection !< coordinate system object.
       character(len=1024) :: message !< Temporary variable for writing log messages.
 
-      call mess(LEVEL_INFO, trim(message))
       projection = pj_init_plus(trim(proj_string)//char(0))
       if (.not. pj_associated(projection)) then
-         call mess(LEVEL_ERROR, trim(message))
+         message = 'get_projection: could not initialize projection for proj_string '''//trim(proj_string)//'''.'
+         call mess(LEVEL_WARN, trim(message))
          return
       endif
    end function
@@ -262,7 +269,7 @@ end function get_proj_string_from_epsg
       dst_x = src_x
       dst_y = src_y
 
-      if (pj_is_latlong(src_projection)) then ! If source is spherical coordinate system.
+      if (pj_is_latlong(src_projection) == 1) then ! If source is spherical coordinate system.
          ! Convert degrees to radians.
          dst_x = dst_x*pj_deg_to_rad
          dst_y = dst_y*pj_deg_to_rad
@@ -279,7 +286,7 @@ end function get_proj_string_from_epsg
          return
       endif
 
-      if (pj_is_latlong(dst_projection)) then ! If destination is spherical coordinate system.
+      if (pj_is_latlong(dst_projection) == 1) then ! If destination is spherical coordinate system.
          ! Convert radians to degrees.
          dst_x = dst_x*pj_rad_to_deg
          dst_y = dst_y*pj_rad_to_deg
@@ -307,10 +314,57 @@ end function get_proj_string_from_epsg
       src_projection = get_projection(src_proj_string)
       dst_projection = get_projection(dst_proj_string)
 
-      call transform(src_projection, dst_projection, src_x, src_y, dst_x, dst_y)
+      if (pj_associated(src_projection) .and. pj_associated(dst_projection)) then
+         call transform(src_projection, dst_projection, src_x, src_y, dst_x, dst_y)
+      end if
 
       call pj_free(src_projection)
       call pj_free(dst_projection)
+   end subroutine
+
+   !> Transforms input arrays of projected x/y coordinates into lon/lat coordinates and directly writes them to a NetCDF dataset.
+   subroutine transform_and_put_latlon_coordinates(ncid, varid_lon, varid_lat, src_proj_string, src_x, src_y, start, count)
+      use proj
+
+      implicit none
+
+      integer,                                         intent(in) :: ncid            !< NetCDF data set id.
+      integer,                                         intent(in) :: varid_lon       !< NetCDF varid for longitude coordinates.
+      integer,                                         intent(in) :: varid_lat       !< NetCDF varid for latitude coordinates.
+      character(len=*),                                intent(in) :: src_proj_string !< proj4 string describing source coordinate system.
+      real(kind=kind(1.0d00)), dimension(:),           intent(in) :: src_x           !< x coordinates to transform in degrees/meters.
+      real(kind=kind(1.0d00)), dimension(:),           intent(in) :: src_y           !< y coordinates to transform in degrees/meters.
+      integer,                 dimension(:), optional, intent(in) :: start           !< start index array for writing the lon/lat coordinates
+      integer,                 dimension(:), optional, intent(in) :: count           !< count array for writing the lon/lat coordinates
+      
+
+      real(kind=kind(1d0)), dimension(:), allocatable :: lon, lat
+      integer :: ierr
+      integer, dimension(:), allocatable :: start_, count_
+
+      if (present(start)) then
+         allocate(start_(size(start)))
+         start_ = start
+      else
+         allocate(start_(1))
+         start_ = 1
+      end if
+      if (present(count)) then
+         allocate(count_(size(count)))
+         count_ = count
+      else
+         allocate(count_(1))
+         count_ = size(src_x)
+      end if
+
+      allocate(lon(size(src_x)))
+      allocate(lat(size(src_y)))
+
+!   if (add_latlon) then ! If x,y are not in WGS84 system, then add mandatory additional lon/lat coordinates.
+      call transform_coordinates(src_proj_string, WGS84_PROJ_STRING, src_x, src_y, lon, lat)
+      ierr = nf90_put_var(ncid, varid_lon, lon, start = start_, count = count_)
+      ierr = nf90_put_var(ncid, varid_lat, lat, start = start_, count = count_)
+!   end if
    end subroutine
 #endif
 

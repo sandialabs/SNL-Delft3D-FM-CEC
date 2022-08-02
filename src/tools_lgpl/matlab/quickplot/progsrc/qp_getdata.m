@@ -44,10 +44,11 @@ function [varargout]=qp_getdata(varargin)
 %      [Success]                       = QP_GETDATA(FI,'options',OptionsFigure,'initialize')
 %      [Success,NewFI     ,cmdargs]    = QP_GETDATA(FI,'options',OptionsFigure,OptionsCommand, ...)
 %      [Success,hNew      ,NewFI]      = QP_GETDATA(FI,Domain,DataFld,'plot',Parent,Ops,hOld,subf,t,station,m,n,k)
+%      [Success,Options   ]            = QP_GETDATA(FI,Domain,DataFld,'plotoptions',subf,t,station,m,n,k)
 
 %----- LGPL --------------------------------------------------------------------
 %
-%   Copyright (C) 2011-2020 Stichting Deltares.
+%   Copyright (C) 2011-2022 Stichting Deltares.
 %
 %   This library is free software; you can redistribute it and/or
 %   modify it under the terms of the GNU Lesser General Public
@@ -72,8 +73,8 @@ function [varargout]=qp_getdata(varargin)
 %
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/qp_getdata.m $
-%   $Id: qp_getdata.m 65941 2020-02-06 15:16:00Z jagers $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/tools_lgpl/matlab/quickplot/progsrc/qp_getdata.m $
+%   $Id: qp_getdata.m 140618 2022-01-12 13:12:04Z klapwijk $
 
 %
 % Initialize output array. Set the Success flag to 0.
@@ -164,6 +165,7 @@ try
             % [Success,StNames   ]            = QP_GETDATA(FI,Domain,DataFld,'stations',S)
             % [Success,SubFields ]            = QP_GETDATA(FI,Domain,DataFld,'subfields',F)
             % [Success,hNew      ]            = QP_GETDATA(FI,Domain,DataFld,'plot',Parent,Ops,hOld,subf,t,station,m,n,k)
+            % [Success,Options   ]            = QP_GETDATA(FI,Domain,DataFld,'plotoptions',subf,t,station,m,n,k)
             % [Success,Data      ]            = QP_GETDATA(FI,Domain,DataFld,'data',subf,t,station,m,n,k)
             %
             % Check for domain index ... add if necessary

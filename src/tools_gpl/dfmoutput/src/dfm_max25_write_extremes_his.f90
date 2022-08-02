@@ -27,9 +27,8 @@ module write_extremes_his
 ! *******************************************************************************
 implicit none
 
-private :: is_above_threshold, write_val2string, write_mean_nloc_2string, &
-           write_mean_range_2string
-public  :: write_extremes_statloop, write_extremes_stat, write_extremes_header
+private :: is_above_threshold, write_mean_nloc_2string, write_mean_range_2string
+public  :: write_extremes_statloop, write_extremes_stat, write_extremes_header, write_val2string
 
 contains
 
@@ -131,7 +130,7 @@ integer            :: j              ! loop counter
 integer            :: nhisf          ! number of values in the time series
 integer            :: iloc           ! location of the element in an array
 integer            :: nloc           ! number of locations
-character(len=510) :: str_val        ! string with 'values'
+character(len=800) :: str_val        ! string with 'values'
 integer            :: ib, ie         ! start and end index in an array
 !==============================================================================
    nhisf = size(rdata)
@@ -179,7 +178,7 @@ integer            :: ib, ie         ! start and end index in an array
    end do
 
    ! write station name to string
-   write(str_val(k+2:), '(a)') stationsname
+   str_val(k+2:) = stationsname
 
    ! write string to file
    write(iunout, '(a)') trim(str_val)

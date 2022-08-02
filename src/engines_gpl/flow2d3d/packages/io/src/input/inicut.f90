@@ -7,7 +7,7 @@ subroutine inicut(lundia    ,error     ,runid     ,nmax      ,mmax      , &
                 & gdp       )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -31,8 +31,8 @@ subroutine inicut(lundia    ,error     ,runid     ,nmax      ,mmax      , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: inicut.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/io/src/input/inicut.f90 $
+!  $Id: inicut.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/flow2d3d/packages/io/src/input/inicut.f90 $
 !!--description-----------------------------------------------------------------
 !
 ! Reads the file that defines stair case (closed) boundary
@@ -177,7 +177,6 @@ subroutine inicut(lundia    ,error     ,runid     ,nmax      ,mmax      , &
     ! open unformatted scratch file for 45 degrees staircase boundary
     ! (see rdgrid)
     !
-    luntmp = newlun(gdp)
     filnam = 'TMP_' // fixid(1:lrid) // '.45'
     !
     ! append node number to file name in case of parallel computing within single-domain case
@@ -188,7 +187,7 @@ subroutine inicut(lundia    ,error     ,runid     ,nmax      ,mmax      , &
        write(filnam(7+lrid+1:7+lrid+linod),666) inode
     endif
     !
-    open (luntmp, file = filnam(:7 + lrid+linod), form = 'unformatted',     &
+    open (newunit=luntmp, file = filnam(:7 + lrid+linod), form = 'unformatted',     &
         & status = 'old')
         !
         ! --> read all points
@@ -285,7 +284,6 @@ subroutine inicut(lundia    ,error     ,runid     ,nmax      ,mmax      , &
     ! open unformatted scratch file for 1:n staircase boundary
     ! (see rdgrid)
     !
-    luntmp = newlun(gdp)
     filnam = 'TMP_' // fixid(1:lrid) // '.cut'
     !
     ! append node number to file name in case of parallel computing within single-domain case
@@ -296,7 +294,7 @@ subroutine inicut(lundia    ,error     ,runid     ,nmax      ,mmax      , &
        write(filnam(8+lrid+1:8+lrid+linod),666) inode
     endif
     !
-    open (luntmp, file = filnam(:8 + lrid+linod),                     &
+    open (newunit=luntmp, file = filnam(:8 + lrid+linod),                     &
         & form = 'unformatted', status = 'old')
         !
         ! --> read all points

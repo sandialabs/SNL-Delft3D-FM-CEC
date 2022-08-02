@@ -2,7 +2,7 @@ subroutine rwbcb(lundia    ,lunrd     ,filinp    ,error     ,itstrt    , &
                & itfinish  ,gdp       )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -26,8 +26,8 @@ subroutine rwbcb(lundia    ,lunrd     ,filinp    ,error     ,itstrt    , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: rwbcb.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/io/src/preprocessor/rwbcb.f90 $
+!  $Id: rwbcb.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/flow2d3d/packages/io/src/preprocessor/rwbcb.f90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: - Reads from BCB-file into temporary file
@@ -111,13 +111,12 @@ subroutine rwbcb(lundia    ,lunrd     ,filinp    ,error     ,itstrt    , &
     !-----Open output file
     !
     filout = 'TMP_Bar.bcb'
-    lunout = newlun(gdp)
     inquire (file = filout, exist = ex)
     if (ex) then
-       open (lunout, file = filout)
+       open (newunit=lunout, file = filout)
        close (lunout, status = 'delete')
     endif
-    open (lunout, file = filout, form = 'unformatted', status = 'unknown')
+    open (newunit=lunout, file = filout, form = 'unformatted', status = 'unknown')
     !
     !---- Read the data, check it and write the output file
     !

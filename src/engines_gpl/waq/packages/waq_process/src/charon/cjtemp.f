@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -34,7 +34,7 @@
 !        temperature.
 !        it recomputes c-value with delta(h),and also gives a new rt
 !        value
-      include  'char1.inc'
+      use m_char1
       data rv / .0239/
 ! convert r in 1.98719 to 83.147 cm3 bar /K. Mol
       tt = temp+273.16

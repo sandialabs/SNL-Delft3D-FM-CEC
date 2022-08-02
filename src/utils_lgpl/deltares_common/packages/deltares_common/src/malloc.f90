@@ -1,6 +1,6 @@
 !----- LGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This library is free software; you can redistribute it and/or                
 !  modify it under the terms of the GNU Lesser General Public                   
@@ -24,14 +24,14 @@
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: malloc.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/deltares_common/packages/deltares_common/src/malloc.f90 $
+!  $Id: malloc.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_lgpl/deltares_common/packages/deltares_common/src/malloc.f90 $
 !> Utility routines for memory (re)allocation.
 module m_alloc
 implicit none
 private 
 
-public realloc, reallocP, aerr
+public realloc, reallocP, aerr, allocSize
 
 ! TODO: Handle nondefault kinds properly? [AvD]
 
@@ -145,6 +145,11 @@ interface reallocP
    module procedure reallocPLogical3
    module procedure reallocPLogical4
 end interface
+
+interface allocSize
+   module procedure allocSizeDouble
+end interface
+
 contains
 !
 !
@@ -3395,5 +3400,20 @@ subroutine reallocByte2(arr, uindex, lindex, stat, fill, shift, keepExisting)
    if (present(stat)) stat = localErr
 end subroutine reallocByte2
 !
+
+!===============================================================================
+
+!> Determines size of an allocatable array, returning 0 when it is not allocated.
+function allocSizeDouble(arr) result(isize)
+   implicit none
+   double precision, allocatable, intent(inout) :: arr(:) !< Array for which the extent must be determined. Is allowed to be not allocated.
+   integer                                      :: isize  !< Array length, 0 when it was not allocated.
+
+   if (allocated(arr)) then
+      isize = size(arr)
+   else
+      isize = 0
+   end if
+end function allocSizeDouble
 
 end module m_alloc

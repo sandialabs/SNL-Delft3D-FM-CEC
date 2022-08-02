@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -35,45 +35,6 @@
 !>                         Method has the option to treat additional velocities, like
 !>                         settling of suspended matter, upwind to avoid wiggles.\n
 
-C     CREATED            : jan  1996 by R.J. Vos and Jan van Beek
-C
-C     LOGICAL UNITS      : LUN(19) , output, monitoring file
-C                          LUN(20) , output, formatted dump file
-C                          LUN(21) , output, unformatted hist. file
-C                          LUN(22) , output, unformatted dump file
-C                          LUN(23) , output, unformatted dump file
-C
-C     SUBROUTINES CALLED : DLWQTR, user transport routine
-C                          DLWQWQ, user waterquality routine
-C                          PROCES, DELWAQ proces system
-C                          DLWQO2, DELWAQ output system
-C                          DLWQPP, user postprocessing routine
-C                          DLWQ13, system postpro-dump routine
-C                          DLWQ14, scales waterquality
-C                          DLWQ15, wasteload routine
-C                          DLWQ17, boundary routine
-C                          DLWQ50, explicit derivative
-C                          DLWQ51, flux correction
-C                          DLWQ52, makes masses and concentrations
-C                          DLWQ41, update volumes
-C                          DLWQ42, set explicit step
-C                          DLWQD1, implicit step for the vertical
-C                          DLWQ44, update arrays
-C                          DLWQT0, update other time functions
-C                          PROINT, integration of fluxes
-C                          DHOPNF, opens files
-C                          ZERCUM, zero's the cummulative array's
-C
-C     PARAMETERS    :
-C
-C     NAME    KIND     LENGTH   FUNC.  DESCRIPTION
-C     ---------------------------------------------------------
-C     A       REAL       *      LOCAL  real      workspace array
-C     J       INTEGER    *      LOCAL  integer   workspace array
-C     C       CHARACTER  *      LOCAL  character workspace array
-C     LUN     INTEGER    *      INPUT  array with unit numbers
-C     LCHAR   CHAR*(*)   *      INPUT  filenames
-C
       use grids
       use timers
       use m_couplib
@@ -82,10 +43,17 @@ C
       use m_openda_exchange_items, only : get_openda_buffer
       use report_progress
       use waqmem          ! module with the more recently added arrays
-
+      use m_actions
+      use m_sysn          ! System characteristics
+      use m_sysi          ! Timer characteristics
+      use m_sysa          ! Pointers in real array workspace
+      use m_sysj          ! Pointers in integer array workspace
+      use m_sysc          ! Pointers in character array workspace
+      use m_dlwqdata_save_restore
+      
       implicit none
 
-      include 'actions.inc'
+
 C
 C     Declaration of arguments
 C
@@ -98,52 +66,22 @@ C
       TYPE(DELWAQ_DATA), TARGET   :: DLWQD
       type(GridPointerColl)       :: GridPs               ! collection of all grid definitions
 
-C
-C     COMMON  /  SYSN   /   System characteristics
-C
-      INCLUDE 'sysn.inc'
-C
-C     COMMON  /  SYSI  /    Timer characteristics
-C
-      INCLUDE 'sysi.inc'
-C
-C     COMMON  /  SYSA   /   Pointers in real array workspace
-C
-      INCLUDE 'sysa.inc'
-C
-C     COMMON  /  SYSJ   /   Pointers in integer array workspace
-C
-      INCLUDE 'sysj.inc'
-C
-C     COMMON  /  SYSC   /   Pointers in character array workspace
-C
-      INCLUDE 'sysc.inc'
+
 C
 C     Local declarations
 C
       LOGICAL         IMFLAG , IDFLAG , IHFLAG
-      LOGICAL         LDUMMY , LSTREC , LREWIN , LDUMM2
-      LOGICAL         FORESTER
+      LOGICAL         LREWIN , LDUMM2
       REAL            RDUMMY(1)
-      INTEGER         IFFLAG
-      INTEGER         IAFLAG
-      INTEGER         IBFLAG
-      INTEGER         NDDIM
-      INTEGER         NVDIM
-      INTEGER         INWTYP
-      INTEGER         ITIME
       INTEGER         NSTEP
-      INTEGER         NOWARN
       INTEGER         IBND
       INTEGER         ISYS
       INTEGER         IERROR
 
-      INTEGER         NOQT
       INTEGER         LAREA
       INTEGER         LDISP
       INTEGER         LDIFF
       INTEGER         LFLOW
-      INTEGER         LLENG
       INTEGER         LNOQ
       INTEGER         LQDMP
       INTEGER         LVELO
@@ -151,22 +89,9 @@ C
       INTEGER         sindex
       integer         i
 
-      integer          :: ithandl
-      !
-      ! Dummy variables - used in DLWQD
-      !
-      integer          :: ioptzb
-      integer          :: nosss
-      integer          :: noqtt
-      integer          :: nopred
-      integer          :: itimel
-      logical          :: updatr
-      real(kind=kind(1.0d0)) :: tol
-
-      include 'state_data.inc'
 
       if ( action == ACTION_FINALISATION ) then
-          include 'dlwqdata_restore.inc'
+          call dlwqdata_restore(dlwqd)
           if ( timon ) call timstrt ( "dlwqnp", ithandl )
           goto 20
       endif
@@ -216,13 +141,13 @@ C     properly initialised and restored
 C
       IF ( ACTION == ACTION_INITIALISATION ) THEN
           if ( timon ) call timstrt ( "dlwqnp", ithandl )
-          INCLUDE 'dlwqdata_save.inc'
+          call dlwqdata_save(dlwqd)
           if ( timon ) call timstop ( ithandl )
           RETURN
       ENDIF
 
       IF ( ACTION == ACTION_SINGLESTEP ) THEN
-          INCLUDE 'dlwqdata_restore.inc'
+          call dlwqdata_restore(dlwqd)
           call apply_operations( dlwqd )
       ENDIF
 

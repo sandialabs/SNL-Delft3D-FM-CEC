@@ -10,7 +10,7 @@ function Out=telemac(cmd,varargin)
 
 %----- LGPL --------------------------------------------------------------------
 %                                                                               
-%   Copyright (C) 2011-2020 Stichting Deltares.                                     
+%   Copyright (C) 2011-2022 Stichting Deltares.                                     
 %                                                                               
 %   This library is free software; you can redistribute it and/or                
 %   modify it under the terms of the GNU Lesser General Public                   
@@ -35,8 +35,8 @@ function Out=telemac(cmd,varargin)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/private/telemac.m $
-%   $Id: telemac.m 65778 2020-01-14 14:07:42Z mourits $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/tools_lgpl/matlab/quickplot/progsrc/private/telemac.m $
+%   $Id: telemac.m 140618 2022-01-12 13:12:04Z klapwijk $
 
 switch cmd
     case 'open'
@@ -62,7 +62,7 @@ end
 
 Struct.FileName   = filename;
 Struct.Endianness = 'b';
-fid=fopen(Struct.FileName,'r','b');
+fid=fopen(Struct.FileName,'r','b','US-ASCII');
 if fid<0
     return
 end
@@ -72,7 +72,7 @@ if NBytes==80
 else
     fclose(fid);
     Struct.Endianness = 'l';
-    fid=fopen(Struct.FileName,'r','l');
+    fid=fopen(Struct.FileName,'r','l','US-ASCII');
 end
 
 % 1 record containing the title of the study (72 characters) and a 8
@@ -203,7 +203,7 @@ Struct.Check='OK';
 
 
 function clidata = telemac_opencli(filename)
-fid=fopen(filename,'r');
+fid=fopen(filename,'r','n','US-ASCII');
 if fid<0
     clidata = [];
     return
@@ -243,7 +243,7 @@ function Data=telemac_read(Struct,time,var,pnts)
 if any(time>Struct.NTimes)
     error('Time step number too large.')
 end
-fid=fopen(Struct.FileName,'r',Struct.Endianness);
+fid=fopen(Struct.FileName,'r',Struct.Endianness,'US-ASCII');
 if fid<0
     error('Cannot open data file.')
 end

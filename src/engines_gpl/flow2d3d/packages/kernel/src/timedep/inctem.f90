@@ -1,7 +1,7 @@
 subroutine inctem(ktemp     ,timnow    ,temint    ,gdp       )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -25,8 +25,8 @@ subroutine inctem(ktemp     ,timnow    ,temint    ,gdp       )
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: inctem.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/kernel/src/timedep/inctem.f90 $
+!  $Id: inctem.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/flow2d3d/packages/kernel/src/timedep/inctem.f90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: Determine increments and updates the current time
@@ -40,6 +40,7 @@ subroutine inctem(ktemp     ,timnow    ,temint    ,gdp       )
 ! NONE
 !!--declarations----------------------------------------------------------------
     use precision
+    use physicalconsts, only: CtoKelvin
     !
     use globaldata
     !
@@ -94,6 +95,8 @@ subroutine inctem(ktemp     ,timnow    ,temint    ,gdp       )
     real(fp) :: alpha  ! Interpolation factor; valid interval [0,1]
     logical  :: first  ! Flag = TRUE in case a time-dependent file is read for the 1st time 
     logical  :: inttem ! Interpolation method between consecutive temperature data: N = No interpolation. Y = Linear interpolation. 
+    real(fp), parameter :: fCtoKelvin = real(CtoKelvin, fp) ! conversion offset between Celsius and Kelvin
+
 !
 !! executable statements -------------------------------------------------------
 !
@@ -179,9 +182,9 @@ subroutine inctem(ktemp     ,timnow    ,temint    ,gdp       )
     ! will be calculated See also EASP in the routine HEATU
     !
     if (ktemp <= 2) then
-       vapres = 23.38_fp * (rhum/100.0_fp) * exp(18.1_fp - 5303.3_fp/(tdryb + 273.15_fp))
+       vapres = 23.38_fp * (rhum/100.0_fp) * exp(18.1_fp - 5303.3_fp/(tdryb + fCtoKelvin))
     elseif (ktemp == 4 .and. ivapop == 0) then
-       vapres = 23.38_fp * (rhum/100.0_fp) * exp(18.1_fp - 5303.3_fp/(tair + 273.15_fp))
+       vapres = 23.38_fp * (rhum/100.0_fp) * exp(18.1_fp - 5303.3_fp/(tair + fCtoKelvin))
     else
     endif
 end subroutine inctem

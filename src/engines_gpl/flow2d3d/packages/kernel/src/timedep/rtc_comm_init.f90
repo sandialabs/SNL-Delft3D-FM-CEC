@@ -2,7 +2,7 @@ subroutine rtc_comm_init(error     ,nambar    ,namcon    ,namsrc    , &
                        & cbuvrt    ,gdp       )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -26,8 +26,8 @@ subroutine rtc_comm_init(error     ,nambar    ,namcon    ,namsrc    , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: rtc_comm_init.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/kernel/src/timedep/rtc_comm_init.f90 $
+!  $Id: rtc_comm_init.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/flow2d3d/packages/kernel/src/timedep/rtc_comm_init.f90 $
 !!--description-----------------------------------------------------------------
 !
 ! This routine initializes the communication with the RTC module
@@ -292,6 +292,7 @@ subroutine rtc_comm_init(error     ,nambar    ,namcon    ,namsrc    , &
       if (error) then
          rtcact = noRTC
          call prterr(lundia    ,'J020'    ,'SyncFlowRtc_Init'   )
+         write(lundia, '(A)') '***       The dioconfig.ini file might be missing ...'
       else
          rtcact = RTCmodule
       endif

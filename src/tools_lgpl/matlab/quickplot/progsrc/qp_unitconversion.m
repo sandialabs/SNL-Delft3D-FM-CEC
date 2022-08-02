@@ -40,7 +40,7 @@ function varargout=qp_unitconversion(varargin)
 
 %----- LGPL --------------------------------------------------------------------
 %                                                                               
-%   Copyright (C) 2011-2020 Stichting Deltares.                                     
+%   Copyright (C) 2011-2022 Stichting Deltares.                                     
 %                                                                               
 %   This library is free software; you can redistribute it and/or                
 %   modify it under the terms of the GNU Lesser General Public                   
@@ -65,8 +65,8 @@ function varargout=qp_unitconversion(varargin)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/qp_unitconversion.m $
-%   $Id: qp_unitconversion.m 65778 2020-01-14 14:07:42Z mourits $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/tools_lgpl/matlab/quickplot/progsrc/qp_unitconversion.m $
+%   $Id: qp_unitconversion.m 140618 2022-01-12 13:12:04Z klapwijk $
 
 persistent unittableread
 if isempty(unittableread)
@@ -622,7 +622,7 @@ while anychange && any(~identified)
     for i=i_notidentified
         j=size(table{4},1);
         Def=inifile('get',UNIT,i,'definition','');
-        Names=inifile('get',UNIT,i,'name','');
+        [Names,iChap]=inifile('cgetstring',UNIT,i,'name');
         if isempty(Names)
             identified(i)=1;
             if ~strcmpi(units{i},'general')
@@ -636,9 +636,6 @@ while anychange && any(~identified)
                 'No definition for %s in chapter #%i: %s', ...
                 list2string(Names),i,units{i})
         else
-            if ~iscell(Names)
-                Names={Names};
-            end
             if ischar(Def)
                 try
                     [factor,si]=parse(Def,true);

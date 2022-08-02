@@ -1,7 +1,7 @@
 module m_readObservationPoints
 !----- AGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2017-2020.                                
+!  Copyright (C)  Stichting Deltares, 2017-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify              
 !  it under the terms of the GNU Affero General Public License as               
@@ -25,8 +25,8 @@ module m_readObservationPoints
 !  Stichting Deltares. All rights reserved.
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: readObservationPoints.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_gpl/flow1d/packages/flow1d_io/src/readObservationPoints.f90 $
+!  $Id: readObservationPoints.f90 141250 2022-05-18 07:57:41Z dam_ar $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_gpl/flow1d/packages/flow1d_io/src/readObservationPoints.f90 $
 !-------------------------------------------------------------------------------
 
    use MessageHandling
@@ -36,7 +36,6 @@ module m_readObservationPoints
 
    use properties
    use m_hash_search
-   use m_hash_list
    use string_module
 
    implicit none
@@ -44,8 +43,6 @@ module m_readObservationPoints
    private
 
    public readObservationPoints
-   public read_obs_point_cache
-   public write_obs_point_cache
 
    !> The file version number of the observation points file format: d.dd, [config_major].[config_minor], e.g., 1.03
    !!
@@ -94,11 +91,13 @@ module m_readObservationPoints
       type(t_ObservationPoint), pointer     :: pOPnt
       integer                               :: pos
       integer                               :: ibin = 0
-      character(len=Charln)                 :: binfile
+     ! character(len=IdLen)                 :: binfile
       logical                               :: file_exist
       integer                               :: formatbr       ! =1: use branchid and chainage, =0: use xy coordinate and LocationType
       integer                               :: major, minor, ierr
       
+      call SetMessage(LEVEL_INFO, 'Reading Observation Points from '''//trim(observationPointsFile)//'''...')
+
       xx       = dmiss
       yy       = dmiss
       Chainage = dmiss
@@ -109,21 +108,6 @@ module m_readObservationPoints
       obsPointID   = ''
       obsPointName = ''
       
-      pos = index(observationPointsFile, '.', back = .true.)
-      binfile = observationPointsFile(1:pos)//'cache'
-      inquire(file=binfile, exist=file_exist)
-      if (doReadCache .and. file_exist) then
-         open(newunit=ibin, file=binfile, status='old', form='unformatted', access='stream', action='read', iostat=istat)
-         if (istat /= 0) then
-            call setmessage(LEVEL_FATAL, 'Error opening Observation Point Cache file')
-            ibin = 0
-         endif
-         call read_obs_point_cache(ibin, network)
-         close(ibin)
-         ibin = 0
-         return
-      endif
-
       call tree_create(trim(observationPointsFile), md_ptr, maxlenpar)
       call prop_file('ini',trim(observationPointsFile),md_ptr, istat)
       
@@ -176,11 +160,12 @@ module m_readObservationPoints
                end if
                
                if (.not. success) then
-                  call SetMessage(LEVEL_ERROR, 'Error Reading Observation Point '''//trim(obsPointName)//'''')
+                  call SetMessage(LEVEL_ERROR, 'Error Reading Observation Point '''//trim(obsPointName)//''', location input is invalid.')
                   cycle
                end if
             else
-               call SetMessage(LEVEL_ERROR, 'Error Reading the name of Observation Point. ')
+               write (msgbuf, '(a,i0,a)') 'Error Reading Observation Point #', (i-1), ', name is missing.'
+               call err_flush()
                cycle
             end if
       
@@ -196,10 +181,16 @@ module m_readObservationPoints
             pOPnt%name      = obsPointName
             if (formatbr == 1) then
                branchIdx = hashsearch(network%brs%hashlist, branchID)
-               pOPnt%branch    => network%brs%branch(branchIdx)
-               pOPnt%branchIdx = branchIdx
-               pOPnt%chainage  = Chainage                
-               pOPnt%locationtype = loctype ! ==INDTP_1D
+               if (branchIdx == -1) then
+                  msgbuf = 'Error Reading Observation Point '''//trim(obsPointName)//''' from file ''' // &
+                           trim(observationPointsFile)//''', the branchId '''//trim(branchId)//''' does not exist.'
+                  call err_flush()
+               else
+                  pOPnt%branch    => network%brs%branch(branchIdx)
+                  pOPnt%branchIdx = branchIdx
+                  pOPnt%chainage  = Chainage                
+                  pOPnt%locationtype = loctype ! ==INDTP_1D
+               end if
             else
                pOPnt%x         = xx
                pOPnt%y         = yy
@@ -219,71 +210,6 @@ module m_readObservationPoints
 
    end subroutine readObservationPoints
 
-   subroutine read_obs_point_cache(ibin, network)
-   
-      type(t_network), intent(inout)         :: network
-      integer, intent(in)                    :: ibin
-      
-      integer                           :: i
-      type(t_ObservationPoint), pointer :: pobs
-
-      read(ibin) network%obs%count
-      network%obs%growsby = network%obs%count + 2
-      call realloc(network%obs)
-
-      do i = 1, network%obs%count
-      
-         pobs => network%obs%OPnt(i)
-         
-         read(ibin) pobs%id 
-         read(ibin) pobs%name 
-         read(ibin) pobs%p1
-         read(ibin) pobs%p2
-         read(ibin) pobs%pointWeight
-         read(ibin) pobs%l1
-         read(ibin) pobs%l2
-         read(ibin) pobs%linkWeight
-         read(ibin) pobs%branchIdx
-         pobs%branch => network%brs%branch(pobs%branchIdx)
-         read(ibin) pobs%chainage
-
-      enddo
-      
-      call read_hash_list_cache(ibin, network%obs%hashlist)
-         
-   end subroutine read_obs_point_cache
-   
-   subroutine write_obs_point_cache(ibin, obs)
-   
-      type(t_ObservationPointSet), intent(in)  :: obs
-      integer, intent(in)                      :: ibin
-      
-      integer                           :: i
-      type(t_ObservationPoint), pointer :: pobs
-      
-      write(ibin) obs%Count
-
-      do i = 1, obs%Count
-      
-         pobs => obs%OPnt(i)
-
-         write(ibin) pobs%id 
-         write(ibin) pobs%name 
-         write(ibin) pobs%p1
-         write(ibin) pobs%p2
-         write(ibin) pobs%pointWeight          
-         write(ibin) pobs%l1
-         write(ibin) pobs%l2
-         write(ibin) pobs%linkWeight
-         write(ibin) pobs%branchIdx
-         write(ibin) pobs%chainage
-        
-      enddo
-      
-      call write_hash_list_cache(ibin, obs%hashlist)
-      
-   end subroutine write_obs_point_cache
-   
    !> Converts a location type as text string into the integer parameter constant.
    !! E.g. INDTP_1D, etc. If input string is invalid, -1 is returned.
    subroutine locationTypeStringToInteger(slocType, ilocType)

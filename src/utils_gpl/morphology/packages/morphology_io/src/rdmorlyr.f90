@@ -1,7 +1,7 @@
 module m_rdmorlyr
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -25,8 +25,8 @@ module m_rdmorlyr
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: rdmorlyr.f90 65825 2020-01-21 11:02:44Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_gpl/morphology/packages/morphology_io/src/rdmorlyr.f90 $
+!  $Id: rdmorlyr.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_gpl/morphology/packages/morphology_io/src/rdmorlyr.f90 $
 !-------------------------------------------------------------------------------
 use m_depfil_stm
 contains
@@ -50,7 +50,7 @@ subroutine rdmorlyr(lundia    ,error     ,filmor    , &
     !
     implicit none
 !
-! Call variables
+! Arguments
 !
     integer                                         , intent(in)  :: lsedtot  !  Description and declaration in esm_alloc_int.f90
     integer                                                       :: lundia   !  Description and declaration in inout.igs
@@ -767,7 +767,8 @@ subroutine rdmorlyr(lundia    ,error     ,filmor    , &
        txtput2 = 'from sediment file'
        write(lundia,'(2a,a20)') txtput1, ':', trim(txtput2)
     else
-       write(lundia,'(2a,a20)') txtput1, ':', trim(flcomp)
+       txtput2 = 'from IniComp file -'
+       write(lundia,'(3a)') txtput1, ':', trim(flcomp)
     endif
     !
     write (lundia, '(a)') '*** End    of underlayer input'
@@ -1924,13 +1925,24 @@ subroutine rdinimorlyr(lsedtot   ,lsed      ,lundia    ,error     , &
                    return
                 endif
                 !
+                ! Copy data to open boundary points
+                ! 
+                do ibnd = 1, size(dims%nmbnd,1)
+                   nm  = dims%nmbnd(ibnd,1)
+                   nm2 = dims%nmbnd(ibnd,2)
+                   svfrac(ilyr, nm) = svfrac(ilyr, nm2)
+                   thlyr(ilyr, nm) = thlyr(ilyr, nm2)
+                   do ised = 1, lsedtot
+                      msed(ised, ilyr, nm) = msed(ised, ilyr, nm2)
+                   enddo
+                enddo             
              enddo
              !
              deallocate(rtemp , stat = istat)
              deallocate(thtemp, stat = istat)
              !
           else
-             write (message,'(2a)') 'Invalid file version of ', trim(flcomp)
+             write (message,'(3a)') 'Invalid file version of ', trim(flcomp), '. Expecting [BedCompositionFileInformation] FileVersion = 01.00 or 02.00'
              call mess(LEVEL_ERROR, message)  
              error = .true.
              return          

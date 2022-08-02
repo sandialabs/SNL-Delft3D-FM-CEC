@@ -61,6 +61,10 @@ fi
 scriptdirname=`readlink \-f \$0`
 scriptdir=`dirname $scriptdirname`
 D3D_HOME=$scriptdir/..
+
+module load intelmpi/21.2.0 &>/dev/null
+export FI_PROVIDER=tcp
+
 #
 #
 #
@@ -70,9 +74,9 @@ D3D_HOME=$scriptdir/..
 MACHINE_TYPE=`uname -m`
  
 if [ $mpirun -eq 1 ]; then
-    SWANEXEC=${D3D_HOME}/bin/swan_mpi.exe
+    SWANEXEC=${D3D_HOME}/bin/swan_mpi
 else
-    SWANEXEC=${D3D_HOME}/bin/swan_omp.exe
+    SWANEXEC=${D3D_HOME}/bin/swan_omp
   #
   # swan40.72AB and newer runs parallel using OpenMP, using the total number of cores on the machine by default
   # Two ways to force the number of parallel processes:

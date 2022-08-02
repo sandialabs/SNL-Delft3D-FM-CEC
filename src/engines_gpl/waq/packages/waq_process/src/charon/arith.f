@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -42,8 +42,7 @@
 !              bar, divide, leave, matinv, phcalc, rcalc
 !           arith uses double precision version of
 !              abs, exp, sqrt
-      include  'char1.inc'
-      equivalence (v3(1),aneg(1)), (v4(1),pos(1))
+      use m_char1
       dimension aneg(1), pos(1)
       common /ovflo/ anumbr, anumlg, aquot, iquot
       iopt = 0

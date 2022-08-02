@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -65,6 +65,7 @@ subroutine test_iniField1dField
     double precision          :: chai
     type(t_branch), pointer   :: pbr
     character(len=256)        :: brId
+    character(len=40)         :: mdufile
     integer                   :: checkibr(5)
     ! reference: initial water levels
     data refs1_br4 /8.0,8.0,8.935625, 10.115884705882353,10.925428235294117,11.0/
@@ -86,7 +87,8 @@ subroutine test_iniField1dField
     call resetFullFlowModel()
     !
     istat = CHANGEDIRQQ("IniField1dField")
-    call loadModel('Flow1D.mdu')
+    mdufile = 'Flow1D.mdu'
+    call loadModel(mdufile)
     istat = flow_modelinit()
     istat = CHANGEDIRQQ("..")
     
@@ -125,6 +127,7 @@ subroutine test_iniField1dField
        chai = pbr%gridPointsChainages(i)
        ierr = findnode(brid, chai, k) ! find flownode/netnode index given branchId and chainage
        if (ierr == DFM_NOERR) then
+          ! TODO: UNST-5013: check for nodenr <= 0 in partitioned models.
           call assert_comparable(s1(k), refs1_br10, eps, 'initial waterlevel on branch 4 incorrect' )
        else
           write(msgbuf,'(a, g11.4,a)') 'Error when finding the flow link/node which locates on branch '''//trim(brId)//''' and chainage =', chai , '.'
@@ -140,6 +143,7 @@ subroutine test_iniField1dField
        chai = pbr%gridPointsChainages(2)
        ierr = findnode(brid, chai, k) ! find flownode/netnode index given branchId and chainage
        if (ierr == DFM_NOERR) then
+          ! TODO: UNST-5013: check for nodenr <= 0 in partitioned models.
           call assert_comparable(s1(k), refs1_other, eps, 'initial waterlevel on other branches incorrect' )
        else
           write(msgbuf,'(a, g11.4,a)') 'Error when finding the flow link/node which locates on branch '''//trim(brId)//''' and chainage =', chai , '.'
@@ -174,6 +178,7 @@ subroutine test_iniField1dField_waterdepth
     integer                                     :: i
     integer                                     :: istat, ierr
     double precision, dimension(:), allocatable :: refs1
+    character(len=40)                           :: mdufile
     !
     ! Body
     jampi = 0
@@ -342,7 +347,8 @@ subroutine test_iniField1dField_waterdepth
     call resetFullFlowModel()
     !
     istat = CHANGEDIRQQ("IniField1dField_waterdepth")
-    call loadModel('dflow1d.mdu')
+    mdufile = 'dflow1d.mdu'
+    call loadModel(mdufile)
     istat = flow_modelinit()
     istat = CHANGEDIRQQ("..")
     
@@ -377,6 +383,7 @@ subroutine test_iniField1dField_waterlevel
     integer                                     :: istat, ierr
     double precision                            :: deltas
     double precision, dimension(:), allocatable :: refs1
+    character(len=40)                           :: mdufile
     !
     ! Body
     jampi = 0
@@ -546,7 +553,8 @@ subroutine test_iniField1dField_waterlevel
     call resetFullFlowModel()
     !
     istat = CHANGEDIRQQ("IniField1dField_waterlevel")
-    call loadModel('dflow1d.mdu')
+    mdufile = 'dflow1d.mdu'
+    call loadModel(mdufile)
     istat = flow_modelinit()
     istat = CHANGEDIRQQ("..")
     

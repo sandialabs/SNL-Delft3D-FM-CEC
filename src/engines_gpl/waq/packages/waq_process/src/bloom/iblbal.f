@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -24,6 +24,7 @@
       subroutine iblbal( ntyp_m, ntyp_a, algtyp, ipoint)
       
       use bloom_data_mass_balance
+      use m_sysa
       
       implicit none
 !
@@ -41,8 +42,6 @@
 !                     index 16 is NC-ratio detritus uptake
 !                     index 17 is PC-ratio detritus uptake
 !                     index 18 is NC-ratio N fixers
-!
-      include 'sysa.inc'
 !
       ntypa2 = ntyp_a
       do ialg = 1 , ntyp_a

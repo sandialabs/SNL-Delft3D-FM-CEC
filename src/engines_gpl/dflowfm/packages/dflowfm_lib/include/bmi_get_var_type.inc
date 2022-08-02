@@ -1,6 +1,6 @@
 !----- AGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2015-2020.                                
+!  Copyright (C)  Stichting Deltares, 2015-2022.                                
 !                                                                               
 !  This file is part of Delft3D (D-Flow Flexible Mesh component).               
 !                                                                               
@@ -37,6 +37,36 @@ select case(var_name)
   case("twav")
     type_name = "double"
   case("Uorb")
+    type_name = "double"
+  case("bodsed")
+    type_name = "double"
+  case("dpsed")
+    type_name = "double"
+  case("msed")
+    type_name = "double"
+  case("thlyr")
+    type_name = "double"
+  case("rsedeq")
+    type_name = "double"
+  case("sbcx")
+    type_name = "double"
+  case("sbcy")
+    type_name = "double"
+  case("sbwx")
+    type_name = "double"
+  case("sbwy")
+    type_name = "double"
+  case("sscx")
+    type_name = "double"
+  case("sscy")
+    type_name = "double"
+  case("sswx")
+    type_name = "double"
+  case("sswy")
+    type_name = "double"
+  case("taucr")
+    type_name = "double"
+  case("tetacr")
     type_name = "double"
   case("infilt")
     type_name = "double"
@@ -106,13 +136,15 @@ select case(var_name)
     type_name = "int"
   case("kclat")
     type_name = "int"
-  case("qinext")
+  case("qext")
     type_name = "double"
-  case("qinextreal")
+  case("qextreal")
     type_name = "double"
-  case("vincum")
+  case("vextcum")
     type_name = "double"
   case("rainuni")
+    type_name = "double"
+  case("Qsunmap")
     type_name = "double"
   case("zbndz")
     type_name = "double"
@@ -204,6 +236,8 @@ select case(var_name)
     type_name = "double"
   case("diusp")
     type_name = "double"
+  case("taus")
+    type_name = "double"
   case("ndxi")
     type_name = "int"
   case("ndx1db")
@@ -225,6 +259,8 @@ select case(var_name)
   case("lnx")
     type_name = "int"
   case("ln")
+    type_name = "int"
+  case("LLkkk")
     type_name = "int"
   case("lncn")
     type_name = "int"
@@ -264,16 +300,6 @@ select case(var_name)
     type_name = "int"
   case("numk")
     type_name = "int"
-  case("ndx2d")
-    type_name = "int"
-  case("ndx")
-    type_name = "int"
-  case("xz")
-    type_name = "double"
-  case("yz")
-    type_name = "double"
-  case("ba")
-    type_name = "double"
   case("zbnd1d2d1")
     type_name = "double"
   case("zbnd1d2d0")
@@ -297,6 +323,16 @@ select case(var_name)
   case("is_maxvalsnd")
     type_name = "double"
   case("is_dtint")
+    type_name = "double"
+  case("ndx2d")
+    type_name = "int"
+  case("ndx")
+    type_name = "int"
+  case("xz")
+    type_name = "double"
+  case("yz")
+    type_name = "double"
+  case("ba")
     type_name = "double"
   case default
     type_name = ""

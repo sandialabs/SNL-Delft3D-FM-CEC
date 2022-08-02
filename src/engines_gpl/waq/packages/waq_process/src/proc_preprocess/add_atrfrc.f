@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -53,8 +53,7 @@
 
       call getcom ( '-sfrac', 3    , lfound, idummy, rdummy, patrfil, ierr)
       if ( lfound ) then
-         lun_patr = 171
-         open(lun_patr,file=patrfil)
+         open(newunit=lun_patr,file=patrfil)
 
          ! loop over the processes
 

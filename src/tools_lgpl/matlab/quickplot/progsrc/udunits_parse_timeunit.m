@@ -16,7 +16,7 @@ function [dt,refdate,TZshift] = udunits_parse_timeunit(unit_str)
 
 %----- LGPL --------------------------------------------------------------------
 %
-%   Copyright (C) 2011-2020 Stichting Deltares.
+%   Copyright (C) 2011-2022 Stichting Deltares.
 %
 %   This library is free software; you can redistribute it and/or
 %   modify it under the terms of the GNU Lesser General Public
@@ -41,8 +41,8 @@ function [dt,refdate,TZshift] = udunits_parse_timeunit(unit_str)
 %
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/udunits_parse_timeunit.m $
-%   $Id: udunits_parse_timeunit.m 65778 2020-01-14 14:07:42Z mourits $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/tools_lgpl/matlab/quickplot/progsrc/udunits_parse_timeunit.m $
+%   $Id: udunits_parse_timeunit.m 140618 2022-01-12 13:12:04Z klapwijk $
 
 [unit1,unit2] = strtok(lower(unit_str));
 if ~ischar(unit1)

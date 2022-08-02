@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -25,7 +25,7 @@
 !           5-69
 !           eliminate the ij entry from the matrix list.  move all
 !        entries up by one
-      include  'char1.inc'
+      use m_char1
       naij = naij - 1
       do 10 i=ij,naij
          irow(i) = irow(i+1)

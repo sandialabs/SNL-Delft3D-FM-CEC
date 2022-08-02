@@ -1,6 +1,6 @@
 !----- LGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This library is free software; you can redistribute it and/or                
 !  modify it under the terms of the GNU Lesser General Public                   
@@ -24,8 +24,8 @@
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: demo_00.f 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/nefis/tests/demo_00/demo_00.f $
+!  $Id: demo_00.f 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_lgpl/nefis/tests/demo_00/demo_00.f $
       PROGRAM DEMO00
 
 C     Company name                    : Deltares
@@ -108,7 +108,6 @@ C                 .. NEFIS-FUNCTION: INQUIRE A DATA FILE
 C                 .. NEFIS-FUNCTION: RETRIEVE ERROR STRING
 C=======================================================================
 C                 ..
-      OBSFIL = 11
 C                 .. LET US WRITE THE DATA IN NEUTRAL REPRESENTATION
       CODING = 'N'
       CPU1   = 0.0
@@ -182,7 +181,7 @@ C                 ..
 C                 .. NOW, READ ALL FIELD OBSERVATIONS FROM A FILE
       WRITE(*,'(''Demo0: Read observation data from input file'',
      +             '' (not a NEFIS action)'')')
-      OPEN (OBSFIL,FILE='observ.inp')
+      OPEN (NEWUNIT=OBSFIL,FILE='observ.inp')
       DO 10 I = 1, 10
          READ (OBSFIL,*)
          DO 20 J = 1, 100

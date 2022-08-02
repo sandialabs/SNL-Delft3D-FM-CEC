@@ -5,10 +5,8 @@ function Fg0=progressbar(varargin)
 %   is somewhat faster and displays progress in
 %   titlebar as well.
 %
-%   H=PROGRESSBAR(X)
-%   Creates a progress bar of fractional length X
-%   (if no progress bar exists), or updates the
-%   last created progress bar.
+%   H = PROGRESSBAR(X)
+%   Creates a progress bar of fractional length X.
 %
 %   PROGRESSBAR(X,H)
 %   Updates progress bar H to fractional length X.
@@ -28,12 +26,13 @@ function Fg0=progressbar(varargin)
 %   and execute CancelFcn when clicked. If CancelFcn
 %   is empty, deactivate cancel function.
 %
-%   H=PROGRESSBAR(...)
-%   Returns the handle of the progress bar.
+%   H = PROGRESSBAR(...)
+%   Returns the handle of the progress bar, or -1 if the progressbar
+%   no longer exists.
 
 %----- LGPL --------------------------------------------------------------------
 %                                                                               
-%   Copyright (C) 2011-2020 Stichting Deltares.                                     
+%   Copyright (C) 2011-2022 Stichting Deltares.                                     
 %                                                                               
 %   This library is free software; you can redistribute it and/or                
 %   modify it under the terms of the GNU Lesser General Public                   
@@ -58,23 +57,17 @@ function Fg0=progressbar(varargin)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/private/progressbar.m $
-%   $Id: progressbar.m 65778 2020-01-14 14:07:42Z mourits $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/tools_lgpl/matlab/quickplot/progsrc/private/progressbar.m $
+%   $Id: progressbar.m 140618 2022-01-12 13:12:04Z klapwijk $
 
 Update=0;
 Scan=0;
 if nargin==0
-    Fg = findobj(allchild(0),'flat','Tag','DelftProgressBar');
-    if ~isempty(Fg)
-        Fg=Fg(1);
-    end
     frac=NaN;
+    Fg=[];
 elseif nargin==1
-    Fg = findobj(allchild(0),'flat','Tag','DelftProgressBar');
-    if ~isempty(Fg)
-        Fg=Fg(1);
-    end
     frac=varargin{1};
+    Fg=[];
 elseif nargin==2
     frac=varargin{1};
     Fg=varargin{2};
@@ -98,17 +91,17 @@ if Scan
     end
     frac=X.Fraction;
     Fg=X.Figure;
-    if isempty(Fg) && ishandle(frac) && strcmp(get(frac,'type'),'figure')
-        Fg=frac;
-        frac=NaN;
-    end
-    if isempty(Fg)
-        Fg = findobj(allchild(0),'flat','Tag','DelftProgressBar');
-        if ~isempty(Fg)
-            Fg=Fg(1);
-        end
-    end
     Update=1;
+end
+if isempty(Fg) && ishandle(frac) && strcmp(get(frac,'type'),'figure')
+    Fg=frac;
+    frac=NaN;
+end
+if isempty(Fg) && nargout==0
+    Fg = findobj(allchild(0),'flat','Tag','DelftProgressBar');
+    if ~isempty(Fg)
+        Fg=Fg(1);
+    end
 end
 
 Width=220;

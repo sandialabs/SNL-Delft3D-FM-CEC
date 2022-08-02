@@ -24,7 +24,7 @@ function md_clock(Hclock,varargin)
 
 %----- LGPL --------------------------------------------------------------------
 %                                                                               
-%   Copyright (C) 2011-2020 Stichting Deltares.                                     
+%   Copyright (C) 2011-2022 Stichting Deltares.                                     
 %                                                                               
 %   This library is free software; you can redistribute it and/or                
 %   modify it under the terms of the GNU Lesser General Public                   
@@ -49,8 +49,8 @@ function md_clock(Hclock,varargin)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/md_clock.m $
-%   $Id: md_clock.m 65778 2020-01-14 14:07:42Z mourits $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/tools_lgpl/matlab/quickplot/progsrc/md_clock.m $
+%   $Id: md_clock.m 140618 2022-01-12 13:12:04Z klapwijk $
 
 if nargin==0
    error('Too few input arguments: missing axes handle')
@@ -365,6 +365,7 @@ monthstr={'January','February','March','April','May','June','July','August','Sep
 [year,month,day,hour,minute,second]=datevec(time);
 set(WD,'string',daystr{weekday(time)})
 set(D,'string',int2str(day))
+month = max(month,1); % month returns 0 for 0 <= time < 1
 set(M,'string',monthstr{month})
 set(Y,'string',int2str(year))
 

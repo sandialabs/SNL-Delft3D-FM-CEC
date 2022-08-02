@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -39,6 +39,7 @@ module grid_search_mod
 !
 use precision_part               ! single/double precision
 use timers
+use random_generator
 !
 !  module procedure(s)
 !
@@ -51,7 +52,7 @@ contains
       subroutine findcircle   ( x    , y  , radius , np     , mp , &
                           lgrid, dx , dy     , lcircl )
 !
-!                        Deltares (former: Deltares)
+!                        Deltares
 !
 !                        d e l p a r    v3.10
 !
@@ -70,9 +71,6 @@ contains
 !
 !
 !     subroutines called    : none.
-!
-!     functions   called    : rnd.
-!
 !
 !     parameters            :
 !
@@ -121,14 +119,7 @@ contains
 !
       integer (ip) ::   mp   , n0     , np
       real    (sp) ::   angle, radiuh , radius , x   ,    y
-      real    (sp) ::   rnd  , sqrt
-
 !
-!     note:
-!       random function rnd() must be declared external, as it is an
-!       intrinsic function for the lahey fortran95 compiler under linux
-!
-      external rnd
       integer(4) ithndl              ! handle to time this subroutine
       data       ithndl / 0 /
       if ( timon ) call timstrt( "findcircle", ithndl )
@@ -252,7 +243,6 @@ contains
       integer  ( ip), intent(  out) :: npart                   !< n of the particle
       integer  ( ip), intent(  out) :: mpart                   !< m of the particle
 
-      real   (sp), external         :: rnd
       real   (dp), save             :: rseed = 0.5d0
 
       real   (sp)                   :: xmin,xmax,ymin,ymax,xx,yy
@@ -276,12 +266,12 @@ contains
          yy = rnd(rseed)*(ymax-ymin) + ymin
          call pinpok(xx, yy, nrowsmax, xpol, ypol , inside )
          if (inside == 1) then
-         
+
 !        transform world coordinates (xx,yy) into cell-coordinates(xxcel,yycel)
             call part07 (lgrid  , lgrid2 , nmax   , mmax   , xcor  ,       &
                          ycor   , xx     , yy     , nnpart , mmpart,       &
                          xxcel  , yycel  , ier )
-         
+
             if ( ier == 0 ) then
                xpart = xxcel
                ypart = yycel
@@ -295,12 +285,12 @@ contains
             try = try + 1
          endif
       enddo
-      
+
       if (try.eq.1000) then
          continue
          ! something went wrong
       end if
-      
+
       if ( timon ) call timstop ( ithndl )
       end subroutine findpoly
 
@@ -613,7 +603,7 @@ outer2:  do m = 2, mmax
       subroutine intl2v (x , y , x0 , y0 , xl , yl,  memory )
 !
 !
-!                   Deltares (former: Deltares)
+!                   Deltares
 !
 !                        d e l p a r    v2.01
 !
@@ -752,7 +742,7 @@ subroutine bilin5(xa        ,ya        ,x0        ,y0        ,w         , &
                 & ier       )
 !----- GPL ---------------------------------------------------------------------
 !
-!  Copyright (C)  Stichting Deltares, 2012-2020.
+!  Copyright (C)  Stichting Deltares, 2012-2022.
 !
 !  This program is free software: you can redistribute it and/or modify
 !  it under the terms of the GNU General Public License as published by
@@ -776,8 +766,8 @@ subroutine bilin5(xa        ,ya        ,x0        ,y0        ,w         , &
 !  Stichting Deltares. All rights reserved.
 !
 !-------------------------------------------------------------------------------
-!  $Id: grid_search.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/part/packages/utils_f/src/grid_search.f90 $
+!  $Id: grid_search.f90 141029 2022-04-07 08:20:27Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/part/packages/utils_f/src/grid_search.f90 $
 !!--description-----------------------------------------------------------------
 ! NONE
 !!--pseudo code and references--------------------------------------------------

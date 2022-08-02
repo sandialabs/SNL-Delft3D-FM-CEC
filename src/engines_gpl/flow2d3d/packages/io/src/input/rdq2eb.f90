@@ -3,7 +3,7 @@ subroutine rdq2eb(lunmd     ,lundia    ,error     ,nrrec     ,mdfrec    , &
                 & mnbnd     ,rtubnd    ,gdp       )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -27,8 +27,8 @@ subroutine rdq2eb(lunmd     ,lundia    ,error     ,nrrec     ,mdfrec    , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: rdq2eb.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/io/src/input/rdq2eb.f90 $
+!  $Id: rdq2eb.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/flow2d3d/packages/io/src/input/rdq2eb.f90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: - Reads boundary condition for 2D turbulence model
@@ -164,8 +164,7 @@ subroutine rdq2eb(lunmd     ,lundia    ,error     ,nrrec     ,mdfrec    , &
        !
        ! file = exist
        !
-       luntmp = newlun(gdp)
-       open (luntmp, file = filq2e(1:lfile), form = 'formatted', status = 'old')
+       open (newunit=luntmp, file = filq2e(1:lfile), form = 'formatted', status = 'old')
        !
        !-->     read boundary condition (at each boundary point, optional)
        !

@@ -3,7 +3,7 @@ function screensize = qp_getscreen(ref,pos)
 
 %----- LGPL --------------------------------------------------------------------
 %                                                                               
-%   Copyright (C) 2011-2020 Stichting Deltares.                                     
+%   Copyright (C) 2011-2022 Stichting Deltares.                                     
 %                                                                               
 %   This library is free software; you can redistribute it and/or                
 %   modify it under the terms of the GNU Lesser General Public                   
@@ -28,8 +28,8 @@ function screensize = qp_getscreen(ref,pos)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/private/qp_getscreen.m $
-%   $Id: qp_getscreen.m 65778 2020-01-14 14:07:42Z mourits $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/tools_lgpl/matlab/quickplot/progsrc/private/qp_getscreen.m $
+%   $Id: qp_getscreen.m 140618 2022-01-12 13:12:04Z klapwijk $
 
 MonPos = getpixels(0,'MonitorPositions');
 if isa(handle(0),'matlab.ui.Root') %HG2

@@ -4,7 +4,7 @@ subroutine soursin_3d(h1          ,thick0      ,thick1      ,sigsed      ,thicks
                     & sour_ex     ,sour_im     ,sink        )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -28,8 +28,8 @@ subroutine soursin_3d(h1          ,thick0      ,thick1      ,sigsed      ,thicks
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: soursin_3d.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_gpl/morphology/packages/morphology_kernel/src/soursin_3d.f90 $
+!  $Id: soursin_3d.f90 141416 2022-06-29 08:31:13Z spee $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_gpl/morphology/packages/morphology_kernel/src/soursin_3d.f90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: Computes the sour and sink terms for the 3D case
@@ -48,7 +48,7 @@ subroutine soursin_3d(h1          ,thick0      ,thick1      ,sigsed      ,thicks
     real(fp), intent(in)  :: r0
     real(fp), intent(in)  :: rhosol
     real(fp), intent(in)  :: seddif
-    real(fp), intent(in)  :: sigsed
+    real(fp), intent(in)  :: sigsed  
     real(fp), intent(in)  :: sigmol
     real(fp), intent(in)  :: thicksed
     real(fp), intent(in)  :: thick0

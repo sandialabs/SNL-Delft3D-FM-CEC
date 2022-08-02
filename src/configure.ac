@@ -324,33 +324,6 @@ AM_CONDITIONAL(HAVE_MPI, [test "x$with_mpi" != xno])
 # Conditionals like this should not be needed but I don't know a shortcut
 AM_CONDITIONAL([USEMPI], test "x$with_mpi" != "xno")
 
-#
-# Checks for OpenDA if user selects this.
-#
-# User gives path to OpenDA libraries using --with-openda
-INT_OPENDA="todo";
-INT_OPENDA_VERSION="NO"
-ODA_SRC=""
-ODA_INCDIR=""
-ODA_LIB=""
-LTL_CTA=""
-AC_ARG_WITH(openda,
-              AS_HELP_STRING([--with-openda=PATH],
-                             [Try to use 'PATH/include' to find the OPENDA
-                              headers and 'PATH/lib' to find the OPENDA libraries.]),
-      [
-       OPENDA_DIR=${withval}
-       with_oda=yes
-       ODA_SRC=flow2d3d_openda
-       ODA_INCDIR="-I$OPENDA_DIR/include"
-       LTL_CTA="$OPENDA_DIR/lib/libcta.la"
-       ODA_LIB=" -lcta"
-      ],[])
-AC_SUBST(ODA_SRC)
-AC_SUBST(ODA_INCDIR)
-AC_SUBST(ODA_LIB)
-AC_SUBST(LTL_CTA)
-AM_CONDITIONAL([WITH_ODA],[test "$with_oda" = yes])
 
 
 dnl Already create the libtool script here, because we're using it to detect .dylib/.so extension (works for >=2.2)
@@ -496,7 +469,32 @@ if test "x" != "x$SHAPELIB_DIR"; then
     fi
 fi
 
-AM_CONDITIONAL([USEFORTRANGIS], test "x$with_shapelib" != "xno" -o "x$with_proj" != "xno")
+dnl Check for GDAL
+dnl Note that the option below is a --with-PKG=dir option,
+dnl whereas the third_party_open/fortrangis/ uses a --enable-PKG option.
+dnl As a result the include/lib paths are not automatically correct,
+dnl so we set them below in the central CPPFLAGS and LDFLAGS.
+AC_MSG_CHECKING([if GDAL is wanted])
+AC_ARG_WITH(gdal,[AS_HELP_STRING([--with-gdal[=DIR]],[Build with GDAL support  @<:@default=no@:>@])],[],[with_gdal=no])
+
+AS_IF([test "x$with_gdal" != "xno"],
+	[
+		AC_MSG_RESULT([yes])
+		PKG_CHECK_MODULES([GDAL], [gdal],
+			[
+				AC_DEFINE([HAVE_GDAL],1,[Defined if you have GDAL library.])
+				AX_APPEND_FLAG("${GDAL_CFLAGS}", CPPFLAGS)
+				AX_APPEND_FLAG("${GDAL_LIBS}", LDFLAGS)
+			]
+		)
+	],
+	[
+		AC_MSG_RESULT([no])
+	])
+AM_CONDITIONAL([USEGDAL], test "x$with_gdal" != "xno")
+
+
+AM_CONDITIONAL([USEFORTRANGIS], test "x$with_shapelib" != "xno" -o "x$with_proj" != "xno" -o "x$with_gdal" != "xno")
 
 AC_LANG_PUSH([C])
 AC_CHECK_LIB([dl], [dlclose],, [AC_MSG_ERROR([Compiler can not find libdl])])
@@ -553,29 +551,10 @@ AC_LANG_POP
 #   find . -name Makefile.am | egrep '/.+/' | sort | sed 's/.am$//'
 
 AC_CONFIG_FILES([Makefile
-engines_gpl/dflowfm/Makefile
-engines_gpl/dflowfm/packages/dflowfm-cli_exe/Makefile
-engines_gpl/dflowfm/packages/dflowfm-cli_exe/src/Makefile
-engines_gpl/dflowfm/packages/dflowfm_kernel/Makefile
-engines_gpl/dflowfm/packages/dflowfm_kernel/src/Makefile
-engines_gpl/dflowfm/packages/Makefile
-engines_gpl/dflowfm/scripts/parallel/Makefile
-engines_gpl/dflowfm/scripts/team-city/Makefile
-engines_gpl/dflowfm/scripts/Makefile
 engines_gpl/d_hydro/Makefile
 engines_gpl/d_hydro/packages/d_hydro/Makefile
 engines_gpl/d_hydro/packages/d_hydro/src/Makefile
 engines_gpl/d_hydro/packages/Makefile
-engines_gpl/dimr/Makefile
-engines_gpl/dimr/packages/dimr_lib/include/Makefile
-engines_gpl/dimr/packages/dimr_lib/Makefile
-engines_gpl/dimr/packages/dimr_lib/src/Makefile
-engines_gpl/dimr/packages/dimr/Makefile
-engines_gpl/dimr/packages/dimr/src/Makefile
-engines_gpl/dimr/packages/Makefile
-engines_gpl/dimr/scripts/generic/lnx64/Makefile
-engines_gpl/dimr/scripts/generic/Makefile
-engines_gpl/dimr/scripts/Makefile
 engines_gpl/flow2d3d/default/Makefile
 engines_gpl/flow2d3d/Makefile
 engines_gpl/flow2d3d/packages/data/Makefile
@@ -586,8 +565,6 @@ engines_gpl/flow2d3d/packages/data/src/general/Makefile
 engines_gpl/flow2d3d/packages/data/src/Makefile
 engines_gpl/flow2d3d/packages/data/src/parallel_mpi/Makefile
 engines_gpl/flow2d3d/packages/flow2d3d/Makefile
-engines_gpl/flow2d3d/packages/flow2d3d_openda/Makefile
-engines_gpl/flow2d3d/packages/flow2d3d_openda/src/Makefile
 engines_gpl/flow2d3d/packages/flow2d3d/src/dd/iterators/Makefile
 engines_gpl/flow2d3d/packages/flow2d3d/src/dd/Makefile
 engines_gpl/flow2d3d/packages/flow2d3d/src/dd/mapper/Makefile
@@ -623,97 +600,8 @@ engines_gpl/flow2d3d/packages/plugin_user/Makefile
 engines_gpl/flow2d3d/packages/plugin_user/src/Makefile
 engines_gpl/flow2d3d/scripts/Makefile
 engines_gpl/Makefile
-engines_gpl/part/Makefile
-engines_gpl/part/packages/data_f/Makefile
-engines_gpl/part/packages/data_f/src/Makefile
-engines_gpl/part/packages/delpar/Makefile
-engines_gpl/part/packages/delpar/src/Makefile
-engines_gpl/part/packages/io_f/Makefile
-engines_gpl/part/packages/io_f/src/Makefile
-engines_gpl/part/packages/kernel_f/Makefile
-engines_gpl/part/packages/kernel_f/src/Makefile
-engines_gpl/part/packages/Makefile
-engines_gpl/part/packages/utils_f/Makefile
-engines_gpl/part/packages/utils_f/src/Makefile
-engines_gpl/part/scripts/Makefile
-engines_gpl/waq/default/Makefile
-engines_gpl/waq/Makefile
-engines_gpl/waq/packages/delwaq1/Makefile
-engines_gpl/waq/packages/delwaq1/src/Makefile
-engines_gpl/waq/packages/delwaq2/Makefile
-engines_gpl/waq/packages/delwaq2/src/Makefile
-engines_gpl/waq/packages/delwaq_lib_examples/delwaq2_stepwise/src/Makefile
-engines_gpl/waq/packages/delwaq_lib_examples/delwaq_dimr_test/src/Makefile
-engines_gpl/waq/packages/delwaq_lib_examples/unit_tests_waq/Makefile
-engines_gpl/waq/packages/delwaq_lib_examples/unit_tests_waq/src/Makefile
-engines_gpl/waq/packages/delwaq/Makefile
-engines_gpl/waq/packages/delwaq/src/Makefile
-engines_gpl/waq/packages/Makefile
-engines_gpl/waq/packages/waq_io/Makefile
-engines_gpl/waq/packages/waq_io/src/Makefile
-engines_gpl/waq/packages/waq_io/src/mpidum/Makefile
-engines_gpl/waq/packages/waq_io/src/ods/Makefile
-engines_gpl/waq/packages/waq_io/src/waq_io/Makefile
-engines_gpl/waq/packages/waq_kernel/Makefile
-engines_gpl/waq/packages/waq_kernel/src/Makefile
-engines_gpl/waq/packages/waq_plugin_wasteload/Makefile
-engines_gpl/waq/packages/waq_plugin_wasteload/src/Makefile
-engines_gpl/waq/packages/waq_process/Makefile
-engines_gpl/waq/packages/waq_process/src/bloom/Makefile
-engines_gpl/waq/packages/waq_process/src/charon/Makefile
-engines_gpl/waq/packages/waq_process/src/Makefile
-engines_gpl/waq/packages/waq_process/src/proc_preprocess/Makefile
-engines_gpl/waq/packages/waq_process/src/waq_process/Makefile
-engines_gpl/waq/packages/waq_utils_c/Makefile
-engines_gpl/waq/packages/waq_utils_c/src/Makefile
-engines_gpl/waq/packages/waq_utils_f/Makefile
-engines_gpl/waq/packages/waq_utils_f/src/dlwq_netcdf/Makefile
-engines_gpl/waq/packages/waq_utils_f/src/Makefile
-engines_gpl/waq/packages/waq_utils_f/src/mod_couplib/Makefile
-engines_gpl/waq/packages/waq_utils_f/src/mod_timings/Makefile
-engines_gpl/waq/packages/waq_utils_f/src/waq_utils/Makefile
-engines_gpl/waq/packages/wq_processes/Makefile
-engines_gpl/waq/packages/wq_processes/src/Makefile
-engines_gpl/waq/scripts/Makefile
-engines_gpl/wave/Makefile
-engines_gpl/wave/packages/data/Makefile
-engines_gpl/wave/packages/data/src/Makefile
-engines_gpl/wave/packages/io/Makefile
-engines_gpl/wave/packages/io/src/Makefile
-engines_gpl/wave/packages/kernel/Makefile
-engines_gpl/wave/packages/kernel/src/Makefile
-engines_gpl/wave/packages/Makefile
-engines_gpl/wave/packages/manager/Makefile
-engines_gpl/wave/packages/manager/src/Makefile
-engines_gpl/wave/packages/wave/Makefile
-engines_gpl/wave/packages/wave/src/Makefile
-engines_gpl/wave/scripts/Makefile
-plugins_lgpl/Makefile
-plugins_lgpl/plugin_culvert/Makefile
-plugins_lgpl/plugin_culvert/src/Makefile
-plugins_lgpl/plugin_delftflow_traform/Makefile
-plugins_lgpl/plugin_delftflow_traform/src/Makefile
 scripts_lgpl/linux/Makefile
 scripts_lgpl/Makefile
-test/Makefile
-test/engines_gpl/Makefile
-test/engines_gpl/waq/Makefile
-test/engines_gpl/waq/packages/Makefile
-test/engines_gpl/waq/packages/waq_utils_f/Makefile
-test/engines_gpl/waq/packages/waq_utils_f/src/Makefile
-test/engines_gpl/waq/packages/waq_utils_f/src/waq_utils/Makefile
-test/engines_gpl/dflowfm/Makefile
-test/engines_gpl/dflowfm/packages/Makefile
-test/engines_gpl/dflowfm/packages/dflowfm_kernel/Makefile
-test/engines_gpl/dflowfm/packages/dflowfm_kernel/src/Makefile
-test/utils_lgpl/deltares_common/Makefile
-test/utils_lgpl/deltares_common/packages/Makefile
-test/utils_lgpl/deltares_common/packages/test_deltares_common/Makefile
-test/utils_lgpl/deltares_common/packages/test_deltares_common/src/Makefile
-test/utils_lgpl/Makefile
-third_party/interacter_stub/Makefile
-third_party/interacter_stub/src/Makefile
-third_party/Makefile
 third_party_open/esmf/lnx64/bin/Makefile
 third_party_open/esmf/lnx64/Makefile
 third_party_open/esmf/lnx64/scripts/Makefile
@@ -724,10 +612,6 @@ third_party_open/md5/md5digest/Makefile
 third_party_open/md5/md5file/Makefile
 third_party_open/polypack/Makefile
 third_party_open/polypack/src/Makefile
-third_party_open/swan/bin/linux/Makefile
-third_party_open/swan/bin/Makefile
-third_party_open/swan/Makefile
-third_party_open/swan/scripts/Makefile
 third_party_open/triangle/Makefile
 third_party_open/version_number/Makefile
 third_party_open/version_number/packages/Makefile
@@ -741,8 +625,6 @@ tools_gpl/datsel/packages/datsel/src/Makefile
 tools_gpl/datsel/packages/datsel_version_number/Makefile
 tools_gpl/datsel/packages/datsel_version_number/src/Makefile
 tools_gpl/datsel/packages/Makefile
-tools_gpl/dfmoutput/Makefile
-tools_gpl/dfmoutput/src/Makefile
 tools_gpl/kubint/Makefile
 tools_gpl/kubint/packages/kubint_f/Makefile
 tools_gpl/kubint/packages/kubint_f/src/Makefile
@@ -760,12 +642,6 @@ tools_gpl/lint/packages/lint_version_number/Makefile
 tools_gpl/lint/packages/lint_version_number/src/Makefile
 tools_gpl/lint/packages/Makefile
 tools_gpl/Makefile
-tools_gpl/mormerge/Makefile
-tools_gpl/mormerge/packages/Makefile
-tools_gpl/mormerge/packages/mormerge/Makefile
-tools_gpl/mormerge/packages/mormerge/src/Makefile
-tools_gpl/mormerge/packages/mormerge_version_number/Makefile
-tools_gpl/mormerge/packages/mormerge_version_number/src/Makefile
 tools_gpl/nesthd1/Makefile
 tools_gpl/nesthd1/packages/Makefile
 tools_gpl/nesthd1/packages/nesthd1/Makefile
@@ -780,29 +656,6 @@ tools_gpl/vs/packages/vs/Makefile
 tools_gpl/vs/packages/vs/src/Makefile
 tools_gpl/vs/packages/vs_version_number/Makefile
 tools_gpl/vs/packages/vs_version_number/src/Makefile
-tools_gpl/waq_run_processes/Makefile
-tools_gpl/waq_run_processes/packages/Makefile
-tools_gpl/waq_run_processes/packages/waq_run_processes/Makefile
-tools_gpl/waq_run_processes/packages/waq_run_processes/src/Makefile
-tools_gpl/waq_run_processes/packages/waq_run_processes_version_number/Makefile
-tools_gpl/waq_run_processes/packages/waq_run_processes_version_number/src/Makefile
-tools_gpl/waqpb/Makefile
-tools_gpl/waqpb/packages/Makefile
-tools_gpl/waqpb/packages/waqpb_export/Makefile
-tools_gpl/waqpb/packages/waqpb_export/src/Makefile
-tools_gpl/waqpb/packages/waqpb_import/Makefile
-tools_gpl/waqpb/packages/waqpb_import/src/Makefile
-tools_gpl/waqpb/packages/waqpb_lib/Makefile
-tools_gpl/waqpb/packages/waqpb_lib/src/Makefile
-utils_gpl/flow1d/include/Makefile
-utils_gpl/flow1d/Makefile
-utils_gpl/flow1d/packages/flow1d_core/Makefile
-utils_gpl/flow1d/packages/flow1d_core/src/Makefile
-utils_gpl/flow1d/packages/flow1d_io/Makefile
-utils_gpl/flow1d/packages/flow1d_io/src/Makefile
-utils_gpl/flow1d/packages/flow1d/Makefile
-utils_gpl/flow1d/packages/flow1d/src/Makefile
-utils_gpl/flow1d/packages/Makefile
 utils_gpl/Makefile
 utils_gpl/morphology/include/Makefile
 utils_gpl/morphology/Makefile
@@ -815,9 +668,6 @@ utils_gpl/morphology/packages/morphology_kernel/Makefile
 utils_gpl/morphology/packages/morphology_kernel/src/Makefile
 utils_gpl/morphology/packages/morphology_plugins_c/Makefile
 utils_gpl/morphology/packages/morphology_plugins_c/src/Makefile
-utils_gpl/morphology/packages/morphology_proclib/Makefile
-utils_gpl/morphology/packages/morphology_waq/Makefile
-utils_gpl/morphology/packages/morphology_waq/src/Makefile
 utils_gpl/trachytopes/Makefile
 utils_gpl/trachytopes/packages/Makefile
 utils_gpl/trachytopes/packages/trachytopes_io/Makefile
@@ -864,13 +714,15 @@ utils_lgpl/d_hydro_lib/packages/d_hydro_lib/include/Makefile
 utils_lgpl/d_hydro_lib/packages/d_hydro_lib/Makefile
 utils_lgpl/d_hydro_lib/packages/d_hydro_lib/src/Makefile
 utils_lgpl/d_hydro_lib/packages/Makefile
+utils_lgpl/gridgeom/Makefile
+utils_lgpl/gridgeom/packages/gridgeom/Makefile
+utils_lgpl/gridgeom/packages/gridgeom/src/Makefile
+utils_lgpl/gridgeom/packages/Makefile
 utils_lgpl/ec_module/Makefile
 utils_lgpl/ec_module/packages/ec_module/Makefile
 utils_lgpl/ec_module/packages/ec_module/src/ectest/Makefile
 utils_lgpl/ec_module/packages/ec_module/src/Makefile
 utils_lgpl/ec_module/packages/ec_module/src/meteo/Makefile
-utils_lgpl/ec_module/packages/ec_module_test/Makefile
-utils_lgpl/ec_module/packages/ec_module_test/src/Makefile
 utils_lgpl/ec_module/packages/Makefile
 utils_lgpl/esmfsm/include/Makefile
 utils_lgpl/esmfsm/Makefile
@@ -901,10 +753,6 @@ utils_lgpl/ftnunit/Makefile
 utils_lgpl/ftnunit/packages/ftnunit/Makefile
 utils_lgpl/ftnunit/packages/ftnunit/src/Makefile
 utils_lgpl/ftnunit/packages/Makefile
-utils_lgpl/gridgeom/Makefile
-utils_lgpl/gridgeom/packages/gridgeom/Makefile
-utils_lgpl/gridgeom/packages/gridgeom/src/Makefile
-utils_lgpl/gridgeom/packages/Makefile
 utils_lgpl/io_hyd/Makefile
 utils_lgpl/io_hyd/packages/io_hyd/Makefile
 utils_lgpl/io_hyd/packages/io_hyd/src/Makefile

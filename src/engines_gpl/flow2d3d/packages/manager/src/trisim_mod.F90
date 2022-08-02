@@ -1,7 +1,7 @@
 module mod_trisim
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -25,8 +25,8 @@ module mod_trisim
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: trisim_mod.F90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/manager/src/trisim_mod.F90 $
+!  $Id: trisim_mod.F90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/flow2d3d/packages/manager/src/trisim_mod.F90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: Main routine for the 2d / 3d program
@@ -199,8 +199,7 @@ integer function trisim_init(numdom, nummap, context_id, fsm_flags, runid_arg, o
        filid = 'runid'
        inquire (file = filid, exist = ex)
        if (ex) then
-          lunid = newlun(gdp)
-          open (lunid, file = filid, form = 'formatted', status = 'old')
+          open (newunit=lunid, file = filid, form = 'formatted', status = 'old')
           read (lunid, '(a)') runid
           close (lunid)
        else

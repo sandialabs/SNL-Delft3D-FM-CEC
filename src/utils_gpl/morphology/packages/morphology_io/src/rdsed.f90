@@ -1,7 +1,7 @@
 module m_rdsed
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -25,8 +25,8 @@ module m_rdsed
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: rdsed.f90 65813 2020-01-17 16:46:56Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_gpl/morphology/packages/morphology_io/src/rdsed.f90 $
+!  $Id: rdsed.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_gpl/morphology/packages/morphology_io/src/rdsed.f90 $
 !-------------------------------------------------------------------------------
 use m_depfil_stm
 
@@ -72,8 +72,10 @@ subroutine rdsed(lundia    ,error     ,lsal      ,ltem      ,lsed      , &
     real(fp)                           , pointer :: kssand
     real(fp)                           , pointer :: sc_cmf1
     real(fp)                           , pointer :: sc_cmf2
+    real(fp)                           , pointer :: sc_flcf
     integer                            , pointer :: nmudfrac
     integer                            , pointer :: sc_mudfac
+    real(fp)         , dimension(:)    , pointer :: tpsnumber
     real(fp)         , dimension(:)    , pointer :: rhosol
     real(fp)         , dimension(:,:,:), pointer :: logseddia
     real(fp)         , dimension(:)    , pointer :: logsedsig
@@ -113,7 +115,7 @@ subroutine rdsed(lundia    ,error     ,lsal      ,ltem      ,lsed      , &
     integer          , dimension(:)    , pointer :: iform
     character(256)   , dimension(:)    , pointer :: flstrn
 !
-! Call variables
+! Arguments
 !
     integer                                  , intent(in)  :: lsal    !  Description and declaration in dimens.igs
     integer                                  , intent(in)  :: lsed    !  Description and declaration in esm_alloc_int.f90
@@ -148,11 +150,11 @@ subroutine rdsed(lundia    ,error     ,lsal      ,ltem      ,lsed      , &
     integer                     :: n                   ! Temporary storage for nseddia(l)
     integer                     :: nm
     integer                     :: version
-    integer          , external :: newunit
     integer(pntrsize), external :: open_shared_library
     real(fp)                    :: rmissval
     real(fp)                    :: seddxx              ! Temporary storage for sediment diameter
     real(fp)                    :: sedsg               ! Temporary storage for geometric standard deviation
+    real(fp)                    :: tpsmud
     logical                     :: ex
     logical                     :: success
     character(11)               :: fmttmp ! Format file ('formatted  ') 
@@ -177,8 +179,10 @@ subroutine rdsed(lundia    ,error     ,lsal      ,ltem      ,lsed      , &
     kssand               => sedpar%kssand
     sc_cmf1              => sedpar%sc_cmf1
     sc_cmf2              => sedpar%sc_cmf2
+    sc_flcf              => sedpar%sc_flcf
     nmudfrac             => sedpar%nmudfrac
     sc_mudfac            => sedpar%sc_mudfac
+    tpsnumber            => sedpar%tpsnumber
     rhosol               => sedpar%rhosol
     logseddia            => sedpar%logseddia
     logsedsig            => sedpar%logsedsig
@@ -222,6 +226,8 @@ subroutine rdsed(lundia    ,error     ,lsal      ,ltem      ,lsed      , &
        !
        ! allocation of namsed, rhosol and sedtyp have been allocated in count_sed routine
        !
+       if (istat==0) allocate (sedpar%tpsnumber (                          lsedtot), stat = istat)
+       !
        if (istat==0) allocate (sedpar%sedblock  (                          lsedtot), stat = istat)
        if (istat==0) allocate (sedpar%nseddia   (                          lsedtot), stat = istat)
        if (istat==0) allocate (sedpar%logseddia (2, 101,                   lsedtot), stat = istat)
@@ -260,6 +266,8 @@ subroutine rdsed(lundia    ,error     ,lsal      ,ltem      ,lsed      , &
        !
        ! update local pointers
        !
+       tpsnumber     => sedpar%tpsnumber
+       !
        nseddia       => sedpar%nseddia
        logseddia     => sedpar%logseddia
        logsedsig     => sedpar%logsedsig
@@ -295,6 +303,11 @@ subroutine rdsed(lundia    ,error     ,lsal      ,ltem      ,lsed      , &
     !
     do i = 1,lsedtot
        sedpar%sedblock(i)%node_name => null()
+       if (sedtyp(i) == SEDTYP_COHESIVE) then
+           tpsnumber(i) = 0.7_fp
+       else
+           tpsnumber(i) = 1.0_fp
+       endif
     enddo
     flsdbd              = ' '
     flsmdc              = ' '
@@ -349,6 +362,14 @@ subroutine rdsed(lundia    ,error     ,lsal      ,ltem      ,lsed      , &
        !
        csoil  = 1.0e4_fp
        call prop_get(sed_ptr, 'SedimentOverall', 'Cref', csoil)
+       !
+       tpsmud  = 0.7_fp
+       call prop_get(sed_ptr, 'SedimentOverall', 'MudTPS', tpsmud)
+       do i = 1,lsed
+          if (sedtyp(i) == SEDTYP_COHESIVE) then
+              tpsnumber(i) = tpsmud
+          endif
+       enddo
        !
        iopsus = 0
        call prop_get_integer(sed_ptr, 'SedimentOverall', 'IopSus', iopsus)
@@ -440,8 +461,6 @@ subroutine rdsed(lundia    ,error     ,lsal      ,ltem      ,lsed      , &
        bsskin = .false.
        call prop_get_logical(sed_ptr, 'SedimentOverall', 'BsSkin', bsskin)
        if (bsskin) then
-          kssilt = 0.0_fp
-          kssand = 0.0_fp
           call prop_get(sed_ptr, 'SedimentOverall', 'KsSilt', kssilt)
           call prop_get(sed_ptr, 'SedimentOverall', 'KsSand', kssand)
           !
@@ -460,8 +479,6 @@ subroutine rdsed(lundia    ,error     ,lsal      ,ltem      ,lsed      , &
              return
           end select
           !
-          sc_cmf1 = 0.01_fp
-          sc_cmf2 = 0.01_fp
           call prop_get(sed_ptr, 'SedimentOverall', 'SC_cmf1', sc_cmf1)
           call prop_get(sed_ptr, 'SedimentOverall', 'SC_cmf2', sc_cmf2)
           if (sc_mudfac == SC_MUDFRAC) then
@@ -471,6 +488,8 @@ subroutine rdsed(lundia    ,error     ,lsal      ,ltem      ,lsed      , &
              sc_cmf1 = max(0.0_fp , sc_cmf1)
              sc_cmf2 = max(sc_cmf1, sc_cmf2)
           endif
+          !
+          call prop_get(sed_ptr, 'SedimentOverall', 'CritFluffFactor', sc_flcf)
        endif
        !
        do l = 1, lsedtot
@@ -736,7 +755,7 @@ subroutine rdsed(lundia    ,error     ,lsal      ,ltem      ,lsed      , &
        !
        ! nodal relations are not supported in older version sed files 
        !
-       do l = 0, lsedtot       
+       do l = 0, lsedtot
            sedpar%flnrd(l) = ' '
        enddo
        !
@@ -789,7 +808,7 @@ subroutine rdsed01(lsed      ,luninp    ,lundia    ,csoil     ,iopsus    , &
     !
     implicit none
 !
-! Call variables
+! Arguments
 !
     integer                        , intent(out):: iopsus
     integer                        , intent(in) :: lundia !  Description and declaration in inout.igs
@@ -903,7 +922,7 @@ subroutine opensedfil(lundia    ,error     ,filsed    ,luninp    ,version  )
     use string_module
     implicit none
 !
-! Call variables
+! Arguments
 !
     integer                                  , intent(in)  :: lundia  ! unit of diagnostic file
     integer                                  , intent(out) :: luninp  ! unit of opened .sed file
@@ -915,7 +934,6 @@ subroutine opensedfil(lundia    ,error     ,filsed    ,luninp    ,version  )
 !
     integer                                                :: i
     integer                                                :: iocond
-    integer                                     , external :: newunit
     character(256)                                         :: string
     character(256)                                         :: errmsg
 !
@@ -968,7 +986,7 @@ subroutine echosed(lundia    ,error     ,lsed      ,lsedtot   , &
     !
     implicit none
 !
-! Call variables
+! Arguments
 !
     integer                                  , intent(in)  :: iopsus
     integer                                  , intent(in)  :: lsed    !  Description and declaration in iidim.f90
@@ -986,7 +1004,9 @@ subroutine echosed(lundia    ,error     ,lsed      ,lsedtot   , &
     real(fp)                          , pointer :: kssand
     real(fp)                          , pointer :: sc_cmf1
     real(fp)                          , pointer :: sc_cmf2
+    real(fp)                          , pointer :: sc_flcf
     integer                           , pointer :: sc_mudfac
+    real(fp)        , dimension(:)    , pointer :: tpsnumber
     real(fp)        , dimension(:)    , pointer :: rhosol
     real(fp)        , dimension(:,:,:), pointer :: logseddia
     real(fp)        , dimension(:)    , pointer :: logsedsig
@@ -1041,7 +1061,9 @@ subroutine echosed(lundia    ,error     ,lsed      ,lsedtot   , &
     kssand               => sedpar%kssand
     sc_cmf1              => sedpar%sc_cmf1
     sc_cmf2              => sedpar%sc_cmf2
+    sc_flcf              => sedpar%sc_flcf
     sc_mudfac            => sedpar%sc_mudfac
+    tpsnumber            => sedpar%tpsnumber
     rhosol               => sedpar%rhosol
     logseddia            => sedpar%logseddia
     logsedsig            => sedpar%logsedsig
@@ -1143,6 +1165,13 @@ subroutine echosed(lundia    ,error     ,lsed      ,lsedtot   , &
        write (lundia, '(2a,f12.6)') txtput1,':', kssilt
        txtput1 = 'Kssand '
        write (lundia, '(2a,f12.6)') txtput1,':', kssand
+       !
+       txtput1 = 'Critical fluff layer coverage factor'
+       write (lundia, '(2a,f12.6)') txtput1,':', sc_flcf
+    endif
+    if (sedpar%flnrd(0) /= ' ') then
+       txtput1 = '1D nodal relations for bed/total load'
+       write (lundia, '(3a)') txtput1, ':  ', trim(sedpar%flnrd(0))
     endif
     !
     do l = 1, lsedtot
@@ -1163,7 +1192,11 @@ subroutine echosed(lundia    ,error     ,lsed      ,lsedtot   , &
            txtput1 = '  Tracer calibration factor '
            write (lundia, '(2a,e12.4)') txtput1, ':', sedtrcfac(l)
        endif
-       txtput1 = '  RHOSOL'
+       if (l <= lsed) then
+          txtput1 = '  Turbulent Prandtl-Schmidt number'
+          write (lundia, '(2a,e12.4)') txtput1, ':', tpsnumber(l)
+       endif
+       txtput1 = '  Solid density (RHOSOL)'
        write (lundia, '(2a,e12.4)') txtput1, ':', rhosol(l)
        if (flsdia /= ' ') then
           !
@@ -1491,7 +1524,7 @@ subroutine echosed(lundia    ,error     ,lsed      ,lsedtot   , &
           txtput1 = '  SedD90'
           write (lundia, '(2a,e12.4)') txtput1, ':', sedd90(l)
        endif
-       txtput1 = '  CDRYB'
+       txtput1 = '  Dry bed (bulk) density (CDRYB)'
        write (lundia, '(2a,e12.4)') txtput1, ':', cdryb(l)
        if (flsdbd(l) /= ' ') then
           if (inisedunit(l) == 'kg/m2') then
@@ -1548,7 +1581,7 @@ subroutine echosed(lundia    ,error     ,lsed      ,lsedtot   , &
           txtput1 = '  WSM'
           write (lundia, '(2a,e12.4)') txtput1, ':', par_settle(3,l)
        elseif (iform_settle(l) == 2) then
-          if (iform(l) == -2) then
+          if (iform(l) == -2 .or. iform(l) == -4) then
              iform_settle(l) = -2
              txtput1 = '  SALMAX'
              write (lundia, '(2a,e12.4)') txtput1, ':', par_settle(1,l)
@@ -1567,6 +1600,10 @@ subroutine echosed(lundia    ,error     ,lsed      ,lsedtot   , &
              txtput1 = '  Input for Settle function'
              write (lundia, '(3a)') txtput1, ': ', trim(dll_usrfil_settle(l))
           endif
+       endif
+       if (sedpar%flnrd(l) /= ' ') then
+          txtput1 = '  1D nodal relations for bed/total load'
+          write (lundia, '(3a)') txtput1, ':  ', trim(sedpar%flnrd(l))
        endif
     enddo
     !
@@ -1590,7 +1627,7 @@ subroutine count_sed(lundia    ,error     ,lsed      ,lsedtot   , &
     !
     implicit none
 !
-! Call variables
+! Arguments
 !
     integer                         , intent(out) :: lsed    ! Number of suspended sediment fractions
     integer                         , intent(out) :: lsedtot ! Total number of sediment fractions
@@ -1790,7 +1827,7 @@ subroutine count_sed01(lundia    ,error     ,lsed      ,filsed    , &
     !
     implicit none
 !
-! Call variables
+! Arguments
 !
     integer                         , intent(out) :: lsed     ! Number of suspended sediment fractions
     integer                         , intent(in)  :: lundia   ! Unit of diagnostic file

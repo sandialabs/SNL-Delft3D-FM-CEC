@@ -1,7 +1,7 @@
 subroutine removeDuplicateDDBFiles(runid, ddbfile, gdp)
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -25,8 +25,8 @@ subroutine removeDuplicateDDBFiles(runid, ddbfile, gdp)
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: removeDuplicateDDBFiles.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/data/src/parallel_mpi/removeDuplicateDDBFiles.f90 $
+!  $Id: removeDuplicateDDBFiles.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/flow2d3d/packages/data/src/parallel_mpi/removeDuplicateDDBFiles.f90 $
 !!--description-----------------------------------------------------------------
 !
 !!--pseudo code and references--------------------------------------------------
@@ -67,10 +67,8 @@ subroutine removeDuplicateDDBFiles(runid, ddbfile, gdp)
        !
        ! Compare defaultfile and ddbfile
        identicalFiles = .true.
-       fillun      = newlun(gdp)
-       open(fillun, file=trim(ddbfile), action="READWRITE", iostat = istat)
-       fillundef   = newlun(gdp)
-       if (istat==0) open(fillundef, file=trim(defaultfile), action="READ", iostat = istat)
+       open(newunit=fillun, file=trim(ddbfile), action="READWRITE", iostat = istat)
+       if (istat==0) open(newunit=fillundef, file=trim(defaultfile), action="READ", iostat = istat)
        if (istat /= 0) then
           identicalFiles = .false.
           write(message,'(5a)') "Unable to open files """, trim(ddbfile), """ and """, trim(defaultfile), """. Skipping moving."
@@ -118,10 +116,8 @@ subroutine removeDuplicateDDBFiles(runid, ddbfile, gdp)
        !
        ! Move ddbfile to defaultfile
        !
-       fillun      = newlun(gdp)
-       open(fillun, file=trim(ddbfile), action="READWRITE", iostat = istat)
-       fillundef   = newlun(gdp)
-       if (istat==0) open(fillundef, file=trim(defaultfile), action="WRITE", iostat = istat)
+       open(newunit=fillun, file=trim(ddbfile), action="READWRITE", iostat = istat)
+       if (istat==0) open(newunit=fillundef, file=trim(defaultfile), action="WRITE", iostat = istat)
        if (istat /= 0) then
           write(message,'(5a)') "Unable to open files """, trim(ddbfile), """ and """, trim(defaultfile), """. Skipping moving."
           call prterr(lundia, 'U190', trim(message))

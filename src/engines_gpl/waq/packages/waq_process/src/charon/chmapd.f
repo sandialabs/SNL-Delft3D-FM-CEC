@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -71,6 +71,8 @@
      J                     IOUTP , NNOTRA,
      J                     NALTOX, NTOX  , ICTOX , ALITOX)
 
+      use m_charon
+
       INTEGER         NAIJ2 , MMAX  , I     , J     , INDEX , NTOX  ,
      J                NALTOX, NTTOB , NCTOT , N1MAX , N2MAX ,
      J                NMAX  , NNOTRA
@@ -80,8 +82,6 @@
      J                ICCTOT(N2MAX), ITCTOT(N2MAX), IOUTP(NMAX)
       REAL            ABTTOB(N1MAX), RMTTOB(N1MAX),
      J                ABCTOT(N2MAX), RMCTOT(N2MAX)
-
-      INCLUDE 'charon.inc'
 
 !     Check consistency of T
 

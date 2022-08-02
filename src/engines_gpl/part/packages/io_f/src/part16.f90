@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -29,6 +29,7 @@ module part16_mod
 !  data definition module(s)
 !
 use precision_part              ! single and double precision
+use m_part_modeltypes           ! part model definitions
 use timers
 use openfl_mod
 use fileinfo               ! file information for all input/output files
@@ -45,7 +46,7 @@ contains
                         nosubs, nolay , mnmax2, isfile, nosubc,    &
                         modtyp                        )
 !
-!                   Deltares (former: Deltares)
+!                   Deltares
 !
 !                        d e l p a r    v3.12
 !
@@ -250,7 +251,7 @@ contains
                       iseg             = (ilay-1)*mnmax2 + ic
                       rhelp            = wpart (isub, i)
                       atotal(ipos)     = atotal(ipos)      + rhelp
-                      if(modtyp /= 2) then
+                      if(modtyp /=  model_two_layer_temp) then
                          conc  (isub,iseg)= conc  (isub,iseg) + rhelp
                       else
                          conc  (ipos,ic  )= conc  (ipos,ic  ) + rhelp

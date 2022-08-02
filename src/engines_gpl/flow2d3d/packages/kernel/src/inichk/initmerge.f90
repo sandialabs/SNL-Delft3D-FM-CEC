@@ -1,7 +1,7 @@
 subroutine initmerge (nmmax, lsed, runid, gdp)
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -25,8 +25,8 @@ subroutine initmerge (nmmax, lsed, runid, gdp)
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: initmerge.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/kernel/src/inichk/initmerge.f90 $
+!  $Id: initmerge.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/flow2d3d/packages/kernel/src/inichk/initmerge.f90 $
 !!--description-----------------------------------------------------------------
 !
 !
@@ -83,8 +83,7 @@ subroutine initmerge (nmmax, lsed, runid, gdp)
     filhand = ' '
     inquire(file='streamfile', exist=ex)
     if (ex) then
-       lunfil = newlun(gdp)
-       open (lunfil, file='streamfile')      
+       open (newunit=lunfil, file='streamfile')      
        read (lunfil,'(a)') filhand
        close(lunfil)
        write(filhand,'(2a)') trim(filhand), trim(runid)
@@ -130,8 +129,7 @@ subroutine initmerge (nmmax, lsed, runid, gdp)
        condition = filhand(pathlen+1 : conditionend-1)
        write(mmsyncfilnam,'(6a)') filhand(:pathlen), 'sync', slash, &
                                & trim(condition)  , 'flow', trim(runid)
-       lunfil = newlun(gdp)
-       open (lunfil, file=mmsyncfilnam, position='append', action='write', iostat=istat)
+       open (newunit=lunfil, file=mmsyncfilnam, position='append', action='write', iostat=istat)
        if (istat /= 0) then
           write(*,*)' *** WARNING: unable to write in file ',trim(mmsyncfilnam)
        else

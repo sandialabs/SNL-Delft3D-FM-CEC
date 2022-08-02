@@ -1,7 +1,7 @@
 module m_ini_noderel
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -25,8 +25,8 @@ module m_ini_noderel
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: ini_noderel.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_gpl/morphology/packages/morphology_io/src/ini_noderel.f90 $
+!  $Id: ini_noderel.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_gpl/morphology/packages/morphology_io/src/ini_noderel.f90 $
 !!--description-----------------------------------------------------------------
 private
 public ini_noderel
@@ -197,13 +197,7 @@ subroutine ini_noderel(nrd, sedpar, lsedtot)
                   
                elseif (pNodRel%Method == 'function') then
                   call prop_get(block_ptr, '*', 'k', pNodRel%expQ)
-                  if (pNodRel%expQ < 0.0_fp) then
-                     call SetMessage(LEVEL_FATAL, 'Exponent k of Discharge Ratio not/wrongly Specified in File: '//trim(fileName))
-                  endif
                   call prop_get(block_ptr, '*', 'm', pNodRel%expW)
-                  if (pNodRel%expW < 0.0_fp) then
-                     call SetMessage(LEVEL_FATAL, 'Exponent m of Width Ratio not/wrongly Specified in File: '//trim(fileName))
-                  endif
                else
                  call SetMessage(LEVEL_FATAL, 'Unknown Method Specified in File: '//trim(fileName))
                endif

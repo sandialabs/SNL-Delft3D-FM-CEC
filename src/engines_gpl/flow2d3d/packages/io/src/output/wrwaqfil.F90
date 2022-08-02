@@ -10,7 +10,7 @@
      &                      zmodel , ztop   , zbot   , gdp    )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -34,8 +34,8 @@
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: wrwaqfil.F90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/io/src/output/wrwaqfil.F90 $
+!  $Id: wrwaqfil.F90 141352 2022-06-10 10:07:28Z jeuke_ml $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/flow2d3d/packages/io/src/output/wrwaqfil.F90 $
 !!--description-----------------------------------------------------------------
 ! Routine is called every time step to allow a direct writing of WAQ files
 ! Routine is now written in fixed format compatible form, 2nd author is not very
@@ -184,14 +184,14 @@
       integer  (4) mode2               !!  help variable
       integer  (4) noq1, noq2, noq3    !!  initially needed nr of exchanges in 3 dir.
       integer  (4) idim                !!  dimension work array
-      integer  (4) l                   !!  loop counter substances
+      integer  (4) l, i                !!  loop counter substances, sources
       character(5) sf                  !!  character variable for s(ediment concentration)f(iles)
       character(8) ssrff               !!  character variable for s(ediment) s(edimentation and) r(esuspension) f(lux) f(iles)
       integer  (4) istat               !!  allocate return status
       integer, allocatable :: isaggrl(:) !!  segment aggregation pointer (only top/bottom layer, depending on zmodel)
       integer  (4) ipiv                !!  help variable for array shift
-      integer, external :: newunit
       type(t_ug_meta)     :: meta
+      character(300) message
 !
 !! executable statements -------------------------------------------------------
 !
@@ -338,6 +338,14 @@
             if (istat==0) allocate ( gdp%gdwaqpar%discumwaq(  nsrc) , stat=istat)
             if (istat==0) allocate ( gdp%gdwaqpar%iwlk     (  nsrc) , stat=istat)
             if (istat==0) allocate ( gdp%gdwaqpar%ksrwaq   (2*nsrc) , stat=istat)
+            do i = 1, nsrc
+               if (mnksrc(7,i) == 4 .or. mnksrc(7,i) == 5 .or. mnksrc(7,i) == 8) then
+                  write ( message , '(3A)' ) '*** WARNING: no WAQ communication data for culvert ''', &
+                        trim(namsrc(i)), ''' will be written because it is a type d, e or f. Contact support!'
+                  write( *      , '(A)' ) trim(message)
+                  write( lundia , '(A)' ) trim(message)
+               end if
+            enddo
          endif
          if (istat/=0) then
             write(*,*) '*** ERROR: wrwaqfil: memory allocation error'
@@ -447,8 +455,7 @@
             open  ( newunit = lunvdf , file=trim(filnam)//'vdf' , form = 'binary' , SHARED )
          endif
          open  ( newunit = luntau , file=trim(filnam)//'tau' , form = 'binary' , SHARED )
- !       lunfmap   = newunit()
- !       open  ( lunfmap, file=trim(filnam)//'fmap', form = 'binary' )
+ !       open  ( newunit = lunfmap, file=trim(filnam)//'fmap', form = 'binary' )
          if ( nsrc .gt. 0 ) then
             open  ( newunit = lunsrctmp , file='TMP_'//trim(filnam)//'src' , SHARED )
             if ( nowalk .gt. 0 ) then
@@ -483,8 +490,7 @@
             open  ( newunit = lunvdf , file=trim(filnam)//'vdf' , form = 'unformatted', access='stream')
          endif
          open  ( newunit = luntau , file=trim(filnam)//'tau' , form = 'unformatted', access='stream')
- !       lunfmap   = newunit()
- !       open  ( lunfmap, file=trim(filnam)//'fmap', form = 'unformatted', access='stream')
+ !       open  ( newunit = lunfmap, file=trim(filnam)//'fmap', form = 'unformatted', access='stream')
          if ( nsrc .gt. 0 ) then
             open  ( newunit = lunsrctmp , file='TMP_'//trim(filnam)//'src' )
             if ( nowalk .gt. 0 ) then

@@ -4,7 +4,7 @@ function [fig,figoptions,createops]=qp_createfig(figtype,figname)
 
 %----- LGPL --------------------------------------------------------------------
 %                                                                               
-%   Copyright (C) 2011-2020 Stichting Deltares.                                     
+%   Copyright (C) 2011-2022 Stichting Deltares.                                     
 %                                                                               
 %   This library is free software; you can redistribute it and/or                
 %   modify it under the terms of the GNU Lesser General Public                   
@@ -29,8 +29,8 @@ function [fig,figoptions,createops]=qp_createfig(figtype,figname)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/private/qp_createfig.m $
-%   $Id: qp_createfig.m 65778 2020-01-14 14:07:42Z mourits $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/tools_lgpl/matlab/quickplot/progsrc/private/qp_createfig.m $
+%   $Id: qp_createfig.m 140618 2022-01-12 13:12:04Z klapwijk $
 
 fig=[];
 figoptions.ProgID='QuickPlot';
@@ -94,10 +94,15 @@ if isequal(figtype,'quick')
 end
 %
 if isempty(fig)
-    if ismember('zbuffer',set(0,'defaultfigurerenderer'))
+    Renderers = set(0, 'defaultfigurerenderer');
+    if ismember('zbuffer', Renderers)
        renderer = 'zbuffer';
     else
        renderer = 'opengl';
+    end
+    usr_renderer = qp_settings('defaultrenderer', renderer);
+    if ismember(usr_renderer, Renderers)
+        renderer = usr_renderer;
     end
     fig=figure('closerequestfcn','d3d_qp closefigure', ...
         'inverthardcopy','off', ...
@@ -107,6 +112,10 @@ if isempty(fig)
         'visible','off', ...
         'userdata',figoptions, ...
         xtraprops{:});
+    try
+        usr_smooth = qp_settings('graphicssmoothing');
+        set(fig, 'graphicssmoothing', usr_smooth)
+    end
     qp_figurebars(fig)
 end
 

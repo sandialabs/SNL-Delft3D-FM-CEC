@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -41,25 +41,13 @@ contains
       subroutine openfl ( lun, finam, ftype, iopt)
 !
 !
-!     Deltares (former: Deltares)
-!
-!     version: 2.40      : windows 95 version
-!
-!     created            : oktober '95  by  robert vos
-!
-!     modified           : november '97 by robert vos
-!                          delete file first when iopt = 1
-!                          for iopt=0 file is 'old'
+!     Deltares
 !
 !     subroutines called : delete_file
 !                          stop_exit
 !
 !     function           : open file dependent on ftype
 !
-!     note               : possible types
-!                          'unformatted' (all platforms)
-!                          'transparent' (pc lahey     )
-!                          'binary'      (pc microsoft )
 !
 !*********************************************************************
 !     system dependent routine
@@ -100,9 +88,9 @@ contains
          case ( 1 )
             call delete_file ( finam, ierror )
             if(ftype=='unformatted') then
-               open ( lun, file = finam, form = ftype, access='stream', err = 99)
+               open ( newunit = lun, file = finam, form = ftype, access='stream', err = 99)
             elseif (ftype=='binary') then
-               open ( lun, file = finam, form = ftype, err = 99)
+               open ( newunit = lun, file = finam, form = ftype, err = 99)
             else
                write(*,*) ' Error when opening file with name: '
                write(*,*) finam
@@ -111,9 +99,9 @@ contains
             endif
          case ( 0 )
             if(ftype=='unformatted') then
-               open ( lun, file = finam, form = ftype, access='stream', status ='old', err = 99)
+               open ( newunit = lun, file = finam, form = ftype, access='stream', status ='old', err = 99)
             elseif (ftype=='binary') then
-               open ( lun, file = finam, form = ftype, status = 'old', err = 99)
+               open ( newunit = lun, file = finam, form = ftype, status = 'old', err = 99)
             else
                write(*,'(//a,a40)') ' Error on opening file: ',finam
                write(*,'(  a,a  )') ' Expected file type   : ',ftype
@@ -123,9 +111,9 @@ contains
             endif
          case ( 3 )
             if(ftype=='unformatted') then
-               open ( lun, file = finam, form = ftype, access='stream', status ='old', err = 10)
+               open ( newunit = lun, file = finam, form = ftype, access='stream', status ='old', err = 10)
             elseif (ftype=='binary') then
-               open ( lun, file = finam, form = ftype, status = 'old', err = 10)
+               open ( newunit = lun, file = finam, form = ftype, status = 'old', err = 10)
             else
                write(*,'(//a,a40)') ' Error on opening file: ',finam
                write(*,'(  a,a  )') ' Expected file type   : ',ftype

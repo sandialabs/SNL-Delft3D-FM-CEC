@@ -18,7 +18,7 @@ function varargout=d3d_trimfil(FI,domain,field,cmd,varargin)
 
 %----- LGPL --------------------------------------------------------------------
 %                                                                               
-%   Copyright (C) 2011-2020 Stichting Deltares.                                     
+%   Copyright (C) 2011-2022 Stichting Deltares.                                     
 %                                                                               
 %   This library is free software; you can redistribute it and/or                
 %   modify it under the terms of the GNU Lesser General Public                   
@@ -43,8 +43,8 @@ function varargout=d3d_trimfil(FI,domain,field,cmd,varargin)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/private/d3d_trimfil.m $
-%   $Id: d3d_trimfil.m 65778 2020-01-14 14:07:42Z mourits $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/tools_lgpl/matlab/quickplot/progsrc/private/d3d_trimfil.m $
+%   $Id: d3d_trimfil.m 140618 2022-01-12 13:12:04Z klapwijk $
 
 %========================= GENERAL CODE ===================================
 T_=1; ST_=2; M_=3; N_=4; K_=5;
@@ -95,6 +95,9 @@ switch cmd
         return
     case 'subfields'
         varargout={getsubfields(FI,Props,varargin{:})};
+        return
+    case 'plotoptions'
+        varargout = {[]};
         return
     case 'plot'
         hNew = plotthis(FI,Props,varargin{:});
@@ -337,9 +340,9 @@ if XYRead || compute_unitvalue || computeDZ
             end
         end
         x=reshape(x,[1 size(x)]);
-        x=repmat(x,[1 1 1 length(idxK_)]);
+        x=repmat(x,[1 1 1 size(z,4)]);
         y=reshape(y,[1 size(y)]);
-        y=repmat(y,[1 1 1 length(idxK_)]);
+        y=repmat(y,[1 1 1 size(z,4)]);
     elseif DimFlag(K_) || computeDZ
         dp=readdps(FI,idx);
         [h,Chk_h]=vs_let(FI,'map-series',idx(T_),'S1',idx([M_ N_]),'quiet');
@@ -1329,6 +1332,14 @@ DataProps={'morphologic grid'          ''       [0 0 1 1 0]  0         0    'sQU
     'wave force'                       'N/m^2'  [1 0 1 1 0]  1         2    'sQUAD' 'xy'     'u'       'u'   'z'       ''      'map-trit-series'  'WAVE_FORCE_X' 'WAVE_FORCE_Y' []      0
     'roller force'                     'N/m^2'  [1 0 1 1 0]  1         2    'sQUAD' 'xy'     'u'       'u'   'z'       ''      'map-rol-series'   'WSU'     'WSV'    []       0
     'roller force'                     'N/m^2'  [1 0 1 1 0]  1         2    'sQUAD' 'xy'     'u'       'u'   'z'       ''      'map-trit-series'  'ROLLER_FORCE_X' 'ROLLER_FORCE_Y'  [] 0
+    '-------'                          ''       [0 0 0 0 0]  0         0    ''      ''       ''        ''    ''        ''      ''                 ''         ''      []       0
+    'snow thickness on ice cover'      'm'      [1 0 1 1 0]  1         1    'sQUAD' 'xy'     ''        'z'   'z'       ''      'map-series'       'H_SNOW'   ''      []       0
+    'area fraction covered by ice'     '-'      [1 0 1 1 0]  1         1    'sQUAD' 'xy'     ''        'z'   'z'       ''      'map-ice-series'   'ICEFRAC'  ''      []       0
+    'area fraction covered by ice'     '-'      [1 0 1 1 0]  1         1    'sQUAD' 'xy'     ''        'z'   'z'       ''      'map-series'       'A_ICE'    ''      []       0
+    'thickness of ice cover'           'm'      [1 0 1 1 0]  1         1    'sQUAD' 'xy'     ''        'z'   'z'       ''      'map-ice-series'   'ICETHCK'  ''      []       0
+    'thickness of ice cover'           'm'      [1 0 1 1 0]  1         1    'sQUAD' 'xy'     ''        'z'   'z'       ''      'map-series'       'H_ICE'    ''      []       0
+    'pressure of ice cover'            'Pa'     [1 0 1 1 0]  1         1    'sQUAD' 'xy'     ''        'z'   'z'       ''      'map-ice-series'   'ICEPRESS' ''      []       0
+    'ice drift velocity'               'm/s'    [1 0 1 1 0]  1         2    'sQUAD' 'xy'     'u'       'u'   'z'       ''      'map-series'       'U_ICE'    'V_ICE' []       0
     '-------'                          ''       [0 0 0 0 0]  0         0    ''      ''       ''        ''    ''        ''      ''               ''        ''       []       0
     'water level (when dry: bed level)' 'm'     [1 0 1 1 0]  1         1    'sQUAD' 'xy'     ''        'z'   'z'       ''      'map-series'     'S1'      ''       []       0
     'water level'                      'm'      [1 0 1 1 0]  1         1    'sQUAD' 'xy'     ''        'z'   'z'       ''      'map-series'     'S1'      ''       []       0
@@ -1421,6 +1432,7 @@ DataProps={'morphologic grid'          ''       [0 0 1 1 0]  0         0    'sQU
     'bed shear stress'                 'N/m^2'  [1 0 1 1 0]  1         2    'sQUAD' 'xy'     'u'       'u'   'z'       ''      'map-series'     'TAUKSI'  'TAUETA' []       1
     'staggered bed shear stress'       'N/m^2'  [1 0 1 1 0]  1         1.9  'sQUAD' 'xy'     ''        'd'   'd'       ''      'map-series'     'TAUKSI'  'TAUETA' []       1
     'maximum bed shear stress'         'N/m^2'  [1 0 1 1 0]  1         1    'sQUAD' 'xy'     ''        'z'   'z'       ''      'map-series'     'TAUMAX'  ''       []       0
+    'bed shear stress for morphology'  'N/m^2'  [1 0 1 1 0]  1         2    'sQUAD' 'xy'     'u'       'u'   'z'       ''      'map-sed-series' 'TAUB'    ''       []       0
     'excess bed shear ratio'           '-'      [1 0 1 1 0]  1         1    'sQUAD' 'xy'     ''        'z'   'z'       ''      'map-sed-series' 'TAURAT'  ''       'sb1'    0
     'initial bed level'                'm'      [0 0 1 1 0]  1         1    'sQUAD' 'xy'     ''        'd'   'd'       ''      'map-const'      'DP0'     ''       []       0
     'bed level in water level points'  'm'      [1 0 1 1 0]  1         1    'sQUAD' 'xy'     ''        'd'   'z'       ''      'map-const'      'DP0'     ''       []       0

@@ -1,6 +1,6 @@
 !----- LGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This library is free software; you can redistribute it and/or                
 !  modify it under the terms of the GNU Lesser General Public                   
@@ -24,8 +24,8 @@
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: ftnunit_store.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/ftnunit/packages/ftnunit/src/ftnunit_store.f90 $
+!  $Id: ftnunit_store.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_lgpl/ftnunit/packages/ftnunit/src/ftnunit_store.f90 $
 ! ftnunit_store.f90 --
 !     Module to store and retrieve arrays of data for the
 !     "ftnunit" framework:
@@ -43,7 +43,6 @@
 !       - A record with the actual data
 !
 module ftnunit_store
-    use ftnunit_utilities
 
     implicit none
 
@@ -152,12 +151,11 @@ subroutine test_open_storage_file( filename, lun, desc, output )
     endif
 
     !
-    ! Get a LU-number, open the file and check
+    ! Open the file and check
     !
-    call ftnunit_get_lun( lun )
 
     if ( output_ ) then
-        open( lun, file = filename, form = 'unformatted', status = 'new', iostat = ierr )
+        open( newunit = lun, file = filename, form = 'unformatted', status = 'new', iostat = ierr )
 
         if ( ierr /= 0 ) then
             write(*,*) 'FTNUNIT: unable to open file "' // trim(filename) // ' for writing'
@@ -170,7 +168,7 @@ subroutine test_open_storage_file( filename, lun, desc, output )
         write( lun ) desc_  ! Ensure a known length of the description
 
     else
-        open( lun, file = filename, form = 'unformatted', status = 'old', iostat = ierr )
+        open( newunit = lun, file = filename, form = 'unformatted', status = 'old', iostat = ierr )
 
         if ( ierr /= 0 ) then
             write(*,*) 'FTNUNIT: unable to open file "' // trim(filename) // ' for reading'

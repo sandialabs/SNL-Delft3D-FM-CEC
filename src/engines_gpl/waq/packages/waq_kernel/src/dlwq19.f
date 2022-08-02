@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -203,7 +203,7 @@
       logical   , save :: report           ! write iteation reports in monitoring file
       integer          :: ierr2         !
       real(4)     acc_remained, acc_changed ! For reporting: accumulated/averaged reporting parameters
-      logical          :: vertical_upwind  ! Set .true. for upwind sceme in the vertical
+      logical          :: vertical_upwind  ! Set .true. for upwind scheme in the vertical
       integer  ( 4)          ithandl /0/
       integer  ( 4)          ithand1 /0/
       integer  ( 4)          ithand2 /0/
@@ -601,9 +601,10 @@
          if2 = itf  (ibox)
          do i = if1, if2
             iq = iordf(i)
-            q  = flow(iq)*dt(ibox)
             ifrom = ipoint(1,iq)               !  The diagonal now is the sum of the
             ito   = ipoint(2,iq)               !  new volume that increments with each step
+            if ( ifrom .eq. 0 .or.  ito .eq. 0 ) cycle
+            q  = flow(iq)*dt(ibox)
             work(3,ifrom) = q                 ! flow through lower surface (central or upwind now arranged in one spot, further down)
             work(1,ito  ) = q                 ! flow through upper surface
          enddo
@@ -806,11 +807,13 @@
                   endif
                endif
    10       continue
-            if ( report .and. ( changed .ne. 0 .or. remained .ne. 0 ) ) then
+            if ( changed .ne. 0 .or. remained .ne. 0 ) then
                acc_remained = acc_remained + remained
                acc_changed  = acc_changed  + changed
                if ( remained .gt. 0 .and. changed .eq. 0 ) then
-                  write ( lunut, * ) 'Warning: No further progress in the wetting procedure!'
+                  if ( report ) then
+                     write ( lunut, * ) 'Warning: No further progress in the wetting procedure!'
+                  endif
                   exit
                endif
             endif
@@ -906,13 +909,13 @@
             do isys = 1, nosys
                dq = q*conc(isys,iseg)
                rhs (isys,iseg) = rhs(isys,iseg) - dq
-               if ( massbal    ) amass2(isys,    3) = amass2(isys    ,3) + dq
+               if ( massbal    ) amass2(isys,    3) = amass2(isys    ,3) - dq
                if ( ipb .gt. 0 ) dmps  (isys,ipb,3) = dmps  (isys,ipb,3) + dq
             enddo
             do k = 1, nowst
                if ( iseg2 .eq. iwaste(k) ) then
                   do isys = 1, nosys
-                     wstdmp(isys,k,2) = wstdmp(isys,k,2) - q*conc(isys,iseg)
+                     wstdmp(isys,k,2) = wstdmp(isys,k,2) + q*conc(isys,iseg)
                   enddo
                   exit
                endif
@@ -926,7 +929,7 @@
             j    = nvert(2,iseg)
             if ( j .gt. 0 ) then                                      ! this is head of column
                ih1 = nvert(1,j)
-               if ( j .lt. nosegl ) then
+               if ( j .lt. noseg ) then
                   ih2 = nvert(1,j+1)
                else
                   ih2 = noseg+1
@@ -1314,13 +1317,13 @@
                do isys = 1, nosys
                   dq = q*dconc2(isys,iseg)
                   rhs (isys,iseg) = rhs(isys,iseg) - dq
-                  if ( massbal    ) amass2(isys,    3) = amass2(isys    ,3) + dq
+                  if ( massbal    ) amass2(isys,    3) = amass2(isys    ,3) - dq
                   if ( ipb .gt. 0 ) dmps  (isys,ipb,3) = dmps  (isys,ipb,3) + dq
                enddo
                do k = 1, nowst
                   if ( iseg .eq. iwaste(k) ) then
                      do isys = 1, nosys
-                        wstdmp(isys,k,2) = wstdmp(isys,k,2) - q*dconc2(isys,iseg)
+                        wstdmp(isys,k,2) = wstdmp(isys,k,2) + q*dconc2(isys,iseg)
                      enddo
                      exit
                   endif
@@ -1335,6 +1338,7 @@
                if ( ipb .eq. 0 ) cycle
                ifrom = ipoint(1,iq)
                ito   = ipoint(2,iq)
+               if ( ifrom .eq. 0 .or.  ito .eq. 0 ) cycle
                if (vertical_upwind) then
                   q     = flow(iq) * dt(ibox)                      ! This is the upwind differences version
                   if ( q .gt. 0. 0 ) then

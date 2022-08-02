@@ -2,7 +2,7 @@ subroutine rdveg3d(mmax      ,nmax      ,nmaxus    , &
                  & xz        ,yz        ,gdp       )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -26,8 +26,8 @@ subroutine rdveg3d(mmax      ,nmax      ,nmaxus    , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: rdveg3d.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/io/src/input/rdveg3d.f90 $
+!  $Id: rdveg3d.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/flow2d3d/packages/io/src/input/rdveg3d.f90 $
 !!--description-----------------------------------------------------------------
 !
 ! Reads Dredge and Dump input file.
@@ -38,6 +38,7 @@ subroutine rdveg3d(mmax      ,nmax      ,nmaxus    , &
 !!--declarations----------------------------------------------------------------
     use precision
     use properties
+    use polygon_module, only: ipon
     !
     use globaldata
     !
@@ -506,7 +507,7 @@ subroutine rdveg3d(mmax      ,nmax      ,nmaxus    , &
                 enddo
                 do k = 2, nmax-1
                    do j = 2, mmax-1
-                      call ipon(xpol ,ypol ,np ,xz(k, j) ,yz(k, j) ,inout ,gdp)
+                      call ipon(xpol ,ypol ,np ,xz(k, j) ,yz(k, j) ,inout)
                       if (inout>=0) then
                          planttype(k, j) = vegmatch
                          nplants  (k, j) = cntplants

@@ -15,7 +15,7 @@ function G = read_ecom_modelgrid(FileName)
 
 %----- LGPL --------------------------------------------------------------------
 %                                                                               
-%   Copyright (C) 2011-2020 Stichting Deltares.                                     
+%   Copyright (C) 2011-2022 Stichting Deltares.                                     
 %                                                                               
 %   This library is free software; you can redistribute it and/or                
 %   modify it under the terms of the GNU Lesser General Public                   
@@ -40,10 +40,10 @@ function G = read_ecom_modelgrid(FileName)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/private/read_ecom_modelgrid.m $
-%   $Id: read_ecom_modelgrid.m 65778 2020-01-14 14:07:42Z mourits $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/tools_lgpl/matlab/quickplot/progsrc/private/read_ecom_modelgrid.m $
+%   $Id: read_ecom_modelgrid.m 140618 2022-01-12 13:12:04Z klapwijk $
 
-fid = fopen(FileName,'r');
+fid = fopen(FileName,'r','n','US-ASCII');
 Comment = fgetl(fid); % New Refined Grid
 
 Comment = fgetl(fid); % Sigma Levels Z=0  to -1.0  11 levels 

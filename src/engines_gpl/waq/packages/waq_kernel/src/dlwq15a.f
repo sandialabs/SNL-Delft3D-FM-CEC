@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -174,6 +174,10 @@
       data       ithandl /0/
       if ( timon ) call timstrt ( "dlwq15", ithandl )
 
+!          Set the array with withdrawal flow rates in any case
+
+      wdrawal = 0.0
+
 !          No wasteloads, then no glory
 
       if ( nowst .eq. 0 ) goto 9999
@@ -183,7 +187,6 @@
 
       if ( isys .eq. 1 ) then
 
-         wdrawal = 0.0
 
 !          Create and dimension a backpointering array for load detection
 !          Dimension a work array for surface and bottom loads

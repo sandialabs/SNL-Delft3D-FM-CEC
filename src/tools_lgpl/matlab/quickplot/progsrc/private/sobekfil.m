@@ -18,7 +18,7 @@ function varargout=sobekfil(FI,domain,field,cmd,varargin)
 
 %----- LGPL --------------------------------------------------------------------
 %                                                                               
-%   Copyright (C) 2011-2020 Stichting Deltares.                                     
+%   Copyright (C) 2011-2022 Stichting Deltares.                                     
 %                                                                               
 %   This library is free software; you can redistribute it and/or                
 %   modify it under the terms of the GNU Lesser General Public                   
@@ -43,8 +43,8 @@ function varargout=sobekfil(FI,domain,field,cmd,varargin)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/private/sobekfil.m $
-%   $Id: sobekfil.m 65778 2020-01-14 14:07:42Z mourits $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/tools_lgpl/matlab/quickplot/progsrc/private/sobekfil.m $
+%   $Id: sobekfil.m 140975 2022-03-29 07:39:07Z jagers $
 
 %========================= GENERAL CODE =======================================
 
@@ -94,6 +94,9 @@ switch cmd
     case 'subfields'
         varargout={subfields(FI,domain,Props)};
         return
+    case 'plotoptions'
+        varargout = {[]};
+        return
     case 'plot'
         Parent=varargin{1};
         Ops=varargin{2};
@@ -123,6 +126,8 @@ end
 sz=getsize(FI,domain,Props);
 if isempty(idx{T_})
     idx{T_}=sz(T_);
+elseif isequal(idx{T_},0)
+    idx{T_} = 1:sz(T_);
 end
 if sz(M_)>0 && (isequal(idx{M_},0) || isempty(idx{M_}))
     idx{M_}=1:sz(M_);
@@ -216,11 +221,15 @@ if isequal(Props.Geom,'SEG-NODE') || isequal(Props.Geom,'SEG-EDGE')
             end
             if Props.NVal>0
                 if ~isequal(Props.Subs,0)
-                    Ans.Val = NaN(length(idx{T_}),length(selected));
+                    % delwaq returns array of size NSUBS x NSEGS x NTIMES
+                    Ans.Val = NaN(1,length(selected),length(idx{T_}));
                     %
                     [Member,Idx] = ismember(DataFile.SegmentName,FI.Node.ID(inodes));
-                    [t,Ans.Val(:,Idx(Member))]=delwaq('read',DataFile,Props.Subs(2),find(Member),idx{T_});
-                    Ans.Time=t;
+                    [t,Ans.Val(1,Idx(Member),:)]=delwaq('read',DataFile,Props.Subs(2),find(Member),idx{T_});
+                    %
+                    % need to return a matrix NTIMES x NSEGS (NSUBS = 1)
+                    Ans.Val = permute(Ans.Val,[3,2,1]);
+                    Ans.Time = t;
                 else
                     if isempty(subfield)
                         fld = 'ID';

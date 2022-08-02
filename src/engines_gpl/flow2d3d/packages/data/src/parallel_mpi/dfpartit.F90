@@ -1,7 +1,7 @@
 subroutine dfpartit ( ipown, icom, mmax, nmax, gdp )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -25,8 +25,8 @@ subroutine dfpartit ( ipown, icom, mmax, nmax, gdp )
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: dfpartit.F90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/data/src/parallel_mpi/dfpartit.F90 $
+!  $Id: dfpartit.F90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/flow2d3d/packages/data/src/parallel_mpi/dfpartit.F90 $
 !!--description-----------------------------------------------------------------
 !
 !   Carries out the partitioning of the computational grid
@@ -120,8 +120,7 @@ subroutine dfpartit ( ipown, icom, mmax, nmax, gdp )
     !    !
     !    inquire (file = filspp, exist = ex)
     !    if ( ex ) then
-    !       luntmp = newlun(gdp)
-    !       open (luntmp, file = filspp, form = 'formatted', status = 'old')
+    !       open (newunit=luntmp, file = filspp, form = 'formatted', status = 'old')
     !       do i = 1, 3
     !          read (luntmp, '(a)') txt1
     !       enddo
@@ -145,8 +144,7 @@ subroutine dfpartit ( ipown, icom, mmax, nmax, gdp )
     !       enddo
     ! 10    close(luntmp)
     !    else
-    !       luntmp = newlun(gdp)
-    !       open (luntmp, file = filspp, form = 'formatted', status = 'unknown')
+    !       open (newunit=luntmp, file = filspp, form = 'formatted', status = 'unknown')
     !       txt1 = '# list of non-default processor speeds in % of default'
     !       txt2 = '# default speed = 100%'
     !       write (luntmp, '(a)') trim(txt1)

@@ -15,7 +15,7 @@ function valo=qp_settings(param,val)
 
 %----- LGPL --------------------------------------------------------------------
 %                                                                               
-%   Copyright (C) 2011-2020 Stichting Deltares.                                     
+%   Copyright (C) 2011-2022 Stichting Deltares.                                     
 %                                                                               
 %   This library is free software; you can redistribute it and/or                
 %   modify it under the terms of the GNU Lesser General Public                   
@@ -40,8 +40,8 @@ function valo=qp_settings(param,val)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/private/qp_settings.m $
-%   $Id: qp_settings.m 65942 2020-02-06 15:19:38Z jagers $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/tools_lgpl/matlab/quickplot/progsrc/private/qp_settings.m $
+%   $Id: qp_settings.m 140618 2022-01-12 13:12:04Z klapwijk $
 
 persistent Settings qppref
 if isempty(Settings)
@@ -57,16 +57,19 @@ end
 if nargout==1
     % retrieve value
     if length(param)>6 && strcmpi(param(end-5:end),'string')
-        cmd='getstring';
+        cmd='cgetstring';
     else
-        cmd='get';
+        cmd='cget';
     end
-    valo=inifile(cmd,Settings,grp,param,{});
-    if iscell(valo) && (nargin==1 || ~iscell(val))
-        if nargin==1
-            val={};
-        end
-        valo=qp_settings_default(param,val);
+    if nargin>1
+        dval = val;
+    else
+        dval = {};
+    end
+    dval = qp_settings_default(param, dval);
+    valo = inifile(cmd, Settings, grp, param, dval);
+    if length(valo)==1
+        valo = valo{1};
     end
 elseif isequal(param,'<SAVE>')
     Settings=qp_write_settings(Settings,qppref);
@@ -96,6 +99,7 @@ Set.UIFontUnits        = get(0,'DefaultUicontrolFontUnits');
 Set.UIFontSize         = get(0,'DefaultUicontrolFontSize');
 Set.UIFontWeight       = get(0,'DefaultUicontrolFontWeight');
 Set.figuredir          = '';
+Set.graphicssmoothing  = 0;
 Set.gridviewbackgroundcolor   = [230 230 230];
 Set.gridviewgridcolor         = [0 153 153];
 Set.gridviewselectioncolor    = [255 0 0];

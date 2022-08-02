@@ -12,7 +12,7 @@ function hNew=plotlimitingfactors(FI,varargin)
 
 %----- LGPL --------------------------------------------------------------------
 %                                                                               
-%   Copyright (C) 2011-2020 Stichting Deltares.                                     
+%   Copyright (C) 2011-2022 Stichting Deltares.                                     
 %                                                                               
 %   This library is free software; you can redistribute it and/or                
 %   modify it under the terms of the GNU Lesser General Public                   
@@ -37,9 +37,10 @@ function hNew=plotlimitingfactors(FI,varargin)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/plotlimitingfactors.m $
-%   $Id: plotlimitingfactors.m 65778 2020-01-14 14:07:42Z mourits $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/tools_lgpl/matlab/quickplot/progsrc/plotlimitingfactors.m $
+%   $Id: plotlimitingfactors.m 140618 2022-01-12 13:12:04Z klapwijk $
 
+T_=1;
 ST_=2;
 if nargin<3
    error('Not enough input arguments.')
@@ -67,6 +68,12 @@ if isempty(Chlfa)
    error('Cannot find total Chlorophyll in algae (Limit Chlo) in data file.')
 end
 
+if Quants(Chlfa).DimFlag(T_)
+    Times = Location{1};
+    Location = Location(2:end);
+else
+    Times = 0;
+end
 if Quants(Chlfa).DimFlag(ST_)
    if iscell(Location)
       Location = Location{1};
@@ -83,7 +90,7 @@ else
    LocationStr=sprintf('(%i,%i)',Location{:});
 end
 
-DataChlfa = qpread(FI,Quants(Chlfa),'data',0,Location{:});
+DataChlfa = qpread(FI,Quants(Chlfa),'data',Times,Location{:});
 H=line(DataChlfa.Time,DataChlfa.Val,'parent',Parent,'color',options.color);
 if nargout>0
    hNew=H;

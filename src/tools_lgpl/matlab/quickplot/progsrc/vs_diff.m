@@ -32,7 +32,7 @@ function out=vs_diff(VS1,VS2,varargin)
 
 %----- LGPL --------------------------------------------------------------------
 %
-%   Copyright (C) 2011-2020 Stichting Deltares.
+%   Copyright (C) 2011-2022 Stichting Deltares.
 %
 %   This library is free software; you can redistribute it and/or
 %   modify it under the terms of the GNU Lesser General Public
@@ -57,8 +57,8 @@ function out=vs_diff(VS1,VS2,varargin)
 %
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/vs_diff.m $
-%   $Id: vs_diff.m 65778 2020-01-14 14:07:42Z mourits $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/tools_lgpl/matlab/quickplot/progsrc/vs_diff.m $
+%   $Id: vs_diff.m 140618 2022-01-12 13:12:04Z klapwijk $
 
 fid=1;
 FailOnNaN=0;
@@ -231,10 +231,10 @@ for i=1:length(gNamesMatch)
                     eSel = {};
                 end
                 NBytes=prod(gSizeDim)*prod(eSizeDim)*8; % size of eData1 (not correct for complex and char arrays)
+                szData = [gSizeDim eSizeDim];
                 if (NBytes>5e6) && gInfo1.VarDim % above 5MB, use variable dimension if possible
                     dAMax = 0;
                     dRMax = 0;
-                    szData = [gSizeDim eSizeDim];
                     szData(gInfo1.VarDim)=1;
                     for k=1:gSizeDim(gInfo1.VarDim)
                         gSel{gInfo1.VarDim}=k;
@@ -344,20 +344,19 @@ for i=1:length(gNamesMatch)
                             fprintf(fid,'  Data of element %s of group %s %s%s.\n',eNamesMatch{j},gNamesMatch{i},reason,kStr);
                             DiffFound=LDiffFound;
                             if Quantify && strcmp(reason,'differ') && eInfo1.TypeVal~=1
-                                szData = size(eData1);
                                 if any(xor(isnan(eData1(:)),isnan(eData2(:))))
                                     dMax  = NaN;
                                     iMax  = find(xor(isnan(eData1(:)),isnan(eData2(:))));
                                     lMax  = {};
                                     [lMax{1:length(szData)}]=ind2sub(szData,iMax(1));
-                                    fprintf(fid,['Maximum absolute difference %g located at index: (',repmat('%i,',1,length(szData)-1) '%i)\n'],dMax,lMax{:});
+                                    fprintf(fid,['    Maximum absolute difference %g located at index: (',repmat('%i,',1,length(szData)-1) '%i)\n'],dMax,lMax{:});
                                 else
                                     dData = abs(eData1-eData2);
                                     dMax  = max(dData(:));
                                     iMax  = find(dData==dMax);
                                     lMax  = {};
                                     [lMax{1:length(szData)}]=ind2sub(szData,iMax(1));
-                                    fprintf(fid,['Maximum absolute difference %g located at index: (',repmat('%i,',1,length(szData)-1) '%i)\n'],dMax,lMax{:});
+                                    fprintf(fid,['    Maximum absolute difference %g located at index: (',repmat('%i,',1,length(szData)-1) '%i)\n'],dMax,lMax{:});
                                     %
                                     if  eInfo1.TypeVal==5
                                         dData = 2*dData./abs(eData1+eData2);
@@ -365,7 +364,7 @@ for i=1:length(gNamesMatch)
                                         iMax  = find(dData==dMax);
                                         lMax  = {};
                                         [lMax{1:length(szData)}]=ind2sub(szData,iMax(1));
-                                        fprintf(fid,['Maximum relative difference %g located at index: (',repmat('%i,',1,length(szData)-1) '%i)\n'],dMax,lMax{:});
+                                        fprintf(fid,['    Maximum relative difference %g located at index: (',repmat('%i,',1,length(szData)-1) '%i)\n'],dMax,lMax{:});
                                     end
                                 end
                             end

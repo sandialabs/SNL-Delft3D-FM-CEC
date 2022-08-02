@@ -1,6 +1,6 @@
 //---- LGPL --------------------------------------------------------------------
 //
-// Copyright (C)  Stichting Deltares, 2011-2020.
+// Copyright (C)  Stichting Deltares, 2011-2022.
 //
 // This library is free software; you can redistribute it and/or
 // modify it under the terms of the GNU Lesser General Public
@@ -24,8 +24,8 @@
 // Stichting Deltares. All rights reserved.
 //
 //------------------------------------------------------------------------------
-// $Id: oc.c 65778 2020-01-14 14:07:42Z mourits $
-// $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/nefis/packages/nefis/src/oc.c $
+// $Id: oc.c 140618 2022-01-12 13:12:04Z klapwijk $
+// $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_lgpl/nefis/packages/nefis/src/oc.c $
 /*
  *   <oc.c> - Functions related to open en close of NEFIS file set
  *
@@ -52,7 +52,7 @@
 #if defined(_WIN32) || defined(salford32)
 #  include <io.h>
 #  include <sys\stat.h>
-#elif defined(HAVE_CONFIG_H)
+#elif defined(linux)
 #  include <sys/types.h>
 #  include <sys/stat.h>
 #  include <fcntl.h>
@@ -62,7 +62,7 @@
 #  include <sys/fcntl.h>
 #endif
 
-#if defined(GNU_PC) || defined (HAVE_CONFIG_H)
+#if defined(GNU_PC) || defined (linux)
 #  include <unistd.h>
 #endif
 
@@ -73,7 +73,7 @@
 #  define FILE_READ_ONLY  (_O_RDONLY | _O_BINARY)
 #  define FILE_CREATE     (_O_CREAT  | _O_TRUNC | _O_RDWR     | _O_BINARY)
 #  define FILE_MODE       (_S_IREAD  | _S_IWRITE)
-#elif defined(GNU_PC) || defined(HAVE_CONFIG_H) || defined(salford32)
+#elif defined(GNU_PC) || defined(linux) || defined(salford32)
 #  define FILE_OPEN        open
 #  define FILE_CLOSE       close
 #  define FILE_READ_WRITE  O_RDWR;

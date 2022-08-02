@@ -1,3 +1,32 @@
+!----- GPL ---------------------------------------------------------------------
+!
+!  Copyright (C)  Stichting Deltares, 2011-2022.
+!
+!  This program is free software: you can redistribute it and/or modify
+!  it under the terms of the GNU General Public License as published by
+!  the Free Software Foundation version 3.
+!
+!  This program is distributed in the hope that it will be useful,
+!  but WITHOUT ANY WARRANTY; without even the implied warranty of
+!  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!  GNU General Public License for more details.
+!
+!  You should have received a copy of the GNU General Public License
+!  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+!
+!  contact: delft3d.support@deltares.nl
+!  Stichting Deltares
+!  P.O. Box 177
+!  2600 MH Delft, The Netherlands
+!
+!  All indications and logos of, and references to, "Delft3D" and "Deltares"
+!  are registered trademarks of Stichting Deltares, and remain the property of
+!  Stichting Deltares. All rights reserved.
+!
+!  $Id: ec_netcdf_timeseries.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_lgpl/ec_module/packages/ec_module/src/ec_netcdf_timeseries.f90 $
+
+
 module m_ec_netcdf_timeseries
     use precision 
     use m_ec_parameters
@@ -114,6 +143,9 @@ module m_ec_netcdf_timeseries
     !> Initialize NetCDF instance
     function ecNetCDFInit (ncname, ncptr, iostat) result (success)
     use string_module
+    use io_ugrid
+    use netcdf_utils, only: ncu_get_att
+    
     implicit none
 !   Open a netCDF file, store ncid, standard names and long names ....
 !   Open only if this file is not already opened, so check the list of nc-objects first and return a pointer ....
@@ -121,16 +153,19 @@ module m_ec_netcdf_timeseries
     character(len=*),              intent(in)      :: ncname
     type (tEcNetCDF),              pointer         :: ncptr
     integer, optional,             intent(out)     :: iostat
-    character(len=50)                              :: name, cf_role , positive, zunits
+    character(len=nf90_max_name)                   :: name
+    character(len=:), allocatable                  :: cf_role, positive, zunits
 
     integer    :: iDims, nDims, iVars, iTims, nVars, nTims, nGlobalAtts, unlimdimid, ierr 
     integer    :: tslen
     integer    :: dimids_tsid(2)
     integer, allocatable :: var_dimids(:,:)
     integer, allocatable :: var_ndims(:)
-
     
     success = .false.
+    allocate(character(len=0) :: cf_role)
+    allocate(character(len=0) :: positive)
+    allocate(character(len=0) :: zunits)
 
     ierr = nf90_open(trim(ncname), NF90_NOWRITE, ncptr%ncid)
     if (ierr /= 0) then
@@ -150,9 +185,15 @@ module m_ec_netcdf_timeseries
     allocate (ncptr%standard_names(nVars))
     allocate (ncptr%long_names(nVars))
     allocate (ncptr%variable_names(nVars))
+    allocate (ncptr%fillvalues(nVars))
+    allocate (ncptr%scales(nVars))
+    allocate (ncptr%offsets(nVars))
     ncptr%standard_names = ' '
     ncptr%long_names = ' '
     ncptr%variable_names = ' '
+    ncptr%fillvalues = -huge(hp)
+    ncptr%scales     = 1.0_hp
+    ncptr%offsets    = 0.0_hp
     allocate(var_dimids(nDims, nVars)) ! NOTE: nDims is only an upper bound here!
     allocate(var_ndims(nVars))
     var_ndims = 0
@@ -161,11 +202,18 @@ module m_ec_netcdf_timeseries
        ierr = nf90_get_att(ncptr%ncid,iVars,'standard_name',ncptr%standard_names(iVars))    ! Standard name if available
        if (ierr /= 0) ncptr%standard_names(iVars) = ncptr%variable_names(iVars)             ! Variable name as fallback for standard_name
        ierr = nf90_get_att(ncptr%ncid,iVars,'long_name',ncptr%long_names(iVars))            ! Long name for non CF names
+
+       ierr = nf90_get_att(ncptr%ncid,iVars,'_FillValue',ncptr%fillvalues(iVars))
+       if (ierr/=NF90_NOERR)   ncptr%fillvalues(iVars) = -huge(hp)
+       ierr = nf90_get_att(ncptr%ncid,iVars,'scale_factor',ncptr%scales(iVars))
+       if (ierr/=NF90_NOERR)   ncptr%scales(iVars) = 1.0_hp
+       ierr = nf90_get_att(ncptr%ncid,iVars,'add_offset',ncptr%offsets(iVars))
+       if (ierr/=NF90_NOERR)   ncptr%offsets(iVars) = 0.0_hp
        ierr = nf90_inquire_variable(ncptr%ncid,iVars,ndims=var_ndims(iVars),dimids=var_dimids(:,iVars))
 
        ! Check for important var: was it the stations?
        cf_role = ''
-       ierr = nf90_get_att(ncptr%ncid,iVars,'cf_role',cf_role)
+       ierr = ncu_get_att(ncptr%ncid,iVars,'cf_role',cf_role)
        if (cf_role == 'timeseries_id') then 
              nDims = 0                
              ierr = nf90_inquire_variable(ncptr%ncid, iVars, ndims = nDims)
@@ -199,7 +247,7 @@ module m_ec_netcdf_timeseries
        ! Check for important var: was it vertical layering?
        positive = ''
        zunits = ''
-       ierr = nf90_get_att(ncptr%ncid,iVars,'positive',positive)
+       ierr = ncu_get_att(ncptr%ncid,iVars,'positive',positive)
        if (len_trim(positive) > 0) then ! Identified a layercoord variable, by its positive:up/down attribute
           ! NOTE: officially, a vertical coord var may also be identified by a unit of pressure, but we don't support that here.
           ncptr%layervarid = iVars
@@ -207,10 +255,9 @@ module m_ec_netcdf_timeseries
           ncptr%nLayer = ncptr%dimlen(ncptr%layerdimid)
           allocate(ncptr%vp(ncptr%nLayer))
           ierr = nf90_get_var(ncptr%ncid,ncptr%layervarid,ncptr%vp,(/1/),(/ncptr%nLayer/))
-          ierr = nf90_get_att(ncptr%ncid,iVars,'units',zunits)
+          ierr = ncu_get_att(ncptr%ncid,iVars,'units',zunits)
           if (strcmpi(zunits,'m')) then
-            !if (strcmpi(positive,'up'))   ncptr%vptyp=BC_VPTYP_ZDATUM         ! z upward from datum, 
-             if (strcmpi(positive,'up'))   ncptr%vptyp=BC_VPTYP_ZBED           ! z upward from bed, 
+             if (strcmpi(positive,'up'))   ncptr%vptyp=BC_VPTYP_ZDATUM         ! z upward from datum, unmodified z-values 
              if (strcmpi(positive,'down')) ncptr%vptyp=BC_VPTYP_ZSURF          ! z downward
           else
              if (strcmpi(positive,'up'))   ncptr%vptyp=BC_VPTYP_PERCBED        ! sigma upward
@@ -249,7 +296,10 @@ module m_ec_netcdf_timeseries
     !      end if ! time dim
     !   end if ! station dim
     !enddo 
-
+    deallocate(cf_role)
+    deallocate(positive)
+    deallocate(zunits)
+    
     success = .True.
     end function ecNetCDFInit
 
@@ -338,9 +388,9 @@ module m_ec_netcdf_timeseries
        ierr = nf90_get_var(ncptr%ncid,q_id,ncvalue(1:1),(/l_id,timelevel/),(/1,1/))  
     else                               ! yes 3rd dimension, get a rank-1 vector, num. of layers
        ierr = nf90_get_var(ncptr%ncid,q_id,ncvalue(1:ncptr%nLayer),(/1,l_id,timelevel/),(/ncptr%nLayer,1,1/))          
-    end if
+     end if
     if (ierr/=NF90_NOERR) return 
-    ierr = nf90_get_var(ncptr%ncid,ncptr%timevarid,nctime(1:ncptr%nLayer),(/timelevel/),(/1/))    ! get one single data value 
+    ierr = nf90_get_var(ncptr%ncid,ncptr%timevarid,nctime(1:1),(/timelevel/),(/1/))    ! get one single time value 
     if (ierr/=NF90_NOERR) return 
     success = .True.
     end function ecNetCDFGetTimeseriesValue
@@ -352,6 +402,9 @@ module m_ec_netcdf_timeseries
     !>     This should be dealt with analogous to the ascii-bc format: a string attribute named 'vector'
     !>     with a list of names of variables to be packed into a vector.
     function ecNetCDFGetVectormax (ncptr, q_id, vectormax) result (success)   
+    use netcdf_utils, only: ncu_get_att
+    use io_ugrid
+    
     implicit none
     logical                          :: success 
     type (tEcNetCDF),   pointer      :: ncptr              
@@ -359,12 +412,16 @@ module m_ec_netcdf_timeseries
     integer, intent(out)             :: vectormax 
     integer                          :: ierr 
     
-    character(len=10)   :: str
+    character(len=:), allocatable   :: str
+    
+    allocate(character(len=0) :: str)
     success = .False. 
-    ierr = nf90_get_att(ncptr%ncid,q_id,'vectormax',str)
+    str = ''
+    ierr = ncu_get_att(ncptr%ncid,q_id,'vectormax',str)
     if (ierr/=NF90_NOERR) return 
     read(str,*,iostat=ierr) vectormax
     if (ierr/=0) return 
+    deallocate(str)
     success = .True. 
     end function ecNetCDFGetVectormax
 

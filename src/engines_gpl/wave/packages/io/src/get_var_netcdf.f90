@@ -1,8 +1,8 @@
 subroutine get_var_netcdf(i_flow, wavetime, varname, vararr, mmax, nmax, basename, &
-                        & kmax, flowVelocityType)
+                        & lastvalidflowfield, kmax, flowVelocityType)
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -26,8 +26,8 @@ subroutine get_var_netcdf(i_flow, wavetime, varname, vararr, mmax, nmax, basenam
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: get_var_netcdf.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/wave/packages/io/src/get_var_netcdf.f90 $
+!  $Id: get_var_netcdf.f90 141416 2022-06-29 08:31:13Z spee $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/wave/packages/io/src/get_var_netcdf.f90 $
 !!--description-----------------------------------------------------------------
 ! NONE
 !!--pseudo code and references--------------------------------------------------
@@ -45,6 +45,7 @@ subroutine get_var_netcdf(i_flow, wavetime, varname, vararr, mmax, nmax, basenam
     integer                      , intent(in)  :: i_flow
     integer                      , intent(in)  :: mmax
     integer                      , intent(in)  :: nmax
+    integer                                    :: lastvalidflowfield
     integer, optional            , intent(in)  :: kmax
     integer, optional            , intent(in)  :: flowVelocityType
     character(*)                 , intent(in)  :: varname
@@ -71,6 +72,9 @@ subroutine get_var_netcdf(i_flow, wavetime, varname, vararr, mmax, nmax, basenam
    integer                             :: idvar_windx
    integer                             :: idvar_windy
    integer                             :: idvar_time
+   integer                             :: idvar_rnveg
+   integer                             :: idvar_diaveg
+   integer                             :: idvar_veg_stemheight
    integer                             :: mmax_from_file
    integer                             :: nm
    integer                             :: ntimes
@@ -86,7 +90,7 @@ subroutine get_var_netcdf(i_flow, wavetime, varname, vararr, mmax, nmax, basenam
    real                                :: wght
    real                                :: wghtsum
    real, dimension(:),   allocatable   :: rlabda
-   real, dimension(:),   allocatable   :: times
+   real(hp),dimension(:),allocatable   :: times
    real, dimension(:,:), allocatable   :: vararr3d
    real, dimension(:,:), allocatable   :: flzw
    character(NF90_MAX_NAME)            :: string
@@ -94,7 +98,7 @@ subroutine get_var_netcdf(i_flow, wavetime, varname, vararr, mmax, nmax, basenam
 !
 !! executable statements -------------------------------------------------------
 !
-   pi    = 4.0*tanh(1.0)
+   pi    = 4.0*atan(1.0)
    eps   = 1.0e-6
    kmax_ = 1
    if (present(kmax)) then
@@ -125,8 +129,12 @@ subroutine get_var_netcdf(i_flow, wavetime, varname, vararr, mmax, nmax, basenam
    ierror = nf90_inquire_dimension(idfile, iddim_mmax, string, mmax_from_file); call nc_check_err(ierror, "inq_dim mmax", filename)
    ierror = nf90_inquire_dimension(idfile, iddim_time, string, ntimes); call nc_check_err(ierror, "inq_dim time", filename)
    select case(varname)
+      case('diaveg')
+         ierror = nf90_inq_varid(idfile, 'diaveg', idvar_diaveg); call nc_check_err(ierror, "inq_varid diaveg", filename)
       case('dps')
          ierror = nf90_inq_varid(idfile, 'FlowElem_bl', idvar_dps); call nc_check_err(ierror, "inq_varid FlowElem_bl", filename)  ! _zcc has laydim included, so useless in 3D
+      case('rnveg')
+         ierror = nf90_inq_varid(idfile, 'rnveg', idvar_rnveg); call nc_check_err(ierror, "inq_varid rnveg", filename)
       case('s1')
          ierror = nf90_inq_varid(idfile, 's1', idvar_s1); call nc_check_err(ierror, "inq_varid s1", filename)   
       case('u1')
@@ -138,7 +146,9 @@ subroutine get_var_netcdf(i_flow, wavetime, varname, vararr, mmax, nmax, basenam
          ierror = nf90_inq_varid(idfile, 'ucy', idvar_v1); call nc_check_err(ierror, "inq_varid ucy", filename)
          if (kmax_>1) then
             ierror = nf90_inq_varid(idfile, 'FlowElem_zw', idvar_zw); call nc_check_err(ierror, "inq_varid FlowElem_zw", filename)
-         endif         
+         endif
+      case('veg_stemheight')
+         ierror = nf90_inq_varid(idfile, 'veg_stemheight', idvar_veg_stemheight); call nc_check_err(ierror, "inq_varid veg_stemheight", filename)
       case('windx')
          ierror = nf90_inq_varid(idfile, 'windx', idvar_windx); call nc_check_err(ierror, "inq_varid windx", filename)
       case('windy')
@@ -183,21 +193,40 @@ subroutine get_var_netcdf(i_flow, wavetime, varname, vararr, mmax, nmax, basenam
    endif
    itime = 0
    do i=1,ntimes
-      if (comparereal(wavetime%timsec,times(i)) == 0) then
+      if (comparereal(wavetime%timsec,times(i)) >= 0) then
+         ! Found a time <= current time: can be used, but first check if there is a better matching time
          itime = i
-         exit
+         if (comparereal(wavetime%timsec,times(i)) == 0) then
+            ! Found a time equal to current time: use this one, quit the DO-loop
+            exit
+         endif
       endif
    enddo
    if (itime == 0) then
       write(*,'(a,e10.3,3a)') "ERROR in get_var_netcdf: time (", wavetime%timsec, ") not found in file '", trim(filename), "'."
       call wavestop(1, "ERROR in get_var_netcdf: time not found in file '"//trim(filename)//"'.")
    endif
+   if (comparereal(wavetime%timsec,times(itime)) == 1) then
+      ! Time not found, using the last valid field available:
+      ! If lastvalidflowfield = 0 then this is the first time that the time is not found; assume that the current one is the best available
+      ! else use lastvalidflowfield
+      if (lastvalidflowfield == 0) then
+         lastvalidflowfield = itime
+      endif
+      itime = lastvalidflowfield
+      write(*,'(a,e10.3,3a)') "WARNING in get_var_netcdf: time (", wavetime%timsec, ") not found in file '", trim(filename), "'."
+      write(*,'(a,e10.3,a)')  "                     using time (", times(itime), ") instead."
+   endif
    !
    ! Get var
    !
    select case(varname)
+      case('diaveg')
+         ierror = nf90_get_var(idfile, idvar_diaveg, vararr, start=(/1,itime/), count=(/mmax/)); call nc_check_err(ierror, "get_var diaveg", filename)
       case('dps')
          ierror = nf90_get_var(idfile, idvar_dps  , vararr, start=(/1,itime/), count=(/mmax/)); call nc_check_err(ierror, "get_var dps", filename)  ! to check
+      case('rnveg')
+         ierror = nf90_get_var(idfile, idvar_rnveg, vararr, start=(/1,itime/), count=(/mmax/)); call nc_check_err(ierror, "get_var rnveg", filename)
       case('s1')
          ierror = nf90_get_var(idfile, idvar_s1   , vararr, start=(/1,itime/), count=(/mmax/)); call nc_check_err(ierror, "get_var s1", filename)
       case('u1')
@@ -214,6 +243,8 @@ subroutine get_var_netcdf(i_flow, wavetime, varname, vararr, mmax, nmax, basenam
             ierror = nf90_get_var(idfile, idvar_v1   , vararr3d, start=(/1,1,itime/), count=(/kmax_,mmax,1/)); call nc_check_err(ierror, "get_var ucy", filename)
             ierror = nf90_get_var(idfile, idvar_zw   , flzw,     start=(/1,1,itime/), count=(/kmax_+1,mmax,1/)); call nc_check_err(ierror, "get_var FlowElem_zw", filename)
          endif
+      case('veg_stemheight')
+         ierror = nf90_get_var(idfile, idvar_veg_stemheight   , vararr, start=(/1,itime/), count=(/mmax/)); call nc_check_err(ierror, "get_var veg_stemheight", filename)
       case('windx')
          ierror = nf90_get_var(idfile, idvar_windx, vararr, start=(/1,itime/), count=(/mmax/)); call nc_check_err(ierror, "get_var windx", filename)
       case('windy')
@@ -234,7 +265,7 @@ subroutine get_var_netcdf(i_flow, wavetime, varname, vararr, mmax, nmax, basenam
          !
          if (veltyp == FVT_DEPTH_AVERAGED) then
             do nm=1,mmax
-               depth = flzw(kmax_,nm) - flzw(1,nm)
+               depth = max(flzw(kmax_,nm) - flzw(1,nm), 1d-4) ! avoid nans on dry cells
                vararr(nm,1) = 0d0
                do i=1,kmax_
                   vararr(nm,1) = vararr(nm,1) + (flzw(i+1,nm)-flzw(i,nm))/depth*vararr3d(i,nm)
@@ -250,7 +281,7 @@ subroutine get_var_netcdf(i_flow, wavetime, varname, vararr, mmax, nmax, basenam
                write(*,'(a)')  '             This is normal at first WAVE calculation'
                write(*,'(a)')  '             Using depth-averaged FLOW velocity in this iteration'
                do nm=1,mmax
-                  depth = flzw(kmax_,nm) - flzw(1,nm)
+                  depth = max(flzw(kmax_,nm) - flzw(1,nm), 1d-4)
                   vararr(nm,1) = 0d0
                   do i=1,kmax_
                      vararr(nm,1) = vararr(nm,1) + (flzw(i+1,nm)-flzw(i,nm))/depth*vararr3d(i,nm)

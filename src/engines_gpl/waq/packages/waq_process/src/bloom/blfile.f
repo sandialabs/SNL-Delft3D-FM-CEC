@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -43,7 +43,7 @@
 
 ! Open statement for BLOOM II debug file.
       filnam = trim(runnam)//'.dbg'
-      open (outdbg,file=filnam,iostat = iost)
+      open (newunit=outdbg,file=filnam,iostat = iost)
       if (iost .ne. 0) then
          write (*,*) 'blfile: error opening .dbg file'
          write (lunrep,*) 'blfile: error opening .dbg file'

@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -30,14 +30,13 @@
 !     function            : determines if this is the last step
 !
 !     declarations
+      use m_sysi          ! Timer characteristics
 
       integer             :: itime     ! actual time in scu
       integer             :: idtact    ! time step
       integer             :: ihalf_idt ! half time step
 
-!     common  /  sysi   /   system characteristics
 
-      include 'sysi.inc'
 
       ihalf_idt = idtact/2
       if ( abs(itime-itstop) .le. ihalf_idt ) then

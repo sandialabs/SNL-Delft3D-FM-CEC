@@ -1,6 +1,6 @@
 !----- AGPL --------------------------------------------------------------------
 !
-!  Copyright (C)  Stichting Deltares, 2017-2020.
+!  Copyright (C)  Stichting Deltares, 2017-2022.
 !
 !  This file is part of Delft3D (D-Flow Flexible Mesh component).
 !
@@ -27,8 +27,8 @@
 !
 !-------------------------------------------------------------------------------
 
-! $Id: dfm_gen_filter.f90 65778 2020-01-14 14:07:42Z mourits $
-! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_gpl/dfmoutput/src/dfm_gen_filter.f90 $
+! $Id: dfm_gen_filter.f90 140618 2022-01-12 13:12:04Z klapwijk $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/tools_gpl/dfmoutput/src/dfm_gen_filter.f90 $
 
 !> DFM_GEN_FILTER : apply more general filter (compared to max13/max25)
 !!
@@ -53,10 +53,12 @@ subroutine gen_filter(filename, filename_out, field_name, intval, coefimpl, coef
 
    integer :: ierr, i, nStations, ntimes, iunout
    real(kind=hp), allocatable :: hisdata(:,:), ySmooth(:)
-   character(len=64), allocatable :: stations(:)
+   character(len=:), allocatable :: stations(:)
+   character(len=32) :: stations_var
 
                            ierr = read_meta_data(filename, nStations)
-   if (ierr == nf90_noerr) ierr = read_station_names(stations, 'station_name')
+   if (ierr == nf90_noerr) call find_stations_var(field_name, stations_var, nStations)
+   if (ierr == nf90_noerr) ierr = read_station_names(stations, stations_var)
    if (ierr == nf90_noerr) ierr = read_data(hisdata, field_name)
    if (ierr == nf90_noerr) ierr = close_nc_his_file()
 

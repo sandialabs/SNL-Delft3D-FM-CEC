@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -100,6 +100,8 @@ end function dlwqnc_lowercase
 !     nf90_noerr if variable found, otherwise an error code
 !
 integer function dlwqnc_find_var_with_att( ncid, attribute, varid, expected_value )
+    use io_ugrid
+    use netcdf_utils, only: ncu_get_att
 
     implicit none
 
@@ -114,8 +116,9 @@ integer function dlwqnc_find_var_with_att( ncid, attribute, varid, expected_valu
     integer                                :: xtype, length, attnum
 
     character(len=nf90_max_name)           :: varname
-    character(len=nf90_max_name)           :: att_value
+    character(len=:), allocatable          :: att_value
 
+    allocate(character(len=0) :: att_value)
     dlwqnc_find_var_with_att = -1
     varid                    = -1
 
@@ -135,7 +138,8 @@ integer function dlwqnc_find_var_with_att( ncid, attribute, varid, expected_valu
             ierror = nf90_inquire_variable( ncid, varid, name=varname )
 
             if ( present(expected_value) ) then
-                ierror = nf90_get_att( ncid, varid, attribute, att_value )
+                att_value = ''
+                ierror = ncu_get_att( ncid, varid, attribute, att_value )
                 if ( ierror /= nf90_noerr ) then
                     cycle ! Not the right type, it appears
                 else
@@ -156,6 +160,8 @@ integer function dlwqnc_find_var_with_att( ncid, attribute, varid, expected_valu
     else
         dlwqnc_find_var_with_att = nf90_enotatt
     endif
+    deallocate(att_value)
+
 end function dlwqnc_find_var_with_att
 
 ! dlwqnc_copy_var_atts --
@@ -505,6 +511,9 @@ end function dlwqnc_copy_dims
 !
 recursive function dlwqnc_copy_associated( ncidin, ncidout, meshidin, meshidout, attribute, &
                                                    dimsizes, use_attrib ) result(dlwqnc_result)
+    use io_ugrid
+    use netcdf_utils, only: ncu_get_att
+
     integer, intent(in)               :: ncidin, ncidout, meshidin, meshidout
     character(len=*), intent(in)      :: attribute
     integer, intent(in), dimension(:) :: dimsizes
@@ -520,7 +529,7 @@ recursive function dlwqnc_copy_associated( ncidin, ncidout, meshidin, meshidout,
     integer                               :: ndims
     integer, dimension(nf90_max_var_dims) :: dimids, newdimids
 
-    character(len=4*nf90_max_name) :: attvalue
+    character(len=:), allocatable  :: att_value
     character(len=nf90_max_name)   :: varname
     character(len=1)               :: dummy
 
@@ -528,6 +537,7 @@ recursive function dlwqnc_copy_associated( ncidin, ncidout, meshidin, meshidout,
 
     logical, save                  :: suppress_message = .false. ! Because of the recursive call
 
+    allocate(character(len=0) :: att_value)
     dlwqnc_result = -1
 
     use_names_in_attrib = .true.
@@ -546,8 +556,8 @@ recursive function dlwqnc_copy_associated( ncidin, ncidout, meshidin, meshidout,
     endif
 
     if ( use_names_in_attrib ) then
-        attvalue = ' '
-        ierror   = nf90_get_att( ncidin, meshidin, attribute, attvalue )
+        att_value = ''
+        ierror   = ncu_get_att( ncidin, meshidin, attribute, att_value )
         if ( ierror /= nf90_noerr .and. .not. suppress_message ) then
             if (warning_message) then
                 if (dlwqnc_debug) write(*,*) 'Warning: retrieving attribute ', trim(attribute), ' failed -- ', ierror
@@ -559,11 +569,11 @@ recursive function dlwqnc_copy_associated( ncidin, ncidout, meshidin, meshidout,
             return
         endif
     else
-        attvalue = attribute
+        att_value = attribute
     endif
 
-    do i = 1,100
-        read( attvalue, *, iostat = ierr ) (dummy, j=1,i-1), varname
+    do i = 1,100  ! JanM: Is att_value lang genoeg
+        read( att_value, *, iostat = ierr ) (dummy, j=1,i-1), varname
 
         if ( ierr /= 0 ) then
             exit
@@ -649,7 +659,7 @@ recursive function dlwqnc_copy_associated( ncidin, ncidout, meshidin, meshidout,
             suppress_message = .false.
         endif
     enddo
-
+    deallocate(att_value)
     dlwqnc_result = nf90_noerr
 end function dlwqnc_copy_associated
 
@@ -1033,7 +1043,7 @@ integer function dlwqnc_create_wqtime( ncidout, mesh_name, t0string, timeid, bnd
         return
     endif
 
-    t0_date_time = t0string(5:23) // " 00:00" ! DELWAQ has no timezone information!
+    t0_date_time = t0string(5:23) // " +00:00" ! DELWAQ has no timezone information!
     t0_date_time(5:5) = '-'
     t0_date_time(8:8) = '-'
 
@@ -1070,6 +1080,8 @@ end function dlwqnc_create_wqtime
 !     time ID? mesh ID? Roles?
 !
 integer function dlwqnc_create_wqvariable( ncidout, mesh_name, wqname, longname, stdname, unit, ntimeid, noseglid, nolayid, wqid )
+    use netcdf_utils, only: ncu_get_att
+
     integer, intent(in)                        :: ncidout
     character(len=*), intent(in)               :: mesh_name
     character(len=*), intent(in)               :: wqname
@@ -1090,7 +1102,9 @@ integer function dlwqnc_create_wqvariable( ncidout, mesh_name, wqname, longname,
     character(len=nf90_max_name)               :: name2D
     character(len=nf90_max_name), dimension(5) :: dimname
     character(len=3*nf90_max_name)             :: methods
-    character(len=5*nf90_max_name)             :: coords
+    character(len=:), allocatable             :: coords
+
+    allocate(character(len=0) :: coords)
 
     dlwqnc_create_wqvariable = nf90_noerr
 
@@ -1212,9 +1226,11 @@ integer function dlwqnc_create_wqvariable( ncidout, mesh_name, wqname, longname,
     endif
 
     ierror = nf90_inq_varid( ncidout, mesh_name, meshid )
-    ierror = nf90_get_att( ncidout, meshid, "face_coordinates", coords )
+    coords = ''
+    ierror = ncu_get_att( ncidout, meshid, "face_coordinates", coords )
     if ( ierror /= 0 ) then
-       ierror = nf90_get_att( ncidout, meshid, "node_coordinates", coords )
+       coords = ''
+       ierror = ncu_get_att( ncidout, meshid, "node_coordinates", coords )
     endif
 
     ierror = nf90_put_att( ncidout, wqid, "coordinates", coords )
@@ -1237,10 +1253,18 @@ integer function dlwqnc_create_wqvariable( ncidout, mesh_name, wqname, longname,
         endif
     endif
 
-    ierror = nf90_put_att( ncidout, wqid, "delwaq_name", wqname )
-    if ( ierror /= 0 ) then
-        dlwqnc_create_wqvariable = ierror
-        return
+    if ( nolayid /= dlwqnc_type2d ) then
+        ierror = nf90_put_att( ncidout, wqid, "delwaq_name", wqname )
+        if ( ierror /= 0 ) then
+            dlwqnc_create_wqvariable = ierror
+            return
+        endif
+    else
+        ierror = nf90_put_att( ncidout, wqid, "delwaq_name", trim(wqname)//"_avg")
+        if ( ierror /= 0 ) then
+            dlwqnc_create_wqvariable = ierror
+            return
+        endif
     endif
 
     ierror = nf90_put_att( ncidout, wqid, "mesh", mesh_name(1:k) )

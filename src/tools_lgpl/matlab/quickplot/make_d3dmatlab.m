@@ -7,7 +7,7 @@ function make_d3dmatlab(basedir,varargin)
 
 %----- LGPL --------------------------------------------------------------------
 %
-%   Copyright (C) 2011-2020 Stichting Deltares.
+%   Copyright (C) 2011-2022 Stichting Deltares.
 %
 %   This library is free software; you can redistribute it and/or
 %   modify it under the terms of the GNU Lesser General Public
@@ -32,10 +32,10 @@ function make_d3dmatlab(basedir,varargin)
 %
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/make_d3dmatlab.m $
-%   $Id: make_d3dmatlab.m 65778 2020-01-14 14:07:42Z mourits $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/tools_lgpl/matlab/quickplot/make_d3dmatlab.m $
+%   $Id: make_d3dmatlab.m 140743 2022-02-13 12:25:40Z jagers $
 
-curdir=pwd;
+curdir = pwd;
 addpath(curdir)
 %
 % comment lines for
@@ -46,56 +46,72 @@ addpath(curdir)
 if nargin>0
     cd(basedir);
 end
+err = [];
 try
-    err=localmake(varargin{:});
-catch
-    err=lasterr;
+    localmake(varargin{:});
+catch err
 end
 if nargin>0
     cd(curdir);
 end
 rmpath(curdir)
 if ~isempty(err)
-    error(err)
+    rethrow(err)
 end
 
 
-function err=localmake(qpversion,T)
-err='';
+function localmake(qpversion,T)
 if ~exist('progsrc','dir')
-    err='Cannot locate source'; return
+    error('Cannot locate source folder "progsrc".')
 end
-V=version; V=str2num(V(1));
+sourcedir=[pwd,filesep,'progsrc'];
 
 tdir = 'delft3d_matlab';
-sourcedir=[pwd,filesep,'progsrc'];
-targetdir=[pwd,filesep,tdir];
-if nargin<2
-    qpversion=read_identification(sourcedir,'d3d_qp.m');
-    T=now;
-end
-qpversion = deblank(sscanf(qpversion,'%[^(]')); % strip off the 32/64 bit flag (the toolbox is platform independent)
-fprintf('\nBuilding Delft3D-MATLAB interface version %s (all platforms)\n\n',qpversion);
-TStr=datestr(T);
-fprintf('Current date and time           : %s\n',TStr);
+targetname = 'Delft3D-MATLAB interface';
+targetdir = [pwd,filesep,tdir];
 
-fprintf('Creating %s directory ...\n',tdir);
-if ~exist(tdir,'dir')
-    [success,message] = mkdir(tdir);
-    if ~success
-        err=message;
-        return
-    end
+if ~exist(targetdir, 'dir')
+    fprintf('Creating %s directory ...\n', tdir);
+    mkdir(tdir);
 end
+cd(tdir)
+% diary make_quickplot_diary % no diary to avoid clutter in the distribution folder ...
 
 fprintf('Copying files ...\n');
 exportsrc(sourcedir,targetdir)
 
+fprintf('Including netCDF files ...\n');
+if ~exist('netcdf','dir')
+    mkdir('netcdf');
+end
+copyfile('../../../../third_party_open/netcdf/matlab/netcdfAll-4.1.jar','netcdf')
+if ~exist('netcdf/mexnc','dir')
+    mkdir('netcdf/mexnc');
+    exportsrc('../../../../third_party_open/netcdf/matlab/mexnc', 'netcdf/mexnc')
+end
+if ~exist('netcdf/snctools','dir')
+    mkdir('netcdf/snctools');
+    exportsrc('../../../../third_party_open/netcdf/matlab/snctools', 'netcdf/snctools')
+end
+
+if nargin<2
+    qpversion = read_identification(sourcedir, 'd3d_qp.m');
+    T=now;
+end
+% strip off the 32/64 bit flag (the toolbox is platform independent)
+qpversion = deblank(sscanf(qpversion,'%[^(]'));
+% for the progress statement add the platform statement
+qpversion_ = [qpversion, ' (all platforms)'];
+
+TStr = datestr(T);
+fprintf('\nBuilding %s version %s\n\n', targetname, qpversion_);
+fprintf('Current date and time           : %s\n', TStr);
+
 fprintf('Modifying files ...\n');
-fstrrep([targetdir,filesep,'d3d_qp.m'],'<VERSION>',qpversion)
-fstrrep([targetdir,filesep,'d3d_qp.m'],'<CREATIONDATE>',TStr)
-fstrrep([targetdir,filesep,'Contents.m'],'<VERSION>',qpversion)
-fstrrep([targetdir,filesep,'Contents.m'],'<CREATIONDATE>',TStr)
+fstrrep([targetdir,filesep,'d3d_qp.m'], '<VERSION>', qpversion)
+fstrrep([targetdir,filesep,'d3d_qp.m'], '<CREATIONDATE>', TStr)
+fstrrep([targetdir,filesep,'Contents.m'], '<VERSION>', qpversion)
+fstrrep([targetdir,filesep,'Contents.m'], '<CREATIONDATE>', TStr)
 
 fprintf('Stripping files ...\n');
 svnstripfile(targetdir)
@@ -104,8 +120,7 @@ svnstripfile(targetdir)
 %pmfile('dir',targetdir,targetdir,'-verbose')
 
 fprintf('Cleaning up directory ...\n');
-cd(tdir)
-X={ '*.asv'
+X = {'*.asv'
     '*.bak'
     '*.scc'
     'bin'
@@ -113,9 +128,8 @@ X={ '*.asv'
 cleanup(X)
 
 fprintf('Removing unneeded subdirectories ...\n');
-X={'org'};
+X = {'org'};
 cleanup(X)
-
 cd ..
 fprintf('Finished.\n');
 

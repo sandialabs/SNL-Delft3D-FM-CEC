@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -38,30 +38,31 @@
 
 !     use m_timers_waq
       use timers
+      use iso_c_binding
       implicit none
 
 !     parameters          :
 
-!     kind           function         name          description
+!     kind           function                 name          description
 
-      real   (4)   , intent(inout) :: pmsa  ( * ) ! Process module status array
-      integer      , intent(in   ) :: imodul      ! Process module number
-      real   (4)   , intent(  out) :: flux  ( * ) ! Process fluxes
-      integer      , intent(in   ) :: ipoint( * ) ! Pointer to process data
-      integer      , intent(in   ) :: increm( * ) ! Increment in pointer process data
-      integer      , intent(in   ) :: noseg       ! Number of computational volumes
-      integer      , intent(in   ) :: noflux      ! Number of process fluxes
-      integer      , intent(in   ) :: iexpnt(4,*) ! Exchange pointers
-      integer      , intent(in   ) :: iknmrk( * ) ! Tag array
-      integer      , intent(in   ) :: noq1        ! Number of exchanges in first direction
-      integer      , intent(in   ) :: noq2        ! Number of exchanges in second direction
-      integer      , intent(in   ) :: noq3        ! Number of exchanges in third direction
-      integer      , intent(in   ) :: noq4        ! Number of exchanges in the water bed
-      character(10), intent(in   ) :: pronam      ! Name of this process
-      integer      , intent(in   ) :: pronvr      ! Not used
-      integer      , intent(in   ) :: prvtyp( * ) ! Not used
-      integer      , intent(in   ) :: iproc       ! Process number
-      integer(8)   , intent(in   ) :: dll_opb     ! open proces library dll handle
+      real   (4)   , intent(inout)          :: pmsa  ( * ) ! Process module status array
+      integer      , intent(in   )          :: imodul      ! Process module number
+      real   (4)   , intent(  out)          :: flux  ( * ) ! Process fluxes
+      integer      , intent(in   )          :: ipoint( * ) ! Pointer to process data
+      integer      , intent(in   )          :: increm( * ) ! Increment in pointer process data
+      integer      , intent(in   )          :: noseg       ! Number of computational volumes
+      integer      , intent(in   )          :: noflux      ! Number of process fluxes
+      integer      , intent(in   )          :: iexpnt(4,*) ! Exchange pointers
+      integer      , intent(in   )          :: iknmrk( * ) ! Tag array
+      integer      , intent(in   )          :: noq1        ! Number of exchanges in first direction
+      integer      , intent(in   )          :: noq2        ! Number of exchanges in second direction
+      integer      , intent(in   )          :: noq3        ! Number of exchanges in third direction
+      integer      , intent(in   )          :: noq4        ! Number of exchanges in the water bed
+      character(10), intent(in   )          :: pronam      ! Name of this process
+      integer      , intent(in   )          :: pronvr      ! Not used
+      integer      , intent(in   )          :: prvtyp( * ) ! Not used
+      integer      , intent(in   )          :: iproc       ! Process number
+      integer(c_intptr_t)   , intent(in   ) :: dll_opb     ! open proces library dll handle
 
 !     local
 
@@ -497,64 +498,144 @@
          case (140 ) ;  call RESPUP ( pmsa   , flux   , ipoint , increm , noseg  ,               ! &
      &                                 noflux , iexpnt , iknmrk , noq1   , noq2   ,               ! &
      &                                 noq3   , noq4   )
-         case (141 ) ;  call SEDIM  ( pmsa   , flux   , ipoint , increm , noseg  ,               ! &
+         case (141 ) ;  call RESBUF ( pmsa   , flux   , ipoint , increm , noseg  ,               ! &
      &                                 noflux , iexpnt , iknmrk , noq1   , noq2   ,               ! &
      &                                 noq3   , noq4   )
-         case (142 ) ;  call S12TIM ( pmsa   , flux   , ipoint , increm , noseg  ,               ! &
+         case (142 ) ;  call SEDIM  ( pmsa   , flux   , ipoint , increm , noseg  ,               ! &
      &                                 noflux , iexpnt , iknmrk , noq1   , noq2   ,               ! &
      &                                 noq3   , noq4   )
-         case (143 ) ;  call REFL   ( pmsa   , flux   , ipoint , increm , noseg  ,               ! &
+         case (143 ) ;  call S12TIM ( pmsa   , flux   , ipoint , increm , noseg  ,               ! &
      &                                 noflux , iexpnt , iknmrk , noq1   , noq2   ,               ! &
      &                                 noq3   , noq4   )
-         case (144 ) ;  call ATTOUT ( pmsa   , flux   , ipoint , increm , noseg  ,               ! &
+         case (144 ) ;  call REFL   ( pmsa   , flux   , ipoint , increm , noseg  ,               ! &
      &                                 noflux , iexpnt , iknmrk , noq1   , noq2   ,               ! &
      &                                 noq3   , noq4   )
-         case (145 ) ;  call CASCAD ( pmsa   , flux   , ipoint , increm , noseg  ,               ! &
+         case (145 ) ;  call ATTOUT ( pmsa   , flux   , ipoint , increm , noseg  ,               ! &
      &                                 noflux , iexpnt , iknmrk , noq1   , noq2   ,               ! &
      &                                 noq3   , noq4   )
-         case (146 ) ;  call EFFBLO ( pmsa   , flux   , ipoint , increm , noseg  ,               ! &
+         case (146 ) ;  call CASCAD ( pmsa   , flux   , ipoint , increm , noseg  ,               ! &
      &                                 noflux , iexpnt , iknmrk , noq1   , noq2   ,               ! &
      &                                 noq3   , noq4   )
-         case (147 ) ;  call EFFAVE ( pmsa   , flux   , ipoint , increm , noseg  ,               ! &
+         case (147 ) ;  call EFFBLO ( pmsa   , flux   , ipoint , increm , noseg  ,               ! &
      &                                 noflux , iexpnt , iknmrk , noq1   , noq2   ,               ! &
      &                                 noq3   , noq4   )
-         case (148 ) ;  call DECTRA ( pmsa   , flux   , ipoint , increm , noseg  ,               ! &
+         case (148 ) ;  call EFFAVE ( pmsa   , flux   , ipoint , increm , noseg  ,               ! &
      &                                 noflux , iexpnt , iknmrk , noq1   , noq2   ,               ! &
      &                                 noq3   , noq4   )
-         case (149 ) ;  call ESPACE ( pmsa   , flux   , ipoint , increm , noseg  ,               ! &
+         case (149 ) ;  call DECTRA ( pmsa   , flux   , ipoint , increm , noseg  ,               ! &
      &                                 noflux , iexpnt , iknmrk , noq1   , noq2   ,               ! &
      &                                 noq3   , noq4   )
-         case (150 ) ;  call CALTEM ( pmsa   , flux   , ipoint , increm , noseg  ,               ! &
+         case (150 ) ;  call ESPACE ( pmsa   , flux   , ipoint , increm , noseg  ,               ! &
      &                                 noflux , iexpnt , iknmrk , noq1   , noq2   ,               ! &
      &                                 noq3   , noq4   )
-         case (151 ) ;  call PLASTC ( pmsa   , flux   , ipoint , increm , noseg  ,               ! &
+         case (151 ) ;  call CALTEM ( pmsa   , flux   , ipoint , increm , noseg  ,               ! &
      &                                 noflux , iexpnt , iknmrk , noq1   , noq2   ,               ! &
      &                                 noq3   , noq4   )
-         case (152 ) ;  call WLCWOC ( pmsa   , flux   , ipoint , increm , noseg  ,               ! &
+         case (152 ) ;  call PLASTC ( pmsa   , flux   , ipoint , increm , noseg  ,               ! &
      &                                 noflux , iexpnt , iknmrk , noq1   , noq2   ,               ! &
      &                                 noq3   , noq4   )
-         case (153 ) ;  call HDISS  ( pmsa   , flux   , ipoint , increm , noseg  ,               ! &
+         case (153 ) ;  call WLCWOC ( pmsa   , flux   , ipoint , increm , noseg  ,               ! &
      &                                 noflux , iexpnt , iknmrk , noq1   , noq2   ,               ! &
      &                                 noq3   , noq4   )
-         case (154 ) ;  call TMODE  ( pmsa   , flux   , ipoint , increm , noseg  ,               ! &
+         case (154 ) ;  call HDISS  ( pmsa   , flux   , ipoint , increm , noseg  ,               ! &
+     &                                 noflux , iexpnt , iknmrk , noq1   , noq2   ,               ! &
+     &                                 noq3   , noq4   )
+         case (155 ) ;  call TMODE  ( pmsa   , flux   , ipoint , increm , noseg  ,               ! &
+     &                                 noflux , iexpnt , iknmrk , noq1   , noq2   ,               ! &
+     &                                 noq3   , noq4   )
+         case (156 ) ;  call DLWQG2 ( pmsa   , flux   , ipoint , increm , noseg  ,               ! &
+     &                                 noflux , iexpnt , iknmrk , noq1   , noq2   ,               ! &
+     &                                 noq3   , noq4   )
+         case (157 ) ;  call GEMMPB ( pmsa   , flux   , ipoint , increm , noseg  ,               ! &
+     &                                 noflux , iexpnt , iknmrk , noq1   , noq2   ,               ! &
+     &                                 noq3   , noq4   )
+         case (158 ) ;  call MPBNUT ( pmsa   , flux   , ipoint , increm , noseg  ,               ! &
+     &                                 noflux , iexpnt , iknmrk , noq1   , noq2   ,               ! &
+     &                                 noq3   , noq4   )
+         case (159 ) ;  call MPBTMP ( pmsa   , flux   , ipoint , increm , noseg  ,               ! &
+     &                                 noflux , iexpnt , iknmrk , noq1   , noq2   ,               ! &
+     &                                 noq3   , noq4   )
+         case (160 ) ;  call MPBLLM ( pmsa   , flux   , ipoint , increm , noseg  ,               ! &
+     &                                 noflux , iexpnt , iknmrk , noq1   , noq2   ,               ! &
+     &                                 noq3   , noq4   )
+         case (161 ) ;  call MPBNLM ( pmsa   , flux   , ipoint , increm , noseg  ,               ! &
+     &                                 noflux , iexpnt , iknmrk , noq1   , noq2   ,               ! &
+     &                                 noq3   , noq4   )
+         case (162 ) ;  call VBXS12 ( pmsa   , flux   , ipoint , increm , noseg  ,               ! &
+     &                                 noflux , iexpnt , iknmrk , noq1   , noq2   ,               ! &
+     &                                 noq3   , noq4   )
+         case (163 ) ;  call VBXSUM ( pmsa   , flux   , ipoint , increm , noseg  ,               ! &
+     &                                 noflux , iexpnt , iknmrk , noq1   , noq2   ,               ! &
+     &                                 noq3   , noq4   )
+         case (164 ) ;  call PROPSG ( pmsa   , flux   , ipoint , increm , noseg  ,               ! &
+     &                                 noflux , iexpnt , iknmrk , noq1   , noq2   ,               ! &
+     &                                 noq3   , noq4   )
+         case (165 ) ;  call PRPAGG ( pmsa   , flux   , ipoint , increm , noseg  ,               ! &
+     &                                 noflux , iexpnt , iknmrk , noq1   , noq2   ,               ! &
+     &                                 noq3   , noq4   )
+         case (166 ) ;  call HETAGG ( pmsa   , flux   , ipoint , increm , noseg  ,               ! &
+     &                                 noflux , iexpnt , iknmrk , noq1   , noq2   ,               ! &
+     &                                 noq3   , noq4   )
+         case (167 ) ;  call SEDTYR ( pmsa   , flux   , ipoint , increm , noseg  ,               ! &
+     &                                 noflux , iexpnt , iknmrk , noq1   , noq2   ,               ! &
+     &                                 noq3   , noq4   )
+         case (168 ) ;  call SEDAGG ( pmsa   , flux   , ipoint , increm , noseg  ,               ! &
+     &                                 noflux , iexpnt , iknmrk , noq1   , noq2   ,               ! &
+     &                                 noq3   , noq4   )
+         case (169 ) ;  call SUMTYR ( pmsa   , flux   , ipoint , increm , noseg  ,               ! &
+     &                                 noflux , iexpnt , iknmrk , noq1   , noq2   ,               ! &
+     &                                 noq3   , noq4   )
+         case (170 ) ;  call PROPFD ( pmsa   , flux   , ipoint , increm , noseg  ,               ! &
+     &                                 noflux , iexpnt , iknmrk , noq1   , noq2   ,               ! &
+     &                                 noq3   , noq4   )
+         case (171 ) ;  call PRODIA ( pmsa   , flux   , ipoint , increm , noseg  ,               ! &
+     &                                 noflux , iexpnt , iknmrk , noq1   , noq2   ,               ! &
+     &                                 noq3   , noq4   )
+         case (172 ) ;  call PROGRE ( pmsa   , flux   , ipoint , increm , noseg  ,               ! &
+     &                                 noflux , iexpnt , iknmrk , noq1   , noq2   ,               ! &
+     &                                 noq3   , noq4   )
+         case (173 ) ;  call PRONCM ( pmsa   , flux   , ipoint , increm , noseg  ,               ! &
+     &                                 noflux , iexpnt , iknmrk , noq1   , noq2   ,               ! &
+     &                                 noq3   , noq4   )
+         case (174 ) ;  call PROSED ( pmsa   , flux   , ipoint , increm , noseg  ,               ! &
+     &                                 noflux , iexpnt , iknmrk , noq1   , noq2   ,               ! &
+     &                                 noq3   , noq4   )
+         case (175 ) ;  call PROTCM ( pmsa   , flux   , ipoint , increm , noseg  ,               ! &
+     &                                 noflux , iexpnt , iknmrk , noq1   , noq2   ,               ! &
+     &                                 noq3   , noq4   )
+         case (176 ) ;  call PROZOO ( pmsa   , flux   , ipoint , increm , noseg  ,               ! &
+     &                                 noflux , iexpnt , iknmrk , noq1   , noq2   ,               ! &
+     &                                 noq3   , noq4   )
+         case (177 ) ;  call DRADIO ( pmsa   , flux   , ipoint , increm , noseg  ,               ! &
      &                                 noflux , iexpnt , iknmrk , noq1   , noq2   ,               ! &
      &                                 noq3   , noq4   )
          case default
 
+
 !     assumed from dll
 
-            ierror = perf_function(dll_opb, pronam,                                          ! &
-     &                             pmsa   , flux   , ipoint , increm , noseg  ,                   ! &
-     &                             noflux , iexpnt , iknmrk , noq1   , noq2   ,                   ! &
-     &                             noq3   , noq4   )
-            if ( ierror .ne. 0 ) then
-               call getmlu(lunrep)
-               write(*,*) 'ERROR     : requested module not in process library DLL'
-               write(*,*) 'module    : ', pronam
-               write(*,*) 'dll handle: ', dll_opb
-               write(lunrep,*) 'ERROR     : requested module not in process library DLL'
-               write(lunrep,*) 'module    : ', pronam
-               write(lunrep,*) 'dll handle: ', dll_opb
+            call getmlu(lunrep)
+            if (dll_opb .ne. 0) then
+               ierror = perf_function(dll_opb, pronam, pmsa   , flux   , ipoint , increm , noseg  ,
+     &                                noflux , iexpnt, iknmrk , noq1   , noq2   , noq3   , noq4   )
+               if ( ierror .ne. 0 ) then
+                  write(*,*) ' '
+                  write(*,*) 'ERROR        : requested module not in open process library dll/so'
+                  write(*,*) 'module       : ', pronam
+                  write(*,*) 'dll/so handle: ', dll_opb
+                  write(lunrep,*) ' '
+                  write(lunrep,*) 'ERROR        : requested module not in open process library dll/so'
+                  write(lunrep,*) 'module       : ', pronam
+                  write(lunrep,*) 'dll/so handle: ', dll_opb
+                  call srstop(1)
+               endif
+            else
+               write(*,*) ' '
+               write(*,*) 'ERROR  : requested module not available, no open process library dll/so loaded'
+               write(*,*) 'module : ', pronam
+               write(lunrep,*) ' '
+               write(lunrep,*) 'ERROR  : requested module not available, no open process library dll/so loaded'
+               write(lunrep,*) 'module       : ', pronam
                call srstop(1)
             endif
 

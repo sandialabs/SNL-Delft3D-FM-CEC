@@ -36,7 +36,7 @@ io_netcdf_version.F90:
 
 #-------------------------------------------------------------------------------
 #Includes
-AM_FCFLAGS += $(NETCDF_CFLAGS) $(NETCDF_FORTRAN_CFLAGS)
+AM_FCFLAGS += -DLINUX64 $(NETCDF_CFLAGS) $(NETCDF_FORTRAN_CFLAGS)
 
 FMODULES += \
     -I$(top_builddir)/utils_lgpl/deltares_common/packages/deltares_common/src
@@ -45,12 +45,35 @@ FMODULES += \
 #Sources
 libIONetcdf_la_SOURCES = \
          io_netcdf_version.F90 \
-         netcdf_utils.F90 \
+         io_netcdf_constants.f90 \
          coordinate_reference_system.F90 \
+         netcdf_utils.F90 \
          meshdata.F90 \
+         simple_geometry.f90 \
          io_ugrid.F90 \
          io_netcdf.f90
          
 #-------------------------------------------------------------------------------
 #Libraries
+
+EXTRALIBS=
+
+if USEPROJ
+AM_FCFLAGS+=${PROJ_CFLAGS}
+LIBS+=${PROJ_LIBS}
+USEFORTRANGIS=TRUE
+endif
+
+if USEFORTRANGIS
+FMODULES += \
+    -I$(top_builddir)/third_party_open/fortrangis/libfortranc \
+    -I$(top_builddir)/third_party_open/fortrangis/libfortrangis
+EXTRALIBS += \
+    $(top_builddir)/third_party_open/fortrangis/libfortranc/libfortranc.la \
+    $(top_builddir)/third_party_open/fortrangis/libfortrangis/libfortrangis.la
+endif
+
+
+libIONetcdf_la_LIBADD=\
+         $(EXTRALIBS)
 

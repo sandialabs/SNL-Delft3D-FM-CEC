@@ -1,6 +1,6 @@
 !----- LGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This library is free software; you can redistribute it and/or                
 !  modify it under the terms of the GNU Lesser General Public                   
@@ -23,14 +23,15 @@
 !  are registered trademarks of Stichting Deltares, and remain the property of  
 !  Stichting Deltares. All rights reserved.                                     
 
-!  $Id: ec_quantity.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/ec_module/packages/ec_module/src/ec_quantity.f90 $
+!  $Id: ec_quantity.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_lgpl/ec_module/packages/ec_module/src/ec_quantity.f90 $
 
 !> This module contains all the methods for the datatype tEcQuantity.
 !! @author arjen.markus@deltares.nl
 !! @author adri.mourits@deltares.nl
 !! @author stef.hummel@deltares.nl
-!! @author edwin.bos@deltares.nl
+!! @author edwin.spee@deltares.nl
+!! @author robert.leander@deltares.nl
 module m_ec_quantity
    use m_ec_typedefs
    use m_ec_message
@@ -164,8 +165,12 @@ module m_ec_quantity
       !> obtained from the variable varid in the netcdf file ncid 
       !> all in try-catch fashion: if not available, leave empty or use default
       function ecQuantitySetUnitsFillScaleOffsetFromNcidVarid(instancePtr, quantityId, ncid, varid) result(success)
-      use netcdf
-      use string_module
+         use netcdf
+         use netcdf_utils, only: ncu_get_att
+         use string_module
+         use physicalconsts, only : CtoKelvin
+         use io_ugrid 
+
          implicit none
          logical                               :: success     !< function status
          type(tEcInstance), pointer            :: instancePtr !< intent(in)
@@ -174,32 +179,29 @@ module m_ec_quantity
          integer,                   intent(in) :: varid       !< id of the variable
                                                               !< order: new = (old*scale) + offset
          character(len=:), allocatable  :: units
-         character(len=5)               :: quantidstr
          integer  :: ierr
-         integer  :: attriblen
          real(hp) :: add_offset, scalefactor, fillvalue
-
+         
+         allocate(character(len=0) :: units)
+         
          success = .false.
          add_offset = 0.d0
          scalefactor = 1.d0
          fillvalue = ec_undef_hp
-         attriblen=0
-         if (nf90_inquire_attribute(ncid, varid, 'units', len=attriblen)==NF90_NOERR) then
-            if (attriblen>0) then
-               allocate(character(len=attriblen) :: units) 
-               units(1:len(units)) = ''
-               if (nf90_get_att(ncid, varid, 'units', units)==NF90_NOERR) then 
-                  call str_upper(units) ! make units attribute case-insensitive 
-                  if (.not.(ecQuantitySet(instancePtr, quantityId, units=units))) return
-               end if
+
+         units = ''
+         if (ncu_get_att(ncid, varid, 'units', units)==NF90_NOERR) then 
+            call str_upper(units) ! make units attribute case-insensitive 
+            if (.not.(ecQuantitySet(instancePtr, quantityId, units=units))) then
+                deallocate(units)
+                return
             end if
          end if
 
-         write(quantidstr,'(i5.5)') quantityId
          ierr = nf90_get_att(ncid, varid, '_FillValue', fillvalue)
          if (ierr==NF90_NOERR) then
             if (.not.(ecQuantitySet(instancePtr, quantityId, fillvalue=fillvalue))) then
-               call setECMessage("Unable to set fillValue for quantity "//quantidstr)
+               call setECMessage("Unable to set fillValue for quantity ", quantityId)
                return
             end if
          end if
@@ -207,21 +209,29 @@ module m_ec_quantity
          ierr = nf90_get_att(ncid, varid, 'scale_factor', scalefactor)
          if (ierr==NF90_NOERR) then
             if (.not.(ecQuantitySet(instancePtr, quantityId, factor=scalefactor))) then
-               call setECMessage("Unable to set scale factor for quantity "//quantidstr)
+               call setECMessage("Unable to set scale factor for quantity ", quantityId)
                return
             end if
          end if
 
          ierr = nf90_get_att(ncid, varid, 'add_offset', add_offset)
-         if (ierr==NF90_NOERR) then
+         if (ierr /= NF90_NOERR) add_offset = 0.0_hp
+
+         if (units == 'K' .or. units == 'KELVIN') then
+            ! convert Kelvin to degrees Celsius (kernel expects degrees Celsius)
+            add_offset = add_offset - CtoKelvin
+         end if
+
+         if (add_offset /= 0.0_hp) then
             if (.not.(ecQuantitySet(instancePtr, quantityId, offset=add_offset))) then
-               call setECMessage("Unable to set offset for quantity "//quantidstr)
+               call setECMessage("Unable to set offset for quantity ", quantityId)
                return
             end if
          end if
 
-         success = .true.
-         
+        deallocate(units)
+        success = .true.
+
       end function ecQuantitySetUnitsFillScaleOffsetFromNcidVarid
      
       ! =======================================================================

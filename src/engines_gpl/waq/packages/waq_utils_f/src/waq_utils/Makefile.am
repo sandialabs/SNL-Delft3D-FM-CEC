@@ -11,7 +11,6 @@ noinst_LTLIBRARIES = libwaq_utils.la
 #-------------------------------------------------------------------------------
 #Includes
 FMODULES += \
-        -I$(top_builddir)/engines_gpl/waq/include \
 	    -I$(top_builddir)/utils_lgpl/deltares_common/packages/deltares_common/src/rd_token \
 	    -I$(top_builddir)/utils_lgpl/deltares_common/packages/deltares_common/src
 
@@ -31,8 +30,7 @@ libwaq_utils_la_SOURCES =  \
        dhcommand.f90 \
        DHGARG.F \
        SRSTOP.F \
-       unlock.f90 \
-       avundf_linux.f \
+       startup_screen.f90 \
        cnvper.f \
        cnvtim.f \
        d00sub.f \
@@ -40,6 +38,7 @@ libwaq_utils_la_SOURCES =  \
        delwaq_loads.f \
        dhagg2.f \
        dhaggr.f \
+       m_aggregation_types.F90 \
        dhagkm.f \
        dhc20m.f \
        dhcarg.f \

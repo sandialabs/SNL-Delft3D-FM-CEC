@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -26,6 +26,7 @@
      +                    ioutps       , outputs      ,
      +                    nomult       , imultp       ,
      +                    constants    , noinfo       ,
+     +                    refday       ,
      +                    nowarn       , ierr         )
 
 !       Deltares Software Centre
@@ -46,11 +47,10 @@
       use output
       use partable
       use string_module
+      use m_sysn          ! System characteristics
+      use m_sysi          ! Timer characteristics
 
       implicit none
-
-      include 'sysn.inc'                           ! COMMON  /  SYSN   /   System characteristics
-      include 'sysi.inc'                           ! COMMON  /  SYSI  /    Timer characteristics
 
       ! declaration of arguments
 
@@ -64,6 +64,7 @@
       integer  ( 4)       , intent(in   ) :: imultp(2,nomult)!< multiple substance administration
       type(t_dlwq_item)   , intent(inout) :: constants       !< delwaq constants list
       integer             , intent(inout) :: noinfo          !< count of informative message
+      integer  ( 4)       , intent(in)    :: refday          !< reference day, varying from 1 till 365
       integer             , intent(inout) :: nowarn          !< count of warnings
       integer             , intent(inout) :: ierr            !< error count
 
@@ -141,13 +142,14 @@
       character*20,allocatable  :: diname(:)       ! dispersion names
       character*20,allocatable  :: vename(:)       ! velocity names
       character*20,allocatable  :: dename(:)       ! default array names
-      character*20,allocatable  :: locnam(:)       ! loacal array names
+      character*20,allocatable  :: locnam(:)       ! local array names
       character*20 ,allocatable :: ainame(:)       ! all item names names in the proc_def
       character*20              :: subname         ! substance name
       character*100,allocatable :: substdname(:)   ! substance standard name
       character*40 ,allocatable :: subunit(:)      ! substance unit
       character*60 ,allocatable :: subdescr(:)     ! substance description
       character*20              :: outname         ! output name
+
 
       ! proces definition structure
 
@@ -174,7 +176,7 @@
       character*80   line
       character*256  pdffil
       character*10   config
-      logical        lfound, laswi , swi_nopro, l3dmod, nolic
+      logical        lfound, laswi , swi_nopro
       integer        blm_act                       ! index of ACTIVE_BLOOM_P
 
       ! charon coupling
@@ -255,21 +257,12 @@
       procesdef%maxsize=0
       old_items%cursize = 0
       old_items%maxsize = 0
-      if ( noq3 .gt. 0 ) then
-         l3dmod = .true.
-      else
-         l3dmod = .false.
-      endif
 
       ! open report file
 
       call dhopnf ( lun(35) , lchar(35), 35    , 1     , ierr2 )
       lurep = lun(35)
       call setmlu ( lurep )
-      call unlock ( lurep ,l3dmod ,nolic)
-      if (nolic .and. noseg>150) then
-         ! error and stop
-      endif
       call monsys(line,11)
       line = ' '
       call monsys(line,1)
@@ -450,27 +443,33 @@
             nopralg = 0
          endif
       endif
-         ! read the bloom-species database.
 
+      ! read the bloom-species database.
       if ( l_eco ) then
-         open ( newunit=lunblm, file=blmfil )
-         read ( lunblm    , '(a)' ) line
-         verspe = 1.0
-         ioff =  index(line, 'BLOOMSPE_VERSION_')
-         if(ioff.eq.0) then
-            rewind( lunblm )
-         else
-            read (line(ioff+17:), *, err = 100) verspe
-100         continue
-         endif
+          open ( newunit=lunblm, file=blmfil, status = 'old', iostat = ierr2 )
+          if ( ierr2 /= 0 ) then
+             ierr = ierr + 1
+             write(line,'(3a)') ' eco input file - ', trim(blmfil), ' not found! Exiting'
+             call monsys(line,1)
+             return
+          endif
 
-         call reaalg ( lurep  , lunblm , verspe , maxtyp , maxcof , 
+          read ( lunblm    , '(a)' ) line
+          verspe = 1.0
+          ioff =  index(line, 'BLOOMSPE_VERSION_')
+          if(ioff.eq.0) then
+             rewind( lunblm )
+          else
+             read (line(ioff+17:), *, err = 100) verspe
+  100        continue
+          endif
+
+         call reaalg ( lurep  , lunblm , verspe , maxtyp , maxcof ,
      +                 notyp  , nocof  , noutgrp, nouttyp, alggrp ,
      +                 abrgrp , algtyp , abrtyp , algdsc , cofnam ,
      +                 algcof , outgrp , outtyp , noprot , namprot,
      +                 nampact, nopralg, nampralg)
       endif
-
       ! chem coupling
 
       call getcom ( '-chem'  , 3    , lfound, idummy, rdummy,
@@ -569,7 +568,7 @@
                   endif
                endif
             enddo
-         
+
             ! replace proto with actual processes in constant list
             call actrep( noalg   , noprot   , namprot, nampact, nopralg,
      +                   nampralg, constants)
@@ -623,11 +622,10 @@
      +                   nampralg)
          endif
 
-         ! add the processes in the strucure
+         ! add the processes in the structure
 
-         call prprop ( lurep    , laswi   , l3dmod   , config, no_act,
-     +                 actlst   , allitems, procesdef, noinfo, nowarn,
-     +                 old_items, ierr2 )
+         call prprop ( lurep, laswi, config, no_act, actlst, allitems, procesdef, 
+     +                 noinfo, nowarn, old_items, ierr2 )
          if ( ierr2 .ne. 0 ) ierr = ierr + 1
          nbpr   = procesdef%cursize
 
@@ -767,7 +765,7 @@
      +              nopa     , paname, nofun , funame, nosfun,
      +              sfname   , nodisp, diname, novelo, vename,
      +              nmis     , defaul, noloc , nodef , dename, outputs,
-     +              ndspx    , nvelx , nlocx , locnam   )
+     +              ndspx    , nvelx , nlocx , locnam, refday)
 
       ! report on the use of the delwaq input
 
@@ -814,7 +812,6 @@
       deallocate(grdref,sysgrd,sysndt)
 
       ! write proces work file
-
       call wr_proceswrk( lurep , procesdef, nodef , defaul, idpnw ,
      +                   ivpnw , dsto     , vsto  , locnam, nopred,
      +                   nocons, nopa     , nofun , nosfun, notot ,
@@ -886,7 +883,7 @@
          if ( iindx .gt. 0) then
             outputs%stdnames(ioutp) = allitems%itemproppnts(iindx)%pnt%stdn
             outputs%units(ioutp) = allitems%itemproppnts(iindx)%pnt%stdu
-            outputs%descrs(ioutp) = allitems%itemproppnts(iindx)%pnt%text//' '//allitems%itemproppnts(iindx)%pnt%unit
+            outputs%descrs(ioutp) = trim(allitems%itemproppnts(iindx)%pnt%text)//' '//allitems%itemproppnts(iindx)%pnt%unit
          else if (outname.eq.'theta') then
             outputs%stdnames(ioutp) = ' '
             outputs%units(ioutp) = ' '
@@ -898,11 +895,11 @@
                if (algcof(icof, ialg) .ge. 0) then
                   outputs%stdnames(ioutp) = ' '
                   outputs%units(ioutp) = 'g m-3'
-                  outputs%descrs(ioutp) = algdsc(ialg)//' (gC/m3)'
+                  outputs%descrs(ioutp) = trim(algdsc(ialg))//' (gC/m3)'
                else
                   outputs%stdnames(ioutp) = ' '
                   outputs%units(ioutp) = 'g m-2'
-                  outputs%descrs(ioutp) = algdsc(ialg)//' (gC/m2)'
+                  outputs%descrs(ioutp) = trim(algdsc(ialg))//' (gC/m2)'
                endif
             else
                outputs%stdnames(ioutp) = ' '
@@ -918,7 +915,7 @@
      &              notot,  substdname, subunit, subdescr )
       close ( lun(25) )
 
-      ! write altoys input files, only for old balnce file
+      ! write altoys input files, only for old balance file
       ! ( altoys.inp batoys.inp altoys.ini altoys.fil)
 
       if ( btest(intopt,3) .and. .not. btest(intopt,4) ) then

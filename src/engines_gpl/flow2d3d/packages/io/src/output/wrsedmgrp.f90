@@ -4,7 +4,7 @@ subroutine wrsedmgrp(lundia    ,error     ,filename  ,itmapc    ,mmax      , &
                    & mf        ,ml        ,nf        ,nl        ,gdp       )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -28,8 +28,8 @@ subroutine wrsedmgrp(lundia    ,error     ,filename  ,itmapc    ,mmax      , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: wrsedmgrp.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/io/src/output/wrsedmgrp.f90 $
+!  $Id: wrsedmgrp.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/flow2d3d/packages/io/src/output/wrsedmgrp.f90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: Writes the time varying data for bedforms, sediment transport
@@ -59,6 +59,7 @@ subroutine wrsedmgrp(lundia    ,error     ,filename  ,itmapc    ,mmax      , &
     integer(pntrsize)               , pointer :: sbvv
     integer(pntrsize)               , pointer :: ws
     integer(pntrsize)               , pointer :: dps
+    integer(pntrsize)               , pointer :: seddif
     logical                         , pointer :: lfbedfrmout
     integer                         , pointer :: celidt
     type (datagroup)                , pointer :: group4
@@ -118,6 +119,7 @@ subroutine wrsedmgrp(lundia    ,error     ,filename  ,itmapc    ,mmax      , &
     sbvv           => gdp%gdr_i_ch%sbvv
     ws             => gdp%gdr_i_ch%ws
     dps            => gdp%gdr_i_ch%dps
+    seddif         => gdp%gdr_i_ch%seddif
     io_prec        => gdp%gdpostpr%io_prec
     !
     filetype = getfiletype(gdp, FILOUT_MAP)
@@ -173,7 +175,7 @@ subroutine wrsedmgrp(lundia    ,error     ,filename  ,itmapc    ,mmax      , &
     !
     call wrsedm(lundia    ,error     ,mmax      ,kmax      ,nmaxus    , &
               & lsed      ,lsedtot   ,irequest  ,fds       ,grnam5    , &
-              & r(sbuu)   ,r(sbvv)   ,r(ws)     ,d(dps)    , &
+              & r(sbuu)   ,r(sbvv)   ,r(ws)     ,d(dps)    ,r(seddif) , &
               & filename  ,gdp       ,filetype  , &
               & mf        ,ml        ,nf        ,nl        , &
               & iarrc     ,kfsmin    ,kfsmax    )

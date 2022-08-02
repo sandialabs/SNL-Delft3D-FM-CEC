@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -41,22 +41,11 @@
 !     ISYSN   INTEGER       *     OUTPUT  copy of the SYSI common block
 !
 !     declarations
+      use m_sysn          ! System characteristics
+      use m_sysi          ! Timer characteristics
 !
       INTEGER       ISYSI(*), ISYSN(*)
-!
-!     COMMON  /  SYSN   /   System characteristics
-!
-      INCLUDE 'sysn.inc'
-!
-!     COMMON  /  SYSI  /    Timer characteristics
-!
-      INCLUDE 'sysi.inc'
-!
-!     input structure for boot-file
-!
-      INTEGER             IN(INSIZE)       , II(IISIZE)
-      EQUIVALENCE       ( IN(1)  , NOSEG ) , ( II(1), ITSTRT  )
-!
+
 !     Fill the array's
 !
       CALL DHIMOV( II    , ISYSI , IISIZE )

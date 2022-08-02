@@ -5,7 +5,7 @@ subroutine rdgrid(lunmd     ,lundia    ,error     ,zmodel    ,nrrec     , &
                 & fil45     ,fl45      ,gdp       )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -29,8 +29,8 @@ subroutine rdgrid(lunmd     ,lundia    ,error     ,zmodel    ,nrrec     , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: rdgrid.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/io/src/input/rdgrid.f90 $
+!  $Id: rdgrid.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/flow2d3d/packages/io/src/input/rdgrid.f90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: - Reads from either the MD-file or the attribute
@@ -185,8 +185,7 @@ subroutine rdgrid(lunmd     ,lundia    ,error     ,zmodel    ,nrrec     , &
     !
     ! open semi-scratch file
     !
-    lungrd = newlun(gdp)
-    open (lungrd, file = 'TMP_' // fixid(1:lrid) // '.grd',                  &
+    open (newunit=lungrd, file = 'TMP_' // fixid(1:lrid) // '.grd',                  &
         & form = 'unformatted', status = 'unknown')
     !
     ! 'Filgrd': grid enclosure file
@@ -252,7 +251,6 @@ subroutine rdgrid(lunmd     ,lundia    ,error     ,zmodel    ,nrrec     , &
     !=======================================================================
     ! open semi-scratch file
     !
-    lundry = newlun(gdp)
     filnam = 'TMP_' // fixid(1:lrid) // '.dry'
     !
     ! append node number to file name in case of parallel computing within single-domain case
@@ -261,7 +259,7 @@ subroutine rdgrid(lunmd     ,lundia    ,error     ,zmodel    ,nrrec     , &
        call remove_leading_spaces(filnam,lfnm)
        write(filnam(lfnm+1:lfnm+4),666) inode
     endif
-    open (lundry, file = trim(filnam), form = 'unformatted', status = 'unknown')
+    open (newunit=lundry, file = trim(filnam), form = 'unformatted', status = 'unknown')
     !
     ! locate 'Fildry' record for dry points in extra input file
     ! If NLOOK = 0 and 'Fildry' not found => no error and item skipped
@@ -419,7 +417,6 @@ subroutine rdgrid(lunmd     ,lundia    ,error     ,zmodel    ,nrrec     , &
     !=======================================================================
     ! open semi-scratch file
     !
-    luntd = newlun(gdp)
     filnam = 'TMP_' // fixid(1:lrid) // '.td'
     !
     ! append node number to file name in case of parallel computing within single-domain case
@@ -428,7 +425,7 @@ subroutine rdgrid(lunmd     ,lundia    ,error     ,zmodel    ,nrrec     , &
        call remove_leading_spaces(filnam,lfnm)
        write(filnam(lfnm+1:lfnm+4),666) inode
     endif
-    open (luntd, file = trim(filnam), form = 'unformatted', status = 'unknown')
+    open (newunit=luntd, file = trim(filnam), form = 'unformatted', status = 'unknown')
     !
     ! locate 'Filtd ' record for thin dams in extra input file
     !
@@ -580,7 +577,6 @@ subroutine rdgrid(lunmd     ,lundia    ,error     ,zmodel    ,nrrec     , &
     !
     ! open semi-scratch file for "cut-cell" definition of grids
     !
-    luncut = newlun(gdp)
     !   open (luncut, file = 'TMP_' // fixid(1:lrid) // '.cut',                     &
     !       & form = 'unformatted', status = 'unknown')
     filnam = 'TMP_' // fixid(1:lrid) // '.cut'
@@ -591,7 +587,7 @@ subroutine rdgrid(lunmd     ,lundia    ,error     ,zmodel    ,nrrec     , &
        call remove_leading_spaces(filnam,lfnm)
        write(filnam(lfnm+1:lfnm+4),666) inode
     endif
-    open (luncut, file = trim(filnam), form = 'unformatted', status = 'unknown')
+    open (newunit=luncut, file = trim(filnam), form = 'unformatted', status = 'unknown')
     !
     ! locate 'Filcut' record for grid enclosure in extra input file
     !
@@ -633,7 +629,6 @@ subroutine rdgrid(lunmd     ,lundia    ,error     ,zmodel    ,nrrec     , &
     !
     ! open semi-scratch file for 45 degrees staircase closed boundary
     !
-    lun45 = newlun(gdp)
     !   open (lun45, file = 'TMP_' // fixid(1:lrid) // '.45', form = 'unformatted', &
     !       & status = 'unknown')
     filnam = 'TMP_' // fixid(1:lrid) // '.45'
@@ -644,7 +639,7 @@ subroutine rdgrid(lunmd     ,lundia    ,error     ,zmodel    ,nrrec     , &
        call remove_leading_spaces(filnam,lfnm)
        write(filnam(lfnm+1:lfnm+4),666) inode
     endif
-    open (lun45, file = trim(filnam), form = 'unformatted', status = 'unknown')
+    open (newunit=lun45, file = trim(filnam), form = 'unformatted', status = 'unknown')
     !
     ! locate 'Filcut' record for grid enclosure in extra input file
     !

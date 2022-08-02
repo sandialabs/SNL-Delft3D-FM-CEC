@@ -15,7 +15,7 @@ function S = nodelemesh(cmd,FileName)
 
 %----- LGPL --------------------------------------------------------------------
 %                                                                               
-%   Copyright (C) 2011-2020 Stichting Deltares.                                     
+%   Copyright (C) 2011-2022 Stichting Deltares.                                     
 %                                                                               
 %   This library is free software; you can redistribute it and/or                
 %   modify it under the terms of the GNU Lesser General Public                   
@@ -40,8 +40,8 @@ function S = nodelemesh(cmd,FileName)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/private/nodelemesh.m $
-%   $Id: nodelemesh.m 65778 2020-01-14 14:07:42Z mourits $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/tools_lgpl/matlab/quickplot/progsrc/private/nodelemesh.m $
+%   $Id: nodelemesh.m 140618 2022-01-12 13:12:04Z klapwijk $
 
 switch cmd
     case {'open','read'}
@@ -76,7 +76,7 @@ S.EleFile = fullfile(p,[f eEle]);
 %
 % read node data
 %
-fid = fopen(S.NodeFile,'r');
+fid = fopen(S.NodeFile,'r','n','US-ASCII');
 try
     % triangle: 5961  2  0  1
     % easymesh: <number of nodes>
@@ -108,7 +108,7 @@ end
 %
 % read ele data
 %
-fid = fopen(S.EleFile,'r');
+fid = fopen(S.EleFile,'r','n','US-ASCII');
 try
     % triangle: 11489  3  0
     % easymesh: <number of elements>

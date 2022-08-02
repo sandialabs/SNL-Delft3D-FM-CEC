@@ -2,7 +2,7 @@
 module m_ObservCrossSections
 !----- AGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2017-2020.                                
+!  Copyright (C)  Stichting Deltares, 2017-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify              
 !  it under the terms of the GNU Affero General Public License as               
@@ -26,8 +26,8 @@ module m_ObservCrossSections
 !  Stichting Deltares. All rights reserved.
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: ObservCrossSections.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_gpl/flow1d/packages/flow1d_core/src/ObservCrossSections.f90 $
+!  $Id: ObservCrossSections.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_gpl/flow1d/packages/flow1d_core/src/ObservCrossSections.f90 $
 !-------------------------------------------------------------------------------
 
    use MessageHandling
@@ -73,7 +73,7 @@ module m_ObservCrossSections
       integer                                                :: Size = 0                 !< Actual size of observation cross-section set
       integer                                                :: growsBy = 2000           !< Increment for observation cross-section set
       integer                                                :: Count= 0                 !< Actual number of observation cross-section sets
-      type(t_ObservCrossSection), pointer, dimension(:)      :: Observcross              !< Current observation cross-section
+      type(t_ObservCrossSection), pointer, dimension(:)      :: Observcross => null()    !< Current observation cross-section
       
       type(t_hashlist)                                       :: hashlist
    end type t_ObservCrossSectionSet

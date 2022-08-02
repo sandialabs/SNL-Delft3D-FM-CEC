@@ -3,7 +3,7 @@ subroutine barfil(lundia    ,filbar    ,error     ,mmax      ,nmax      , &
                 & mnbar     ,nambar    ,cbuv      ,gdp       )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -27,8 +27,8 @@ subroutine barfil(lundia    ,filbar    ,error     ,mmax      ,nmax      , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: barfil.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/io/src/input/barfil.f90 $
+!  $Id: barfil.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/flow2d3d/packages/io/src/input/barfil.f90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: Reads the barrier location definitions and
@@ -140,8 +140,7 @@ subroutine barfil(lundia    ,filbar    ,error     ,mmax      ,nmax      , &
     !
     ! open formatted file, if not formatted IOCOND <> 0
     !
-    luntmp = newlun(gdp)
-    open (luntmp, file = filbar(:lfile), form = 'formatted', status = 'old',    &
+    open (newunit=luntmp, file = filbar(:lfile), form = 'formatted', status = 'old',    &
         & iostat = iocond)
     if (iocond/=0) then
        error = .true.

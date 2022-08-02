@@ -2,7 +2,7 @@ subroutine reacmp(lundia    ,error     ,filana    ,statns    ,nto       , &
                 & ampl      ,phas      ,jacor     ,kc        ,gdp       )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -26,8 +26,8 @@ subroutine reacmp(lundia    ,error     ,filana    ,statns    ,nto       , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: reacmp.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/io/src/input/reacmp.f90 $
+!  $Id: reacmp.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/flow2d3d/packages/io/src/input/reacmp.f90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: - Reads 'TRIANA' file or 'GETIJSYS' file
@@ -106,8 +106,7 @@ subroutine reacmp(lundia    ,error     ,filana    ,statns    ,nto       , &
        !
        inquire (file = filana, exist = ex)
        if (ex) then
-          mcmp = newlun(gdp)
-          open (mcmp, file = filana)
+          open (newunit=mcmp, file = filana)
        else
           !
           ! Triana file not found
@@ -217,8 +216,7 @@ subroutine reacmp(lundia    ,error     ,filana    ,statns    ,nto       , &
           do j = 1, 2
              inquire (file = statns(i, j), exist = ex)
              if (ex) then
-                mcmp = newlun(gdp)
-                open (mcmp, file = statns(i, j))
+                open (newunit=mcmp, file = statns(i, j))
              else
                 !
                 ! Getijsys file not found

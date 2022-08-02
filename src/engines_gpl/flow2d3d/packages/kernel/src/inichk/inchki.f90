@@ -6,7 +6,7 @@ subroutine inchki(lundia    ,error     ,runid     ,sferic    ,filrgf    , &
                 & lturi     ,gdp       )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -30,8 +30,8 @@ subroutine inchki(lundia    ,error     ,runid     ,sferic    ,filrgf    , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: inchki.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/kernel/src/inichk/inchki.f90 $
+!  $Id: inchki.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/flow2d3d/packages/kernel/src/inichk/inchki.f90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: Initialises and checks various params. and arrays
@@ -390,8 +390,6 @@ subroutine inchki(lundia    ,error     ,runid     ,sferic    ,filrgf    , &
              & i(kcu)    ,i(kcv)    ,i(kcs)    ,gdp       )
     if (error) goto 9999
     !
-    call griddims_admin( i(kcs), gdp )
-    !
     ! check important geometry parameters and
     ! redefine THICK array and initialize SIG
     !
@@ -415,6 +413,8 @@ subroutine inchki(lundia    ,error     ,runid     ,sferic    ,filrgf    , &
               & r(gvd + iofset)      ,r(gsqiu + iofset)    ,r(gsqiv + iofset)    ,i(kcu + iofset)      ,i(kcv + iofset)      , &
               & i(kcs + iofset)      ,r(guu)               ,r(gvv)               ,gdp       )
     if (error) goto 9999
+    !
+    call griddims_admin( i(kcs), r(xz), r(yz), r(xcor), r(ycor),  gdp )
     !
     ! DFUPDGEO: exchange geometrical information as computed in routine inigeo with neighbours in case of parallel runs
     !

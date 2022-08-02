@@ -2,7 +2,7 @@
 module SyncRtcFlow
 !----- LGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This library is free software; you can redistribute it and/or                
 !  modify it under the terms of the GNU Lesser General Public                   
@@ -26,8 +26,8 @@ module SyncRtcFlow
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: sync_rtcflow.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/delftio/packages/delftio/src/delftio_sync/sync_rtcflow.f90 $
+!  $Id: sync_rtcflow.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_lgpl/delftio/packages/delftio/src/delftio_sync/sync_rtcflow.f90 $
 !!--description-----------------------------------------------------------------
 ! Organizes the communication between the FLOW
 ! executable and the RTC executable.
@@ -307,7 +307,7 @@ end subroutine syncflowrtc_quit
 !
 !
 !==============================================================================
-subroutine syncflowrtc_init(error, nambar, nsluv, charlen, nsteps, &
+subroutine syncflowrtc_init(error, nambar, nsluv, IdLen, nsteps, &
                           & flagFLOWtoRTC, flagRTCtoFLOW, idate, itstart, dt)
     use precision
 ! Initialise communication between Flow and RTC
@@ -316,7 +316,7 @@ subroutine syncflowrtc_init(error, nambar, nsluv, charlen, nsteps, &
 !
 ! Global variables
 !
-    integer                        ,intent (in)  :: charlen
+    integer                        ,intent (in)  :: IdLen
     integer                        ,intent (in)  :: idate
     integer                        ,intent (in)  :: itstart
     real(fp)                       ,intent (in)  :: dt
@@ -325,7 +325,7 @@ subroutine syncflowrtc_init(error, nambar, nsluv, charlen, nsteps, &
     logical                        ,intent (in)  :: flagFLOWtoRTC
     logical                        ,intent (in)  :: flagRTCtoFLOW
     logical                        ,intent (out) :: error
-    character(charlen), dimension(nsluv)         :: nambar ! WARNING: both charlen and nsluv must be passed via parameter list for Intel 9.0
+    character(IdLen), dimension(nsluv)         :: nambar ! WARNING: both IdLen and nsluv must be passed via parameter list for Intel 9.0
 !
 ! Local variables
 !

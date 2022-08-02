@@ -1,7 +1,7 @@
 module m_GlobalParameters
 !----- AGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2017-2020.                                
+!  Copyright (C)  Stichting Deltares, 2017-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify              
 !  it under the terms of the GNU Affero General Public License as               
@@ -25,8 +25,8 @@ module m_GlobalParameters
 !  Stichting Deltares. All rights reserved.
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: GlobalParameters.f90 65972 2020-02-12 07:36:41Z chavarri $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_gpl/flow1d/packages/flow1d_core/src/GlobalParameters.f90 $
+!  $Id: GlobalParameters.f90 140847 2022-03-01 08:17:35Z noort $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_gpl/flow1d/packages/flow1d_core/src/GlobalParameters.f90 $
 !-------------------------------------------------------------------------------
    
    use MessageHandling
@@ -44,8 +44,6 @@ module m_GlobalParameters
    logical                          :: writeNetCDF                   = .false.
    logical                          :: useImplicitSolver             = .false.
    logical                          :: fillCulvertsWithGL            = .false.
-   logical                          :: doReadCache                   = .false.
-   logical                          :: doWriteCache                  = .false.
    double precision                 :: thresholdDry                  = 0.001d0
    double precision                 :: thresholdFlood                = 0.01d0
    double precision                 :: factorFloodingDividedByDrying = 10.0d0
@@ -60,6 +58,7 @@ module m_GlobalParameters
    double precision                 :: minSectionLength              = 1.0
    double precision, public         :: dynstructext                  = 1.0d0
    double precision, public         :: missingvalue                  =-999.999d0
+   double precision, public         :: flow1d_eps10                  = 1d-10
    double precision, public         :: latitude                      = 52.25
    double precision, public         :: longitude                     = 0d0
    double precision, public         :: time_zone                     = 0d0
@@ -67,15 +66,8 @@ module m_GlobalParameters
    !TODO temporary unit to be removed, when finished
    integer, public :: luntrans = 0
 
-   ! storage table controls
-   double precision, public      :: tb_inc = 0.01
-   double precision, public      :: tb_extra_height = 0.0
-   character(len=charln), public :: st_filename
-   logical, public               :: write_tables
-
-   
-   character(len=charln)            :: wlevStateFileIn
-   character(len=charln)            :: wlevStateFileOut
+   character(len=IdLen)            :: wlevStateFileIn
+   character(len=IdLen)            :: wlevStateFileOut
    
    character(len=20)                :: obsIntPolType
 
@@ -96,7 +88,6 @@ module m_GlobalParameters
    end type
  
    type t_filenames
-      character(len=255) :: onednetwork                  = ' ' !< 1d Network definition             (e.g., flow1d.md1d)
       character(len=255) :: cross_section_definitions    = ' ' !< 1d cross section definitions
       character(len=255) :: cross_section_locations      = ' ' !< 1d cross section locations
       character(len=1024):: roughness                    = ' ' !< 1d roughness files
@@ -154,7 +145,9 @@ module m_GlobalParameters
    integer, public, parameter              :: ST_CULVERT    =  9
    integer, public, parameter              :: ST_BRIDGE     = 10
    integer, public, parameter              :: ST_COMPOUND   = 11
-   integer, public, parameter              :: ST_MAX_TYPE   = 11 !< Max id of structure types. The preceding ids must be lower than this.
+   integer, public, parameter              :: ST_LONGCULVERT = 12
+
+   integer, public, parameter              :: ST_MAX_TYPE   = 12 !< Max id of structure types. The preceding ids must be lower than this.
 
    ! Flow geometry / computational grid
    integer, public, parameter              :: INDTP_1D      = 1  !< Type code for flow nodes that are 1D
@@ -308,5 +301,11 @@ module m_GlobalParameters
    integer, public, parameter :: CFiState                   = 124
    integer, public, parameter :: CFiWindVelocity            = 125
    integer, public, parameter :: CFiWindDirection           = 126
+  
+   ! UNST-4317: TEMP lowlevel timers
+   integer(kind=8) :: callcount(2) = 0 ! Number of calls to timed subroutines
+   integer(kind=8) :: wccount(2)   = 0 ! wallclock processor counts for some timers (output of system_clock).
+   integer(kind=8) :: countstart, countstop ! temp variables to start/stop the system_clock stopwatch. To be stored in wccount(:).
+   integer(kind=8) :: rate ! Rate of processor clock count
    
 end module m_GlobalParameters                                 

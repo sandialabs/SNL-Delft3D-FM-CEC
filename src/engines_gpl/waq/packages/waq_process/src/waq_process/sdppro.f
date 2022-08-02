@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -178,6 +178,14 @@
 
 !       UPTA2x is filled by CHKLIM with maximum available uptake
 !       of nutrients from the water column (considering Monod limitation)
+!
+!       Note: explicitly check that the concentration of the nutrients
+!       is positive. Otherwise there is no grwoth possible
+
+        IF ( CNH4 < 0.0 ) UPTA2N = 0.0
+        IF ( CNO3 < 0.0 ) UPTA2N = 0.0
+        IF ( CPO4 < 0.0 ) UPTA2P = 0.0
+        IF ( CSI  < 0.0 ) UPTA2S = 0.0
 
         DIN = CNH4 + CNO3
         CALL CHKLIM (UPTA2N, DIN   , DEPTH , DELTAT, KMDIN )

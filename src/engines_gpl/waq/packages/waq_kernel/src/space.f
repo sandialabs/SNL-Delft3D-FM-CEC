@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -28,6 +28,12 @@
       USE DHMMCA_MOD
       USE DHMMJA_MOD
       USE DHMMRA_MOD
+      use m_sysn          ! System characteristics
+      use m_sysi          ! Timer characteristics
+      use m_sysa          ! Pointers in real array workspace
+      use m_sysj          ! Pointers in integer array workspace
+      use m_sysc          ! Pointers in character array workspace
+
 
       CONTAINS
 
@@ -77,26 +83,7 @@
       INTEGER*8              :: ITOT
 
       TYPE(MEMORY_PARTITION) :: PART
-!
-!     COMMON  /  SYSI   /   Timer characteristics
-!
-      INCLUDE 'sysi.inc'
-!
-!     COMMON  /  SYSN   /   System characteristics
-!
-      INCLUDE 'sysn.inc'
-!
-!     COMMON  /  SYSA   /   Pointers in real array workspace
-!
-      INCLUDE 'sysa.inc'
-!
-!     COMMON  /  SYSJ   /   Pointers in integer array workspace
-!
-      INCLUDE 'sysj.inc'
-!
-!     COMMON  /  SYSC   /   Pointers in character array workspace
-!
-      INCLUDE 'sysc.inc'
+
 !
 !     Allocate initial space
 !
@@ -137,7 +124,7 @@
      +             J(IALEN:),J(IAKND:),J(IADM1:), J(IADM2:), J(IADM3:),
      +             CNAME, ITOTI, PART )
 !
-!     Set the integer array workspace
+!     Set the character array workspace
 !
       CALL DHMMCA( LUNREP   ,L_DECL   ,J(IAPOI:), J(IATYP:), J(IABYT:),
      +             J(IALEN:),J(IAKND:),J(IADM1:), J(IADM2:), J(IADM3:),
@@ -173,7 +160,7 @@
       IMAXC = ITOTC
 
 !
-!     Allocate the arrays, first C then J then A for least memory requiremnt
+!     Allocate the arrays, first C then J then A for least memory requirement
 !
 
       IF ( L_DECL ) THEN

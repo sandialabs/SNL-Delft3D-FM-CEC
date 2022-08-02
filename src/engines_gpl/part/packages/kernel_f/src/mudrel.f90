@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -27,15 +27,16 @@ module mudrel_mod
 !
 !  data definition module(s)
 !
-use precision_part             ! single/double precision
+      use precision_part             ! single/double precision
       use timers
-use fileinfo              ! file information for all input/output files
+      use fileinfo              ! file information for all input/output files
 !
 !  module procedure(s)
 !
-use openfl_mod            ! explicit interface
+      use openfl_mod            ! explicit interface
+      use random_generator
 !
-implicit none             ! force explicit typing
+      implicit none             ! force explicit typing
 !
 contains
       subroutine mudrel( xpart , ypart, zpart, mpart, npart, kpart,       &
@@ -45,7 +46,7 @@ contains
                          amasud,nopart,sname , isout,iptime, lurep,       &
                          ipnt  ,volume,nosudx, syname)
 !
-!                   Deltares (former: Deltares)
+!                   Deltares
 !
 !
 !   version:     version 3.60
@@ -130,14 +131,9 @@ contains
       integer(ip) :: iutime, lurep , nose2  , nosegm, nosy2 , nosyss , nosudx, nact  , nm
       integer(ip) :: nmax  , nosubs, nprest , npseg , ndprt , ndprt2, nopart, noseg2, noumx2
       integer(ip) :: npadd , npmax , nptot
-      real   (sp) :: hulp  , rmass , rnd    , rpseg , rdum  , totmas, uscal
+      real   (sp) :: hulp  , rmass , rpseg , rdum  , totmas, uscal
       real   (sp) :: totma1, totma2, totma3 , wpart1
-!
-!     note:
-!       random function rnd() must be declared external, as it is an
-!       intrinsic function for the lahey fortran95 compiler under linux
-!
-      external rnd
+
       integer(4) ithndl              ! handle to time this subroutine
       data       ithndl / 0 /
       if ( timon ) call timstrt( "mudrel", ithndl )

@@ -1,3 +1,31 @@
+!----- GPL ---------------------------------------------------------------------
+!                                                                               
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
+!                                                                               
+!  This program is free software: you can redistribute it and/or modify         
+!  it under the terms of the GNU General Public License as published by         
+!  the Free Software Foundation version 3.                                      
+!                                                                               
+!  This program is distributed in the hope that it will be useful,              
+!  but WITHOUT ANY WARRANTY; without even the implied warranty of               
+!  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the                
+!  GNU General Public License for more details.                                 
+!                                                                               
+!  You should have received a copy of the GNU General Public License            
+!  along with this program.  If not, see <http://www.gnu.org/licenses/>.        
+!                                                                               
+!  contact: delft3d.support@deltares.nl                                         
+!  Stichting Deltares                                                           
+!  P.O. Box 177                                                                 
+!  2600 MH Delft, The Netherlands                                               
+!                                                                               
+!  All indications and logos of, and references to, "Delft3D" and "Deltares"    
+!  are registered trademarks of Stichting Deltares, and remain the property of  
+!  Stichting Deltares. All rights reserved.                                     
+!                                                                               
+!  $Id: ec_bccollect.f90 140843 2022-02-28 13:19:54Z noort $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_lgpl/ec_module/packages/ec_module/src/ec_bccollect.f90 $
+
 module m_ec_bccollect
     use m_ec_parameters
     use m_ec_typedefs
@@ -152,7 +180,6 @@ module m_ec_bccollect
     integer (kind=8)    ::  fhandle
     character(:), allocatable :: rec
     integer             ::  reclen 
-    integer             ::  commentpos
     character*(1000)    ::  keyvaluestr                                    ! all key-value pairs in one header 
     integer             ::  posfs
     integer             ::  nfld
@@ -165,7 +192,7 @@ module m_ec_bccollect
     type (tEcFileReader), pointer :: fileReaderPtr
     integer             :: bcBlockId, fileReaderId
     integer             :: ifr 
-    logical             :: success, isLateral
+    logical             :: isLateral
     real(hp)            :: k_mjd                                          ! kernel reference date as Modified Julian date
 
     iostat = EC_UNKNOWN_ERROR
@@ -290,9 +317,9 @@ module m_ec_bccollect
 
     integer                          ::     ifld 
     integer                          ::     iostat
-    character(len=60),  allocatable  ::     hdrkeys(:)     !< All keys from header
-    character(len=60),  allocatable  ::     hdrvals(:)     !< All values from header
-    character(len=60)                ::     dumstr
+    character(len=256),  allocatable  ::     hdrkeys(:)     !< All keys from header
+    character(len=256),  allocatable  ::     hdrvals(:)     !< All values from header
+    character(len=256)                ::     dumstr
 
     integer                          ::     iq, iq_sel
 
@@ -393,13 +420,17 @@ module m_ec_bccollect
                   return
                end select 
           case ('OFFSET')                           
-               if (iq>0) cycle 
-               read(hdrvals(ifld),*) bc%quantities(iq)%offset
+               if (iq>0) then
+                  read(hdrvals(ifld),*) bc%quantities(iq)%offset
+               endif
           case ('FACTOR')
-               if (iq>0) cycle 
-               read(hdrvals(ifld),*) bc%quantities(iq)%factor
+               if (iq>0) then
+                  read(hdrvals(ifld),*) bc%quantities(iq)%factor
+               endif
           case ('MISSING VALUE DEFINITION')
-               read(hdrvals(ifld),*) bc%missing
+               if (iq>0) then
+                  read(hdrvals(ifld),*) bc%quantities(iq)%missing
+               endif
           case ('TIME INTERPOLATION')
                select case (trim(adjustl(hdrvals(ifld))))
                   case ('LINEAR')

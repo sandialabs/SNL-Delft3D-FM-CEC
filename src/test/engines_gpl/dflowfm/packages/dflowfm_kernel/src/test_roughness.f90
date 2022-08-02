@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -39,14 +39,15 @@ subroutine test_roughness_branches
    use m_roughness
    use m_read_roughness
    use m_hash_search
+   use ifport
    
    type(t_network)         :: network
    type(t_CSType), pointer :: cross
    character(len=256)      :: roughnessfiles
-   character(len=256)      :: mapdir
    integer                 :: ibranch
    integer                 :: section
    integer                 :: igrid
+   integer                 :: istat
    double precision        :: h
    double precision        :: q
    double precision        :: u
@@ -67,11 +68,14 @@ subroutine test_roughness_branches
    network%brs%branch(7)%id = 'Channel7'
    call fill_hashtable(network%brs)
    cross => null()
-   
+
+   istat = CHANGEDIRQQ("roughness")
+
    roughnessfiles = 'roughness_main.ini;roughness-globals.ini'
-   mapdir         = 'roughness/'
-   call roughness_reader(network, roughnessfiles, mapdir)
-   
+   call roughness_reader(network, roughnessfiles)
+
+   istat = CHANGEDIRQQ("..")
+
    ibranch  = 4
    section  = hashsearch(network%rgs%hashlist, 'chezy45')
    igrid    = 0

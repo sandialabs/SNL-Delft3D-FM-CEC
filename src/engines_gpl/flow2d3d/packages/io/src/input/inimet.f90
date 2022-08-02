@@ -3,7 +3,7 @@ subroutine inimet(lundia    ,error     ,versio    ,wave      ,trasol    , &
                 & disctr    ,gdp       )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -27,8 +27,8 @@ subroutine inimet(lundia    ,error     ,versio    ,wave      ,trasol    , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: inimet.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/io/src/input/inimet.f90 $
+!  $Id: inimet.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/flow2d3d/packages/io/src/input/inimet.f90 $
 !!--description-----------------------------------------------------------------
 !
 ! - Initialisation of numerical parameters which define the numerical methods.
@@ -131,8 +131,7 @@ subroutine inimet(lundia    ,error     ,versio    ,wave      ,trasol    , &
                 ! YES file, read input
                 !
                 if (ex) then
-                   lunmet = newlun(gdp)
-                   open (lunmet, file = filusr(nfil)(:lfil), form = 'formatted',&
+                   open (newunit=lunmet, file = filusr(nfil)(:lfil), form = 'formatted',&
                        & status = 'old')
                    !
                    ! Read numerical method

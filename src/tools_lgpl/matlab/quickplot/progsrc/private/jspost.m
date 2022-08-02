@@ -11,7 +11,7 @@ function [Out1,Out2]=jspost(cmd,varargin)
 
 %----- LGPL --------------------------------------------------------------------
 %                                                                               
-%   Copyright (C) 2011-2020 Stichting Deltares.                                     
+%   Copyright (C) 2011-2022 Stichting Deltares.                                     
 %                                                                               
 %   This library is free software; you can redistribute it and/or                
 %   modify it under the terms of the GNU Lesser General Public                   
@@ -36,8 +36,8 @@ function [Out1,Out2]=jspost(cmd,varargin)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/private/jspost.m $
-%   $Id: jspost.m 65778 2020-01-14 14:07:42Z mourits $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/tools_lgpl/matlab/quickplot/progsrc/private/jspost.m $
+%   $Id: jspost.m 140618 2022-01-12 13:12:04Z klapwijk $
 
 switch lower(cmd)
     case 'open'
@@ -68,8 +68,8 @@ end;
 [p,f,e]=fileparts(filename);
 S.FileName=[p filesep f];
 
-fstu=fopen([S.FileName '.stu'],'r');
-fpst=fopen([S.FileName '.pst'],'r','l');
+fstu=fopen([S.FileName '.stu'],'r','n','US-ASCII');
+fpst=fopen([S.FileName '.pst'],'r','l','US-ASCII');
 
 if (fpst<0) | (fstu<0)
     if fpst>0
@@ -162,7 +162,7 @@ fclose(fstu);
 %
 DataL=abs(fread(fpst,[NSeg*NPar 1],'float32'));
 fclose(fpst);
-fpst=fopen([S.FileName '.pst'],'r','b');
+fpst=fopen([S.FileName '.pst'],'r','b','US-ASCII');
 DataB=abs(fread(fpst,[NSeg*NPar 1],'float32'));
 MaxDataL=max(DataL(:)); MinDataL=min(DataL(DataL>0));
 MaxDataB=max(DataB(:)); MinDataB=min(DataB(DataB>0));
@@ -258,7 +258,7 @@ else
 end
 nseg=length(seg);
 
-fid=fopen([S.FileName '.pst'],'r',S.ByteOrder);
+fid=fopen([S.FileName '.pst'],'r',S.ByteOrder,'US-ASCII');
 if fid<0
     error('Cannot open PST file.');
 end;

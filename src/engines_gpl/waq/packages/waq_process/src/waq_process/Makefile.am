@@ -11,7 +11,6 @@ noinst_LTLIBRARIES = libwaq_process.la
 #-------------------------------------------------------------------------------
 #Includes
 FMODULES += \
-     -I$(top_builddir)/engines_gpl/waq/include \
      -I$(top_builddir)/engines_gpl/waq/packages/waq_utils_f/src/mod_timings \
      -I$(top_builddir)/engines_gpl/waq/packages/waq_utils_f/src/waq_utils \
      -I$(top_builddir)/engines_gpl/waq/packages/waq_process/src/bloom \
@@ -21,6 +20,7 @@ FMODULES += \
 #Sources
 libwaq_process_la_SOURCES = \
        bottom_set.f \
+       layeredsed.f90 \
        get_effi.f \
        adspo4.f \
        advtra.f \
@@ -51,6 +51,7 @@ libwaq_process_la_SOURCES = \
        decpc5.f \
        dectra.f \
        degmp.f \
+       DelwaqG.f90 \
        densed.f \
        denwat.f \
        depave.f \
@@ -68,15 +69,21 @@ libwaq_process_la_SOURCES = \
        extina.f \
        extinc.f \
        flxfrc.f90 \
+       gemmpb.f \
        harves.f \
        hdisp.f \
        hdispa.f \
        hdispv.f \
        heatfl.f \
        intpol.f \
+       inverm.f \
        makpoc.f \
        meteo.f \
        methox.f \
+       mpbllm.f \
+       mpbnlm.f \
+       mpbnut.f \
+       mpbtmp.f \
        nh3fre.f \
        nitrif.f \
        nlalg.f \
@@ -112,6 +119,7 @@ libwaq_process_la_SOURCES = \
        secchi.f \
        sedaap.f \
        sedcar.f \
+       sedbal.f90 \
        sedcom.f \
        sedhm.f \
        sedim.f \
@@ -168,6 +176,8 @@ libwaq_process_la_SOURCES = \
        specfe.f90 \
        sulfid.f90 \
        sulpho.f90 \
+       vbxs12.f90 \
+       vbxsum.f90 \
        vbgro.f90 \
        vbmrt.f90 \
        vbstat.f90 \
@@ -183,6 +193,7 @@ libwaq_process_la_SOURCES = \
        macnut.f90 \
        covmac.f \
        respup.f \
+       resbuf.f90 \
        dredge.f \
        floceq.f90
 

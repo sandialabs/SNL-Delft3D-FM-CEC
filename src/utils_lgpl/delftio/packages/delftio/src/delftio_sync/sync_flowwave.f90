@@ -1,7 +1,7 @@
 module sync_flowwave
 !----- LGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This library is free software; you can redistribute it and/or                
 !  modify it under the terms of the GNU Lesser General Public                   
@@ -25,8 +25,8 @@ module sync_flowwave
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: sync_flowwave.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/delftio/packages/delftio/src/delftio_sync/sync_flowwave.f90 $
+!  $Id: sync_flowwave.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_lgpl/delftio/packages/delftio/src/delftio_sync/sync_flowwave.f90 $
 !!--description-----------------------------------------------------------------
 !
 ! Organizes the communication between the executable
@@ -47,7 +47,7 @@ implicit none
 !
 ! Module parameters
 !
-integer, parameter :: max_num_subdoms = 50    ! max # subdomains
+integer, parameter :: max_num_subdoms = 100    ! max # subdomains
                                               ! (= #locations in DioPlt)
 !
 ! Derived Type definitions (PLT datasets)

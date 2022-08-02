@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -30,7 +30,7 @@
       subroutine ceccal
 !        ceccalc computes pie cec for compartment k
 !        procedure equivalent to phcalc
-      include  'char1.inc'
+      use m_char1
       character*6 cacec,cecc,capl
       DATA CACEC/'CACEC '/
       DATA CECC/'CEC   '/

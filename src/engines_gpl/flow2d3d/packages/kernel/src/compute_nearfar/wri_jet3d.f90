@@ -2,7 +2,7 @@ subroutine wri_jet3d(u1    ,v1    ,rho    ,thick ,kmax      ,dps   ,&
                    & s1    ,alfas ,flwang ,sign  ,idensform ,gdp   )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -26,8 +26,8 @@ subroutine wri_jet3d(u1    ,v1    ,rho    ,thick ,kmax      ,dps   ,&
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: wri_jet3d.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/kernel/src/compute_nearfar/wri_jet3d.f90 $
+!  $Id: wri_jet3d.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/flow2d3d/packages/kernel/src/compute_nearfar/wri_jet3d.f90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: Writes input for jet3d
@@ -133,8 +133,7 @@ subroutine wri_jet3d(u1    ,v1    ,rho    ,thick ,kmax      ,dps   ,&
     !
     ! Read the general diffuser characteritics from jet3d input file
     !
-    luntmp1 = newlun(gdp)
-    open (luntmp1, file='str3dinp.def', status='old')
+    open (newunit=luntmp1, file='str3dinp.def', status='old')
     !
     ! Position diffuser
     !
@@ -216,8 +215,7 @@ subroutine wri_jet3d(u1    ,v1    ,rho    ,thick ,kmax      ,dps   ,&
     !
     ! Write jet3d input file
     !
-    luntmp2 = newlun(gdp)
-    open (luntmp2,file='str3dinp.xxx',status='unknown')
+    open (newunit=luntmp2,file='str3dinp.xxx',status='unknown')
     read  (luntmp1,'(a256)') record
     write (record(11:20),'(f10.3)') s1(nm_diff) + real(dps(nm_diff),fp)
     write (luntmp2,'(a256)') record

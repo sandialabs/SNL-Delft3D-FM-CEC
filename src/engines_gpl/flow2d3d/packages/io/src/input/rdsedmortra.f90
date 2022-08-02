@@ -4,7 +4,7 @@ subroutine rdsedmortra(lundia    ,error     ,lsal      ,ltem      ,lsed      , &
                      & nambnd    ,lsec      ,tstart    ,tunit     ,gdp       )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                     
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                     
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -28,8 +28,8 @@ subroutine rdsedmortra(lundia    ,error     ,lsal      ,ltem      ,lsed      , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: rdsedmortra.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/io/src/input/rdsedmortra.f90 $
+!  $Id: rdsedmortra.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/flow2d3d/packages/io/src/input/rdsedmortra.f90 $
 !!--description-----------------------------------------------------------------
 !
 ! Read sediment, morphology and transport parameters from the input files
@@ -162,6 +162,7 @@ subroutine rdsedmortra(lundia    ,error     ,lsal      ,ltem      ,lsed      , &
     !
     ipardef = 0
     rpardef = 0.0_fp
+    ! Van Rijn (1993)
     call setpardef(ipardef, rpardef, NPARDEF, -1, 1, gdp%gdmorpar%iopsus)
     call setpardef(ipardef, rpardef, NPARDEF, -1, 2, gdp%gdmorpar%aksfac)
     call setpardef(ipardef, rpardef, NPARDEF, -1, 3, gdp%gdmorpar%rwave)
@@ -169,14 +170,22 @@ subroutine rdsedmortra(lundia    ,error     ,lsal      ,ltem      ,lsed      , &
     call setpardef(ipardef, rpardef, NPARDEF, -1, 5, gdp%gdmorpar%rdw)
     call setpardef(ipardef, rpardef, NPARDEF, -1, 6, gdp%gdmorpar%iopkcw)
     ! for backward compatibility gdp%gdmorpar%epspar should NOT be copied to par 7 of Van Rijn 1993 (-1)
+    ! Van Rijn (2007)
     call setpardef(ipardef, rpardef, NPARDEF, -2, 1, gdp%gdmorpar%iopsus)
     call setpardef(ipardef, rpardef, NPARDEF, -2, 2, gdp%gdmorpar%pangle)
     call setpardef(ipardef, rpardef, NPARDEF, -2, 3, gdp%gdmorpar%fpco)
     call setpardef(ipardef, rpardef, NPARDEF, -2, 4, gdp%gdmorpar%subiw)
     call setpardef(ipardef, rpardef, NPARDEF, -2, 5, gdp%gdmorpar%epspar)
+    ! SANTOSS copy of Van Rijn (2007)
+    call setpardef(ipardef, rpardef, NPARDEF, -4, 1, gdp%gdmorpar%iopsus)
+    call setpardef(ipardef, rpardef, NPARDEF, -4, 2, gdp%gdmorpar%pangle)
+    call setpardef(ipardef, rpardef, NPARDEF, -4, 3, gdp%gdmorpar%fpco)
+    call setpardef(ipardef, rpardef, NPARDEF, -4, 4, gdp%gdmorpar%subiw)
+    call setpardef(ipardef, rpardef, NPARDEF, -4, 5, gdp%gdmorpar%epspar)
     !
     call rdtrafrm(lundia    ,error     ,filtrn    ,lsedtot   , &
                 & ipardef   ,rpardef   ,NPARDEF   ,gdp%gdtrapar, &
+                & gdp%gdmorpar%moroutput%sedpar, &
                 & gdp%gdsedpar%sedtyp  ,gdp%gdsedpar%sedblock  , &
                 & gdp%griddim)
     if (error) goto 999
@@ -199,15 +208,16 @@ subroutine rdsedmortra(lundia    ,error     ,lsal      ,ltem      ,lsed      , &
     !
     call rdscour(lundia    ,error     ,nmmax     ,gdp       )
     !
-    ! If Van Rijn 2004 transport formula is used (iform = -2), switch on the
-    ! bed roughness height predictor. By default this predictor is set to the
-    ! Van Rijn 2004 formulations; give a warning if this has been set to a
-    ! different predictor by the user.
+    ! If either Van Rijn 2004 transport formula (iform = -2) or the extended
+    ! SANTOSS version (iform = -4) is used, switch on the bed roughness height
+    ! predictor. By default this predictor is set to the Van Rijn 2004
+    ! formulations; give a warning if this has been set to a different predictor
+    ! by the user.
     !
     do i = 1, lsedtot
-       if (gdp%gdtrapar%iform(i) == -2) then
+       if (gdp%gdtrapar%iform(i) == -2 .or. gdp%gdtrapar%iform(i) == -4) then
           if (gdp%gdbedformpar%bdfrpt /= 0) then
-             call prterr(lundia, 'U190', 'Van Rijn 2004 transport formula combined with different bedform roughness predictor')
+             call prterr(lundia, 'U190', 'Van Rijn (2007) or SANTOSS transport formula combined with different bedform roughness predictor')
           endif
           gdp%gdbedformpar%lfbedfrmrou = .true.
           exit

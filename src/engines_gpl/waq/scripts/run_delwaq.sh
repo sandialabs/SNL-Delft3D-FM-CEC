@@ -28,7 +28,7 @@ function print_usage_info {
     echo "       use BLOOM, optionally using an alternative algea database for the default $D3D_HOME/share/delft3d/bloom.spe"
     echo
     echo "-*"
-    echo "       any other options are passed trough to the Delwaq to process"
+    echo "       any other options are passed through to Delwaq to process"
     exit 1
 }
 
@@ -176,6 +176,9 @@ libdir=$D3D_HOME/lib
 
     # Run
 export LD_LIBRARY_PATH=$libdir:$LD_LIBRARY_PATH
+
+module load intelmpi/21.2.0 &>/dev/null
+export FI_PROVIDER=tcp
 
 if [ "$eco" == "true" ]
    then

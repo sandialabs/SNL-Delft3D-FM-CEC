@@ -5,7 +5,7 @@ subroutine rdsite(lunmd     ,lundia    ,error     ,nrrec     ,mdfrec    , &
                 & drodep    ,gdp       )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -29,8 +29,8 @@ subroutine rdsite(lunmd     ,lundia    ,error     ,nrrec     ,mdfrec    , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: rdsite.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/io/src/input/rdsite.f90 $
+!  $Id: rdsite.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/flow2d3d/packages/io/src/input/rdsite.f90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: - Reads the positions of the monitoring stations
@@ -1010,14 +1010,13 @@ subroutine rdsite(lunmd     ,lundia    ,error     ,nrrec     ,mdfrec    , &
     ! Create trigger file for TRISIM to indicate RTC running
     !
     if (rtcmod/=noRTC .and. rtcact/=RTCviaBMI) then
-       luntri = newlun(gdp)
        filsim = 'TMP_SYNC.RUN'
        inquire (file = filsim, exist = lexist)
        if (lexist) then
-          open (luntri, file = filsim)
+          open (newunit=luntri, file = filsim)
           close (luntri, status = 'delete')
        endif
-       open (luntri, file = filsim, form = 'unformatted', status = 'unknown')
+       open (newunit=luntri, file = filsim, form = 'unformatted', status = 'unknown')
        !
        ! Write 'RUNRTC' by telephone
        !

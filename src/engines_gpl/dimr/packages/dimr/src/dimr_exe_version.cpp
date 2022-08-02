@@ -1,6 +1,6 @@
 //---- GPL ---------------------------------------------------------------------
 //
-// Copyright (C)  Stichting Deltares, 2011-2020.
+// Copyright (C)  Stichting Deltares, 2011-2022.
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -37,7 +37,7 @@
 #if defined(_WIN64)
 static char modname_version_id [] = {"@(#)Deltares, " modname_program " Version " modname_major "." modname_minor "." modname_revision "." modname_build " (Win64), " __DATE__ ", " __TIME__ ""};
 #elif defined(LINUX64)
-static char modname_version_id [] = {"@(#)Deltares, " modname_program " Version " modname_major "." modname_minor "." modname_revision "." modname_build " (Linx64), " __DATE__ ", " __TIME__ ""};
+static char modname_version_id [] = {"@(#)Deltares, " modname_program " Version " modname_major "." modname_minor "." modname_revision "." modname_build " (Linux64), " __DATE__ ", " __TIME__ ""};
 #else
 static char modname_version_id[] = { "@(#)Deltares, " modname_program " Version " modname_major "." modname_minor "." modname_revision "." modname_build " (Unknown), " __DATE__ ", " __TIME__ "" };
 #endif

@@ -1,7 +1,7 @@
 module ModelParameters
 !----- AGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2017-2020.                                
+!  Copyright (C)  Stichting Deltares, 2017-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify              
 !  it under the terms of the GNU Affero General Public License as               
@@ -25,8 +25,8 @@ module ModelParameters
 !  Stichting Deltares. All rights reserved.
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: ModelParameters.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_gpl/flow1d/packages/flow1d_core/src/ModelParameters.f90 $
+!  $Id: ModelParameters.f90 140847 2022-03-01 08:17:35Z noort $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_gpl/flow1d/packages/flow1d_core/src/ModelParameters.f90 $
 !-------------------------------------------------------------------------------
 
    use MessageHandling
@@ -49,12 +49,12 @@ module ModelParameters
    
    !> a parameter consists of a name and a value (character)
    type, public :: t_parameter
-      character(len=Charln)                     :: Name
-      character(len=Charln)                     :: Value
+      character(len=IdLen)                     :: Name
+      character(len=IdLen)                     :: Value
    end type
    
    type, public :: t_category
-      character(len=Charln)                     :: Name
+      character(len=IdLen)                     :: Name
       integer                                   :: Size    = 0    !< actual size of the array Par
       integer                                   :: GrowsBy = 2000  !< increment when a reallocation is necessary
       integer                                   :: Count   = 0    !< actual number of parameters in list
@@ -95,9 +95,9 @@ contains
       character(len=*), intent(in)         :: KeyValue
       logical, intent(in)                  :: replace
       
-      character(len=Charln)                :: category
-      character(len=Charln)                :: par
-      character(len=Charln)                :: value
+      character(len=IdLen)                :: category
+      character(len=IdLen)                :: par
+      character(len=IdLen)                :: value
       integer                   :: i
       integer                   :: j
       logical                   :: foundCategory
@@ -320,13 +320,13 @@ subroutine readini(stringhead, stringleft, stringright, lenstrright)
     character(*)  :: stringleft
     character(*)  :: stringright
 
-    if (len(stringhead) > CharLn) then
+    if (len(stringhead) > IdLen) then
        call SetMessage(LEVEL_FATAL, "INTERNAL ERROR: length of Stringhead incorrect")
     endif
-    if (len(stringleft) > CharLn) then
+    if (len(stringleft) > IdLen) then
        call SetMessage(LEVEL_FATAL, "INTERNAL ERROR: length of stringleft incorrect")
     endif
-    if (len(stringright) > CharLn) then
+    if (len(stringright) > IdLen) then
        call SetMessage(LEVEL_FATAL, "INTERNAL ERROR: length of stringright incorrect")
     endif
     call getParameterValue(stringhead, stringleft, stringright)
@@ -343,7 +343,7 @@ logical function getBoolFromIni(stringhead, stringleft, default)
    !
    ! Local parameters
    !
-   character(Charln)  :: stringright
+   character(IdLen)  :: stringright
    !
    ! Global variables
    !
@@ -353,10 +353,10 @@ logical function getBoolFromIni(stringhead, stringleft, default)
 
    integer            :: lenstrright
    
-   if (len(stringhead) > CharLn) then
+   if (len(stringhead) > IdLen) then
       call SetMessage(LEVEL_FATAL, "INTERNAL ERROR: length of stringhead incorrect")
    endif
-   if (len(stringleft) > CharLn) then
+   if (len(stringleft) > IdLen) then
       call SetMessage(LEVEL_FATAL, "INTERNAL ERROR: length of stringleft incorrect")
    endif
     
@@ -409,7 +409,7 @@ integer function getIntFromIni(strhead, strleft, default)
    !
    ! Local parameters
    !
-   character(Charln)  :: stringright, stringhead, stringleft
+   character(IdLen)  :: stringright, stringhead, stringleft
    !
    ! Global variables
    !
@@ -421,10 +421,10 @@ integer function getIntFromIni(strhead, strleft, default)
 
    stringhead = strhead
    stringleft = strleft
-   if (len(stringhead) > CharLn) then
+   if (len(stringhead) > IdLen) then
       call SetMessage(LEVEL_FATAL, "INTERNAL ERROR: length of Stringhead incorrect")
    endif
-   if (len(stringleft) > CharLn) then
+   if (len(stringleft) > IdLen) then
       call SetMessage(LEVEL_FATAL, "INTERNAL ERROR: length of stringleft incorrect")
    endif
     
@@ -458,16 +458,16 @@ double precision function getDoubleFromIni(strhead, strleft, default)
    !
    ! Local parameters
    !
-   character(Charln)  :: stringright, stringhead, stringleft
+   character(IdLen)  :: stringright, stringhead, stringleft
 
    integer            :: lenstrright
 
    stringhead = strhead
    stringleft = strleft
-   if (len(stringhead) > CharLn) then
+   if (len(stringhead) > IdLen) then
       call SetMessage(LEVEL_FATAL, "INTERNAL ERROR: length of Stringhead incorrect")
    endif
-   if (len(stringleft) > CharLn) then
+   if (len(stringleft) > IdLen) then
       call SetMessage(LEVEL_FATAL, "INTERNAL ERROR: length of stringleft incorrect")
    endif
     
@@ -494,7 +494,7 @@ double precision function getDoubleFromIni(strhead, strleft, default)
    !
    ! Local parameters
    !
-   character(Charln)  :: stringright, stringhead, stringleft
+   character(IdLen)  :: stringright, stringhead, stringleft
    !
    ! Global variables
    !
@@ -507,10 +507,10 @@ double precision function getDoubleFromIni(strhead, strleft, default)
    stringhead = strhead
    stringleft = strleft
     
-   if (len(stringhead) > CharLn) then
+   if (len(stringhead) > IdLen) then
       call SetMessage(LEVEL_FATAL, "INTERNAL ERROR: length of Stringhead incorrect")
    endif
-   if (len(stringleft) > CharLn) then
+   if (len(stringleft) > IdLen) then
       call SetMessage(LEVEL_FATAL, "INTERNAL ERROR: length of stringleft incorrect")
    endif
     
@@ -537,9 +537,9 @@ subroutine LogAllParameters()
    implicit none
 
    ! Local parameters
-   character(len=Charln)                     :: Category
-   character(len=Charln)                     :: KeyWord
-   character(len=Charln)                     :: KeyValue
+   character(len=IdLen)                     :: Category
+   character(len=IdLen)                     :: KeyWord
+   character(len=IdLen)                     :: KeyValue
    
    integer                                   :: i
    integer                                   :: j
@@ -584,10 +584,10 @@ end subroutine LogAllParameters
       integer                 :: isPos
       integer                 :: help
       integer                 :: posEnd
-      character(len=Charln)   :: line
-      character(len=Charln)   :: category = ''
-      character(len=Charln)   :: par
-      character(len=Charln)   :: value
+      character(len=IdLen)   :: line
+      character(len=IdLen)   :: category = ''
+      character(len=IdLen)   :: par
+      character(len=IdLen)   :: value
       
       integer                 :: ifileunit
       

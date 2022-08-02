@@ -1,6 +1,6 @@
 !----- LGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This library is free software; you can redistribute it and/or                
 !  modify it under the terms of the GNU Lesser General Public                   
@@ -25,8 +25,8 @@
 !                                                                               
 !-------------------------------------------------------------------------------
 
-! $Id: gridgeom_api.F90 65967 2020-02-11 11:06:09Z carniato $
-! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/gridgeom/packages/gridgeom/src/gridgeom_api.F90 $
+! $Id: gridgeom_api.F90 140618 2022-01-12 13:12:04Z klapwijk $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_lgpl/gridgeom/packages/gridgeom/src/gridgeom_api.F90 $
 
 !> \file
 !! Basic API for gridgeom routines.
@@ -399,9 +399,6 @@ function ggeo_count_cells_dll(c_meshDimIn, c_meshIn, c_meshDimOut) result(ierr) 
    type(t_ug_meshgeom)                        :: meshgeomIn        !< fortran meshgeom
    integer                                    :: ierr, n, nn, maxNumNodes
    
-   ierr = 0
-
-
    ierr = 0
    
    ! destroy any previous state of the library

@@ -1,6 +1,6 @@
 !----- LGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This library is free software; you can redistribute it and/or                
 !  modify it under the terms of the GNU Lesser General Public                   
@@ -23,8 +23,8 @@
 !  are registered trademarks of Stichting Deltares, and remain the property of  
 !  Stichting Deltares. All rights reserved.                                     
 
-!  $Id: ec_parameters.F90 65795 2020-01-16 09:45:14Z leander $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/ec_module/packages/ec_module/src/ec_parameters.F90 $
+!  $Id: ec_parameters.F90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_lgpl/ec_module/packages/ec_module/src/ec_parameters.F90 $
 
 !> This module contains the Ec-module's enumerations and constants.
 !! @author arjen.markus@deltares.nl
@@ -138,6 +138,7 @@ module m_ec_parameters
    integer, parameter :: zinterpolate_linear                    = 1 !< linear interpolation
    integer, parameter :: zinterpolate_block                     = 2 !< piecewise constant interpolation (block-from)
    integer, parameter :: zinterpolate_log                       = 3 !< logarithmic
+   integer, parameter :: zinterpolate_mean                      = 4 !< mean values, averaging
 
    ! enumeration for vertical coordinate types
    integer, parameter :: ztype_sigma                            = 0 !< sigma coordinates
@@ -198,7 +199,7 @@ module m_ec_parameters
 
     ! Vertical position type
     integer, parameter :: BC_VPTYP_SINGLE      = 0   !< depth averaged
-    integer, parameter :: BC_VPTYP_PERCBED     = 1   !< precentage from bed
+    integer, parameter :: BC_VPTYP_PERCBED     = 1   !< percentage from bed
     integer, parameter :: BC_VPTYP_ZDATUM      = 2   !< z above datum
     integer, parameter :: BC_VPTYP_ZDATUM_DOWN = 3   !< z below datum
     integer, parameter :: BC_VPTYP_BEDSURF     = 4   !< bedsurface

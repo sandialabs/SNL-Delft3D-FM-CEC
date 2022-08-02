@@ -67,7 +67,7 @@ function varargout = tekal(cmd,varargin)
 
 %----- LGPL --------------------------------------------------------------------
 %                                                                               
-%   Copyright (C) 2011-2020 Stichting Deltares.                                     
+%   Copyright (C) 2011-2022 Stichting Deltares.                                     
 %                                                                               
 %   This library is free software; you can redistribute it and/or                
 %   modify it under the terms of the GNU Lesser General Public                   
@@ -92,8 +92,8 @@ function varargout = tekal(cmd,varargin)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/tekal.m $
-%   $Id: tekal.m 65778 2020-01-14 14:07:42Z mourits $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/tools_lgpl/matlab/quickplot/progsrc/tekal.m $
+%   $Id: tekal.m 140618 2022-01-12 13:12:04Z klapwijk $
 
 if nargin==0
     if nargout>0
@@ -174,7 +174,7 @@ while i<=length(INP)
 end
 
 variable=0;
-fid=fopen(filename,'r');
+fid=fopen(filename,'r','n','US-ASCII');
 if fid<0
     error('Cannot open file ...')
 end
@@ -398,7 +398,7 @@ try
             end
         else
             if fid<0
-                fid=fopen(FileInfo.FileName,'r');
+                fid=fopen(FileInfo.FileName,'r','n','US-ASCII');
             end
             fseek(fid,FileInfo.Field(v).Offset,-1);
             if length(FileInfo.Field(v).Size)>1
@@ -467,13 +467,43 @@ function [Data,ErrorFound,ExtraData] = read_numeric(fid,BlockName,dim,TryToCorre
 offset     = ftell(fid);
 ErrorFound = 0;
 try
-    if ~isfinite(dim(2))
-        d2 = textscan(fid,[repmat('%f%*[ ]',1,dim(1)-1) '%f%s'],'delimiter','','whitespace',''); % read until problem occurs (hopefully the name of the next block or eof)
-    else
-        d2 = textscan(fid,[repmat('%f%*[ ]',1,dim(1)-1) '%f%s'],dim(2),'delimiter','','whitespace','');
+    % read until problem occurs (hopefully the name of the next block or eof)
+    Data = [];
+    ExtraData = [];
+    found = true;
+    while found
+        found = false;
+        % unfortunately lines starting with tab and without any blanks
+        % cannot be read by one textscan statement.
+        for pre = 1:2
+            if pre == 1
+                prefix = '';
+            else
+                prefix = '%*[ \t]';
+            end
+            if ~isfinite(dim(2))
+                d2 = textscan(fid,[prefix repmat('%f%*[ \t]',1,dim(1)-1) '%f%s'],'delimiter','','whitespace','');
+            else
+                d2 = textscan(fid,[prefix repmat('%f%*[ \t]',1,dim(1)-1) '%f%s'],dim(2)-size(Data,1),'delimiter','','whitespace','');
+            end
+            Data2 = cat(2,d2{1:dim(1)});
+            if ~isempty(Data2)
+                found = true;
+                Data = cat(1,Data,Data2);
+                ExtraData2 = strtrim(d2{end});
+                ExtraData = cat(1,ExtraData,ExtraData2);
+                if size(Data,1) == dim(2)
+                    break
+                end
+            end
+        end
+        if size(Data,1) == dim(2)
+            break
+        end
     end
-    Data = cat(2,d2{1:dim(1)});
-    ExtraData = strtrim(d2{end});
+    if isfinite(dim(2)) && size(Data,1) ~= dim(2)
+        error('Incomplete data block')
+    end
     textscan_failed = 0;
 catch
     textscan_failed = 1;
@@ -541,7 +571,7 @@ end
 
 
 function NewFileInfo=Local_write_file(filename,FileInfo,varargin)
-fid=fopen(filename,'w');
+fid=fopen(filename,'w','n','US-ASCII');
 NewFileInfo.Check='NotOK';
 if fid<0
     error('invalid filename')

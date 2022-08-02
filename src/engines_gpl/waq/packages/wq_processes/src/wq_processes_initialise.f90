@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -21,11 +21,8 @@
 !!  of Stichting Deltares remain the property of Stichting Deltares. All
 !!  rights reserved.
       
-      subroutine wq_processes_initialise ( lunlsp       , pdffil       , blmfil    , &
-                                           sttfil       , statprocesdef, outputs   , &
-                                           nomult       , imultp       , constants , &
-                                           rank         , noinfo       , nowarn    , &
-                                           ierr)
+      subroutine wq_processes_initialise ( lunlsp, pdffil, shared_dll_so, blmfil, blmoutfil, sttfil, statprocesdef, outputs, &
+                                           nomult, imultp, constants, refday, noinfo, nowarn, ierr)
 
 !       Deltares Software Centre
 
@@ -57,9 +54,11 @@
       ! declaration of arguments
 
       integer             , intent(in   ) :: lunlsp          !< unit number spe
-      character(len=*)    , intent(inout) :: pdffil          !< filename proc_def
+      character(len=*)    , intent(in   ) :: pdffil          !< filename proc_def
+      character(len=*)    , intent(in   ) :: shared_dll_so      !< name of the open processes library dll/so to be loaded during runtime
       character(len=*)    , intent(inout) :: blmfil          !< filename spe
-      character(len=*)    , intent(inout) :: sttfil          !< filename stt
+      character(len=*)    , intent(in   ) :: blmoutfil       !< base name for bloom output files
+      character(len=*)    , intent(in   ) :: sttfil          !< filename stt
 
       type(procespropcoll), intent(inout) :: statprocesdef   !< the statistical proces definition
       type(outputcoll)    , intent(inout) :: outputs         !< output structure
@@ -69,7 +68,6 @@
       integer  ( 4)       , intent(in   ) :: nomult          !< number of multiple substances
       integer  ( 4)       , intent(in   ) :: imultp(2,nomult)!< multiple substance administration
       type(t_dlwq_item)   , intent(inout) :: constants       !< delwaq constants list
-      integer                             :: rank            !< mpi rank (-1 is no mpi)
       integer             , intent(inout) :: noinfo          !< count of informative message
       integer             , intent(inout) :: nowarn          !< count of warnings
       integer             , intent(inout) :: ierr            !< error count
@@ -77,11 +75,11 @@
       ! local declarations
       type(itempropcoll)        :: allitems        !< all items of the proces system
 
-      real, parameter           :: versip = 5.06   ! version process system
       real                      :: verspe = 1.0    ! version bloom.spe file
       integer, parameter        :: novarm = 15000  ! max number of variables overall
       integer, parameter        :: nbprm  = 1750   ! max number of processes
       integer, parameter        :: nopred = 6      ! number of pre-defined variables
+      integer                   :: open_shared_library
 
       integer                   :: noqtt           ! total number of exhanges
       integer                   :: no_ins          ! number of output items
@@ -130,6 +128,7 @@
       character*40 ,allocatable :: subunit(:)      ! substance unit
       character*60 ,allocatable :: subdescr(:)     ! substance description
       character*20              :: outname         ! output name
+      integer  ( 4), intent(in) :: refday          ! reference day, varying from 1 till 365
 
       ! proces definition structure
 
@@ -153,7 +152,7 @@
       character*80   idstr
       character*20   rundat
       character*10   config
-      logical        lfound, laswi , swi_nopro, l3dmod, nolic
+      logical        lfound, laswi , swi_nopro
       integer        blm_act                       ! index of ACTIVE_BLOOM_P
 
       ! information
@@ -224,13 +223,6 @@
       old_items%cursize = 0
       old_items%maxsize = 0
 
-      ! when we assume one column per call, is it really needed?
-!      if ( noseg .gt. 1 ) then
-         l3dmod = .true.
-!      else
-!         l3dmod = .false.
-!      endif
-
       ! open report file
 
       ! Header for lsp
@@ -243,10 +235,10 @@
       write ( lunlsp , 2080 ) nosys , notot-nosys , notot
       write ( lunlsp , 2100 )
       do isys = 1,nosys
-          write(lunlsp , '(I7,A,A)' ) isys, '  active      ', syname_sub(isys)
+          write(lunlsp , 2110 ) isys, '  active      ', syname_sub(isys)
       end do
       do isys = nosys+1,notot
-          write(lunlsp , '(I7,A,A)' ) isys, '  inactive    ', syname_sub(isys)
+          write(lunlsp , 2110 ) isys, '  inactive    ', syname_sub(isys)
       end do
       write( lunlsp, '(/)')
       ! command line settingen , commands
@@ -313,6 +305,23 @@
 
          call fill_old_items(old_items)
       endif
+
+      ! open openpb dll
+
+      if (shared_dll_so.ne.' ') then
+         dll_opb = 0 ! in C this one could be 4 or 8 bytes, so make sure the last bytes are zero
+         ierr2 = open_shared_library(dll_opb, shared_dll_so)
+         if ( ierr2 .ne. 0) then
+            write(lunlsp,*) 'ERROR: opening open process library dll/so: ', trim(shared_dll_so)
+            write(lunlsp,*) 'Try specifying the full path'
+            ierr = ierr + 1
+         else
+            write(lunlsp,*) 'Successfully loaded open process library dll/so: ', trim(shared_dll_so)
+         endif
+      else
+         write(lunlsp,*) 'No open process library dll/so specified'
+      endif
+      write(lunlsp,*) ' '
 
       ! old serial definitions
       swi_nopro = .false.
@@ -505,9 +514,8 @@
 
          ! add the processes in the strucure
 
-         call prprop ( lunlsp    , laswi   , l3dmod   , config, no_act, &
-                       actlst    , allitems, procesdef, noinfo, nowarn, &
-                       old_items , ierr2 )
+         call prprop ( lunlsp, laswi, config, no_act, actlst, allitems, procesdef, &
+                       noinfo, nowarn, old_items , ierr2 )
          if ( ierr2 .ne. 0 ) ierr = ierr + 1
          nbpr   = procesdef%cursize
 
@@ -595,9 +603,7 @@
                        nogrp    , grpnam, grpabr, nouttyp, outtyp, &
                        noutgrp  , outgrp)
 
-         if (rank.ge.0) then
-            write(runnam(9:13),'("_",I4.4)') rank
-         end if
+         runnam = blmoutfil
          
          ! write the bloom efficiency file
          filnam = trim(runnam)//'.frm'
@@ -669,7 +675,7 @@
                     nopa     , paname, nofun , funame, nosfun,    &
                     sfunname , nodisp, diname, novelo, vename,    &
                     nmis     , defaul, noloc , nodef , dename, outputs,   &
-                    ndspx    , nvelx , nlocx , locnam   )
+                    ndspx    , nvelx , nlocx , locnam, refday   )
 
       ! report on the use of the delwaq input
 
@@ -788,6 +794,7 @@
       enddo
 
       call realloc(nfluxsys, notot, keepExisting=.false.,Fill=0)
+      call realloc(ipfluxsys, notot, keepExisting=.false.,Fill=0)
       call realloc(fluxsys, totfluxsys, keepExisting=.false.,Fill=0)
       
       ifluxsys = 0
@@ -905,9 +912,10 @@
  2004 format( ' Using BLOOM definition file   : ',a    /)
  2020 format (//' Model :            ',a40,/20x,a40 )
  2030 format (//' Run   :            ',a40,/20x,a40//)
- 2080 format ( /' Number of active (transported) constituents       :',I3,/ &
-                ' Number of inactive (not transported) constituents :',I3,/ &
-                ' Total number of constituents                      :',I3  )
- 2100 format ( /' Number  (in)active  name')
- 2090 format ( 'I4,8X,A,4X,A' )
+ 2080 format ( /' Number of active (transported) WQ substances       :',I3,/ &
+                ' Number of inactive (not transported) WQ substances :',I3,/ &
+                ' Total number of WQ substances                      :',I3  )
+ 2100 format ( /' NOTE: The numbering of FM constituents may differ from the WQ numbering here! Check the dia-file!',// &
+                ' WQ Number  (in)active  name')
+ 2110 format ( i7,3x,a,a )
       end

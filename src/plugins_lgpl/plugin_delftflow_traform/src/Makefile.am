@@ -21,11 +21,13 @@ lib_LTLIBRARIES = libplugin_delftflow_traform.la
 #Sources
 libplugin_delftflow_traform_la_SOURCES = \
          engelund_hansen.f90 \
+         general_engelund_hansen.f90 \
          partheniades_krone.f90 \
          settling_velocity.f90 \
          shld.f90 \
-         vrijn84_riv_77.f90
-
+         vrijn84_riv_77.f90 \
+         vrijn84_hxbs.f90
+         
 #-------------------------------------------------------------------------------
 #Libraries
 

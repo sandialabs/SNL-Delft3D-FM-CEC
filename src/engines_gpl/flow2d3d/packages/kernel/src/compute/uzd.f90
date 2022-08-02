@@ -20,7 +20,7 @@ recursive subroutine uzd(icreep    ,dpdksi    ,s0        ,u0        , &
              & pship     ,tgfsep    ,dteu      ,ustokes   ,mom_output,gdp       )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -44,8 +44,8 @@ recursive subroutine uzd(icreep    ,dpdksi    ,s0        ,u0        , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: uzd.f90 65844 2020-01-23 20:56:06Z platzek $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/kernel/src/compute/uzd.f90 $
+!  $Id: uzd.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/flow2d3d/packages/kernel/src/compute/uzd.f90 $
 !!--description-----------------------------------------------------------------
 !
 ! This subroutine evaluates/solves at each half time

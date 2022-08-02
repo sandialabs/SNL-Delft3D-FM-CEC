@@ -84,11 +84,14 @@ rem ===============
     call :dimr
     call :flow2d3d
     call :flow2d3d_openda
-	call :delwaq1
-	call :delwaq2
-	call :delwaq_dll
-rem 	call :delwaq2_openda_lib
-	call :waq_plugin_wasteload
+    call :delwaq1
+    call :delwaq2
+    call :delwaq_dll
+rem     call :delwaq2_openda_lib
+    call :waq_plugin_wasteload
+    call :waqmerge
+    call :ddcouple
+    call :agrhyd
     call :wave
     call :plugin_culvert
     call :plugin_delftflow_traform
@@ -345,6 +348,31 @@ rem ====================
 goto :endproc
 
 
+rem ====================
+rem === INSTALL_WAQMERGE
+rem ====================
+:waqmerge
+    echo "installing waqmerge . . ."
+    echo "... nothing to be done"
+goto :endproc
+
+rem ====================
+rem === INSTALL_DDCOUPLE
+rem ====================
+:ddcouple
+    echo "installing ddcouple . . ."
+    echo "... nothing to be done"
+goto :endproc
+
+
+rem ====================
+rem === INSTALL_AGRHYD
+rem ====================
+:agrhyd
+    echo "installing agrhyd. . ."
+    echo "... nothing to be done"
+goto :endproc
+
 
 rem ==============
 rem === INSTALL_VS
@@ -364,7 +392,7 @@ if NOT %ErrorLevel% EQU 0 (
     rem
     rem Only jump to :end when the script is completely finished
     rem
-    exit %ErrorLevel%
+    exit /B %ErrorLevel%
 )
 
 :endproc

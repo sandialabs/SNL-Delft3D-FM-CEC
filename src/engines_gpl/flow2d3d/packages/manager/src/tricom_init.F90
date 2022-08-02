@@ -1,7 +1,7 @@
 subroutine tricom_init(olv_handle, gdp)
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -25,8 +25,8 @@ subroutine tricom_init(olv_handle, gdp)
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: tricom_init.F90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/manager/src/tricom_init.F90 $
+!  $Id: tricom_init.F90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/flow2d3d/packages/manager/src/tricom_init.F90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: - Read md-file
@@ -152,8 +152,10 @@ subroutine tricom_init(olv_handle, gdp)
     integer                             , pointer :: itdiag
     integer                             , pointer :: julday
     integer                             , pointer :: ntstep
+    real(fp)                            , pointer :: tcmp
     real(fp)                            , pointer :: tmor
     real(fp)                            , pointer :: rdc
+    integer                             , pointer :: itcmp
     integer                             , pointer :: itmor
     type (bedbndtype) , dimension(:)    , pointer :: morbnd
     logical                             , pointer :: densin
@@ -529,8 +531,10 @@ subroutine tricom_init(olv_handle, gdp)
     itdiag              => gdp%gdinttim%itdiag
     julday              => gdp%gdinttim%julday
     ntstep              => gdp%gdinttim%ntstep
+    tcmp                => gdp%gdmorpar%tcmp
     tmor                => gdp%gdmorpar%tmor
     rdc                 => gdp%gdmorpar%rdc
+    itcmp               => gdp%gdmorpar%itcmp
     itmor               => gdp%gdmorpar%itmor
     morbnd              => gdp%gdmorpar%morbnd
     densin              => gdp%gdmorpar%densin
@@ -980,14 +984,24 @@ subroutine tricom_init(olv_handle, gdp)
     ! continuing simulations
     !
     if (sedim) then
+       tdif  = tcmp + itstrt*dt
+       itcmp = nint(tdif/dt)
+       if (abs(itcmp*dt-tdif) > (0.1*dt)) then
+          error  = .true.
+          txtput = 'Bed composition updating start time'
+          call prterr(lundia, 'U044', txtput)
+       endif
+       write(txtput,'(a,i0)') 'Bed composition updating starts at (step) : ',itcmp
+       call prterr(lundia, 'G051', txtput)
+       !
        tdif  = tmor + itstrt*dt
        itmor = nint(tdif/dt)
        if (abs(itmor*dt-tdif) > (0.1*dt)) then
           error  = .true.
-          txtput = 'Morphological calculation start time'
+          txtput = 'Bed level updating start time'
           call prterr(lundia, 'U044', txtput)
        endif
-       write(txtput,'(a,i0)') 'Morphological Changes Start Time (step) : ',itmor
+       write(txtput,'(a,i0)') 'Bed level updating starts at (step) : ',itmor
        call prterr(lundia, 'G051', txtput)
     endif
     !
@@ -1056,9 +1070,7 @@ subroutine tricom_init(olv_handle, gdp)
        !
        ! Read dredge input and initialize related data
        !
-       call rddredge(r(xcor)   ,r(ycor)   ,r(xz)     ,r(yz)     ,r(gsqs)   , &
-                   & mmax      ,nmax      ,nmaxus    ,nmmax     ,lsedtot   , &
-                   & i(kcs)    ,gdp       )
+       call rddredge_d3d4(r(gsqs)   ,gdp       )
     endif
     if (multi) then
        !
@@ -1206,7 +1218,7 @@ subroutine tricom_init(olv_handle, gdp)
     nhystp = nxtstp(d3dflow_init, gdp)
     call timer_stop(timer_d3dflowinit, gdp)
     !
-    if (dredge) call dredge_initialize(gdp) ! Initialize dredging data across partitions
+    if (dredge) call dredge_initialize_d3d4(gdp) ! Initialize dredging data across partitions
     !
     ! related vseminit is in tricom.f90, at label 9997
     !

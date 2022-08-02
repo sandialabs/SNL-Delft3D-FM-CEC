@@ -12,7 +12,7 @@ subroutine wrthis(lundia    ,error     ,filename  ,selhis    ,ithisc    , &
                 & ntruvgl   ,order_tra ,nsluv     ,cbuv      ,zwndcd    ,gdp       )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -36,8 +36,8 @@ subroutine wrthis(lundia    ,error     ,filename  ,selhis    ,ithisc    , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: wrthis.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/io/src/output/wrthis.f90 $
+!  $Id: wrthis.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/flow2d3d/packages/io/src/output/wrthis.f90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: Writes the time varying groups (1 & 3) to the
@@ -237,7 +237,7 @@ subroutine wrthis(lundia    ,error     ,filename  ,selhis    ,ithisc    , &
        if (sferic) then
           xcoordname = 'longitude'
           xcoordunit = 'degrees_east'
-          ycoordname = 'laitude'
+          ycoordname = 'latitude'
           ycoordunit = 'degrees_north'
        else
           xcoordname = 'projection_x_coordinate'

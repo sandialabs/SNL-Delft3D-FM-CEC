@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -93,6 +93,7 @@
 !     DECLARATIONS        :
 !
       use timers
+      use m_syst
       DIMENSION    LUN   (*) , HARMAT(*) , ARRAY (*) , IHARM (*) ,
      *             NRHARM(*) , NRFTOT(*) , VOLUME(*) , DISPER(*) ,
      *             AREA  (*) , FLOW  (*) , VELO  (*) , ALENG (*) ,
@@ -107,10 +108,8 @@
       LOGICAL      UPDATE, LSTREC, LREWIN
       REAL         RDUMMY(1)
       REAL         ADUMMY(1)
-!
-!     COMMON  /  SYST   /   System time function flags
-!
-      INCLUDE 'syst.inc'
+
+
       integer(4) ithandl /0/
       if ( timon ) call timstrt ( "dlwq45", ithandl )
 !

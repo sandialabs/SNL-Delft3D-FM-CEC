@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -146,6 +146,7 @@
 
 !     Check if boundary is active
 
+      iwar2_old = 0
       do iq = 1, nobnd
          iwar2_old = iwar2
          if ( ibnd( iq, 1 ) .eq. 0 ) then

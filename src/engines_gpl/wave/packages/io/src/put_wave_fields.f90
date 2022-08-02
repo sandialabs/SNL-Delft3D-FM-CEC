@@ -35,7 +35,7 @@ subroutine crewav(filnam   ,itide    ,hrms     ,tp       ,dir      , &
                 & mmax     ,nmax     ,swflux   ,wavetime )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -59,8 +59,8 @@ subroutine crewav(filnam   ,itide    ,hrms     ,tp       ,dir      , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: put_wave_fields.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/wave/packages/io/src/put_wave_fields.f90 $
+!  $Id: put_wave_fields.f90 141401 2022-06-24 13:08:33Z saggiora $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/wave/packages/io/src/put_wave_fields.f90 $
 !!--description-----------------------------------------------------------------
 ! NONE
 !!--pseudo code and references--------------------------------------------------
@@ -455,7 +455,7 @@ subroutine crewav_netcdf(fg       ,itide    ,hrms     ,tp       ,dir      , &
                        & mmax     ,nmax     ,swflux   ,wavedata ,netcdf_sp)
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -479,8 +479,8 @@ subroutine crewav_netcdf(fg       ,itide    ,hrms     ,tp       ,dir      , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: put_wave_fields.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/wave/packages/io/src/put_wave_fields.f90 $
+!  $Id: put_wave_fields.f90 141401 2022-06-24 13:08:33Z saggiora $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/wave/packages/io/src/put_wave_fields.f90 $
 !!--description-----------------------------------------------------------------
 ! NONE
 !!--pseudo code and references--------------------------------------------------
@@ -489,6 +489,7 @@ subroutine crewav_netcdf(fg       ,itide    ,hrms     ,tp       ,dir      , &
     use wave_data
     use swan_flow_grid_maps
     use netcdf
+    use precision_basics
     !
     implicit none
 !
@@ -546,7 +547,7 @@ subroutine crewav_netcdf(fg       ,itide    ,hrms     ,tp       ,dir      , &
     integer                                     :: mmax_read
     integer                                     :: precision
     integer, external                           :: nc_def_var
-    real, dimension(1)                          :: time_read
+    real(hp), dimension(1)                      :: time_read
     character(50)                               :: string
     character(256)                              :: filename
     character(256)                              :: gridnam
@@ -644,9 +645,13 @@ subroutine crewav_netcdf(fg       ,itide    ,hrms     ,tp       ,dir      , &
        ierror = nf90_inq_varid(idfile, 'ubot'   , idvar_ubot   ); call nc_check_err(ierror, "inq_varid ubot   ", filename)
        ierror = nf90_inq_varid(idfile, 'wlen'   , idvar_wlen   ); call nc_check_err(ierror, "inq_varid wlen   ", filename)
     endif
-    ierror = nf90_get_var(idfile, idvar_time , time_read        , start=(/ localcomcount /)   , count=(/ 1 /)); call nc_check_err(ierror, "get_var time", filename)
-    if (time_read(1) /= wavedata%time%timsec) then
-       write(*,'(2(a,e20.5),a)') "ERROR: time_read(", time_read, ") is not equal to curtime (", wavedata%time%timsec, ")"
+    ierror = nf90_get_var(idfile, idvar_time , time_read        , start=(/ localcomcount /)   , count=(/ 1 /))
+    if (localcomcount == 1) then
+       ! When localcomcount>1, get_var(time) will result in an error, but this error can be ignored
+       call nc_check_err(ierror, "get_var time", filename)
+       if (time_read(1) /= wavedata%time%timsec) then
+          write(*,'(2(a,e20.5),a)') "ERROR: time_read(", time_read, ") is not equal to curtime (", wavedata%time%timsec, ")"
+       endif
     endif
     !
     ! put vars (time dependent)

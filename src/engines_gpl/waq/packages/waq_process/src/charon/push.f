@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -28,7 +28,7 @@
 !        array.
 !           push uses subprogram
 !              leave
-      include  'char1.inc'
+      use m_char1
       if (ij.gt.naij) go to 20
       i = naij
       if (i.ge.maxaij) go to 40

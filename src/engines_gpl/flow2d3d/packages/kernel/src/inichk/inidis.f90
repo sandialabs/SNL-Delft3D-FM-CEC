@@ -9,7 +9,7 @@ subroutine inidis(lundia    ,error     ,runid     ,cyclic    ,timnow    , &
                 & upwsrc    ,gdp       )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -33,8 +33,8 @@ subroutine inidis(lundia    ,error     ,runid     ,cyclic    ,timnow    , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: inidis.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/kernel/src/inichk/inidis.f90 $
+!  $Id: inidis.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/flow2d3d/packages/kernel/src/inichk/inidis.f90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: Reads the time dependent data from file for the first time
@@ -181,8 +181,7 @@ subroutine inidis(lundia    ,error     ,runid     ,cyclic    ,timnow    , &
     !
     inquire (file = filnam(:8 + lrid), opened = opend)
     if (.not.opend) then
-       lundis = newlun(gdp)
-       open (lundis, file = filnam(:8 + lrid), form = 'formatted',              &
+       open (newunit=lundis, file = filnam(:8 + lrid), form = 'formatted',              &
             & status = 'old')
        read (lundis, '(a1,i5)', iostat = iocond) dumchr, lrec
        !
@@ -202,7 +201,7 @@ subroutine inidis(lundia    ,error     ,runid     ,cyclic    ,timnow    , &
           !
           ! file not open as direct access!
           !
-          open (lundis, file = filnam(:8 + lrid), form = 'formatted')
+          open (newunit=lundis, file = filnam(:8 + lrid), form = 'formatted')
    10     continue
           irecrd = irecrd + 1
           read (lundis, '(a)', end=20) record(:lrec - 1)
@@ -240,7 +239,7 @@ subroutine inidis(lundia    ,error     ,runid     ,cyclic    ,timnow    , &
        !
        ! Open file as direct access
        !
-       open (lundis, file = filnam(:8 + lrid), form = 'formatted',              &
+       open (newunit=lundis, file = filnam(:8 + lrid), form = 'formatted',              &
             & access = 'direct', recl = lrec)
        !
        ! Initialize ITDIS array

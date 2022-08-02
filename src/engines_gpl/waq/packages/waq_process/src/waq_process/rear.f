@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -128,7 +128,6 @@
      +            D2Hs =  125.62    ,
      +            D3Hs =    3.6276  ,
      +            D4Hs =    0.043219   )
-
 
       IP1  = IPOINT( 1)
       IP2  = IPOINT( 2)

@@ -1,7 +1,7 @@
 subroutine tricom_step(olv_handle, gdp)
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -25,8 +25,8 @@ subroutine tricom_step(olv_handle, gdp)
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: tricom_step.F90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/manager/src/tricom_step.F90 $
+!  $Id: tricom_step.F90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/flow2d3d/packages/manager/src/tricom_step.F90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: 
@@ -355,7 +355,7 @@ subroutine tricom_step(olv_handle, gdp)
     logical                                       :: error         ! Flag=TRUE if an error is encountered 
     logical                                       :: ex            ! Help flag = TRUE when file is found
     real(fp)                                      :: zini
-    character(60)                                 :: txtput        ! Text to be print
+    character(80)                                 :: txtput        ! Text to be print
     type(olvhandle)                               :: olv_handle
 !
 !! executable statements -------------------------------------------------------
@@ -668,8 +668,7 @@ subroutine tricom_step(olv_handle, gdp)
        if (multi) then
           if (mod(nst2go,5) == 0) then
              call timer_start(timer_tricom_rest, gdp)
-             lunfil = newlun(gdp)
-             open (lunfil, file=mmsyncfilnam, position='append', action='write', iostat=istat)
+             open (newunit=lunfil, file=mmsyncfilnam, position='append', action='write', iostat=istat)
              if (istat /= 0) then
                 write(*,*)' *** WARNING: unable to write in file ',trim(mmsyncfilnam)
              else
@@ -753,8 +752,7 @@ subroutine tricom_step(olv_handle, gdp)
                 ierror = flow_to_wave_command(flow_wave_comm_perform_step, &
                                              & numdomains, mudlay, nst)
                 if (sleepduringwave > 0) then
-                   lunfil = newlun(gdp)
-                   open (lunfil, file = "TMP_sleepduringwave.txt", status = 'new')
+                   open (newunit=lunfil, file = "TMP_sleepduringwave.txt", status = 'new')
                    write(lunfil,*) 1
                    close(lunfil)
                 endif
@@ -773,7 +771,7 @@ subroutine tricom_step(olv_handle, gdp)
              endif
              call dfreduce_gdp( ierror, 1, dfint, dfmax, gdp )
              if (inode==master .and. sleepduringwave > 0) then
-                open (lunfil, file = "TMP_sleepduringwave.txt", status = 'old')
+                open (newunit=lunfil, file = "TMP_sleepduringwave.txt", status = 'old')
                 close(lunfil, status='delete')
              endif
              call timer_stop(timer_wait, gdp)
@@ -787,14 +785,27 @@ subroutine tricom_step(olv_handle, gdp)
           elseif (nst == itwav .and. waveol==1) then
              itrw = nst + 1
           endif
-          if (nst == itrw) then
+          !
+          ! nst=itrw                       : It's time to read the com-file for wave data
+          ! nst=itstrt .and. restid /= ' ' : When using a restart file, try immediately to read from
+          !                                  an existing com-file
+          if (nst == itrw .or. (nst == itstrt .and. restid /= ' ')) then
              if (waveol==2) then ! wave times can only be updated in online coupled mode
                 call rdtimw(comfil    ,lundia    ,error     ,ntwav     , &
                           & waverd    ,nmaxus    ,mmax      ,gdp       )
+                if (error) then
+                   txtput = 'Restarting with Wave online without com-file from previous run'
+                   call prterr(lundia    ,'U190'    ,trim(txtput)    )
+                   write(lundia,'(a)') '            Wave data will be read after the first Wave computation'
+                   write(lundia,'(a)') '            This may cause disruptions in the results'
+                   waverd = .false.
+                   error  = .false.
+                else
+                   waverd = .true.
+                   ifcore(1) = 0
+                   ifcore(2) = 0
+                endif
              endif
-             waverd = .true.
-             ifcore(1) = 0
-             ifcore(2) = 0
           else
              waverd = .false.
           endif

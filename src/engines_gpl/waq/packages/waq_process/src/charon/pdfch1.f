@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -27,6 +27,7 @@
       ! defines variable part of CHARON coupling interface
 
       use processet
+      use m_charon
       implicit none
 
       ! declaration of arguments
@@ -67,8 +68,6 @@
       integer               :: ip                  ! index in io list
       integer               :: nttob               ! nttob
       integer               :: nctot               ! nctot
-
-      INCLUDE 'charon.inc'
 
 !     Definitie unitnrs files
 
@@ -117,7 +116,7 @@
 !
       CALL GETMMO(MLEVEL)
       WRITE(LUREP,*)
-      WRITE(LUREP,*) ' Determinig the relation between the substances',
+      WRITE(LUREP,*) ' Determining the relation between the substances',
      +               ' and the CHEM species'
 
 !     Read input of CHARON (also opening of files)

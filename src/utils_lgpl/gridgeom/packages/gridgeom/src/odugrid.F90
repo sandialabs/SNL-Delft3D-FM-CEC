@@ -1,6 +1,6 @@
 !----- LGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This library is free software; you can redistribute it and/or                
 !  modify it under the terms of the GNU Lesser General Public                   
@@ -25,8 +25,8 @@
 !                                                                               
 !-------------------------------------------------------------------------------
 
-! $Id: odugrid.F90 65778 2020-01-14 14:07:42Z mourits $
-! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/gridgeom/packages/gridgeom/src/odugrid.F90 $
+! $Id: odugrid.F90 141372 2022-06-15 13:30:48Z dam_ar $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_lgpl/gridgeom/packages/gridgeom/src/odugrid.F90 $
 
 ! Module for grid operations on 1d networks
    
@@ -163,11 +163,17 @@ function odu_get_xy_coordinates(branchids, branchoffsets, geopointsX, geopointsY
          do k = ind, endGeometryNode - 1
             totalLength = totalLength + branchSegmentLengths(k)
             if (totalLength >= branchoffsets(iin)) then
-                  previousLength = totalLength - branchSegmentLengths(k)
-                  ind = k
+               ind = k
                exit
             endif
          enddo
+         if (k == endGeometryNode) then
+            ! Safety: if loop exit above was not reached due to roundoff errors
+            ! (or branchoffsets(iin) too big), make sure to use the last geometry segment.
+            ind = endGeometryNode-1
+         end if
+         previousLength = totalLength - branchSegmentLengths(ind)
+
          fractionbranchlength =  branchoffsets(iin) - previousLength                           ! "real world" length
          cartMeshXCoords(iin) = cartGeopointsX(ind) + fractionbranchlength * xincrement(ind)
          cartMeshYCoords(iin) = cartGeopointsY(ind) + fractionbranchlength * yincrement(ind)
@@ -202,7 +208,7 @@ function odu_get_start_end_nodes_of_branches(branchidx, branchStartNode, branchE
    integer, dimension(:), intent(inout)   :: branchEndNode
    integer                                :: ierr, i, ibran, numnode, nbranches 
 
-   ! Get the starting and endig indexes of the grid points
+   ! Get the starting and ending indexes of the grid points
    ierr  =  0
    ibran =  0
    numnode = size(branchidx)
@@ -217,6 +223,9 @@ function odu_get_start_end_nodes_of_branches(branchidx, branchStartNode, branchE
          endif
          ibran = branchidx(i)
          branchStartNode(ibran) = i
+      elseif (branchidx(i) < ibran) then
+         ! Unsorted input, return error code
+         ierr = -1
       endif
    enddo
    branchEndNode(ibran) = numnode

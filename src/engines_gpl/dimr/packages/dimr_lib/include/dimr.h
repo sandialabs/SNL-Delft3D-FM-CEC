@@ -1,6 +1,6 @@
 //---- LGPL --------------------------------------------------------------------
 //
-// Copyright (C)  Stichting Deltares, 2011-2020.
+// Copyright (C)  Stichting Deltares, 2011-2022.
 //
 // This library is free software; you can redistribute it and/or
 // modify it under the terms of the GNU Lesser General Public
@@ -39,7 +39,7 @@
 // The following definition is needed since VisualStudio2015 before including <pthread.h>:
 #define HAVE_STRUCT_TIMESPEC
 
-#if HAVE_CONFIG_H
+#ifndef _WIN32
 #   include "config.h"
 #endif
 
@@ -57,7 +57,7 @@
 #include <sys/types.h>
 #include "clock.h"
 #include <ctime>
-#if HAVE_CONFIG_H
+#ifndef _WIN32
 #   include <sys/wait.h>
 #   include <unistd.h>
 // #else
@@ -118,6 +118,7 @@ class Dimr {
         void           timerStart(dimr_component *);
         void           timerEnd(dimr_component *);
         void           timersFinish(void);
+		void           timerFinish(void);
         void           receive(const char *, int, BMI_SETVAR, BMI_GETVAR, double *, int *, int, int, const void *);
         void           getAddress(const char * name, int compType, BMI_GETVAR dllGetVar, double ** sourceVarPtr, int * processes, int nProc, double * transfer);
         double *       send(const char * name, int compType, double* sourceVarPtr, int* processes, int nProc, double* transfer);
@@ -182,5 +183,6 @@ class Dimr {
 
         map<string, int> ncfiles;
 		static void		   _log				  (Level, const char*); /* BMILogger function */
-
+		Clock::Timestamp  timerStartStamp;
+		Clock::Timestamp  timerSumStamp;
     };

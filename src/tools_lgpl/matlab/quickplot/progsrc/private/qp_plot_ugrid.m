@@ -3,7 +3,7 @@ function [hNew,Thresholds,Param,Parent]=qp_plot_ugrid(hNew,Parent,Param,data,Ops
 
 %----- LGPL --------------------------------------------------------------------
 %
-%   Copyright (C) 2011-2020 Stichting Deltares.
+%   Copyright (C) 2011-2022 Stichting Deltares.
 %
 %   This library is free software; you can redistribute it and/or
 %   modify it under the terms of the GNU Lesser General Public
@@ -28,8 +28,8 @@ function [hNew,Thresholds,Param,Parent]=qp_plot_ugrid(hNew,Parent,Param,data,Ops
 %
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/private/qp_plot_ugrid.m $
-%   $Id: qp_plot_ugrid.m 65866 2020-01-26 20:25:09Z jagers $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/tools_lgpl/matlab/quickplot/progsrc/private/qp_plot_ugrid.m $
+%   $Id: qp_plot_ugrid.m 140618 2022-01-12 13:12:04Z klapwijk $
 
 T_=1; ST_=2; M_=3; N_=4; K_=5;
 
@@ -55,19 +55,26 @@ DimFlag=Props.DimFlag;
 Thresholds=Ops.Thresholds;
 axestype=Ops.basicaxestype;
 
-if isfield(data,'TRI')
-    FaceNodeConnect = data.TRI;
-elseif isfield(data,'FaceNodeConnect')
-    FaceNodeConnect = data.FaceNodeConnect;
+if isfield(data,'FaceNodeConnect')
+    % perfect
+elseif isfield(data,'TRI')
+    data.FaceNodeConnect = data.TRI;
+    data = rmfield(data,'TRI');
 elseif isfield(data,'Connect')
-    FaceNodeConnect = data.Connect;
+    data.FaceNodeConnect = data.Connect;
+    data = rmfield(data,'Connect');
 else
-    FaceNodeConnect = [];
+    data.FaceNodeConnect = [];
 end
+FaceNodeConnect = data.FaceNodeConnect;
 nc = size(FaceNodeConnect,2);
 if isfield(data,'XYZ')
     data.X = data.XYZ(:,:,:,1);
     data.Y = data.XYZ(:,:,:,2);
+    if size(data.XYZ,4)==3
+        data.Z = data.XYZ(:,:,:,3);
+    end
+    data = rmfield(data,'XYZ');
 end
 
 switch NVal
@@ -78,7 +85,7 @@ switch NVal
                 %
                 % edges
                 %
-                if isfield(data,'EdgeGeometry') && ~isempty(data.EdgeGeometry)
+                if isfield(data,'EdgeGeometry') && isfield(data.EdgeGeometry,'X')
                     NP = cellfun(@numel,data.EdgeGeometry.X);
                     TNP = sum(NP+1)-1;
                     X = NaN(TNP,1);
@@ -90,18 +97,12 @@ switch NVal
                         offset = offset+NP(i)+1;
                     end
                     %
-                    Xp = [];
-                    Yp = [];
+                    ip = find(~ismember(1:length(data.X),data.EdgeNodeConnect(:)));
                 else
                     if isfield(data,'EdgeNodeConnect')
                         EdgeNodeConnect = data.EdgeNodeConnect;
                     else
-                        iConnect = ceil(([0 0:2*nc-2])/2+0.1);
-                        EdgeNodeConnect = FaceNodeConnect(:,iConnect);
-                        ncP = sum(~isnan(FaceNodeConnect),2);
-                        EdgeNodeConnect(:,1) = FaceNodeConnect(sub2ind(size(FaceNodeConnect),(1:size(FaceNodeConnect,1))',ncP));
-                        EdgeNodeConnect = unique(sort(reshape(EdgeNodeConnect',[2 numel(FaceNodeConnect)]),1)','rows');
-                        EdgeNodeConnect(any(isnan(EdgeNodeConnect),2),:) = [];
+                        EdgeNodeConnect = fnc2enc(FaceNodeConnect);
                     end
                     %
                     xy = EdgeNodeConnect(:,[1 2 2])';
@@ -114,9 +115,9 @@ switch NVal
                     % points without edge
                     %
                     ip = find(~ismember(1:length(data.X),xy));
-                    Xp = data.X(ip);
-                    Yp = data.Y(ip);
                 end
+                Xp = data.X(ip);
+                Yp = data.Y(ip);
                 if FirstFrame
                     hNew=line(1,1, ...
                         'color',Ops.colour, ...
@@ -280,10 +281,17 @@ switch NVal
                                 end
                                 edgecolor = 'interp';
                         end
+                        if isfield(Ops,'unicolour') && Ops.unicolour
+                            edgecolor = Ops.colour;
+                        end
                         faces = repmat(numel(x)+1,fliplr(size(x))+[0 1]);
                         faces(:,1:end-1) = reshape(1:numel(x),size(x))';
                         v = reshape(v,[numel(x) 1]);
-                        hNew(i) = patch('parent',Parent,'vertices',[x(:) y(:);NaN NaN],'faces',faces,'facevertexcdata',[v;NaN],'edgecolor',edgecolor,'facecolor','none','linewidth',Ops.linewidth,'linestyle',Ops.linestyle,'marker',Ops.marker,'markersize',Ops.markersize,'markeredgecolor',Ops.markercolour,'markerfacecolor',Ops.markerfillcolour);
+                        if FirstFrame
+                           hNew(i) = patch('parent',Parent,'vertices',[x(:) y(:);NaN NaN],'faces',faces,'facevertexcdata',[v;NaN],'edgecolor',edgecolor,'facecolor','none','linewidth',Ops.linewidth,'linestyle',Ops.linestyle,'marker',Ops.marker,'markersize',Ops.markersize,'markeredgecolor',Ops.markercolour,'markerfacecolor',Ops.markerfillcolour);
+                        else
+                           set(hNew(i),'vertices',[x(:) y(:);NaN NaN],'faces',faces,'facevertexcdata',[v;NaN]);
+                        end
                     end
                 else
                     hNew = qp_scalarfield(Parent,hNew,Ops.presentationtype,'UGRID',data,Ops);
@@ -411,9 +419,13 @@ switch NVal
                             x = data.X(FNC);
                             x(Skip) = 0;
                             x = sum(x,2)./nNd;
-                            y = data.Y(FNC);
-                            y(Skip) = 0;
-                            y = sum(y,2)./nNd;
+                            if isfield(data,'Y')
+                                y = data.Y(FNC);
+                                y(Skip) = 0;
+                                y = sum(y,2)./nNd;
+                            else
+                                y = 0*x;
+                            end
                             val = data.Val;
                         case 'EDGE'
                             inode = zeros(length(data.EdgeNodeConnect)+1,1);

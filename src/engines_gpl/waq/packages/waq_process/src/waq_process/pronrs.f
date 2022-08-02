@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -33,7 +33,7 @@
 !     FUNCTION            : Returns module number
 !                           NOTE the numbers in this subroutine must have
 !                           an 1 to 1 relation with the labels in the
-!                           subroutine PROCEZ.
+!                           subroutine PROCAL.
 !
 !     SUBROUTINES CALLED  : -
 !
@@ -53,7 +53,7 @@
 !
 !     Local declarations
 !
-      PARAMETER   ( NOMODU = 154)
+      PARAMETER   ( NOMODU = 177)
       CHARACTER*6   MODNAM(NOMODU)
       SAVE          MODNAM
       DATA MODNAM /
@@ -197,6 +197,7 @@
      +   'FLOCEQ',
      +   'DREDGE',
      +   'RESPUP',
+     +   'RESBUF',
      +   'SEDIM ',
      +   'S12TIM',
      +   'REFL  ',
@@ -210,15 +211,37 @@
      +   'PLASTC',
      +   'WLCWOC',
      +   'HDISS' ,
-     +   'TMODE'
+     +   'TMODE' ,
+     +   'DLWQG2',
+     +   'GEMMPB',
+     +   'MPBNUT',
+     +   'MPBTMP',
+     +   'MPBLLM',
+     +   'MPBNLM',
+     +   'VBXS12',
+     +   'VBXSUM',
+     +   'PROPSG',
+     +   'PRPAGG',
+     +   'HETAGG',
+     +   'SEDTYR',
+     +   'SEDAGG',
+     +   'SUMTYR',
+     +   'PROPFD',
+     +   'PRODIA',
+     +   'PROGRE',
+     +   'PRONCM',
+     +   'PROSED',
+     +   'PROTCM',
+     +   'PROZOO',
+     +   'DRADIO'
      +   /
 !
 !     Set module number
 !
       IMODUL = 0
-      DO 10 J = 1,NOMODU
+      DO J = 1,NOMODU
          IF (PRONAM(1:6).EQ.MODNAM(J)) IMODUL = J
-   10 CONTINUE
+      END DO
 !
       RETURN
       END

@@ -1,7 +1,7 @@
 module m_compound
 !----- AGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2017-2020.                                
+!  Copyright (C)  Stichting Deltares, 2017-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify              
 !  it under the terms of the GNU Affero General Public License as               
@@ -25,8 +25,8 @@ module m_compound
 !  Stichting Deltares. All rights reserved.
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: compound.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_gpl/flow1d/packages/flow1d_core/src/compound.f90 $
+!  $Id: compound.f90 141256 2022-05-18 17:09:32Z dam_ar $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_gpl/flow1d/packages/flow1d_core/src/compound.f90 $
 !-------------------------------------------------------------------------------
 
    use MessageHandling
@@ -71,17 +71,17 @@ module m_compound
       character(IdLen)                   :: id                    !< Id of the compound structure.
       character(IdLen)                   :: name                  !< Name of the compound structure.
       integer                            :: numstructs            !< Number of the structure elements in the compound.
-      integer, dimension(:), pointer     :: structure_indices     !< Indices of the structure elements.
+      integer, dimension(:), pointer     :: structure_indices => null() !< Indices of the structure elements.
       integer                            :: numlinks              !< Number of links .
-      integer, dimension(:), pointer     :: linknumbers           !< Link numbers.
-      character(len=IdLen), dimension(:), pointer :: structureIds !< ids of the structure elements
+      integer, dimension(:), pointer     :: linknumbers => null() !< Link numbers.
+      character(len=IdLen), dimension(:), pointer :: structureIds => null() !< ids of the structure elements
    end type t_compound
 
    type, public :: t_compoundSet
       integer                                               :: Size     = 0
       integer                                               :: growsBy = 2000
       integer                                               :: Count    = 0
-     type(t_compound), pointer, dimension(:)                :: compound
+     type(t_compound), pointer, dimension(:)                :: compound => null()
    end type t_compoundSet
 
    contains

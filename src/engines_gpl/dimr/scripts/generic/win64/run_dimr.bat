@@ -67,7 +67,6 @@ echo OMP_NUM_THREADS is already defined
    set /A OMP_NUM_THREADS=!NumberOfPhysicalCores! - 2
    if /I OMP_NUM_THREADS LEQ 2 ( set OMP_NUM_THREADS=2 )
 )
-echo OMP_NUM_THREADS is %OMP_NUM_THREADS%
 
 set workdir=%CD%
 echo Working directory: %workdir%
@@ -83,6 +82,7 @@ for %%f in ("%D3DT%") do set ARCH=%%~nxf
 
 set delwaqexedir=%D3D_HOME%\%ARCH%\dwaq\bin
 set dflowfmexedir=%D3D_HOME%\%ARCH%\dflowfm\bin
+set proc_def_dir=%D3D_HOME%\%ARCH%\dflowfm\default
 set dimrexedir=%D3D_HOME%\%ARCH%\dimr\bin
 set esmfexedir=%D3D_HOME%\%ARCH%\esmf\bin
 set esmfbatdir=%D3D_HOME%\%ARCH%\esmf\scripts

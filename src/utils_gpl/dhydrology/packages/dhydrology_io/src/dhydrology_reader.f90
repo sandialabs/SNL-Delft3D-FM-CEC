@@ -1,4 +1,33 @@
-   module dhydrology_reader_module
+!----- AGPL --------------------------------------------------------------------
+!                                                                               
+!  Copyright (C)  Stichting Deltares, 2017-2022.                                
+!                                                                               
+!  This program is free software: you can redistribute it and/or modify         
+!  it under the terms of the GNU Affero General Public License as               
+!  published by the Free Software Foundation version 3.                         
+!                                                                               
+!  This program is distributed in the hope that it will be useful,              
+!  but WITHOUT ANY WARRANTY; without even the implied warranty of               
+!  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the                
+!  GNU Affero General Public License for more details.                          
+!                                                                               
+!  You should have received a copy of the GNU Affero General Public License     
+!  along with this program.  If not, see <http://www.gnu.org/licenses/>.        
+!                                                                               
+!  contact: delft3d.support@deltares.nl                                         
+!  Stichting Deltares                                                           
+!  P.O. Box 177                                                                 
+!  2600 MH Delft, The Netherlands                                               
+!                                                                               
+!  All indications and logos of, and references to, "Delft3D" and "Deltares"
+!  are registered trademarks of Stichting Deltares, and remain the property of
+!  Stichting Deltares. All rights reserved.
+!                                                                               
+!-------------------------------------------------------------------------------
+!  $Id: dhydrology_reader.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_gpl/dhydrology/packages/dhydrology_io/src/dhydrology_reader.f90 $
+!-------------------------------------------------------------------------------
+module dhydrology_reader_module
 
    use m_ec_module
 
@@ -118,12 +147,14 @@
    call realloc(itemIDs,ntgt)
    itemIDs = ec_undef_int
 
-   success = ecModuleAddTimeSpaceRelation(ecInstancePtr, query%quantityname, &
-      query%x, query%y, query%vectormax, &
-      query%inFilename, query%inFiletype, &
-      query%method, query%operand, &
-      query%tgt_refdate, query%tgt_tzone, query%tgt_tunit, &
-      query%jasferic, query%missing_value, itemIDs, varname = query%varname, dtnodal = query%dtnodal)
+   ! UNST-3838: TODO: update this call to match ec_module's changed API (ec_module commit #63478).
+   success = .false.
+   ! success = ecModuleAddTimeSpaceRelation(ecInstancePtr, query%quantityname, &
+   !    query%x, query%y, query%vectormax, &
+   !    query%inFilename, query%inFiletype, &
+   !    query%method, query%operand, &
+   !    query%tgt_refdate, query%tgt_tzone, query%tgt_tunit, &
+   !    query%jasferic, query%missing_value, itemIDs, varname = query%varname, dtnodal = query%dtnodal)
 
    if(.not.success) ierr = -1
 
@@ -140,12 +171,16 @@
 
    if (query%quantitynr<=size(itemIDs)) then
       if (query%useBcBlockApproach) then
-         success = ecItemGetValues(ecInstancePtr, itemIDs(query%quantitynr),46800.d0, targetArray)
+         ! UNST-3838: TODO: update this call to match ec_module's changed API (ec_module commit #62379).
+         success = .false.
+         ! success = ecItemGetValues(ecInstancePtr, itemIDs(query%quantitynr),46800.d0, targetArray)
       else
-         success = ec_gettimespacevalue_by_itemID(ecInstancePtr, itemIDs(query%quantitynr), 46800.d0, targetArray)
+         ! UNST-3838: TODO: update this call to match ec_module's changed API (ec_module commit #62379).
+         success = .false.
+         ! success = ec_gettimespacevalue_by_itemID(ecInstancePtr, itemIDs(query%quantitynr), 46800.d0, targetArray)
       endif
    endif
 
    end function dhydrologyReadMap
 
-   end module dhydrology_reader_module
+end module dhydrology_reader_module

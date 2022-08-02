@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -43,8 +43,7 @@
 !>                             - calls DLWQTD to initialize the water bed layers
 !>                             - imports initial conditions
 
-!     CREATED: may -1988 by L. Postma
-!
+
 !     LOGICAL UNITNUMBERS : LUN( 2) - system intermediate file
 !                           LUN(19) - monitoring output file
 !
@@ -64,6 +63,11 @@
       use m_couplib
       use workspace
       use string_module  ! string manipulation tools
+      use m_sysn          ! System characteristics
+      use m_sysi          ! Timer characteristics
+      use m_sysa          ! Pointers in real array workspace
+      use m_sysj          ! Pointers in integer array workspace
+      use m_sysc          ! Pointers in character array workspace
 
 !     Parameters          :
 
@@ -85,26 +89,6 @@
       integer              , intent(inout) :: ierr          !< error count
 
 !
-!     COMMON  /  SYSN   /   System characteristics
-!
-      INCLUDE 'sysn.inc'
-!
-!     COMMON  /  SYSI  /    Timer characteristics
-!
-      INCLUDE 'sysi.inc'
-!
-!     COMMON  /  SYSA   /   Pointers in real array workspace
-!
-      INCLUDE 'sysa.inc'
-!
-!     COMMON  /  SYSJ   /   Pointers in integer array workspace
-!
-      INCLUDE 'sysj.inc'
-!
-!     COMMON  /  SYSC   /   Pointers in character array workspace
-!
-      INCLUDE 'sysc.inc'
-!
 !     Local declaration
 !
       REAL          RDUMMY(1)
@@ -121,10 +105,9 @@
 !     OLCFWQ             Flag indicating ONLINE running of CF and WQ
 !     SRWACT             Flag indicating active data exchange with SRW
 !     RTCACT             Flag indicating output for RTC
-!     DDWAQ              Flag indicating parallel computation
 
-      LOGICAL            OLCFWQ, SRWACT, RTCACT, DDWAQ, propor
-      COMMON /COMMUN/    OLCFWQ, SRWACT, RTCACT, DDWAQ
+      LOGICAL            OLCFWQ, SRWACT, RTCACT, propor
+      COMMON /COMMUN/    OLCFWQ, SRWACT, RTCACT
       integer(4) ithandl /0/
       if ( timon ) call timstrt ( "dlwqi0", ithandl )
 
@@ -238,7 +221,7 @@
       IF ( NOUTP .GT. 0 ) THEN
          CALL DHOPNF ( LUN(25) , LCHAR(25), 25      , 2      , IERRD   )
          CALL DLWQIO ( LUN(25) , LCHAR(25), LUN(19) , NOUTP   , NRVART  ,
-     +                 NBUFMX  , J(IIOUT) , J(IIOPO), C(IONAM), C(IOSNM), 
+     +                 NBUFMX  , J(IIOUT) , J(IIOPO), C(IONAM), C(IOSNM),
      +                 C(IOUNI), C(IODSC) , NOTOT   , C(ISSNM), C(ISUNI),
      +                 C(ISDSC), LUN      , LCHAR   , MYPART  , IERR    )
          CLOSE ( LUN(25) )
@@ -306,7 +289,7 @@
       if ( init_ixset ) then
           init_ixset = .false.
           CALL IXSETS ( LUN(19) , MYPART  , NOTOT   , NOSYS   ,
-     +                  NOSEG   , NOQ     , J(IXPNT), J(IOWNS),
+     +                  NOSSS   , NOQ     , J(IXPNT), J(IOWNS),
      +                  J(IOWNQ), NDMPAR  , NDMPS   , NTDMPQ  ,
      +                  NDMPQ   , IBFLAG  , J(ISDMP), J(IPDMP),
      +                  J(IQDMP) )
@@ -567,7 +550,7 @@
       integer  (4), intent(in   ) :: nopa               !< number of parameters or segment functions
       integer  (4), intent(in   ) :: iparm              !< selected parameter
       real     (4), intent(in   ) :: parm (nopa *noseg) !< parameter or segment function array
-      character(7), intent(  out) :: string             !< model docu substring
+      character(1), intent(  out) :: string(7)          !< model docu substring
       logical     , intent(in   ) :: propor             !< if .true. then /m2 in the input
       logical     , intent(in   ) :: direct             !< if .false. segments is first index
 
@@ -576,7 +559,7 @@
       real(4) surf   ! help variable
       integer indx   ! index
 
-      string = 'mass/m2'                                ! always in the output
+      string(1:7) = ['m','a','s', 's', '/', 'm', '2']   ! always in the output and keep debugger happy
       if ( direct ) then
          indx =  iparm                    ! parameter
       else

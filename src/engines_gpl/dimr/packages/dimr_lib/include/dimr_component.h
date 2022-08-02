@@ -4,17 +4,17 @@
 #include "log.h"
 #include "clock.h"
 #include <mpi.h>
-#if HAVE_CONFIG_H
-#   include <sys/time.h>
-#else
+#ifdef _WIN32
 #   include <windows.h>
+#else
+#   include <sys/time.h>  
 #endif
 
 // Define the exact api of the entry points in the dlls
-#if HAVE_CONFIG_H
-#define CDECLOPT
+#ifdef _WIN32
+#   define CDECLOPT __cdecl
 #else
-#define CDECLOPT __cdecl
+#   define CDECLOPT  
 #endif
 
 /* logger to be set from outside so we can log messages */
@@ -24,7 +24,7 @@ typedef int  (CDECLOPT *BMI_DIMR_SET_LOGGER)(Log *);
 
 typedef int  (CDECLOPT *BMI_INITIALIZE)     (const char *);
 typedef int  (CDECLOPT *BMI_UPDATE)         (double);
-typedef void (CDECLOPT *BMI_FINALIZE)       (void);
+typedef int  (CDECLOPT *BMI_FINALIZE)       (void);
 typedef void (CDECLOPT *BMI_GETSTARTTIME)   (double *);
 typedef void (CDECLOPT *BMI_GETENDTIME)     (double *);
 typedef void (CDECLOPT *BMI_GETTIMESTEP)    (double *);
@@ -43,10 +43,10 @@ struct dimr_component {
 	const char    *    name;              // Component name: must be unique in the config.xml file (e.g. myNameFlow)
 	char          *    library;           // Component library name, without extension/prefix
 	int                type;              // COMP_TYPE_FM, COMP_TYPE_RTC or COMP_TYPE_WAVE
-#if HAVE_CONFIG_H
-	void          *    libHandle;         // (Linux) Handle to the loaded library for this component.
-#else
+#ifdef _WIN32
 	HINSTANCE          libHandle;         // (Windows) Handle to the loaded library for this component.
+#else
+    void          *    libHandle;         // (Linux) Handle to the loaded library for this component.
 #endif
 	char          *    inputFile;         // Component inputFile name
 	char          *    workingDir;        // Component working directory

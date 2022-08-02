@@ -1,7 +1,7 @@
 module m_cross_helper
 !----- AGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2017-2020.                                
+!  Copyright (C)  Stichting Deltares, 2017-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify              
 !  it under the terms of the GNU Affero General Public License as               
@@ -25,8 +25,8 @@ module m_cross_helper
 !  Stichting Deltares. All rights reserved.
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: cross_helper.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_gpl/flow1d/packages/flow1d_core/src/cross_helper.f90 $
+!  $Id: cross_helper.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_gpl/flow1d/packages/flow1d_core/src/cross_helper.f90 $
 !-------------------------------------------------------------------------------
 
    use m_network
@@ -61,56 +61,47 @@ contains
       double precision :: factor
       double precision :: linkpos
 
-      if (network%adm%line2cross(ilink)%c1 < 0) then
+      if (network%adm%line2cross(ilink, 2)%c1 < 0) then
          ! no cross section on this branch
          res = huge(1d0)
          return
       endif
 
-      cross1 => network%crs%cross(network%adm%line2cross(ilink)%c1)
-      cross2 => network%crs%cross(network%adm%line2cross(ilink)%c2)
-      
-      if (network%adm%line2cross(ilink)%c1 == network%adm%line2cross(ilink)%c2) then 
-          res(1) = getBob(cross1)
-          res(2) = res(1)
-      else
-          dxlocal = 0.5d0*getdeltax(network, ilink) 
-          distancelocal = cross2%chainage - cross1%chainage
-          dx = dxlocal/distancelocal
-          linkpos = network%adm%line2cross(ilink)%f
-          factor = linkpos - dx
-          res(1) = getBob(cross1, cross2, factor)      
-          factor = linkpos + dx
-          res(2) = getBob(cross1, cross2, factor)      
-      endif    
+      cross1 => network%crs%cross(network%adm%line2cross(ilink, 1)%c1)
+      cross2 => network%crs%cross(network%adm%line2cross(ilink, 1)%c2)
+      factor = network%adm%line2cross(ilink,1)%f
+      res(1) = getBob(cross1, cross2, factor)      
+
+      cross1 => network%crs%cross(network%adm%line2cross(ilink, 3)%c1)
+      cross2 => network%crs%cross(network%adm%line2cross(ilink, 3)%c2)
+      factor = network%adm%line2cross(ilink, 3)%f
+      res(2) = getBob(cross1, cross2, factor)      
+
    end function getbobs   
-   
-   double precision function getdeltax(network, ilink)
-      type(t_network), intent(in) :: network
-      integer, intent(in) :: ilink
-      
-      integer :: ibr, ll
-      
-      ibr = network%adm%lin2ibr(ilink)
-      ll  = network%adm%lin2local(ilink)
-      getdeltax = network%brs%branch(ibr)%dx(ll)
-   end function getdeltax
+
 ! =================================================================================================
 ! =================================================================================================
-   subroutine getConveyance(network, dpt, u1L, q1L, s1L, L, perim_sub, flowarea_sub, conv, cz_sub, cz, flowArea, wetPerimeter)
+   subroutine getConveyance(network, dpt, u1L, q1L, s1L, L, perim_sub, flowarea_sub, conv, cz_sub, cz, flowArea, wetPerimeter, factor_time_interpolation)
       use m_CrossSections     , only: t_CSType, CS_TABULATED, CS_YZ_PROF
       
       implicit none
-      type(t_network), intent(in)    :: network
-      double precision               :: dpt, u1L, q1L, s1L
-      double precision, intent(out)  :: conv
-      integer                        :: i , L, n
-      double precision, dimension(3), intent(in) :: flowarea_sub, perim_sub
-      double precision, dimension(3), intent(out) :: cz_sub
-      double precision, intent(out)  :: cz
-      double precision, intent(in)   :: flowArea
-      double precision, intent(in)   :: wetPerimeter
+      type(t_network),                intent(in   )    :: network                      !< Network data structure
+      double precision,               intent(in   )    :: dpt                          !< Water depth 
+      double precision,               intent(in   )    :: u1L                          !< Flow velocity 
+      double precision,               intent(in   )    :: q1L                          !< Discharge 
+      double precision,               intent(in   )    :: s1L                          !< Upstream water level 
+      double precision,               intent(  out)    :: conv                         !< Conveyance 
+      integer,                        intent(in   )    :: L                            !< Link number 
+      double precision, dimension(3), intent(in   )    :: flowarea_sub                 !< Flow area in subsections (for ZW-river cross sections) 
+      double precision, dimension(3), intent(in   )    :: perim_sub                    !< Wet perimeter in subsections (for ZW-river cross sections)
+      double precision, dimension(3), intent(  out)    :: cz_sub                       !< Chezy value in subsections (for ZW-river cross sections)
+      double precision,               intent(  out)    :: cz                           !< Chezy value 
+      double precision,               intent(in   )    :: flowArea                     !< Flow area
+      double precision,               intent(in   )    :: wetPerimeter                 !< Wet perimeter 
+      double precision,               intent(in   )    :: factor_time_interpolation    !< Factor for interpolation of time dependent conveyance tables
+                                                                                       !< conveyance = (1-factor)*conv1 + factor*conv2
 
+      integer                        :: i , n
       double precision, parameter    :: eps = 1d-3               !< accuracy parameter for determining wetperimeter == 0d0
       double precision               :: r, cz1, cz2
       double precision               :: f
@@ -120,7 +111,7 @@ contains
       double precision               :: chainage
       type(t_CSType), pointer        :: cross
       
-      n = network%adm%line2cross(L)%c1
+      n = network%adm%line2cross(L, 2)%c1
       if ( n <= 0) then
          ! no cross section defined on L
          conv = 45d0* flowarea_sub(1) * sqrt(flowarea_sub(1) / perim_sub(1))
@@ -132,7 +123,9 @@ contains
       endif
       
       if (yz_conveyance) then
-         call getYZConveyance(network%adm%line2cross(L), network%crs%cross, dpt, u1L, cz, conv)
+         call getYZConveyance(network%adm%line2cross(L, 2), network%crs%cross, dpt, u1L, cz, conv, factor_time_interpolation)
+         cz_sub(1)   = cz
+         cz_sub(2:3) = 0.0d0
 
       else
          igrid   = network%adm%lin2grid(L)
@@ -143,13 +136,13 @@ contains
             do i = 1, 3
                if (perim_sub(i) > eps .and. flowarea_sub(i) > 0.0d0) then
                   r = flowarea_sub(i)/perim_sub(i)
-                  cross => network%crs%cross(network%adm%line2cross(L)%c1)%tabdef
+                  cross => network%crs%cross(network%adm%line2cross(L, 2)%c1)%tabdef
                   cz1 = getFrictionValue(network%rgs, network%spdata, cross, ibranch, i, igrid, s1L, q1L, u1L, r, dpt, chainage)
-                  cross => network%crs%cross(network%adm%line2cross(L)%c2)%tabdef
+                  cross => network%crs%cross(network%adm%line2cross(L, 2)%c2)%tabdef
                   cz2 = getFrictionValue(network%rgs, network%spdata, cross, ibranch, i, igrid, s1L, q1L, u1L, r, dpt, chainage)
                   ! Compute weighting of left and right cross section on this grid point.
                   ! Note: friction coefficient was already interpolated onto this grid point inside getFrictionValue.
-                  f = network%adm%line2cross(L)%f
+                  f = network%adm%line2cross(L, 2)%f
                   cz_sub(i) = (1.0d0 - f) * cz1     + f * cz2
                   conv = conv + cz_sub(i) * flowarea_sub(i) * sqrt(flowarea_sub(i) / perim_sub(i))
                else
@@ -158,8 +151,12 @@ contains
             enddo
          endif
          ! compute average chezy 
-         cz = conv/(flowArea*sqrt(flowArea/wetPerimeter))
-
+         if (flowArea > 1d-10) then
+            cz = conv/(flowArea*sqrt(flowArea/wetPerimeter))
+         else 
+            cz = 0d0
+         endif
+         
       endif
       !        criteria to satisfy the criteria  in normup i.e cz(m)*cz(m)*wet
       if (cz * cz * flowArea < 1.0d0) then

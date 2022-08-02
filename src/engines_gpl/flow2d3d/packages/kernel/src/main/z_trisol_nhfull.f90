@@ -7,7 +7,7 @@ subroutine z_trisol_nhfull(dischy    ,solver    ,icreep   ,ithisc    , &
                          & betac     ,tkemod    ,gdp       )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -31,8 +31,8 @@ subroutine z_trisol_nhfull(dischy    ,solver    ,icreep   ,ithisc    , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: z_trisol_nhfull.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/kernel/src/main/z_trisol_nhfull.f90 $
+!  $Id: z_trisol_nhfull.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/flow2d3d/packages/kernel/src/main/z_trisol_nhfull.f90 $
 !!--description-----------------------------------------------------------------
 !
 ! Z-model
@@ -357,6 +357,7 @@ subroutine z_trisol_nhfull(dischy    ,solver    ,icreep   ,ithisc    , &
     integer(pntrsize)                    , pointer :: vortic
     integer(pntrsize)                    , pointer :: w1
     integer(pntrsize)                    , pointer :: w10mag
+    integer(pntrsize)                    , pointer :: windcd
     integer(pntrsize)                    , pointer :: windsu
     integer(pntrsize)                    , pointer :: windsv
     integer(pntrsize)                    , pointer :: windu
@@ -808,6 +809,7 @@ subroutine z_trisol_nhfull(dischy    ,solver    ,icreep   ,ithisc    , &
     vortic              => gdp%gdr_i_ch%vortic
     w1                  => gdp%gdr_i_ch%w1
     w10mag              => gdp%gdr_i_ch%w10mag
+    windcd              => gdp%gdr_i_ch%windcd
     windsu              => gdp%gdr_i_ch%windsu
     windsv              => gdp%gdr_i_ch%windsv
     windu               => gdp%gdr_i_ch%windu
@@ -1033,7 +1035,7 @@ subroutine z_trisol_nhfull(dischy    ,solver    ,icreep   ,ithisc    , &
        call timer_start(timer_incmeteo, gdp)
        call incmeteo(timhr     , grdang   , &
                    & r(windu) , r(windv) , r(patm)  ,    &
-                   & i(kcs)   , r(alfas) ,               &
+                   & i(kcs)   , r(alfas) , r(windcd),    &
                    & r(windsu), r(windsv), r(w10mag), gdp)
        call timer_stop(timer_incmeteo, gdp)
     endif
@@ -1720,7 +1722,7 @@ subroutine z_trisol_nhfull(dischy    ,solver    ,icreep   ,ithisc    , &
                   & r(r0)     ,r(u1)     ,r(v1)     ,r(s0)     ,d(dps)    , &
                   & r(z0urou) ,r(z0vrou) ,r(sour)   ,r(sink)   ,r(rhowat) , &
                   & r(ws)     ,r(z0ucur) ,r(z0vcur) ,r(sigmol) , &
-                  & r(taubmx) ,r(s1)     ,r(uorb)   ,r(tp)     ,r(sigdif) , &
+                  & r(taubmx) ,r(s1)     ,r(uorb)   ,r(tp)     , &
                   & lstsci    ,r(thick)  ,r(dicww)  ,i(kcs)    , &
                   & i(kcu)    ,i(kcv)    ,r(guv)    ,r(gvu)    ,r(sbuu)   , &
                   & r(sbvv)   ,r(seddif) ,r(hrms)   ,ltur      , &

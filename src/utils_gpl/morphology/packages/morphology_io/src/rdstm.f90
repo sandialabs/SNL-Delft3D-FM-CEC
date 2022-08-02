@@ -1,7 +1,7 @@
 module m_rdstm
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -25,8 +25,8 @@ module m_rdstm
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: rdstm.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_gpl/morphology/packages/morphology_io/src/rdstm.f90 $
+!  $Id: rdstm.f90 141416 2022-06-29 08:31:13Z spee $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_gpl/morphology/packages/morphology_io/src/rdstm.f90 $
 !-------------------------------------------------------------------------------
 
 use morphology_data_module
@@ -44,7 +44,6 @@ public rdstm
 public clrstm
 
 type stmtype
-    integer                                                :: iopsus
     real(fp)                                               :: fwfac
     type(sedpar_type)                        , pointer     :: sedpar
     type(morpar_type)                        , pointer     :: morpar
@@ -75,7 +74,7 @@ subroutine rdstm(stm, griddim, filsed, filmor, filtrn, &
     !
     implicit none
 !
-! Call variables
+! Arguments
 !
     type(stmtype)               , intent(out) :: stm
     type(griddimtype)   , target, intent(in)  :: griddim
@@ -172,7 +171,7 @@ subroutine rdstm(stm, griddim, filsed, filmor, filtrn, &
     !
     call rdsed  (lundia, error, lsal, ltem, stm%lsedsus, &
                & stm%lsedtot, lstsci, ltur, stm%namcon, &
-               & stm%iopsus, nmlb, nmub, filsed, &
+               & stm%morpar%iopsus, nmlb, nmub, filsed, &
                & sedfil_tree, stm%sedpar, stm%trapar, griddim)
     if (error) goto 999
     ! 
@@ -205,7 +204,7 @@ subroutine rdstm(stm, griddim, filsed, filmor, filtrn, &
     call setpardef(ipardef, rpardef, NPARDEF, -1, 5, stm%morpar%rdw)
     call setpardef(ipardef, rpardef, NPARDEF, -1, 6, stm%morpar%iopkcw)
     call setpardef(ipardef, rpardef, NPARDEF, -1, 7, stm%morpar%epspar)
-    call setpardef(ipardef, rpardef, NPARDEF, -2, 1, stm%morpar%iopsus)
+    call setpardef(ipardef, rpardef, NPARDEF, -2, 1, stm%morpar%iopsus)   ! jre
     call setpardef(ipardef, rpardef, NPARDEF, -2, 2, stm%morpar%pangle)
     call setpardef(ipardef, rpardef, NPARDEF, -2, 3, stm%morpar%fpco)
     call setpardef(ipardef, rpardef, NPARDEF, -2, 4, stm%morpar%subiw)
@@ -213,6 +212,7 @@ subroutine rdstm(stm, griddim, filsed, filmor, filtrn, &
     !
     call rdtrafrm(lundia, error, filtrn, stm%lsedtot, &
                 & ipardef, rpardef, NPARDEF, stm%trapar, &
+                & stm%morpar%moroutput%sedpar, &
                 & stm%sedpar%sedtyp, stm%sedpar%sedblock, &
                 & griddim)
     if (error) goto 999
@@ -221,7 +221,7 @@ subroutine rdstm(stm, griddim, filsed, filmor, filtrn, &
     ! Echo sediment and transport parameters
     !
     call echosed(lundia, error, stm%lsedsus, stm%lsedtot, &
-               & stm%iopsus, stm%sedpar, stm%trapar)
+               & stm%morpar%iopsus, stm%sedpar, stm%trapar)
     if (error) goto 999
     !
     ! Echo morphology parameters
@@ -246,7 +246,7 @@ function clrstm(stm) result(istat)
     use m_ini_noderel
     implicit none
 !
-! Call variables
+! Arguments
 !
     type(stmtype)   , intent(inout) :: stm
     integer                         :: istat

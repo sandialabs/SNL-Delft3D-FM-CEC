@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -46,15 +46,6 @@
 !>               - information on the time series of additional velocities
 !>               - information on the time series of from- and to lengthes
 
-!       Created            : April '88  BY M.E.Sileon and L. Postma
-
-!       Modified           : ????????             Names for additional
-!                                                 dispersions and velos
-!                            April '96 L. Postma: Version support
-!                          : April '97 by R. Bruinsma
-!                            Tokenized input data file reading added
-!                            July  '02 by Leo Postma
-!                            Call to Opt1 changed.
 
 !       Subroutines called : BOUND
 !                            OPT0
@@ -83,6 +74,8 @@
       use pointr_mod
       use partmem
       use timers       !   performance timers
+      use m_sysn          ! System characteristics
+
 
       implicit none
 
@@ -112,8 +105,6 @@
       integer  ( 4), intent(inout) :: iwar              !< cumulative warning count
       logical      , intent(in)    :: has_hydfile       !< if true, much information comes from the hyd-file
       integer  ( 4), dimension(*), intent(in) :: nexch  !< nmber of exchanges from the hyd-file
-
-      include 'sysn.inc'      !    COMMON  /  SYSN  /    System dimensions
 
 !     COMMON BLOCK  :
 
@@ -352,6 +343,7 @@
       else
           if ( gettoken( iopt, ierr2 ) .gt. 0 ) goto 100
           write ( lunut , 2170 ) iopt
+          noqt = noq
           if ( iopt .eq. 2 ) goto 10
 
 !***************  first type of input ******************
@@ -382,11 +374,11 @@
          if ( ierr2  .gt. 0 ) goto 100
          noqt = noq  + noq4
          allocate ( ipnt(4,noqt) , stat = ierr2 )
-         ipnt = 0
          if ( ierr2 .ne. 0 ) then
             write ( lunut , 2160 ) ierr2, 4*noqt
             goto 100
          endif
+         ipnt = 0
          call pointi ( lun    , lchar  , noseg  , noq       , noq1   ,
      &                 noq2   , noq3   , noqt   , nobnd     , ipnt   ,
      &                 intsrt , iopt1  , jtrack , filtype(44), ioutpt ,
@@ -507,6 +499,13 @@
 !***************  second type of input ******************
 
    10 continue
+      allocate ( ipnt(4,noqt) , stat = ierr2 )
+      if ( ierr2 .ne. 0 ) then
+         write ( lunut , 2160 ) ierr2, 4*noqt
+         goto 100
+      endif
+      ipnt = 0
+
       ilflag = 1
       if ( nodisp .lt. 1 ) then
            write ( lunut , 2290 ) nodisp
@@ -625,6 +624,23 @@
 !       here ends the alternative input
 
   100 continue
+
+!       check the layers/3D model information:
+!       - is it a 3D model?
+!       - do we have consistency?
+
+      if ( noq3 /= 0 ) then
+          if ( nolay == 1 ) then
+              iwar = iwar + 1
+              write( lunut, 3000 ) noseg, noq3, noseg-noq3
+              write( lunut, 3005 )
+              write( *, '(1x,a)' ) 'WARNING: inconsistency if 3D model',
+     &                             '         check .lst file'
+          else
+              write( lunut, 3010 ) nolay
+          endif
+      endif
+
       if ( ierr2 .gt. 0 ) ierr = ierr + 1
       if ( ierr2 .eq. 3 ) call srstop(1)
       call check  ( cdummy , iwidth , 4      , ierr2  , ierr   )
@@ -685,5 +701,17 @@
  2340 format (  /,' from   to fr-1 to+1  dispersion',
      &   '     surface        flow from-length   to-length')
  2350 format (   4I5,1P,5E12.4 )
+ 3000 format ( //,' WARNING: The model seems to be a 3D model, but:'
+     &         ,/,'          Number of segments:           ',i10
+     &         ,/,'          Number of vertical exchanges: ',i10
+     &         ,/,'          Difference gives expected number of'
+     &         ,/,'          segments per layer:           ',i10)
+ 3005 format (  /,'          - this is inconsistent'
+     &         ,/,'          Note that the program will now assume one',
+     &                       ' (1) layer!'
+     &        ,//,'          You can specify the number of layers via'
+     &         ,/,'          these keywords:'
+     &        ,//,'          MULTIGRID ZMODEL NOLAY ... END_MULTIGRID')
+ 3010 format ( //,' Number of layers in the model:', I5)
 
       end

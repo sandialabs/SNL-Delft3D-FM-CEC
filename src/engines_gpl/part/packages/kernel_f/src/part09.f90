@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -31,7 +31,7 @@ contains
                           xpolwaste       , ypolwaste       , lgrid  ,  &
                           lgrid2 , nmax   , mmax   , xp     , yp     ,  &
                           dx     , dy     , ndprt  , nosubs , kpart  ,  &
-                          layt   , tcktot , nplay  , kwaste , nolay  ,  &
+                          layt   , tcktot , zmodel , laytop , laybot , nplay  , kwaste , nolay  ,  &
                           modtyp , zwaste , track  , nmdyer , substi ,  &
                           rhopart )
 
@@ -54,24 +54,16 @@ contains
 !>         NOTE:  The vertical distribution contains a bug by integer division. This
 !>         bug is not removed yet because it would disturb the test bench that is now needed.
 
-!     System administration : Antoon Koster
-
-!     Created               : February 1990 by Leo Postma
-
-!     Modified              : May      1996 by Robert Vos    : 3d version
-
-!     Note                  : none
 
 !     Logical unit numbers  : lun2 - output file to print statistics
 
 !     Subroutines called    : findcircle - distributes particles over a circle
 
-!     functions   called    : rnd  - random number generator
-
       use precision_part          ! single/double precision
       use timers
       use grid_search_mod
       use spec_feat_par
+      use m_part_modeltypes
       implicit none
 
 !     Arguments
@@ -115,6 +107,9 @@ contains
       integer  ( ip), intent(in   ) :: lun2                  !< output report unit number
       integer  ( ip), intent(  out) :: kpart  (*)            !< k-values particles
       real     ( rp), intent(in   ) :: tcktot (layt)         !< thickness hydrod.layer
+      logical       , intent(in   ) :: zmodel
+      integer  ( ip), intent(in   ) :: laytop(:,:)           !< highest active layer in z-layer model
+      integer  ( ip), intent(in   ) :: laybot(:,:)           !< highest active layer in z-layer model
       integer  ( ip)                :: nplay  (layt)         !< work array that could as well remain inside
       integer  ( ip), intent(inout) :: kwaste (nodye)        !< k-values of dye points
       integer  ( ip), intent(in   ) :: nolay                 !< number of comp. layer
@@ -222,7 +217,7 @@ contains
                                 xpolwaste(1:nrowswaste(id), id), ypolwaste(1:nrowswaste(id), id), &
                                 xpart(i), ypart(i), npart(i), mpart(i))
             end if
-            
+
 !     distribute the particles for this waste over the vertical
 
    10       ipart = ipart + 1
@@ -241,11 +236,15 @@ contains
                call stop_exit(1)
             endif
    20       continue
-            kpart(i) = nulay
+            if (zmodel) then
+               kpart(i) = min(laybot(npart(i), mpart(i)), max(nulay,laytop(npart(i), mpart(i))))
+            else
+               kpart(i) = nulay
+            endif
 
 !    for one layer models (2dh), the release will be in the user-defined location
 
-            if ( modtyp .eq. 4 .and. kpart(i) .eq. 1 ) then
+            if ( modtyp .eq. model_oil .and. kpart(i) .eq. 1 ) then
                zpart(i) = zwasth
             elseif ( nolay .eq. 1 ) then
                zpart(i) = zwasth/100.0
@@ -260,9 +259,9 @@ contains
 
             do isub = 1, nosubs
                wpart( isub, i ) = aconc( id, isub )
-               if (modtyp .eq. 6) then
+               if (modtyp .eq. model_prob_dens_settling) then
                   rhopart(isub, i) = pldensity(isub)
-               endif                 
+               endif
             enddo
             iptime(i) = 0
 

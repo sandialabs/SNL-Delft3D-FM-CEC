@@ -1,6 +1,6 @@
 !----- AGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2015-2020.                                
+!  Copyright (C)  Stichting Deltares, 2015-2022.                                
 !                                                                               
 !  This file is part of Delft3D (D-Flow Flexible Mesh component).               
 !                                                                               
@@ -27,8 +27,8 @@
 !                                                                               
 !-------------------------------------------------------------------------------
 
-! $Id: unstruc_esmf.F90 65778 2020-01-14 14:07:42Z mourits $
-! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/dflowfm/packages/dflowfm_esmf/src/unstruc_esmf.F90 $
+! $Id: unstruc_esmf.F90 140618 2022-01-12 13:12:04Z klapwijk $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/dflowfm/packages/dflowfm_esmf/src/unstruc_esmf.F90 $
 #define ESMF_CHECK if (ESMF_LogFoundError(rcToCheck=rc, line=__LINE__, file=__FILE__)) call ESMF_Finalize(endflag=ESMF_END_ABORT)
 module unstruc_esmf
   use esmf

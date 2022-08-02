@@ -1,6 +1,6 @@
 !----- LGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This library is free software; you can redistribute it and/or                
 !  modify it under the terms of the GNU Lesser General Public                   
@@ -23,8 +23,8 @@
 !  are registered trademarks of Stichting Deltares, and remain the property of  
 !  Stichting Deltares. All rights reserved.                                     
 
-!  $Id: ec_instance.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/ec_module/packages/ec_module/src/ec_instance.f90 $
+!  $Id: ec_instance.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_lgpl/ec_module/packages/ec_module/src/ec_instance.f90 $
 
 !> This module contains the constructor and destructor for the datatype tEcInstance.
 !! @author edwin.bos@deltares.nl
@@ -220,7 +220,7 @@ module m_ec_instance
          !
          itemPtr => null()
          itemId = ec_undef_int
-         itemPtr => ecItemCreate(instancePtr%idCounter + 1)
+         itemPtr => ecItemCreate(instancePtr%nItems + 1)
          if (associated(itemPtr)) then
             ! ensure capacity
             if (instancePtr%nItems == size(instancePtr%ecItemsPtr)) then
@@ -231,8 +231,7 @@ module m_ec_instance
             ! register the Item
             instancePtr%nItems = instancePtr%nItems + 1
             instancePtr%ecItemsPtr(instancePtr%nItems)%ptr => itemPtr
-            instancePtr%idCounter = instancePtr%idCounter + 1
-            itemId = instancePtr%idCounter
+            itemId = itemPtr%id
          end if
       end function ecInstanceCreateItem
       
@@ -248,7 +247,7 @@ module m_ec_instance
          !
          quantityPtr => null()
          quantityId = ec_undef_int
-         quantityPtr => ecQuantityCreate(instancePtr%idCounter + 1)
+         quantityPtr => ecQuantityCreate(instancePtr%nQuantities + 1)
          if (associated(quantityPtr)) then
             ! ensure capacity
             if (instancePtr%nQuantities == size(instancePtr%ecQuantitiesPtr)) then
@@ -259,8 +258,7 @@ module m_ec_instance
             ! register the Quantity
             instancePtr%nQuantities = instancePtr%nQuantities + 1
             instancePtr%ecQuantitiesPtr(instancePtr%nQuantities)%ptr => quantityPtr
-            instancePtr%idCounter = instancePtr%idCounter + 1
-            quantityId = instancePtr%idCounter
+            quantityId = quantityPtr%id
          end if
       end function ecInstanceCreateQuantity
       
@@ -276,7 +274,7 @@ module m_ec_instance
          !
          elementSetPtr => null()
          elementSetId = ec_undef_int
-         elementSetPtr => ecElementSetCreate(instancePtr%idCounter + 1)
+         elementSetPtr => ecElementSetCreate(instancePtr%nElementSets + 1)
          if (associated(elementSetPtr)) then
             ! ensure capacity
             if (instancePtr%nElementSets == size(instancePtr%ecElementSetsPtr)) then
@@ -287,8 +285,7 @@ module m_ec_instance
             ! register the ElementSet
             instancePtr%nElementSets = instancePtr%nElementSets + 1
             instancePtr%ecElementSetsPtr(instancePtr%nElementSets)%ptr => elementSetPtr
-            instancePtr%idCounter = instancePtr%idCounter + 1
-            elementSetId = instancePtr%idCounter
+            elementSetId = elementSetPtr%id
          end if
       end function ecInstanceCreateElementSet
       
@@ -304,7 +301,7 @@ module m_ec_instance
          !
          fieldPtr => null()
          fieldId = ec_undef_int
-         fieldPtr => ecFieldCreate(instancePtr%idCounter + 1)
+         fieldPtr => ecFieldCreate(instancePtr%nFields + 1)
          if (associated(fieldPtr)) then
             ! ensure capacity
             if (instancePtr%nFields == size(instancePtr%ecFieldsPtr)) then
@@ -315,8 +312,7 @@ module m_ec_instance
             ! register the Field
             instancePtr%nFields = instancePtr%nFields + 1
             instancePtr%ecFieldsPtr(instancePtr%nFields)%ptr => fieldPtr
-            instancePtr%idCounter = instancePtr%idCounter + 1
-            fieldId = instancePtr%idCounter
+            fieldId = fieldPtr%id
          end if
       end function ecInstanceCreateField
       
@@ -332,7 +328,7 @@ module m_ec_instance
          !
          connectionPtr => null()
          connectionId = ec_undef_int
-         connectionPtr => ecConnectionCreate(instancePtr%idCounter + 1)
+         connectionPtr => ecConnectionCreate(instancePtr%nConnections + 1)
          if (associated(connectionPtr)) then
             ! ensure capacity
             if (instancePtr%nConnections == size(instancePtr%ecConnectionsPtr)) then
@@ -343,8 +339,7 @@ module m_ec_instance
             ! register the Connection
             instancePtr%nConnections = instancePtr%nConnections + 1
             instancePtr%ecConnectionsPtr(instancePtr%nConnections)%ptr => connectionPtr
-            instancePtr%idCounter = instancePtr%idCounter + 1
-            connectionId = instancePtr%idCounter
+            connectionId = connectionPtr%id
          end if
       end function ecInstanceCreateConnection
       
@@ -360,7 +355,7 @@ module m_ec_instance
          !
          converterPtr => null()
          converterId = ec_undef_int
-         converterPtr => ecConverterCreate(instancePtr%idCounter + 1)
+         converterPtr => ecConverterCreate(instancePtr%nConverters + 1)
          if (associated(converterPtr)) then
             ! ensure capacity
             if (instancePtr%nConverters == size(instancePtr%ecConvertersPtr)) then
@@ -371,8 +366,7 @@ module m_ec_instance
             ! register the Converter
             instancePtr%nConverters = instancePtr%nConverters + 1
             instancePtr%ecConvertersPtr(instancePtr%nConverters)%ptr => converterPtr
-            instancePtr%idCounter = instancePtr%idCounter + 1
-            converterId = instancePtr%idCounter
+            converterId = converterPtr%id
          end if
       end function ecInstanceCreateConverter
       
@@ -387,7 +381,7 @@ module m_ec_instance
          type(tEcFileReader), pointer :: fileReaderPtr !< the new FileReader
          !
          fileReaderId = ec_undef_int
-         fileReaderPtr => ecFileReaderCreate(instancePtr%idCounter + 1)
+         fileReaderPtr => ecFileReaderCreate(instancePtr%nFileReaders + 1)
          if (associated(fileReaderPtr)) then
             ! ensure capacity
             if (instancePtr%nFileReaders == size(instancePtr%ecFileReadersPtr)) then
@@ -398,8 +392,7 @@ module m_ec_instance
             ! register the FileReader
             instancePtr%nFileReaders = instancePtr%nFileReaders + 1
             instancePtr%ecFileReadersPtr(instancePtr%nFileReaders)%ptr => fileReaderPtr
-            instancePtr%idCounter = instancePtr%idCounter + 1
-            fileReaderId = instancePtr%idCounter
+            fileReaderId = fileReaderPtr%id
          end if
       end function ecInstanceCreateFileReader
 
@@ -410,7 +403,7 @@ module m_ec_instance
          !
          type(tEcBCBlock), pointer             :: bcblockPtr   !< intent(out), the new BCBlock
          bcblockId = ec_undef_int
-         bcblockPtr => ecBCBlockCreate(instancePtr%idCounter + 1)
+         bcblockPtr => ecBCBlockCreate(instancePtr%nBCblocks + 1)
          if (associated(bcblockPtr)) then
             ! ensure capacity
             if (instancePtr%nBCBlocks == size(instancePtr%ecBCBlocksPtr)) then
@@ -421,8 +414,7 @@ module m_ec_instance
             ! register the BCBlock
             instancePtr%nBCBlocks = instancePtr%nBCBlocks + 1
             instancePtr%ecBCBlocksPtr(instancePtr%nBCBlocks)%ptr => bcblockPtr
-            instancePtr%idCounter = instancePtr%idCounter + 1
-            bcblockId = instancePtr%idCounter
+            bcblockId = bcblockPtr%id
          end if
       end function ecInstanceCreateBCBlock
       
@@ -436,7 +428,7 @@ module m_ec_instance
          !
          type(tEcNetCDF), pointer              :: netCDFPtr   !< intent(out), the new BCBlock
          netCDFId = ec_undef_int
-         netCDFPtr => ecNetCDFCreate(instancePtr%idCounter + 1)
+         netCDFPtr => ecNetCDFCreate(instancePtr%nNetCDFs + 1)
          if (associated(netCDFPtr)) then
             ! ensure capacity
             if (instancePtr%nNetCDFs == size(instancePtr%ecNetCDFsPtr)) then
@@ -447,8 +439,7 @@ module m_ec_instance
             ! register the new instance
             instancePtr%nNetCDFs = instancePtr%nNetCDFs + 1
             instancePtr%ecNetCDFsPtr(instancePtr%nNetCDFs)%ptr => netCDFPtr
-            instancePtr%idCounter = instancePtr%idCounter + 1
-            netCDFId = instancePtr%idCounter
+            netCDFId = netCDFPtr%id
          end if
       end function ecInstanceCreateNetCDF
 
@@ -534,7 +525,7 @@ module m_ec_instance
                if (associated(targetItemPtr%quantityPtr)) then
                   write(line,'(a,i5.5,a,i1,a)') 'Target Item ', targetItemPtr%id, ' (name='//trim(targetItemPtr%quantityPtr%name)//', vectormax=',targetItemPtr%quantityPtr%vectormax,')'
                else
-                  write(line,'(a,i5.5,a,i1,a)') 'Target Item ', targetItemPtr%id
+                  write(line,'(a,i5.5)') 'Target Item ', targetItemPtr%id
                endif
                call messenger(lvl, line)
                if (associated(targetItemPtr%elementSetPtr)) then
@@ -548,14 +539,13 @@ module m_ec_instance
                do ic=1, targetItemPtr%nConnections
                   connectionPtr => targetItemPtr%connectionsPtr(ic)%ptr
                   if (associated(connectionPtr%converterPtr)) then
-                     write(line,'(a,i5.5,a,i5.5,a,i3.3)') '   Connection ',connectionPtr%id,', Converter ',connectionPtr%converterPtr%id,', targetIndex ',connectionPtr%converterPtr%targetIndex  
+                     write(line,'(a,i5.5,a,i5.5,a,i5.4)') '   Connection ',connectionPtr%id,', Converter ',connectionPtr%converterPtr%id,', targetIndex ',connectionPtr%converterPtr%targetIndex  
                   else
-                     write(line,'(a,i5.5,a,i5.5,a,i3.3)') '   Connection ',connectionPtr%id,', Converter NONE !'
+                     write(line,'(a,i5.5,a)') '   Connection ',connectionPtr%id,', Converter NONE !'
                   end if
                   call messenger(lvl, line)
                   if (connectionPtr%nSourceItems==0) then
-                     write(line,'(a)') '   CONNECTION HAS NO SOURCE ITEMS !!!'
-                     call messenger(lvl, line)
+                     call messenger(lvl, '   CONNECTION HAS NO SOURCE ITEMS !!!')
                   end if
                   do js=1, connectionPtr%nSourceItems
                      sourceItemPtr => connectionPtr%sourceItemsPtr(js)%ptr
@@ -579,14 +569,12 @@ module m_ec_instance
                               if (associated(sourceItemPtr%QuantityPtr)) then
                               !  if (allocated(sourceItemPtr%QuantityPtr%name))  write(dev,'(a)') '            Quantity = '//trim(sourceItemPtr%QuantityPtr%name)
                                  if (len_trim(sourceItemPtr%QuantityPtr%name)>0) then
-                                    write(line,'(a)') '            Quantity = '//trim(sourceItemPtr%QuantityPtr%name)
-                                    call messenger(lvl, line)
+                                    call messenger(lvl, '            Quantity = '//trim(sourceItemPtr%QuantityPtr%name))
                                  end if
                               end if
                               if (associated(sourceItemPtr%ElementSetPtr)) then
                                  if (len_trim(sourceItemPtr%ElementSetPtr%name)>0) then
-                                    write(line,'(a)') '            Location = '//trim(sourceItemPtr%ElementSetPtr%name)
-                                    call messenger(lvl, line)
+                                    call messenger(lvl, '            Location = '//trim(sourceItemPtr%ElementSetPtr%name))
                                  end if
                               end if 
                               exit frs ! exits outer named do loop

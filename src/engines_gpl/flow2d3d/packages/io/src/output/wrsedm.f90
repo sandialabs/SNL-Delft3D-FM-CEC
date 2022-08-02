@@ -1,12 +1,12 @@
 subroutine wrsedm(lundia    ,error     ,mmax      ,kmax      ,nmaxus    , &
                 & lsed      ,lsedtot   ,irequest  ,fds       ,grpnam    , &
-                & sbuu      ,sbvv      ,ws        ,dps       , & 
+                & sbuu      ,sbvv      ,ws        ,dps       ,seddif    , & 
                 & filename  ,gdp       ,filetype  , &
                 & mf        ,ml        ,nf        ,nl        , &
                 & iarrc     ,kfsmin    ,kfsmax    )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -30,8 +30,8 @@ subroutine wrsedm(lundia    ,error     ,mmax      ,kmax      ,nmaxus    , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: wrsedm.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/io/src/output/wrsedm.f90 $
+!  $Id: wrsedm.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/flow2d3d/packages/io/src/output/wrsedm.f90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: Writes the time varying data for sediment transport to the
@@ -101,12 +101,18 @@ subroutine wrsedm(lundia    ,error     ,mmax      ,kmax      ,nmaxus    , &
     real(fp), dimension(:,:)             , pointer :: svcor
     real(fp), dimension(:,:)             , pointer :: sinkse
     real(fp), dimension(:,:)             , pointer :: sourse
+    real(fp), dimension(:)               , pointer :: taub
     real(fp), dimension(:,:)             , pointer :: taurat
     real(fp), dimension(:)               , pointer :: ust2
     real(fp), dimension(:)               , pointer :: umod
     real(fp), dimension(:)               , pointer :: uuu
     real(fp), dimension(:)               , pointer :: vvv
     real(fp), dimension(:)               , pointer :: zumod
+    integer          , dimension(:)      , pointer :: noutpar
+    integer          , dimension(:,:)    , pointer :: ioutpar
+    real(fp)         , dimension(:,:)    , pointer :: outpar
+    character(256)   , dimension(:,:)    , pointer :: outpar_name
+    character(256)   , dimension(:,:)    , pointer :: outpar_longname
     integer                              , pointer :: nmaxgl
     integer                              , pointer :: mmaxgl
 !
@@ -125,6 +131,7 @@ subroutine wrsedm(lundia    ,error     ,mmax      ,kmax      ,nmaxus    , &
     real(fp), dimension(gdp%d%nlb:gdp%d%nub, gdp%d%mlb:gdp%d%mub, 0:kmax, lsed), intent(in)  :: ws      !  Description and declaration in esm_alloc_real.f90
     real(fp), dimension(gdp%d%nlb:gdp%d%nub, gdp%d%mlb:gdp%d%mub, lsedtot)     , intent(in)  :: sbuu    !  Description and declaration in esm_alloc_real.f90
     real(fp), dimension(gdp%d%nlb:gdp%d%nub, gdp%d%mlb:gdp%d%mub, lsedtot)     , intent(in)  :: sbvv    !  Description and declaration in esm_alloc_real.f90
+    real(fp), dimension(gdp%d%nlb:gdp%d%nub, gdp%d%mlb:gdp%d%mub, 0:kmax, lsed), intent(in)  :: seddif  !  Description and declaration in esm_alloc_real.f90
     integer                                                                    , intent(in)  :: fds    
 
     integer                                                                    , intent(in)  :: filetype
@@ -154,6 +161,7 @@ subroutine wrsedm(lundia    ,error     ,mmax      ,kmax      ,nmaxus    , &
     integer    , dimension(3,5)                   :: uindex
     real(fp)   , dimension(:,:)    , allocatable  :: rbuff2
     real(fp)   , dimension(:,:,:)  , allocatable  :: rbuff3
+    character(3)                                  :: sednr
     character(10)                                 :: transpunit
     character(16)                                 :: dxname
     character(256)                                :: errmsg      ! Character var. containing the errormessage to be written to file. The message depends on the error. 
@@ -215,12 +223,18 @@ subroutine wrsedm(lundia    ,error     ,mmax      ,kmax      ,nmaxus    , &
     svcor          => gdp%gderosed%e_scrt
     sinkse         => gdp%gderosed%sinkse
     sourse         => gdp%gderosed%sourse
+    taub           => gdp%gderosed%taub
     taurat         => gdp%gderosed%taurat
     ust2           => gdp%gderosed%ust2
     umod           => gdp%gderosed%umod
     uuu            => gdp%gderosed%uuu
     vvv            => gdp%gderosed%vvv
     zumod          => gdp%gderosed%zumod
+    noutpar        => gdp%gdtrapar%noutpar
+    ioutpar        => gdp%gdtrapar%ioutpar
+    outpar         => gdp%gdtrapar%outpar
+    outpar_name    => gdp%gdtrapar%outpar_name
+    outpar_longname=> gdp%gdtrapar%outpar_longname
     mmaxgl         => gdp%gdparall%mmaxgl
     nmaxgl         => gdp%gdparall%nmaxgl
     lfsdu          => gdp%gdprocs%lfsdu
@@ -312,6 +326,9 @@ subroutine wrsedm(lundia    ,error     ,mmax      ,kmax      ,nmaxus    , &
           call addelm(gdp, lundia, FILOUT_MAP, grpnam, 'SBVV', ' ', io_prec         , 3, dimids=(/iddim_nc, iddim_m , iddim_lsedtot/), longname='Bed-load transport v-direction (v point)', unit=transpunit, acl='v')
        endif
        if (lsed > 0) then
+          if (moroutput%seddif) then
+             call addelm(gdp, lundia, FILOUT_MAP, grpnam, 'SEDDIF', ' ', io_prec      , 4, dimids=(/iddim_n , iddim_m, iddim_kmaxout, iddim_lsed/), longname='Vertical sediment diffusion (zeta point)', unit='m2/s', acl='z')
+          endif
           if (moroutput%ssuuvv) then
              call addelm(gdp, lundia, FILOUT_MAP, grpnam, 'SSUU', ' ', io_prec      , 3, dimids=(/iddim_n , iddim_mc, iddim_lsed/), longname='Suspended-load transport u-direction (u point)', unit=transpunit, acl='u')
              call addelm(gdp, lundia, FILOUT_MAP, grpnam, 'SSVV', ' ', io_prec      , 3, dimids=(/iddim_nc, iddim_m , iddim_lsed/), longname='Suspended-load transport v-direction (v point)', unit=transpunit, acl='v')
@@ -341,6 +358,9 @@ subroutine wrsedm(lundia    ,error     ,mmax      ,kmax      ,nmaxus    , &
        endif
        if (scour) then
           call addelm(gdp, lundia, FILOUT_MAP, grpnam, 'TAUADD', ' ', io_prec    , 2, dimids=(/iddim_n, iddim_m/), longname='Extra shear stress due to scour feature', unit='N/m2', acl='z')
+       endif
+       if (moroutput%taub) then
+          call addelm(gdp, lundia, FILOUT_MAP, grpnam, 'TAUB', ' ', io_prec    , 2, dimids=(/iddim_n, iddim_m/), longname='Bed shear stress used for morphology', unit='N/m2', acl='z')
        endif
        if (moroutput%taurat) then
           call addelm(gdp, lundia, FILOUT_MAP, grpnam, 'TAURAT', ' ', io_prec    , 3, dimids=(/iddim_n, iddim_m, iddim_lsedtot/), longname='Excess bed shear ratio', acl='z')
@@ -376,6 +396,14 @@ subroutine wrsedm(lundia    ,error     ,mmax      ,kmax      ,nmaxus    , &
        endif
        if (moroutput%hidexp) then
           call addelm(gdp, lundia, FILOUT_MAP, grpnam, 'HIDEXP', ' ', io_prec    , 3, dimids=(/iddim_n, iddim_m, iddim_lsedtot/), longname='Hiding and exposure factor', acl='z')
+       endif
+       if (moroutput%sedpar) then
+          do l = 1, lsedtot
+             write(sednr,'(I3.3)') l
+             do k = 1, noutpar(l)
+                call addelm(gdp, lundia, FILOUT_MAP, grpnam, trim(outpar_name(k,l))//trim(sednr), ' ', io_prec    , 2, dimids=(/iddim_n, iddim_m/), longname=trim(outpar_longname(k,l))//' for '//trim(gdp%gdsedpar%namsed(l)), acl='z')
+             enddo
+          enddo
        endif
        !
        ! Add mor fields
@@ -885,6 +913,17 @@ subroutine wrsedm(lundia    ,error     ,mmax      ,kmax      ,nmaxus    , &
           if (ierror /= 0) goto 9999
        endif
        !
+       if (lsed > 0 .and. moroutput%seddif) then
+          !
+          ! element 'SEDDIF'
+          !
+          call wrtarray_nmkl(fds, filename, filetype, grpnam, celidt, &
+                        & nf, nl, mf, ml, iarrc, gdp, &
+                        & 0, kmax, lsed, ierror, lundia, seddif, 'SEDDIF', &
+                        & smlay, kmaxout, kfsmin, kfsmax)
+          if (ierror /= 0) goto 9999
+       endif
+       !
        if (lsed > 0 .and. moroutput%ssuuvv) then
           !
           ! element 'SSUU'
@@ -1090,6 +1129,16 @@ subroutine wrsedm(lundia    ,error     ,mmax      ,kmax      ,nmaxus    , &
           if (ierror /= 0) goto 9999
        endif
        !
+       if (moroutput%taub) then
+          !
+          ! element 'TAUB'
+          !
+          call wrtarray_nm_ptr(fds, filename, filetype, grpnam, celidt, &
+                        & nf, nl, mf, ml, iarrc, gdp, &
+                        & ierror, lundia, taub, 'TAUB')
+          if (ierror /= 0) goto 9999
+       endif
+       !
        if (moroutput%taurat) then
           !
           ! element 'TAURAT'
@@ -1194,6 +1243,29 @@ subroutine wrsedm(lundia    ,error     ,mmax      ,kmax      ,nmaxus    , &
                         & nf, nl, mf, ml, iarrc, gdp, lsedtot, &
                         & ierror, lundia, hidexp, 'HIDEXP')
           if (ierror /= 0) goto 9999
+       endif
+       !
+       if (moroutput%sedpar) then
+          allocate( rbuff2(gdp%d%nlb:gdp%d%nub, gdp%d%mlb:gdp%d%mub) )
+          i = 0
+          do l = 1, lsedtot
+             write(sednr,'(I3.3)') l
+             do k = 1, noutpar(l)
+                i = ioutpar(k,l)
+                rbuff2(:, :) = -999.0_fp
+                do m = 1, mmax
+                   do n = 1, nmaxus
+                      call n_and_m_to_nm(n, m, nm, gdp)
+                      rbuff2(n, m) = outpar(i,nm)
+                   enddo
+                enddo
+                call wrtarray_nm(fds, filename, filetype, grpnam, celidt, &
+                              & nf, nl, mf, ml, iarrc, gdp, &
+                              & ierror, lundia, rbuff2, trim(outpar_name(k,l))//trim(sednr))
+                if (ierror /= 0) goto 9999
+             enddo
+          enddo
+          deallocate(rbuff2)
        endif
        !
        ! Add mor fields

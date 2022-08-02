@@ -1,7 +1,7 @@
 module nan_check_module
 !----- LGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This library is free software; you can redistribute it and/or                
 !  modify it under the terms of the GNU Lesser General Public                   
@@ -25,8 +25,8 @@ module nan_check_module
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: nan_check_module.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/deltares_common/packages/deltares_common/src/nan_check_module.f90 $
+!  $Id: nan_check_module.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_lgpl/deltares_common/packages/deltares_common/src/nan_check_module.f90 $
 !!--module description----------------------------------------------------------
 !
 ! This module provides a subroutine nan_check for 1D, 2D, 3D and 4D,
@@ -54,7 +54,7 @@ logical function nan_check_1D_sp(field, fieldnam, lundia) result (retval)
 !
 !!--declarations----------------------------------------------------------------
     !
-    ! Call variables
+    ! Arguments
     !
     real(kind=4), dimension(:), intent(in) :: field
     character*(*), intent(in)              :: fieldnam
@@ -86,7 +86,7 @@ logical function nan_check_2D_sp(field, fieldnam, lundia) result (retval)
 !
 !!--declarations----------------------------------------------------------------
     !
-    ! Call variables
+    ! Arguments
     !
     real(kind=4), dimension(:,:), intent(in) :: field
     character*(*), intent(in)                :: fieldnam
@@ -120,7 +120,7 @@ logical function nan_check_3D_sp(field, fieldnam, lundia) result (retval)
 !
 !!--declarations----------------------------------------------------------------
     !
-    ! Call variables
+    ! Arguments
     !
     real(kind=4), dimension(:,:,:), intent(in) :: field
     character*(*), intent(in)                  :: fieldnam
@@ -156,7 +156,7 @@ logical function nan_check_4D_sp(field, fieldnam, lundia) result (retval)
 !
 !!--declarations----------------------------------------------------------------
     !
-    ! Call variables
+    ! Arguments
     !
     real(kind=4), dimension(:,:,:,:), intent(in) :: field
     character*(*), intent(in)                    :: fieldnam
@@ -194,7 +194,7 @@ logical function nan_check_1D_dp(field, fieldnam, lundia) result (retval)
 !
 !!--declarations----------------------------------------------------------------
     !
-    ! Call variables
+    ! Arguments
     !
     real(kind=8), dimension(:), intent(in) :: field
     character*(*), intent(in)              :: fieldnam
@@ -226,7 +226,7 @@ logical function nan_check_2D_dp(field, fieldnam, lundia) result (retval)
 !
 !!--declarations----------------------------------------------------------------
     !
-    ! Call variables
+    ! Arguments
     !
     real(kind=8), dimension(:,:), intent(in) :: field
     character*(*), intent(in)                :: fieldnam
@@ -260,7 +260,7 @@ logical function nan_check_3D_dp(field, fieldnam, lundia) result (retval)
 !
 !!--declarations----------------------------------------------------------------
     !
-    ! Call variables
+    ! Arguments
     !
     real(kind=8), dimension(:,:,:), intent(in) :: field
     character*(*), intent(in)                  :: fieldnam
@@ -296,7 +296,7 @@ logical function nan_check_4D_dp(field, fieldnam, lundia) result (retval)
 !
 !!--declarations----------------------------------------------------------------
     !
-    ! Call variables
+    ! Arguments
     !
     real(kind=8), dimension(:,:,:,:), intent(in) :: field
     character*(*), intent(in)                    :: fieldnam

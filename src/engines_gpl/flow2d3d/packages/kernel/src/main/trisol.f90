@@ -8,7 +8,7 @@ subroutine trisol(dischy    ,solver    ,icreep    ,ithisc    , &
                 & error     ,gdp       )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -32,8 +32,8 @@ subroutine trisol(dischy    ,solver    ,icreep    ,ithisc    , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: trisol.f90 65922 2020-02-03 13:22:49Z jagers $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/kernel/src/main/trisol.f90 $
+!  $Id: trisol.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/flow2d3d/packages/kernel/src/main/trisol.f90 $
 !!--description-----------------------------------------------------------------
 !
 ! This routine basically carries out the hydrodynamics
@@ -1935,7 +1935,7 @@ subroutine trisol(dischy    ,solver    ,icreep    ,ithisc    , &
                     & r(r0)     ,r(wrkb5)  ,r(wrkb6)  ,r(s0)     ,d(dps)    , &
                     & r(z0urou) ,r(z0vrou) ,r(sour)   ,r(sink)   ,r(rhowat) , &
                     & r(ws)     ,r(z0ucur) ,r(z0vcur) ,r(sigmol) , &
-                    & r(taubmx) ,r(s1)     ,r(uorb)   ,r(tp)     ,r(sigdif) , &
+                    & r(taubmx) ,r(s1)     ,r(uorb)   ,r(tp)     , &
                     & lstsci    ,r(thick)  ,r(dicww)  ,i(kcs)    , &
                     & i(kcu)    ,i(kcv)    ,r(guv)    ,r(gvu)    ,r(sbuu)   , &
                     & r(sbvv)   ,r(seddif) ,r(hrms)   ,ltur      , &
@@ -3003,7 +3003,7 @@ subroutine trisol(dischy    ,solver    ,icreep    ,ithisc    , &
                        & r(r0)     ,r(wrkb5)  ,r(wrkb6)  ,r(s0)     ,d(dps)    , &
                        & r(z0urou) ,r(z0vrou) ,r(sour)   ,r(sink)   ,r(rhowat) , &
                        & r(ws)     ,r(z0ucur) ,r(z0vcur) ,r(sigmol) , &
-                       & r(taubmx) ,r(s1)     ,r(uorb)   ,r(tp)     ,r(sigdif) , &
+                       & r(taubmx) ,r(s1)     ,r(uorb)   ,r(tp)     , &
                        & lstsci    ,r(thick)  ,r(dicww)  ,i(kcs)    , &
                        & i(kcu)    ,i(kcv)    ,r(guv)    ,r(gvu)    ,r(sbuu)   , &
                        & r(sbvv)   ,r(seddif) ,r(hrms)   ,ltur      , &

@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -32,7 +32,7 @@
 !
 !   Programmer: Edwin Vollebregt (VORtech)
 !
-!   $URL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/waq/packages/waq_utils_f/src/mod_timings/m_timings.f90 $
+!   $URL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/waq/packages/waq_utils_f/src/mod_timings/m_timings.f90 $
 !   $Revision: 33 $, $Date: 2007-11-02 16:51:48 +0100 (Fri, 02 Nov 2007) $
 !
 !   Version 1.0  21-09-2007  initial version

@@ -1,7 +1,7 @@
 module meteo
 !----- LGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This library is free software; you can redistribute it and/or                
 !  modify it under the terms of the GNU Lesser General Public                   
@@ -25,8 +25,8 @@ module meteo
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: meteo.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/ec_module/packages/ec_module/src/meteo/meteo.f90 $
+!  $Id: meteo.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_lgpl/ec_module/packages/ec_module/src/meteo/meteo.f90 $
 !!--description-----------------------------------------------------------------
 !
 ! Read time series in five possible formats:
@@ -670,6 +670,69 @@ function getmeteotypes(runid, meteotypes, mtdim) result(success)
       mtdim = dimmeteotypes
    endif
 end function getmeteotypes
+!
+!
+!===============================================================================
+function getmeteoquantities(runid, meteoquantities) result(success)
+   use m_alloc
+   implicit none
+!
+! Return value
+!
+   logical :: success
+!
+! Global variables
+!
+   character(*) , intent(in)  :: runid
+   character(60), dimension(:), allocatable, intent(out)  :: meteoquantities
+!
+! Local variables
+!
+   integer                             :: dimmeteoquantities
+   integer                             :: i
+   integer                             :: j
+   integer                             :: k
+   integer                             :: ierr
+   logical                             :: newquant
+   character(60)                       :: curquant
+   type(tmeteo)              , pointer :: meteo     ! all meteo for one subdomain
+   type(tmeteoitem)          , pointer :: meteoitem
+!
+!! executable statements -------------------------------------------------------
+!
+   success = .true.
+   call getmeteopointer(runid, meteo)
+   if ( .not. associated(meteo) ) then
+      success = .false.
+      return
+   endif
+   ierr = 0
+   do i = 1, meteo%nummeteoitems
+      do k = 1, 3
+         curquant = meteo%item(i)%ptr%quantities(k)
+         if (curquant == ' ') cycle
+         newquant = .true.
+         if (allocated(meteoquantities)) then
+            dimmeteoquantities = size(meteoquantities)
+         else
+            dimmeteoquantities = 0
+         endif
+         do j = 1, dimmeteoquantities
+            if (meteoquantities(j) == curquant) then
+               newquant = .false.
+               exit
+            endif
+         enddo
+         if (newquant) then
+            call realloc(meteoquantities, size(meteoquantities)+1, stat=ierr, keepExisting=.true.)
+            meteoquantities(size(meteoquantities)) = curquant
+         endif
+      enddo
+   enddo
+   if (ierr /= 0) then
+      success = .false.
+   endif
+end function getmeteoquantities
 !
 !
 !===============================================================================

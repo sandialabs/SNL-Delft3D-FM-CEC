@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -24,36 +24,18 @@
       SUBROUTINE SRWSHL(ITIME, A, J, C)
       use timers
       use delwaq2_data
+      use m_sysn          ! System characteristics
+      use m_sysi          ! Timer characteristics
+      use m_sysa          ! Pointers in real array workspace
+      use m_sysj          ! Pointers in integer array workspace
+      use m_sysc          ! Pointers in character array workspace
       implicit none
 
       real,             dimension(*) :: a
       integer,          dimension(*) :: j
       character(len=*), dimension(*) :: c
 
-!
-!     COMMON  /  SYSN   /   System characteristics
-!
-      INCLUDE 'sysn.inc'
-!
-!     COMMON  /  SYSI   /   System characteristics
-!
-      INCLUDE 'sysi.inc'
-!
-!     COMMON  /  SYSJ   /   Pointers in integer array workspace
-!
-      INCLUDE 'sysj.inc'
-!
-!     COMMON  /  SYSA   /   Pointers in real array workspace
-!
-      INCLUDE 'sysa.inc'
-!
-!     COMMON  /  SYSC   /   Pointers in character array workspace
-!
-      INCLUDE 'sysc.inc'
-!
-!     Dynamical memory allocation
-!
-      INCLUDE 'fsm-fix.i'
+
 
       integer    itime
 
@@ -136,9 +118,9 @@
 !     MONAME  CHARACTER  *      INPUT  Model identification strings
 
 !     Delft-IO for SRW
-!     use dio_streams
-!     use dio_plt_rw
-      include 'dio-plt.inc'
+
+      use m_dio_plt
+
 
 !     DELWAQ variables from argument list
 !
@@ -451,36 +433,17 @@
       SUBROUTINE RTCSHL(ITIME, A, J, C)
       use timers
       use delwaq2_data
+      use m_sysn          ! System characteristics
+      use m_sysi          ! Timer characteristics
+      use m_sysa          ! Pointers in real array workspace
+      use m_sysj          ! Pointers in integer array workspace
+      use m_sysc          ! Pointers in character array workspace
       implicit none
 
       real,             dimension(*) :: a
       integer,          dimension(*) :: j
       character(len=*), dimension(*) :: c
 
-!
-!     COMMON  /  SYSN   /   System characteristics
-!
-      INCLUDE 'sysn.inc'
-!
-!     COMMON  /  SYSI   /   System characteristics
-!
-      INCLUDE 'sysi.inc'
-!
-!     COMMON  /  SYSJ   /   Pointers in integer array workspace
-!
-      INCLUDE 'sysj.inc'
-!
-!     COMMON  /  SYSA   /   Pointers in real array workspace
-!
-      INCLUDE 'sysa.inc'
-!
-!     COMMON  /  SYSC   /   Pointers in character array workspace
-!
-      INCLUDE 'sysc.inc'
-!
-!     Dynamical memory allocation
-!
-      INCLUDE 'fsm-fix.i'
 
       integer    itime
 !
@@ -507,7 +470,7 @@
      J             J(IPDMP),
      +             A(IBOUN),
      j             NOLOC ,
-     j             PROLOC,
+     j             A(IPLOC),
      j             NODEF ,
      +             A(IDEFA),
      j             NTDMPQ,
@@ -515,7 +478,10 @@
      J             C(ISNAM),
      J             C(IPNAM),
      J             C(ISFNA),
-     J             C(IFNAM) )
+     J             C(IFNAM),
+     &             J(IIOUT),
+     &             J(IIOPO),
+     &             C(IONAM))
 !
       if ( timon ) call timstop ( ithandl )
       RETURN
@@ -526,20 +492,20 @@
      +                   VOLUME, NOSEG , NOSYS , NDMPAR, IPDMP ,
      +                   BOUND , NOLOC , PROLOC, NODEF , DEFAUL,
      +                   NTDMPQ, DANAM , SYNAME, paname, sfname,
-     +                   funame)
+     +                   funame, IOUTPS, IOPOIN, OUNAM )
       use timers
 
 
       INTEGER    NOCONS, NOPA  , NOFUN , NOSFUN,
      +           NOTOT , IDT   , ITIME , NOSEG , NOSYS ,
      +           NDMPAR, NOLOC , NODEF , NTDMPQ
-      INTEGER    IPDMP(*)
+      INTEGER    IPDMP(*), IOUTPS(7,*), IOPOIN(*)
       REAL       CONC(NOTOT,*),
      +           SEGFUN(NOSEG,*), FUNC(*)      ,
      +           PARAM(*)       , CONS(*)      ,
      +           VOLUME(*)      , BOUND(*)     ,
      +           PROLOC(*)      , DEFAUL(*)
-      CHARACTER*20 DANAM(*), SYNAME(*)
+      CHARACTER*20 DANAM(*), SYNAME(*), OUNAM(*)
       character(len=20), intent(in   ) :: paname(*) ! parameter names
       character(len=20), intent(in   ) :: sfname(*) ! segment function names
       character(len=20), intent(in   ) :: funame(*) ! function names
@@ -555,7 +521,7 @@
 !     IOPOIN is not used if NRVAR = 0
 
       real, allocatable, save : : outval(:)
-      integer iopoin, nrvar, ncout, io_rtc, isys, idmp
+      integer nrvar, ncout, io_rtc, isys, idmp, nrvar2
       logical first, rewine
       character*40 moname(4)
       character*255 filnam
@@ -568,8 +534,6 @@
       save    filnam
       data    first   /.true./
       data    rewine  /.true./
-      data    io_rtc /1234/
-      data    nrvar  /0/
       data    moname /'Interface from Delwaq to RTC',
      j                'Concentrations for current time step',
      j                ' ',
@@ -577,8 +541,16 @@
       integer(4) ithandl /0/
       if ( timon ) call timstrt ( "rtcint", ithandl )
 
+      !
+      ! Pointers into the output system arrays
+      ! - use the history file
+      !
+      k1     = 1 + ioutps(4,1) + ioutps(4,2)
+      nrvar  = ioutps(4,3)
+      nrvar2 = nrvar / 2
+
       if ( first ) then
-          allocate ( outval(ndmpar*notot) )
+          allocate ( outval(ndmpar*(notot+nrvar2)) )
           filnam = ' '
           call getcom ( '-i'  , 3    , lfound, idummy, rdummy,
      +                  inifil, ierr2)
@@ -589,7 +561,7 @@
           else
              inifil = 'delwaq.ini'
           endif
-          open(io_rtc,file=inifil,status='old',err=123)
+          open(newunit=io_rtc,file=inifil,status='old',err=123)
           call gkwini(io_rtc,'SimulationOptions',
      j                       'FilenameRTCOutput',filnam)
           close (io_rtc)
@@ -597,8 +569,8 @@
           if ( filnam .eq. ' ' ) filnam = 'wq2rtc.his'
       endif
 
-      ncout =  notot
-      CALL FIOSUB       (OUTVAL, IOPOIN, NRVAR , NOCONS, NOPA  ,
+      ncout  = notot
+      CALL FIOSUB       (OUTVAL, IOPOIN(K1), NRVAR2 , NOCONS, NOPA  ,
      +                   NOFUN , NOSFUN, NOTOT , CONC  , SEGFUN,
      +                   FUNC  , PARAM , CONS  , IDT   , ITIME ,
      +                   VOLUME, NOSEG , NOSYS , NDMPAR, IPDMP ,
@@ -610,13 +582,14 @@
           CALL DHOPNF ( IO_RTC, FILNAM, 21    , 1     , IDUM  )
 
           write ( io_rtc ) moname
-          write ( io_rtc ) notot, ndmpar
-          write ( io_rtc ) (syname(isys),isys=1,notot)
+          write ( io_rtc ) notot+nrvar2, ndmpar
+          write ( io_rtc ) (syname(isys),isys=1,notot),
+     &                     (ounam(k1+isys-1),isys=1,nrvar2)
           write ( io_rtc ) (idmp,danam(idmp),idmp=1,ndmpar)
       endif
 
       write ( io_rtc ) itime
-      write ( io_rtc ) (outval(isys),isys=1,notot*ndmpar)
+      write ( io_rtc ) (outval(isys),isys=1,(notot+nrvar2)*ndmpar)
 
       if ( rewine ) close ( io_rtc )
 

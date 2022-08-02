@@ -1,7 +1,7 @@
 module swan_flow_grid_maps
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -25,8 +25,8 @@ module swan_flow_grid_maps
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: swan_flow_grid_maps.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/wave/packages/data/src/swan_flow_grid_maps.f90 $
+!  $Id: swan_flow_grid_maps.f90 140657 2022-01-24 13:27:19Z nabi $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/wave/packages/data/src/swan_flow_grid_maps.f90 $
 !!--description-----------------------------------------------------------------
 ! NONE
 !!--pseudo code and references--------------------------------------------------
@@ -70,7 +70,7 @@ module swan_flow_grid_maps
        integer, dimension(:,:), pointer         :: kcs             ! mask-array inactive points
        integer, dimension(:,:), pointer         :: covered         ! mask-array points covered by "other" program
        integer, dimension(:)  , pointer         :: numenclptsppart ! number of enclosure points per enclosure part
-       real                                     :: xymiss          ! missing value
+       real(kind=hp)                            :: xymiss          ! missing value
        real(kind=hp), dimension(:,:), pointer   :: x               ! x-coordinates cell center
        real(kind=hp), dimension(:,:), pointer   :: y               ! y-coordinates cell center
        real(kind=hp), dimension(:), pointer     :: bndx            ! x-coordinates boundary link corners
@@ -98,9 +98,13 @@ module swan_flow_grid_maps
        real   , dimension(:,:), pointer         :: dps             ! depth in water level points
        real   , dimension(:,:), pointer         :: windu           ! wind velocity component in x direction
        real   , dimension(:,:), pointer         :: windv           ! wind velocity component in y direction
+       real   , dimension(:,:), pointer         :: ice_frac        ! sea_ice_area_fraction
+       real   , dimension(:,:), pointer         :: floe_dia        ! floe_diameter
        real   , dimension(:,:), pointer         :: s1mud           ! mud level
        real   , dimension(:,:), pointer         :: dpsmud          ! mud related depth in water level points
        real   , dimension(:,:), pointer         :: veg             ! vegetation map - densities of plants per m2
+       real   , dimension(:,:), pointer         :: diaveg          ! vegetation map - stem diameter of plants [m]
+       real   , dimension(:,:), pointer         :: veg_stemheight  ! vegetation map - stem height of plants [m]
        real   , dimension(:,:), pointer         :: s1veg           ! vegetation level - dummy field of zeros
     end type input_fields                       
     !                                           
@@ -301,7 +305,7 @@ end subroutine grid_dd_corrections
 !
 !==============================================================================
 subroutine make_grid_map(i1, i2, g1, g2, gm, external_mapper)
-   use wave_data
+   use system_utils, only: ARCH
    use netcdf
    use m_polygon
    use m_tpoly
@@ -372,7 +376,7 @@ subroutine make_grid_map(i1, i2, g1, g2, gm, external_mapper)
          call wavestop(1, 'unable to locate "'//trim(searchstring)//'" in "'//trim(gm%w_tmp_filename)// '"')
       endif
       write(*,'(a)') '<<Run ESMF_RegridWeightGen...'
-      if (arch == 'linux') then
+      if (ARCH == 'linux') then
          write(*,'(a)')'>>...Check file esmf_sh.log'
          write(command, '(a)') 'ESMF_RegridWeightGen_in_Delft3D-WAVE.sh'
       else
@@ -556,13 +560,25 @@ end subroutine make_grid_map
 !
 !
 !==============================================================================
-subroutine alloc_input_fields (g,inpfld, mode)
+subroutine alloc_input_fields (g, inpfld, mode, ice)
    use wave_data
    implicit none
    !
+   ! arguments
    integer                 :: mode
    type(grid)              :: g
    type(input_fields)      :: inpfld
+   integer, optional       :: ice
+   !
+   ! locals
+   integer :: ice_
+   !
+   ! body
+   if (present(ice)) then
+      ice_ = ice
+   else
+      ice_ = 0
+   endif
    !
    ! Assign grid dimensions
    !
@@ -581,7 +597,9 @@ subroutine alloc_input_fields (g,inpfld, mode)
    allocate (inpfld%windu(inpfld%mmax,inpfld%nmax))
    allocate (inpfld%windv(inpfld%mmax,inpfld%nmax))
    allocate (inpfld%veg  (inpfld%mmax,inpfld%nmax))
-   allocate (inpfld%s1veg(inpfld%mmax,inpfld%nmax))
+   allocate (inpfld%diaveg        (inpfld%mmax,inpfld%nmax))
+   allocate (inpfld%veg_stemheight(inpfld%mmax,inpfld%nmax))
+   allocate (inpfld%s1veg         (inpfld%mmax,inpfld%nmax))
    !
    ! Initialise arrays
    !
@@ -590,6 +608,8 @@ subroutine alloc_input_fields (g,inpfld, mode)
    inpfld%v1    = 0.
    inpfld%dps   = 0.
    inpfld%veg   = 0.
+   inpfld%diaveg         = 0.
+   inpfld%veg_stemheight = 0.
    inpfld%s1veg = 0.
    inpfld%kfu   = 0
    inpfld%windu = 0.
@@ -603,6 +623,12 @@ subroutine alloc_input_fields (g,inpfld, mode)
       inpfld%s1mud    = 0.0
       inpfld%dpsmud   = 0.0
    endif
+   if (ice_ > 0) then
+      allocate (inpfld%ice_frac(inpfld%mmax,inpfld%nmax))
+      allocate (inpfld%floe_dia(inpfld%mmax,inpfld%nmax))
+      inpfld%ice_frac = 0.0
+      inpfld%floe_dia = 0.0
+   endif
 end subroutine alloc_input_fields
 !
 !
@@ -613,7 +639,7 @@ subroutine init_input_fields (inpfld,sr,itide)
    implicit none
    !
    type(input_fields)      :: inpfld
-   type(swan)              :: sr
+   type(swan_type)         :: sr
    integer                 :: itide
    !
    ! locals
@@ -642,13 +668,24 @@ end subroutine init_input_fields
 !
 !
 !==============================================================================
-subroutine dealloc_input_fields (inpfld, mode)
+subroutine dealloc_input_fields (inpfld, mode, ice)
    use wave_data
    implicit none
    !
    integer                 :: ierr
    integer                 :: mode
    type(input_fields)      :: inpfld
+   integer, optional       :: ice
+   !
+   ! locals
+   integer :: ice_
+   !
+   ! body
+   if (present(ice)) then
+      ice_ = ice
+   else
+      ice_ = -1
+   endif
    !
    deallocate (inpfld%s1   , stat=ierr)
    deallocate (inpfld%u1   , stat=ierr)
@@ -657,12 +694,18 @@ subroutine dealloc_input_fields (inpfld, mode)
    deallocate (inpfld%kfv  , stat=ierr)
    deallocate (inpfld%dps  , stat=ierr)
    deallocate (inpfld%veg  , stat=ierr)
+   deallocate (inpfld%diaveg        , stat=ierr)
+   deallocate (inpfld%veg_stemheight, stat=ierr)
    deallocate (inpfld%s1veg, stat=ierr)
    deallocate (inpfld%windu, stat=ierr)
    deallocate (inpfld%windv, stat=ierr)
    if (mode == flow_mud_online) then
       deallocate (inpfld%s1mud , stat=ierr)
       deallocate (inpfld%dpsmud, stat=ierr)
+   endif
+   if (ice_ > 0) then
+      deallocate (inpfld%ice_frac , stat=ierr)
+      deallocate (inpfld%floe_dia , stat=ierr)
    endif
 end subroutine dealloc_input_fields
 !

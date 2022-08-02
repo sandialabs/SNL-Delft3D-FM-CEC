@@ -401,7 +401,6 @@ rem ======================
     call :copyNetcdf
 
     call :copyFile engines_gpl\waq\default\bloom.spe                           !dest_default!
-    call :copyFile engines_gpl\waq\default\bloominp.d09                        !dest_default!
     call :copyFile engines_gpl\waq\default\proc_def.dat                        !dest_default!
     call :copyFile engines_gpl\waq\default\proc_def.def                        !dest_default!
 
@@ -753,7 +752,7 @@ if NOT %globalErrorLevel% EQU 0 (
     rem 
     echo An error occurred while executing this file
     echo Returning with error number %globalErrorLevel%
-    exit %globalErrorLevel%
+    exit /B %globalErrorLevel%
 )
 
 :endproc

@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -78,10 +78,17 @@
       use delwaq2_data
       use m_openda_exchange_items, only : get_openda_buffer
       use report_progress
+      use m_actions
+      use m_sysn          ! System characteristics
+      use m_sysi          ! Timer characteristics
+      use m_sysa          ! Pointers in real array workspace
+      use m_sysj          ! Pointers in integer array workspace
+      use m_sysc          ! Pointers in character array workspace
+      use m_dlwqdata_save_restore
+
 
       implicit none
 
-      include 'actions.inc'
 
 !
 !     Declaration of arguments
@@ -95,74 +102,35 @@
       TYPE(DELWAQ_DATA), TARGET   :: DLWQD
       type(GridPointerColl)       :: GridPs               ! collection of all grid definitions
 
-!
-!     COMMON  /  SYSN   /   System characteristics
-!
-      INCLUDE 'sysn.inc'
-!
-!     COMMON  /  SYSI  /    Timer characteristics
-!
-      INCLUDE 'sysi.inc'
-!
-!     COMMON  /  SYSA   /   Pointers in real array workspace
-!
-      INCLUDE 'sysa.inc'
-!
-!     COMMON  /  SYSJ   /   Pointers in integer array workspace
-!
-      INCLUDE 'sysj.inc'
-!
-!     COMMON  /  SYSC   /   Pointers in character array workspace
-!
-      INCLUDE 'sysc.inc'
+
 !
 !     Local declarations
 !
-      LOGICAL         IMFLAG , IDFLAG , IHFLAG , UPDATR
-      LOGICAL         OPFLAG , LDUMMY , LSTREC , LREWIN
+      LOGICAL         IMFLAG , IDFLAG , IHFLAG
+      LOGICAL         OPFLAG , LREWIN
       LOGICAL         LITREP
-      LOGICAL         FORESTER
-      real(8)         tol
 
-      INTEGER         ITIME
-      INTEGER         ITIMEL
-      INTEGER         IFFLAG
-      INTEGER         IAFLAG
-      INTEGER         IBFLAG
-      INTEGER         NDDIM
-      INTEGER         NVDIM
       INTEGER         ISYS
       INTEGER         ICSYS
       INTEGER         NSYS
-      INTEGER         INWTYP
       INTEGER         INTOP2
       INTEGER         ISTEP
       INTEGER         ITH
       INTEGER         I
       INTEGER         ISCALE
-      INTEGER         NOPRED
       INTEGER         ITER
       INTEGER         IOPTPC
 
       INTEGER         IBND
 
-      INTEGER         NOSSS
-      INTEGER         NOQT
-      INTEGER         NOQTT
-      INTEGER         NOWARN
-      INTEGER         IOPTZB
-      INTEGER         LLENG
       INTEGER         NSTEP
       INTEGER         IDTOLD
       REAL            SECPREV
 
-      integer       :: ithandl
       integer, save :: ithand1 = 0 ! Leave local
 
-      include 'state_data.inc'
-
       if ( action == ACTION_FINALISATION ) then
-          include 'dlwqdata_restore.inc'
+          call dlwqdata_restore(dlwqd)
           if ( timon ) call timstrt ( "dlwqno", ithandl )
           goto 20
       endif
@@ -220,13 +188,13 @@
 !
       IF ( ACTION == ACTION_INITIALISATION ) THEN
           if ( timon ) call timstrt ( "dlwqno", ithandl )
-          INCLUDE 'dlwqdata_save.inc'
+          call dlwqdata_save(dlwqd)
           if ( timon ) call timstop ( ithandl )
           RETURN
       ENDIF
 
       IF ( ACTION == ACTION_SINGLESTEP ) THEN
-          INCLUDE 'dlwqdata_restore.inc'
+          call dlwqdata_restore(dlwqd)
           call apply_operations( dlwqd )
       ENDIF
 

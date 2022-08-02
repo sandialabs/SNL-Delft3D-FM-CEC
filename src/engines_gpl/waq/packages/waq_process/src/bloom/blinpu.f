@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -72,8 +72,8 @@
       write(outdbg,'(1x,a/)') trim(idstr)
       write(outdbg, '(a/)') ' BLOOM debug file'
 
-      write(outdbg, '(a)')  ' From now on, BLOOM will not read the bloominp.D09 file any more. Some'
-      write(outdbg, '(a)')  ' of the options that were available trough this file are now accessible'
+      write(outdbg, '(a)')  ' Since August 2019, revision 64400, BLOOM will not read the bloominp.d09 file any more.'
+      write(outdbg, '(a)')  ' Some of the options that were available trough this file are now accessible'
       write(outdbg, '(a/)') ' through parameters settings. Consult the manual for details.'
 
 !  Determine nuspec and nuecog

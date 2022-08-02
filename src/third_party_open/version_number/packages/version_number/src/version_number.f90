@@ -24,8 +24,8 @@
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: version_number.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/third_party_open/version_number/packages/version_number/src/version_number.f90 $
+!  $Id: version_number.f90 66157 2020-03-06 17:08:38Z mourits $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/third_party_open/version_number/packages/version_number/src/version_number.f90 $
 program version_number
 implicit none
 !
@@ -69,10 +69,7 @@ revision = '**'
 config_major    = '**'
 config_minor    = '**'
 
-handlein  = 33
-handleout = 34
-
-open (unit=handlein, file=trim(vnInputFile), iostat=ierr)
+open (newunit=handlein, file=trim(vnInputFile), iostat=ierr)
 do
   read(handlein,'(a)', iostat=ierr) line
   if (ierr /= 0) then
@@ -115,8 +112,8 @@ do
   endif
 enddo
 
-open (unit=handlein , file=trim(inputFile), iostat=ierr)
-open (unit=handleout, file=trim(outputFile), iostat=ierr)
+open (newunit=handlein , file=trim(inputFile), iostat=ierr)
+open (newunit=handleout, file=trim(outputFile), iostat=ierr)
 do
   read(handlein,'(a)', iostat=ierr) line
   if (ierr /= 0) then

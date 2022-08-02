@@ -1,7 +1,7 @@
 module bmi
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -25,8 +25,8 @@ module bmi
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: wave_bmi.f90 65793 2020-01-15 16:29:01Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/wave/packages/wave/src/wave_bmi.f90 $
+!  $Id: wave_bmi.f90 141401 2022-06-24 13:08:33Z saggiora $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/wave/packages/wave/src/wave_bmi.f90 $
 !!--description-----------------------------------------------------------------
 ! NONE
 !!--pseudo code and references--------------------------------------------------
@@ -62,8 +62,7 @@ contains
 integer(c_int) function initialize(c_mdw_file) result(c_iresult) bind(C, name="initialize")
   !DEC$ ATTRIBUTES DLLEXPORT :: initialize
   use iso_c_binding, only: c_char
-  use wave_main
-  use swan_input
+  use wave_main, only: wave_main_init
   !
   ! Global
   character(kind=c_char),intent(in)    :: c_mdw_file(MAXSTRLEN)
@@ -182,8 +181,8 @@ end function finalize
 subroutine get_start_time(t) bind(C, name="get_start_time")
   !DEC$ ATTRIBUTES DLLEXPORT :: get_start_time
   use iso_c_binding, only: c_double
-  use wave_main
-  use swan_input
+  use precision
+  use wave_main, only: wavedata
   !
   ! Global
   real(c_double), intent(out) :: t
@@ -202,9 +201,9 @@ end subroutine get_start_time
 subroutine get_end_time(t) bind(C, name="get_end_time")
   !DEC$ ATTRIBUTES DLLEXPORT :: get_end_time
   use iso_c_binding, only: c_double
-  use wave_main
-  use wave_data
-  use swan_input
+  use precision
+  use wave_data, only: stand_alone, flow_online, flow_mud_online
+  use swan_input, only: swan_run
   !
   ! Global
   real(c_double), intent(out) :: t
@@ -237,9 +236,9 @@ end subroutine get_end_time
 subroutine get_time_step(dt) bind(C, name="get_time_step")
   !DEC$ ATTRIBUTES DLLEXPORT :: get_time_step
   use iso_c_binding, only: c_double
-  use wave_main
-  use wave_data
-  use swan_input
+  use precision
+  use wave_data, only: stand_alone, flow_online, flow_mud_online
+  use swan_input, only: swan_run
   !
   ! Global
   real(c_double), intent(out) :: dt
@@ -272,13 +271,14 @@ end subroutine get_time_step
 subroutine get_current_time(t) bind(C, name="get_current_time")
   !DEC$ ATTRIBUTES DLLEXPORT :: get_current_time
   use iso_c_binding, only: c_double
-  use wave_main
+  use precision
+  use wave_main, only: wavedata
   !
   ! Global
   real(c_double), intent(out) :: t
   !
   ! Body
-  t = real(wavedata%time%timsec,hp)
+  t = wavedata%time%timsec
 end subroutine get_current_time
 !
 !
@@ -288,6 +288,7 @@ subroutine get_var(c_var_name, x) bind(C, name="get_var")
   !DEC$ ATTRIBUTES DLLEXPORT :: get_var
   ! Return a pointer to the variable
   use iso_c_binding, only: c_double, c_char, c_loc
+  use wave_mpi, only: engine_comm_world
   !
   ! Global
   character(kind=c_char), intent(in) :: c_var_name(*)
@@ -305,6 +306,9 @@ subroutine get_var(c_var_name, x) bind(C, name="get_var")
   select case(var_name)
   case("mode")
      x = c_loc(wave_mode)
+     return
+  case("engine_comm_world")
+     x = c_loc(engine_comm_world)
      return
   end select
   !

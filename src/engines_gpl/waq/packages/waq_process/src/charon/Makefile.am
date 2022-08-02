@@ -11,7 +11,6 @@ noinst_LTLIBRARIES = libcharon.la
 #-------------------------------------------------------------------------------
 #Includes
 FMODULES += \
-        -I$(top_builddir)/engines_gpl/waq/include \
         -I$(top_builddir)/engines_gpl/waq/packages/waq_utils_f/src/waq_utils \
          -I$(top_builddir)/utils_lgpl/deltares_common/packages/deltares_common/src
 
@@ -53,7 +52,7 @@ libcharon_la_SOURCES = arith.f \
        simple.f \
        solve2.f \
        solvex.f \
-       start.f \
+       startch.f \
        wricha.f \
        xlog.f
 

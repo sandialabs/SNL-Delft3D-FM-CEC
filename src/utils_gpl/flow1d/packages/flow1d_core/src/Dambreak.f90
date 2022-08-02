@@ -1,7 +1,7 @@
    module m_Dambreak
    !----- AGPL --------------------------------------------------------------------
    !
-   !  Copyright (C)  Stichting Deltares, 2017-2020.
+   !  Copyright (C)  Stichting Deltares, 2017-2022.
    !
    !  This program is free software: you can redistribute it and/or modify
    !  it under the terms of the GNU Affero General Public License as
@@ -25,8 +25,8 @@
    !  Stichting Deltares. All rights reserved.
    !
    !-------------------------------------------------------------------------------
-   !  $Id: Dambreak.f90 65778 2020-01-14 14:07:42Z mourits $
-   !  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_gpl/flow1d/packages/flow1d_core/src/Dambreak.f90 $
+   !  $Id: Dambreak.f90 140856 2022-03-01 11:00:25Z noort $
+   !  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_gpl/flow1d/packages/flow1d_core/src/Dambreak.f90 $
    !-------------------------------------------------------------------------------
 
    use m_GlobalParameters
@@ -59,8 +59,10 @@
       double precision :: waterLevelUpstreamLocationY       = -999d0
       double precision :: waterLevelDownstreamLocationX     = -999d0	
       double precision :: waterLevelDownstreamLocationY     = -999d0
-      character(Charln) :: levelsAndWidths                  = ''
-      
+      character(IdLen) :: waterLevelUpstreamNodeId          = ''
+      character(IdLen) :: waterLevelDownstreamNodeId        = ''
+      character(IdLen):: levelsAndWidths                   = ''
+
       ! State variables, not to be read
       integer          :: phase
       double precision :: width

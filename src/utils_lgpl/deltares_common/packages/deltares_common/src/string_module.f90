@@ -1,7 +1,7 @@
 module string_module
 !----- LGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This library is free software; you can redistribute it and/or                
 !  modify it under the terms of the GNU Lesser General Public                   
@@ -25,8 +25,8 @@ module string_module
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: string_module.f90 65847 2020-01-23 21:24:15Z platzek $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/deltares_common/packages/deltares_common/src/string_module.f90 $
+!  $Id: string_module.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_lgpl/deltares_common/packages/deltares_common/src/string_module.f90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: - Various string processing routines
@@ -49,6 +49,7 @@ module string_module
    public :: str_toupper
    public :: str_upper
    public :: strcmpi
+   public :: trimexact
    public :: remove_leading_spaces
    public :: remove_all_spaces
    public :: replace_multiple_spaces_by_single_spaces
@@ -65,6 +66,7 @@ module string_module
    public :: strip_quotes
    public :: real2string, real2stringLeft
    public :: GetLine
+   public :: get_dirsep
 
    interface strip_quotes
       module procedure strip_quotes1
@@ -83,14 +85,14 @@ module string_module
       subroutine string_module_info(messages)
           use message_module
           !
-          ! Call variables
+          ! Arguments
           !
           type(message_stack), pointer :: messages
           !
           !! executable statements ---------------------------------------------------
           !
-          call addmessage(messages,'$Id: string_module.f90 65847 2020-01-23 21:24:15Z platzek $')
-          call addmessage(messages,'$URL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/deltares_common/packages/deltares_common/src/string_module.f90 $')
+          call addmessage(messages,'$Id: string_module.f90 140618 2022-01-12 13:12:04Z klapwijk $')
+          call addmessage(messages,'$URL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_lgpl/deltares_common/packages/deltares_common/src/string_module.f90 $')
       end subroutine string_module_info
 
 
@@ -110,7 +112,7 @@ module string_module
       ! ------------------------------------------------------------------------------
       subroutine str_token(string, token, quote, delims)
           !
-          ! Call variables
+          ! Arguments
           !
           character(*)          , intent(inout) :: string
           character(*)          , intent(out)   :: token
@@ -229,7 +231,7 @@ module string_module
       ! ------------------------------------------------------------------------------
       subroutine str_lower(string, lenstr)
           !
-          ! Call variables
+          ! Arguments
           !
           integer     , optional, intent(in) :: lenstr
           character(*)                       :: string
@@ -269,7 +271,7 @@ module string_module
       ! ------------------------------------------------------------------------------
       subroutine str_upper(string, lenstr)
           !
-          ! Call variables
+          ! Arguments
           !
           integer     , optional, intent(in) :: lenstr
           character(*)                       :: string
@@ -309,7 +311,7 @@ module string_module
       ! ------------------------------------------------------------------------------
       subroutine remove_all_spaces(string, lenstr)
           !
-          ! Call variables
+          ! Arguments
           !
           character(*)                       :: string
           integer     , optional, intent(out):: lenstr
@@ -354,7 +356,7 @@ module string_module
       ! ------------------------------------------------------------------------------
       subroutine replace_multiple_spaces_by_single_spaces(string)
           !
-          ! Call variables
+          ! Arguments
           !
           character(*)                       :: string
           !
@@ -410,7 +412,7 @@ module string_module
       ! ------------------------------------------------------------------------------
       subroutine remove_leading_spaces(string, lenstr)
           !
-          ! Call variables
+          ! Arguments
           !
           character(*)                       :: string
           integer     , optional, intent(out):: lenstr
@@ -445,6 +447,16 @@ module string_module
       end subroutine remove_leading_spaces
 
 
+      !> Trims input string to a given length, filling with spaces at the end when necessary.
+      !!
+      !! When input string is longer than length, result is identical to normal string.
+      !! When input string is shorter than length, result is filled with spaces on the right.
+      function trimexact(string, length) result(trimmed)
+         character(len=*), intent(in) :: string  !< Input string.
+         integer,          intent(in) :: length  !< Exact length for the returned string.
+         character(len=length)        :: trimmed !< Resulting string.
+         trimmed = string
+      end function trimexact
 
       ! ------------------------------------------------------------------------------
       !   Function:   strcmpi
@@ -457,7 +469,7 @@ module string_module
       ! ------------------------------------------------------------------------------
       function strcmpi(string1, string2, lenreq) result(retval)
           !
-          ! Call variables
+          ! Arguments
           !
           character(*)                   , intent(in) :: string1
           character(*)                   , intent(in) :: string2
@@ -722,24 +734,32 @@ module string_module
       end function char_array_to_string_by_len
 
 
-      subroutine get_substr_ndx(tgt,ndx0,ndx)
+      subroutine get_substr_ndx(tgt,ndx0,ndx,sep)
          implicit none
-         character(len=*), intent(in)   ::  tgt
-         integer, intent(inout)         ::  ndx0
-         integer, intent(inout)         ::  ndx
+         character(len=*), intent(in)           ::  tgt
+         integer, intent(inout)                 ::  ndx0
+         integer, intent(inout)                 ::  ndx
+         character(len=*), intent(in), optional ::  sep
          integer           :: ltrim
          logical           :: single_quoted
          logical           :: double_quoted
+         character(len=:), allocatable  :: sep_
+
+         if (present(sep)) then
+             sep_ = sep
+         else
+             sep_ = " "
+         endif
          single_quoted = .false.
          double_quoted = .false.
          ltrim = len_trim(tgt)
-         do while(is_whitespace(tgt(ndx0:ndx0)) .and. (ndx0<=ltrim))
+         do while((is_whitespace(tgt(ndx0:ndx0)) .or. index(tgt(ndx0:),sep_)==1) .and. (ndx0<=ltrim))
             ndx0 = ndx0 + 1
          enddo
          ndx = ndx0
          do while(ndx<=ltrim)
             if (.not.(single_quoted .or. double_quoted)) then
-               if (is_whitespace(tgt(ndx:ndx))) exit
+               if (is_whitespace(tgt(ndx:ndx)) .or. index(tgt(ndx:),sep_)==1) exit
             endif
             if (tgt(ndx:ndx)=='"') double_quoted = .not.double_quoted
             if (tgt(ndx:ndx)=="'") single_quoted = .not.single_quoted
@@ -749,19 +769,20 @@ module string_module
 
       !> Fill allocatable string array with elements of a space-delimited string
       !> The incoming string array must be unallocated
-      recursive subroutine strsplit(tgt, ndx0, pcs, npc)
+      recursive subroutine strsplit(tgt, ndx0, pcs, npc, sep)
          implicit none
          integer,          intent(in)                                 ::  npc   !< element index
          character(len=*), intent(in)                                 ::  tgt   !< input string
          integer, intent(in)                                          ::  ndx0  !< start position in string tgt
          character(len=*), intent(inout), dimension(:), allocatable   ::  pcs   !< resulting array of strings
+         character(len=*), intent(in), optional                       ::  sep   !< optional separator
 
          integer                          ::  ndx, ndx1    ! position in string
 
          ndx1 = ndx0
-         call get_substr_ndx(tgt,ndx1,ndx)
+         call get_substr_ndx(tgt,ndx1,ndx, sep)
          if (ndx<=len_trim(tgt)) then
-            call strsplit(tgt, ndx, pcs, npc+1)
+            call strsplit(tgt, ndx, pcs, npc+1, sep)
          else
             allocate(pcs(npc))
          endif
@@ -921,5 +942,26 @@ module string_module
         endif
       enddo
       end subroutine GetLine
+      
+      !>
+      !> Find out if system is PC (directory seperator character \ (92)
+      !>   or UNIX (directory seperator character / (47))
+      function get_dirsep()
+         implicit none
+         
+         character(len=1)     :: get_dirsep
+         
+         integer :: lslash
+         character  hlpstr*999,slash*1
+         
+         CALL GET_ENVIRONMENT_VARIABLE('PATH',hlpstr)
+         
+         slash  = CHAR  (47)
+         lslash = INDEX (hlpstr,slash)
+         if (lslash .eq. 0) then
+            slash  = CHAR  (92)
+         endif
+         get_dirsep = slash
+      end function get_dirsep
 
 end module string_module

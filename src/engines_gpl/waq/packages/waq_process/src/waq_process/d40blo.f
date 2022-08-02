@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -363,7 +363,7 @@
                NOLAY = MAX (1, NOLAY)
                NOSEGW = MAX (1, NOSEGW)
                NOSEGL = NOSEGW/NOLAY
-               IF ( NOSEGL*NOLAY .NE. NOSEG ) THEN
+               IF ( NOSEGL*NOLAY .NE. NOSEG .AND. .NOT. FM_VTRANS) THEN
                   CALL GETMLU(LUNREP)
                   WRITE(LUNREP,*) ' WARNING unstructured 3D application'
                   WRITE(LUNREP,*) ' BLOOM 3D light approach not possible'

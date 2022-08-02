@@ -3,7 +3,7 @@ subroutine rdtdf(lundia    ,luntdp    ,error     ,filnam    ,fmttmp    , &
                & gdp       )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -27,8 +27,8 @@ subroutine rdtdf(lundia    ,luntdp    ,error     ,filnam    ,fmttmp    , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: rdtdf.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/io/src/preprocessor/rdtdf.f90 $
+!  $Id: rdtdf.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/flow2d3d/packages/io/src/preprocessor/rdtdf.f90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: This general purpose routine reads the time depen-
@@ -100,8 +100,7 @@ subroutine rdtdf(lundia    ,luntdp    ,error     ,filnam    ,fmttmp    , &
        ittdep = -1
        itold  = -1
        !
-       lunrd = newlun(gdp)
-       open (lunrd, file = filnam(:lfile), form = fmttmp, status = 'old')
+       open (newunit=lunrd, file = filnam(:lfile), form = fmttmp, status = 'old')
        if (fmttmp(:2)/='un') then
           !
           !-----------skip lines starting with a '*'

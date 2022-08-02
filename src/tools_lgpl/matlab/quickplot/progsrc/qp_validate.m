@@ -3,7 +3,7 @@ function qp_validate(varargin)
 
 %----- LGPL --------------------------------------------------------------------
 %
-%   Copyright (C) 2011-2020 Stichting Deltares.
+%   Copyright (C) 2011-2022 Stichting Deltares.
 %
 %   This library is free software; you can redistribute it and/or
 %   modify it under the terms of the GNU Lesser General Public
@@ -28,13 +28,13 @@ function qp_validate(varargin)
 %
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/qp_validate.m $
-%   $Id: qp_validate.m 65939 2020-02-06 15:13:11Z jagers $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/tools_lgpl/matlab/quickplot/progsrc/qp_validate.m $
+%   $Id: qp_validate.m 140618 2022-01-12 13:12:04Z klapwijk $
 
 log_style('latex')
 baseini='validation.ini';
 val_dir = '';
-openlog = true;
+finish = 'openlog';
 extra_files = {'summary','failed_cases','all_cases'};
 sametype('');
 
@@ -44,7 +44,17 @@ while i<nargin
     switch lower(varargin{i})
         case 'openlog'
             i = i+1;
-            openlog = varargin{i};
+            if varargin{i}
+                finish = 'openlog';
+            else
+                finish = 'none';
+            end
+        case 'finish'
+            i = i+1;
+            switch lower(varargin{i});
+                case {'openlog','none','buildpdf'}
+                    finish = lower(varargin{i});
+            end
         case {'latex','html'}
             log_style(lower(varargin{i}))
         otherwise
@@ -154,6 +164,7 @@ qp_settings('defaultaxescolor',[255 255 255])
 DefFigProp.boundingbox = qp_settings('boundingbox',-999);
 qp_settings('boundingbox',0)
 current_procdef='';
+inTable2 = false;
 try
     full_ln=fullfile(val_dir,logname);
     if ~localexist(fullfile(val_dir,baseini))
@@ -172,11 +183,11 @@ try
         fileName = [f '_' extra_files{ifile} e];
         extlog.(fName).filename = fileName;
         %
-        extlog.(fName).fid = fopen([p filesep fileName],'w');
+        extlog.(fName).fid = fopen([p filesep fileName],'w','n','US-ASCII');
         extlog.(fName).empty = true;
     end
     %
-    logid1=fopen(full_ln,'w');
+    logid1=fopen(full_ln,'w','n','US-ASCII');
     if logid1<0
         ui_message('error',{'Cannot open logfile for validation report.','Stopping validation process.'})
         return
@@ -213,7 +224,7 @@ try
     sumt = 0;
     numt = 0;
     for i=1:length(d)
-        timid = fopen(fullfile(val_dir,d(i).name,'reference','timing.txt'));
+        timid = fopen(fullfile(val_dir,d(i).name,'reference','timing.txt'),'r','n','US-ASCII');
         if timid>0
             [dt2,cnt] = fscanf(timid,'%f',1);
             if cnt==1
@@ -239,12 +250,13 @@ try
     for i=1:length(d)
         progressbar(acc_dt/tot_dt,Hpb,'title',d(i).name);
         ui_message('',['Case: ',d(i).name])
+        fprintf('----- %s %s\n', d(i).name, repmat('-',1,93 - length(d(i).name)));
         includes{i,1} = [d(i).name '/'];
         includes{i,2} = logname;
         NTested=NTested+1;
         DiffFound=0;
         color    = '';
-        frcolor  = Color.Success; 
+        frcolor  = Color.Success;
         lgcolor  = Color.Font;
         result   = '';
         frresult = PASSED;
@@ -273,7 +285,7 @@ try
             end
             if localexist(CaseInfo)
                 CaseInfo=inifile('open',CaseInfo);
-                logid2=fopen(logname,'w');
+                logid2=fopen(logname,'w','n','US-ASCII');
                 dt2_old = d(i).dt;
                 t2 = write_header(logid2,d(i).name,Color);
                 emptyTable2 = true;
@@ -308,8 +320,8 @@ try
                     error('No work directory?')
                 end
                 delete('*')
-                FileName=inifile('get',CaseInfo,'*','FileName','');
-                FileName2=inifile('get',CaseInfo,'*','FileName2','');
+                FileName=inifile('getstring',CaseInfo,'','FileName','');
+                FileName2=inifile('getstring',CaseInfo,'','FileName2','');
                 if isempty(FileName2)
                     FileName2={};
                     write_section(logid2,'Opening ''%s''',protected(FileName));
@@ -323,7 +335,7 @@ try
                 d3d_qp('openfile',FileName,FileName2{:});
                 FI=qpfile;
                 if ~isstruct(FI)
-                    error('Error opening file.');
+                    error('Error opening file ''%s''.',FileName);
                 end
                 [ChkOK,Dms]=qp_getdata(FI,'domains');
                 write_log(logid2,'Reading domains: %s',sc{ChkOK+1});
@@ -335,16 +347,30 @@ try
                 for dm=1:dmx
                     [Chk,P]=qp_getdata(FI,dm);
                     write_log(logid2,'Reading fields of domain ''%s'': %s',protected(Dms{dm}),sc{Chk+1});
-                    ChkOK=Chk&ChkOK;
+                    ChkOK = Chk & ChkOK;
+                    if ~Chk
+                        continue
+                    end
+                    %
+                    szFail = {};
+                    szChkOK = true;
                     for p=1:length(P)
                         if strcmp(P(p).Name,'-------')
                             P(p).Size=[0 0 0 0 0];
                         else
                             [Chk,P(p).Size]=qp_getdata(FI,dm,P(p),'size');
-                            drawnow
-                            ChkOK=Chk&ChkOK;
+                            if ~Chk
+                                szFail{end+1} = P(p).Name;
+                            end
+                            szChkOK = Chk & szChkOK;
                         end
                     end
+                    write_log(logid2,'Reading sizes of data fields of domain ''%s'': %s',protected(Dms{dm}),sc{szChkOK+1});
+                    if ~szChkOK
+                        szFail = sprintf('''%s'', ',szFail{:});
+                        write_log(logid2,'Problem encountered while determining the size of %s',szFail(1:end-2));
+                    end
+                    ChkOK = szChkOK & ChkOK;
                     Props{dm}=P;
                 end
                 write_log(logid2,'');
@@ -381,7 +407,7 @@ try
                                     pnAdded = setdiff(pName,pNameRef);
                                     pnRemoved = setdiff(pNameRef,pName);
                                     if length(Props)>1
-                                        write_log(logid2,'<b>Domain ''%s''</b>',Dms{dm});
+                                        write_log_domain(logid2,Dms{dm});
                                     end
                                     if ~isempty(pnAdded)
                                         pnAdded = protected(pnAdded);
@@ -402,8 +428,8 @@ try
                                     % Make sure that the datafields are in the same order
                                     if ~isequal(pName,pNameRef)
                                         write_log(logid2,'Order of datafields changed.');
-                                        [~,iProp] = sort(pName);
-                                        [~,iPropRef] = sort(pNameRef);
+                                        [~,iProp] = unique(pName);
+                                        [~,iPropRef] = unique(pNameRef);
                                         Prop = Prop(iProp);
                                         PropRef = PropRef(iPropRef);
                                     end
@@ -481,161 +507,168 @@ try
                 NT=NP+NL;
                 %
                 write_begin_table(logid2,Color)
+                inTable2 = true;
                 datacheck=inifile('get',CaseInfo,'datacheck','default',1);
                 P=Props{dmx};
-                for p=1:NP
-                    if progressbar((acc_dt+case_dt(i)*(p-1)/NT)/tot_dt,Hpb)<0
-                        write_table2_line(logid2,Color.Table{TC2},'','','',''); % at least one line needed in table
-                        write_end_table(logid2,emptyTable2);
-                        UserInterrupt=1;
-                        error('User interrupt');
-                    end
-                    if ~strcmp(P(p).Name,'-------')
-                        if P(p).NVal<0
-                            write_table2_line(logid2,Color.Table{TC2},P(p).Name,NOTAPP,'','Check not applicable.');
-                            emptyTable2 = false;
-                            TC2=3-TC2;
-                        elseif ~inifile('get',CaseInfo,'datacheck',P(p).Name,datacheck)
-                            write_table2_line(logid2,Color.Table{TC2},P(p).Name,NOTAPP,NOTAPP,'Check skipped.');
-                            emptyTable2 = false;
-                            TC2=3-TC2;
-                        else
-                            PName=P(p).Name;
-                            PName_double = strmatch(PName,{P(1:p-1).Name},'exact');
-                            PName=str2file(PName);
-                            CmpFile=[PName '.mat'];
-                            if PName_double
-                                CmpFile=[PName sprintf('.(%i).mat',PName_double+1)];
-                            end
-                            RefFile=[sref CmpFile];
-                            WrkFile=[swrk CmpFile];
-                            idx={};
-                            subf={};
-                            if P(p).DimFlag(ST_)
-                                idx={1};
-                                if P(p).DimFlag(T_)
-                                    if P(p).DimFlag(M_) || P(p).DimFlag(N_)
-                                        idx={P(p).Size(T_) idx{:}};
-                                    else
-                                        idx={1:min(10,P(p).Size(T_)) idx{:}};
+                try
+                    for p=1:NP
+                        if progressbar((acc_dt+case_dt(i)*(p-1)/NT)/tot_dt,Hpb)<0
+                            write_table2_line(logid2,Color.Table{TC2},'','','',''); % at least one line needed in table
+                            write_end_table(logid2,emptyTable2);
+                            inTable2 = false;
+                            UserInterrupt=1;
+                            error('User interrupt');
+                        end
+                        if ~strcmp(P(p).Name,'-------')
+                            if P(p).NVal<0
+                                write_table2_line(logid2,Color.Table{TC2},P(p).Name,NOTAPP,'','Check not applicable.');
+                                emptyTable2 = false;
+                                TC2=3-TC2;
+                            elseif ~inifile('get',CaseInfo,'datacheck',P(p).Name,datacheck)
+                                write_table2_line(logid2,Color.Table{TC2},P(p).Name,NOTAPP,NOTAPP,'Check skipped.');
+                                emptyTable2 = false;
+                                TC2=3-TC2;
+                            else
+                                PName=P(p).Name;
+                                PName_double = strmatch(PName,{P(1:p-1).Name},'exact');
+                                PName=str2file(PName);
+                                CmpFile=[PName '.mat'];
+                                if PName_double
+                                    CmpFile=[PName sprintf('.(%i).mat',PName_double+1)];
+                                end
+                                RefFile=[sref CmpFile];
+                                WrkFile=[swrk CmpFile];
+                                idx={};
+                                subf={};
+                                if ~isempty(P(p).DimFlag) && P(p).DimFlag(ST_)
+                                    idx={1};
+                                    if P(p).DimFlag(T_)
+                                        if P(p).DimFlag(M_) || P(p).DimFlag(N_)
+                                            idx={P(p).Size(T_) idx{:}};
+                                        else
+                                            idx={1:min(10,P(p).Size(T_)) idx{:}};
+                                        end
                                     end
                                 end
-                            end
-                            [Chk,subfields]=qp_getdata(FI,dm,P(p),'subfields');
-                            if Chk && ~isempty(subfields)
-                                subf={length(subfields)};
-                            end
-                            [Chk,Data]=qp_getdata(FI,dm,P(p),'griddata',subf{:},idx{:});
-                            if ~Chk && isempty(Data)
-                                write_table2_line(logid2,Color.Table{TC2},P(p).Name,color_write(FAILED,Color.Failed),'','Failed to get data');
-                                emptyTable2 = false;
-                                TC2=3-TC2;
-                                Chk = 0;
-                            else
-                                write_table2_line(logid2,Color.Table{TC2},P(p).Name,sc{Chk+1},[],'');
-                                emptyTable2 = false;
-                                TC2=3-TC2;
-                            end
-                            if ~Chk
-                                frcolor=Color.Failed;
-                                frresult=sprintf('%s: Error retrieving data for ''%s''.',FAILED,P(p).Name);
-                            else
-                                try
-                                    if localexist(RefFile)
-                                        cmpFile=localload(RefFile);
-                                        PrevData=cmpFile.Data;
-                                    else
-                                        PrevData=[];
-                                    end
-                                    if isstruct(PrevData)
-                                        if isfield(Data,'TRI')
-                                            Data.TRI = sortrows(sort(Data.TRI')'); %#ok<TRSRT>
+                                [Chk,subfields]=qp_getdata(FI,dm,P(p),'subfields');
+                                if Chk && ~isempty(subfields)
+                                    subf={length(subfields)};
+                                end
+                                [Chk,Data]=qp_getdata(FI,dm,P(p),'griddata',subf{:},idx{:});
+                                if ~Chk && isempty(Data)
+                                    write_table2_line(logid2,Color.Table{TC2},P(p).Name,color_write(FAILED,Color.Failed),'','Failed to get data');
+                                    emptyTable2 = false;
+                                    TC2=3-TC2;
+                                    Chk = 0;
+                                else
+                                    write_table2_line(logid2,Color.Table{TC2},P(p).Name,sc{Chk+1},[],'');
+                                    emptyTable2 = false;
+                                    TC2=3-TC2;
+                                end
+                                if ~Chk
+                                    frcolor=Color.Failed;
+                                    frresult=sprintf('%s: Error retrieving data for ''%s''.',FAILED,protected(P(p).Name));
+                                else
+                                    try
+                                        if localexist(RefFile)
+                                            cmpFile=localload(RefFile);
+                                            PrevData=cmpFile.Data;
+                                        else
+                                            PrevData=[];
                                         end
-                                        if isfield(PrevData,'TRI')
-                                            PrevData.TRI = sortrows(sort(PrevData.TRI')'); %#ok<TRSRT>
-                                        end
-                                        %
-                                        DiffFound=vardiff(Data,PrevData);
-                                        addedfields = {};
-                                        if DiffFound==2
-                                            newfields=fields(Data);
-                                            oldfields=fields(PrevData);
-                                            if all(ismember(oldfields,newfields))
-                                                addedfields = setdiff(newfields,oldfields);
-                                                newData = Data;
-                                                for f = 1:length(addedfields)
-                                                    newData = rmfield(newData,addedfields{f});
-                                                end
-                                                DiffFound=vardiff(newData,PrevData)>1;
-                                                if ~DiffFound
-                                                    DiffFound = -1;
+                                        if isstruct(PrevData)
+                                            if isfield(Data,'TRI')
+                                                Data.TRI = sortrows(sort(Data.TRI')'); %#ok<TRSRT>
+                                            end
+                                            if isfield(PrevData,'TRI')
+                                                PrevData.TRI = sortrows(sort(PrevData.TRI')'); %#ok<TRSRT>
+                                            end
+                                            %
+                                            DiffFound=vardiff(Data,PrevData);
+                                            addedfields = {};
+                                            if DiffFound==2
+                                                newfields=fields(Data);
+                                                oldfields=fields(PrevData);
+                                                if all(ismember(oldfields,newfields))
+                                                    addedfields = setdiff(newfields,oldfields);
+                                                    newData = Data;
+                                                    for f = 1:length(addedfields)
+                                                        newData = rmfield(newData,addedfields{f});
+                                                    end
+                                                    DiffFound=vardiff(newData,PrevData)>1;
+                                                    if ~DiffFound
+                                                        DiffFound = -1;
+                                                    end
+                                                else
+                                                    % new data structure misses some fields
+                                                    % that were included in the old
+                                                    % (reference) data structure
+                                                    DiffFound = 1;
                                                 end
                                             else
-                                                % new data structure misses some fields
-                                                % that were included in the old
-                                                % (reference) data structure
-                                                DiffFound = 1;
+                                                newfields='';
+                                                DiffFound=DiffFound>1;
                                             end
-                                        else
-                                            newfields='';
-                                            DiffFound=DiffFound>1;
-                                        end
-                                        if DiffFound
-                                            localsave(WrkFile,Data,saveops);
-                                            write_table2_line(logid2,[],[],[],1,sc3{2-DiffFound});
-                                            emptyTable2 = false;
-                                            if ~isempty(addedfields)
-                                                write_log(logid2,'New Fields:');
-                                                write_log(logid2,addedfields);
-                                                if isequal(frcolor,Color.Success) % switch to black colour only if no real error has occurred
-                                                    frcolor=Color.Font;
+                                            if DiffFound
+                                                localsave(WrkFile,Data,saveops);
+                                                write_table2_line(logid2,[],[],[],1,sc3{2-DiffFound});
+                                                emptyTable2 = false;
+                                                if ~isempty(addedfields)
+                                                    write_log(logid2,'New Fields:');
+                                                    write_log(logid2,addedfields);
+                                                    if isequal(frcolor,Color.Success) % switch to black colour only if no real error has occurred
+                                                        frcolor=Color.Font;
+                                                    end
+                                                    if DiffFound>0
+                                                        write_log(logid2,'');
+                                                    end
                                                 end
                                                 if DiffFound>0
-                                                    write_log(logid2,'');
+                                                    if ~isempty(addedfields)
+                                                        vardiff(newData,PrevData,logid2,log_style,'Current Data','Reference Data');
+                                                    else
+                                                        vardiff(Data,PrevData,logid2,log_style,'Current Data','Reference Data');
+                                                    end
+                                                    frcolor=Color.Failed;
                                                 end
-                                            end
-                                            if DiffFound>0
-                                                if ~isempty(addedfields)
-                                                    vardiff(newData,PrevData,logid2,log_style,'Current Data','Reference Data');
-                                                else
-                                                    vardiff(Data,PrevData,logid2,log_style,'Current Data','Reference Data');
+                                                write_table2_line(logid2,[],[],[],2,'');
+                                                ChkOK = DiffFound<=0;
+                                                if ~ChkOK
+                                                    frresult=sprintf('%s: Data changed for ''%s''.',FAILED,protected(P(p).Name));
                                                 end
-                                                frcolor=Color.Failed;
+                                                localsave([PName,'.mat'],Data,saveops);
+                                            else
+                                                write_table2_line(logid2,[],[],[],sc{2-DiffFound},'');
+                                                emptyTable2 = false;
                                             end
-                                            write_table2_line(logid2,[],[],[],2,'');
-                                            ChkOK = DiffFound<=0;
-                                            if ~ChkOK
-                                                frresult=sprintf('%s: Data changed for ''%s''.',FAILED,protected(P(p).Name));
-                                            end
-                                            localsave([PName,'.mat'],Data,saveops);
                                         else
-                                            write_table2_line(logid2,[],[],[],sc{2-DiffFound},'');
+                                            localsave(RefFile,Data,saveops);
+                                            write_table2_line(logid2,[],[],[],CREATED,'');
                                             emptyTable2 = false;
+                                            if isequal(frresult,PASSED)
+                                                frcolor=Color.Font;
+                                                frresult=CREATED;
+                                            end
                                         end
-                                    else
-                                        localsave(RefFile,Data,saveops);
-                                        write_table2_line(logid2,[],[],[],CREATED,'');
+                                    catch Crash
+                                        frcolor=Color.Failed;
+                                        frresult=sprintf('%s: Error checking one or more data fields.',FAILED);
+                                        write_table2_line(logid2,[],[],[],sc{1},color_write(protected(Crash.message),Color.Failed));
                                         emptyTable2 = false;
-                                        if isequal(frresult,PASSED)
-                                            frcolor=Color.Font;
-                                            frresult=CREATED;
-                                        end
+                                        Crash = [];
                                     end
-                                catch Crash
-                                    frcolor=Color.Failed;
-                                    frresult=sprintf('%s: Error checking one or more data fields.',FAILED);
-                                    write_table2_line(logid2,[],[],[],sc{1},color_write(protected(Crash.message),Color.Failed));
-                                    emptyTable2 = false;
-                                    Crash = [];
                                 end
                             end
+                        else
+                            write_table_rule(logid2,Color)
                         end
-                    else
-                        write_table_rule(logid2,Color)
+                        flush(logid2)
                     end
-                    flush(logid2)
+                catch e
+                    % no good example yet ...
                 end
                 write_end_table(logid2,emptyTable2);
+                inTable2 = false;
                 drawnow
                 %
                 if isempty(logs)
@@ -751,6 +784,10 @@ try
                 frresult=[FAILED ': case.ini missing.'];
             end
         catch Crash
+            if inTable2
+                write_end_table(logid2,emptyTable2);
+                inTable2  = false;
+            end
             color=Color.Failed;
             AnyFail=1;
             if UserInterrupt
@@ -769,7 +806,7 @@ try
             logid2=[];
             %
             if isnan(dt2_old)
-                timid = fopen('../reference/timing.txt','w');
+                timid = fopen('../reference/timing.txt','w','n','US-ASCII');
                 fprintf(timid,'%5.1f',dt2);
                 fclose(timid);
             end
@@ -834,19 +871,21 @@ if logid1>0
     end
     fclose(logid1);
 end
+fclose('all');
 if AnyFail
     ui_message('error','Testbank failed on %i out of %i cases! Check log file.\n',NFailed,NTested)
     %
-    if openlog
-        if matlabversionnumber>5
-            ops={'-browser'};
-        else
-            ops={};
-        end
-        try
-            web(full_ln,ops{:});
-        catch
-        end
+    switch finish
+        case 'openlog'
+            if matlabversionnumber>5
+                ops={'-browser'};
+            else
+                ops={};
+            end
+            try
+                web(full_ln,ops{:});
+            catch
+            end
     end
 else
     ui_message('','Testbank completed successfully (%i cases).\n',NTested)
@@ -855,24 +894,54 @@ qp_settings('defaultfigure',DefFigProp.defaultfigure)
 qp_settings('defaultfigurecolor',DefFigProp.defaultfigurecolor)
 qp_settings('defaultaxescolor',DefFigProp.defaultaxescolor)
 qp_settings('boundingbox',DefFigProp.boundingbox)
+switch finish
+    case 'buildpdf'
+        try
+            ui_message('','Building PDF of validation report.')
+            cd(val_dir);
+            pdflatex = '"C:\Program Files\MiKTeX\miktex\bin\x64\pdflatex"';
+            ui_message('','Build iteration 1 of 2.')
+            [status,result] = system([pdflatex,' ',logname]);
+            if status==0
+                ui_message('','Build iteration 2 of 2.')
+                [status,result] = system([pdflatex,' ',logname]);
+            end
+            if status ~= 0
+                ui_message('error',result)
+            else
+                ui_message('','PDF file created.')
+            end
+        catch Ex
+            ui_message('error',e)
+            qp_error('Catch while building PDF of validation report:',Ex,'qp_validate')
+        end
+        cd(currdir)
+end
 
 
 function str = protected(str)
-switch log_style
-    case 'latex'
-        if iscell(str)
-            for i = 1:numel(str)
-                str{i} = protected(str{i});
-            end
-        else
+if iscell(str)
+    for i = 1:numel(str)
+        str{i} = protected(str{i});
+    end
+else
+    switch log_style
+        case 'latex'
             str = strrep(str,'\','\char`\\');
             str = strrep(str,'_','\_');
             str = strrep(str,'#','\#');
             str = strrep(str,'$','\$');
             str = strrep(str,'&','\&');
             str = strrep(str,'%','\%');
+            str = strrep(str,'^','\^');
             str = strrep(str,'³','$^3$');
-        end
+        otherwise
+            str = strrep(str,'&','&#38;'); % &amp;
+            str = strrep(str,'<','&#60;'); % &lt;
+            str = strrep(str,'>','&#62;'); % &gt;
+            str = strrep(str,'"','&#34;'); % &quot;
+            str = strrep(str,'''','&#39;'); % &apos;
+    end
 end
 
 
@@ -919,7 +988,13 @@ switch log_style
             % insert QUICKPLOT revision number into SVN revision string of the report
             fn = fopen(logid);
             [~,f,e] = fileparts(fn);
-            fprintf(logid,'%s%d%s\n',['\svnid{$Id: qp_validate.m 65939 2020-02-06 15:13:11Z jagers $}']);
+            str = '$Id: qp_validate.m 140618 2022-01-12 13:12:04Z klapwijk $';
+            if str(1) == '$'
+                dollar = '';
+            else
+                dollar = '$';
+            end
+            fprintf(logid,'%s%s%s%s%s\n','\svnid{', dollar, str, dollar, '}');
             fprintf(logid,'\n');
             fprintf(logid,'%s\n','\begin{document}');
             fprintf(logid,'%% %s\n','\pagestyle{empty}');
@@ -1095,9 +1170,9 @@ switch log_style
                 fprintf(logid,'<td>%s</td><td>%s</td></tr>\n',Compare,Message);
             end
         elseif ~ischar(Compare)
-            fprintf(logid,'<tr bgcolor=%s><td>%s</td><td>%s</td>',bgcolor,Name,Read);
+            fprintf(logid,'<tr bgcolor=%s><td>%s</td><td>%s</td>',bgcolor,protected(Name),Read);
         else
-            fprintf(logid,'<tr bgcolor=%s><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>\n',bgcolor,Name,Read,Compare,Message);
+            fprintf(logid,'<tr bgcolor=%s><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>\n',bgcolor,protected(Name),Read,Compare,Message);
         end
 end
 
@@ -1148,13 +1223,15 @@ switch log_style
         fprintf(logid,'\\begin{Verbatim}[frame=single, framesep=5pt]\n');
         fprintf(logid,'%s\n',C{:});
         fprintf(logid,'\\end{Verbatim}\n');
+    otherwise
+        fprintf(logid,'%s<br>\n',C{:});
 end
 
 
 function fileContent = getfile(filename)
 fileContent = cell(100,1);
 nC = 0;
-fid = fopen(filename);
+fid = fopen(filename,'r','n','US-ASCII');
 while 1
     str = fgetl(fid);
     if ischar(str)
@@ -1183,6 +1260,15 @@ switch log_style
         fprintf(logid,'%s\\newline\n',message{:});
     otherwise
         fprintf(logid,'%s<br>\n',message{:});
+end
+
+
+function write_log_domain(logid,domain)
+switch log_style
+    case 'latex'
+        fprintf(logid,'\n\\textbf{Domain ''%s''}\\newline\n',domain);
+    otherwise
+        fprintf(logid,'<b>Domain ''%s''</b><br>\n',domain);
 end
 
 
@@ -1217,7 +1303,7 @@ switch log_style
         if bold
             str = sprintf('<font color=%s><b>%s</b></font>',color,str);
         else
-            str = sprintf('<font color=%s>%</font>',color,str);
+            str = sprintf('<font color=%s>%s</font>',color,str);
         end
 end
 
@@ -1260,7 +1346,7 @@ switch log_style
     case 'latex'
         fprintf(logid,'\\hline\n');
     otherwise
-        fprintf(logid,'<tr><td colspan=3 bgcolor=%s></td></tr>\n',Color.Titlebar);
+        fprintf(logid,'<tr><td colspan=4 bgcolor=%s></td></tr>\n',Color.Titlebar);
 end
 
 
@@ -1299,15 +1385,43 @@ switch log_style
     case 'latex'
         sumid = extlog.summary.fid;
         fprintf(sumid,'This document reports on the regression testing of QUICKPLOT.\n');
+        fprintf(sumid,'Each test consists of the following steps:.\n');
+	fprintf(sumid,'\\begin{itemize}\n');
+	fprintf(sumid,'\\item Opening the data file.\n');
+	fprintf(sumid,'Read failure is reported as an error.\n');
+	fprintf(sumid,'\\item Determining the quantities contained in the file, and compare this against the reference content.\n');
+	fprintf(sumid,'Missing quantities and changed meta data are reported as errors.\n');
+	fprintf(sumid,'\\item For every quantity contained in the file: read the data of the final time step, and compared with reference data.\n');
+	fprintf(sumid,'Changed data or meta data is reported as an error.\n');
+	fprintf(sumid,'\\end{itemize}\n');
+	fprintf(sumid,'All steps above are summarized in the column "Read".\n');
+	fprintf(sumid,'While this first step guarantees that most of the reading works fine, it doesn''t check whether the plotting or exporting works properly.\n');
+	fprintf(sumid,'Therefore the testing continues ...\n\n');
+	
+	fprintf(sumid,'\\begin{itemize}\n');
+	fprintf(sumid,'\\item For most files a script is executed that triggers various variable selection, plotting, and data export options.\n');
+	fprintf(sumid,'\\end{itemize}\n');
+	fprintf(sumid,'All execution errors and changes in the created (data or figure) files will be reported as errors (missing data files are currently not reported as error, but are typically the result of a reported execution error).\n');
+	fprintf(sumid,'See the report per file for a listing of the script executed and the resulting data tested.\n');
+	fprintf(sumid,'The result of this step is reported in the column "Script".\n');
+	fprintf(sumid,'The graphics part of this second step is more sensitive to hardware changes.\n');
+	fprintf(sumid,'A change in screen resolution may, for instance, trigger slight changes in the figures created and hence many tests to fail; therefore, consistent testing hardware is required for this step.\n\n');
+	
+        fprintf(sumid,'The reported timing results compare the timing of the new run against the timing of a reference run.\n');
+        fprintf(sumid,'The reference timing is not updated, so the overall performance does not necessarily improve with each "faster than before" release.\n');
+        fprintf(sumid,'Depending on the other (background) processes running the timing of tests may vary substantially: repeating the same test will result in slightly different timing results (some tests will become faster while other tests will become slower) -- so we typically don''t look at the individual numbers.\n');
+        fprintf(sumid,'This also means that you won''t be able to match the reported performance under normal working circumstances with many other programs opened.\n\n');
+
         if NFailed==0
             fprintf(sumid,'The software was successfully run on %d cases; none of them failed.\n',NTested);
+        elseif NFailed==1
+            fprintf(sumid,'The software was run on %d cases of which 1 case failed.\n',NTested);
+            fprintf(sumid,'The failed case is shown in Table \\ref{Tab:FailedSummary}.\n');
         else
             fprintf(sumid,'The software was run on %d cases of which %d cases failed.\n',NTested,NFailed);
-        end
-        %
-        if NFailed>0
             fprintf(sumid,'The failed cases are summarized in Table \\ref{Tab:FailedSummary}.\n');
         end
+        %
         if NTested>0
             fprintf(sumid,'All tested cases are reported in Table \\ref{Tab:Summary}.\n');
         else
@@ -1317,16 +1431,16 @@ switch log_style
         dTTR = duration(TotTimeRef);
         dTT  = duration(TotTime);
         if abs(TotTime-TotTimeRef)<0.005*TotTimeRef
-            fprintf(sumid,'The overall time spent on the test cases (%s) is similar to the reference time (%f);',dTT,dTTR);
+            fprintf(sumid,'The overall time spent on the test cases (%s) is similar to the reference time (%s);',dTT,dTTR);
         elseif TotTime>TotTimeRef
             fprintf(sumid,'The overall time spent on the test cases has increased by about %.0f \\%% from %s to %s;',(TotTime/TotTimeRef-1)*100,dTTR,dTT);
         else
             fprintf(sumid,'The overall time spent on the test cases has decreased by about %.0f \\%% from %s to %s;',(1-TotTime/TotTimeRef)*100,dTTR,dTT);
         end
-        if NSlower>0
-            fprintf(sumid,' %i test cases were slower than before, the other %i test cases had similar or better timing than before.\n',NSlower,NTested-NSlower);
-        elseif NSlower==NTested
+        if NSlower==NTested
             fprintf(sumid,' all test cases had slower timing than before.\n');
+        elseif NSlower>0
+            fprintf(sumid,' %i test cases were slower than before, the other %i test cases had similar or better timing than before.\n',NSlower,NTested-NSlower);
         else
             fprintf(sumid,' all test cases had similar or better timing than before.\n');
         end
@@ -1427,7 +1541,7 @@ end
 
 function X=localexist(file)
 %X=exist(file);
-X=fopen(file);
+X=fopen(file,'r');
 if X>0, fclose(X); end
 X=X>0;
 
@@ -1490,4 +1604,12 @@ if isequal(type,previous_type)
     type = '';
 else
     previous_type = type;
+end
+
+function str = getsvnline()
+str = '$Id: qp_validate.m 140618 2022-01-12 13:12:04Z klapwijk $';
+if str(1) == '$' % the original svn version
+    str = str(2:end-1);
+else % the distributed version
+    % str is as needed
 end

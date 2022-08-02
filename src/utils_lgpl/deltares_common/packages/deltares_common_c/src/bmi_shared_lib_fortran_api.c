@@ -1,6 +1,6 @@
 //---- LGPL --------------------------------------------------------------------
 //
-// Copyright (C)  Stichting Deltares, 2011-2020.
+// Copyright (C)  Stichting Deltares, 2011-2022.
 //
 // This library is free software; you can redistribute it and/or
 // modify it under the terms of the GNU Lesser General Public
@@ -24,8 +24,8 @@
 // Stichting Deltares. All rights reserved.
 //
 //------------------------------------------------------------------------------
-// $Id: bmi_shared_lib_fortran_api.c 65778 2020-01-14 14:07:42Z mourits $
-// $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/deltares_common/packages/deltares_common_c/src/bmi_shared_lib_fortran_api.c $
+// $Id: bmi_shared_lib_fortran_api.c 140618 2022-01-12 13:12:04Z klapwijk $
+// $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_lgpl/deltares_common/packages/deltares_common_c/src/bmi_shared_lib_fortran_api.c $
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -42,7 +42,7 @@
 #  include <windows.h>
 #elif defined(salford32)
 #  include <windows.h>
-#elif defined(HAVE_CONFIG_H)
+#elif defined(linux)
 #  include <dlfcn.h>
 #endif
 
@@ -60,8 +60,8 @@
 #  define BMI_SET_VAR           BMI_SET_VAR
 #  define BMI_GET_VAR           BMI_GET_VAR
 #  define STDCALL
-#elif defined(HAVE_CONFIG_H)
-#   include "config.h"
+#elif defined(linux)
+#  include "config.h"
 #  define BMI_INITIALIZE        FC_FUNC(bmi_initialize,BMI_INITIALIZE)
 #  define BMI_UPDATE            FC_FUNC(bmi_update,BMI_UPDATE)
 #  define BMI_FINALIZE          FC_FUNC(bmi_finalize,BMI_FINALIZE)
@@ -90,7 +90,7 @@
 #if defined(WIN32)
 typedef HMODULE DllHandle;
 typedef WINBASEAPI FARPROC WINAPI DllProcedureAddress;
-#elif defined(HAVE_CONFIG_H)
+#elif defined(linux)
 typedef void * DllHandle;
 typedef void * DllProcedureAddress;
 #endif
@@ -109,7 +109,7 @@ DllProcedureAddress GetDllProcedure(
 	DllProcedureAddress procedure;
 #if defined(WIN32)
 	procedure = GetProcAddress(sharedDLL->dllHandle, fun_name);
-#elif defined(HAVE_CONFIG_H)
+#elif defined(linux)
 	procedure = (DllProcedureAddress)dlsym(sharedDLL->dllHandle, fun_name);
 #endif
 	return procedure;

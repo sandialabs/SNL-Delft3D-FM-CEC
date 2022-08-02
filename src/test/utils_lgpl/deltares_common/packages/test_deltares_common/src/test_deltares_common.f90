@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -32,6 +32,8 @@ program test_deltares_common
     use test_string_module
     use test_properties
     use test_geometry_module
+    use test_time_module
+    use test_running_mean
 
     implicit none
 
@@ -48,11 +50,11 @@ program test_deltares_common
     call tests_bilin5
     call tests_distance
     call tests_string_module
+    call tests_time_module
     !
-    ! The following test crashes on Linux. Only green tests should be added.
     call tests_properties
     call tests_geometry_module
-
+    call tests_running_mean
     !
     ! Done - properly finalize
     !

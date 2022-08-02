@@ -12,7 +12,7 @@ function Out=bagmap(cmd,varargin)
 
 %----- LGPL --------------------------------------------------------------------
 %
-%   Copyright (C) 2011-2020 Stichting Deltares.
+%   Copyright (C) 2011-2022 Stichting Deltares.
 %
 %   This library is free software; you can redistribute it and/or
 %   modify it under the terms of the GNU Lesser General Public
@@ -37,8 +37,8 @@ function Out=bagmap(cmd,varargin)
 %
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/private/bagmap.m $
-%   $Id: bagmap.m 65778 2020-01-14 14:07:42Z mourits $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/tools_lgpl/matlab/quickplot/progsrc/private/bagmap.m $
+%   $Id: bagmap.m 140618 2022-01-12 13:12:04Z klapwijk $
 
 if nargin==0
     error('Missing command.')
@@ -71,7 +71,7 @@ if nargin==0 || strcmp(filename,'?')
 end
 Structure.FileName=filename;
 
-fid=fopen(filename,'r');
+fid=fopen(filename,'r','n','US-ASCII');
 if fid<0
     error('Cannot open %s.',filename);
 end
@@ -189,7 +189,7 @@ function Data=Local_bmread(S,Index,Subfield)
 if nargin<3
     Subfield=1;
 end
-fid=fopen(S.FileName,'r');
+fid=fopen(S.FileName,'r','n','US-ASCII');
 if fid<0
     error('Cannot open %s.',S.FileName)
 end

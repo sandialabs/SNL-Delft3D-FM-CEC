@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -29,7 +29,13 @@
       use alloc_mod    !   for PARTicle tracking
       use writrk_mod   !   for PARTicle tracking
       use timers
-
+      use spec_feat_par
+      use openfl_mod            ! explicit interface
+      use normal_mod
+      use part03_mod                 ! explicit interface
+      use partini_mod
+      use m_part_regular
+      use m_part_modeltypes
       implicit none
 
 !         Particle tracking
@@ -47,20 +53,26 @@
       integer  ( ip), intent(in   ) :: nosfun                  !< number of segment functions
       character( 20), intent(in   ) :: sfname (nosfun)         !< names of segment functions
       real     (  4), intent(in   ) :: segfun (noseg ,nosfun)  !< segment function values
+      integer, save                 :: iniday              ! release of initial condition, not used here
 
 !     Locals
 
       integer(ip) i, i2, itime, indx, ierr
       integer     lunut         ! report file
+      integer(ip)         :: ilp, isp, ids, ide, iext, nores, noras, nosubs_idp
       real   (rp) depmin
       real   (sp) dtstep
+      real   (sp)         :: rnorm
+      real   (kind = kind(1.0d0)) :: rseed = 0.5d0 ! AM: some strange quirk makes this necessary
       logical update
+      integer             :: luini
 
       integer(4) ithandl /0/
       if ( timon ) call timstrt ( "delpar00", ithandl )
 
       alone = .true.
       if ( mdpfile .ne. ' ' ) then
+         call norm_init()
          alone = .false.
          call rdfnam ( lunitp    , mdpfile   , fnamep    , nfilesp  , 2       ,
      &                 1         , .false.   )
@@ -79,16 +91,14 @@
          if ( lsettl .or. layt .gt. 1 ) then
             call zoek20 ( 'TAU       ', nosfun, sfname, 10, indx )
             if ( indx .gt. 0 ) then
-               tau(cellpntp(:)) = segfun(:,indx)
+               do i=1, nosegp
+                    tau(cellpntp(i)) = segfun(i,indx)
+               enddo
                caltau = .false.
             else if ( lunitp(21) .gt. 0 ) then
                if (  fnamep(21)(1:4) .ne. 'none' ) then
                   write ( lunut, * ) ' Opening the tau    file:', fnamep(21)(1:len_trim(fnamep(21)))
-#ifdef HAVE_FC_FORM_BINARY
-                  open ( lunitp(21), file = fnamep(21), form = 'binary', status = 'old', iostat = ierr )
-#else
                   open ( lunitp(21), file = fnamep(21), form = 'unformatted', access='stream', status = 'old', iostat = ierr )
-#endif
                   if ( ierr .ne. 0 ) then
                      write ( lunut, * ) ' Warning: could not open the tau file! Tau will be computed.'
                      lunitp(21) = 0
@@ -101,15 +111,13 @@
             endif
             call zoek20 ( 'VERTDISP  ', nosfun, sfname, 10, indx )
             if ( indx .gt. 0 ) then
-               vdiff(cellpntp(:)) = segfun(:,indx)
+               do i=1, nosegp
+                  vdiff(cellpntp(i)) = segfun(i,indx)
+               enddo
             else if ( lunitp(20) .gt. 0 ) then
                if ( fnamep(20)(1:4) .ne. 'none' ) then
                   write ( lunut, * ) ' Opening the vdf    file:', fnamep(20)(1:len_trim(fnamep(20)))
-#ifdef HAVE_FC_FORM_BINARY
-                  open ( lunitp(20), file = fnamep(20), form = 'binary', status = 'old', iostat = ierr )
-#else
                   open ( lunitp(20), file = fnamep(20), form = 'unformatted', access='stream', status = 'old', iostat = ierr )
-#endif
                   if ( ierr .ne. 0 ) then
                      write ( lunut, * ) ' Warning: could not open the vdf file! vdf will be set to zero!'
                      lunitp(20) = 0
@@ -118,62 +126,186 @@
                   lunitp(20) = 0
                endif
             endif
+         call zoek20 ( 'SALINITY  ', nosfun, sfname, 10, indx )
+         if ( indx .gt. 0 ) then
+               do i=1, nosegp
+                    salin(cellpntp(i)) = segfun(i,indx)
+               enddo
+         else if ( lunitp(22) .gt. 0 ) then
+                 write ( lunut, * ) ' Opening the salinity file:', fnamep(22)(1:len_trim(fnamep(22)))
+                 open ( lunitp(22), file = fnamep(22), form = 'unformatted', access='stream', status = 'old', iostat = ierr )
+                 if ( ierr .ne. 0 ) then
+                    write ( lunut, * ) ' Warning: could not open the sal file! sal will be set to zero!'
+                    lunitp(22) = 0
+                 endif
+         else
+           lunitp(22) = 0
          endif
 
-         volumep(cellpntp(:)) = dwqvol(:)
-         do i = 1, noqp
-            if ( flowpntp(i,1) .gt. 0 ) flow(flowpntp(i,1)) = flow(flowpntp(i,1)) + dwqflo(i)
-            if ( flowpntp(i,2) .gt. 0 ) flow(flowpntp(i,2)) = flow(flowpntp(i,2)) + dwqflo(i)
-         enddo
-         depmin = (0.05*nmaxp*mmaxp)/mnmaxk
-         depmin = max(depmin,0.001)
-         do i = 1, mnmaxk        !       limit volume to depmin
-            i2 = mod(i-1,nmaxp*mmaxp) + 1
-            volumep(i) = max(volumep(i), area(i2) * depmin)
-         enddo
+!.. temperature
 
-         call rdpart ( lunitp(1) , lunut     , fnamep(1) )
-         call plotgrp( npgrid    , pg        , nmaxp     , mmaxp    , lgrid    ,
-     &                 lgrid2    , xb        , yb        )
-         call part08 ( lunut     , nodye     , nocont    , ictmax   , amassd   ,
-     &                 ictime    , amassc    , aconc     , tmass    , tmassc   ,
-     &                 nosubs    , ndprt     , tmassu    , ftime    , linear   ,
-     &                 substi    , nmdyer    , nmconr    )
-         call part06 ( lunut     , lgrid     , lgrid2    , nmaxp    , mmaxp    ,
-     &                 xb        , yb        , nodye     , nocont   , xwaste   ,
-     &                 ywaste    , nwaste    , mwaste    )
-
-         ltrack = notrak  /=  0
-
-         call getdps ( lunut     , lunitp(17), fnamep(17), nmaxp    , mmaxp    ,
-     &                 noseglp   , dpsp      , cellpntp  , ltrack   )
-         call part03 ( lgrid     , volumep   , flow      , dx       , dy       ,
-     &                 nmaxp     , mmaxp     , mnmaxk    , lgrid2   , velo     ,
-     &                 layt      , area      , depth     , dpsp     , locdep   ,
-     &                 zlevel    , tcktot    , ltrack)
-         oil    = modtyp == 4
-         if ( ini_opt .eq. 1 .and. oil ) then
-            call inipart( lgrid    , lgrid2   , nmaxp     , mmaxp   , xb       ,
-     &                    yb       , nopart   , nosubs    , substi  , ini_file ,
-     &                    xpol     , ypol     , npolmax   , wpart   , xpart    ,
-     &                    ypart    , zpart    , npart     , mpart   , kpart    ,
-     &                    iptime   , lunut    )
+         call zoek20 ( 'TEMP      ', nosfun, sfname, 10, indx )
+         if ( indx .gt. 0 ) then
+            do i=1, nosegp
+               temper(cellpntp(i)) = segfun(i,indx)
+            enddo
+         else if ( lunitp(23) .gt. 0 ) then
+                 write ( lunut, * ) ' Opening the temperature file:', fnamep(23)(1:len_trim(fnamep(23)))
+                 open ( lunitp(23), file = fnamep(23), form = 'unformatted', access='stream', status = 'old', iostat = ierr )
+                 if ( ierr .ne. 0 ) then
+                     write ( lunut, * ) ' Warning: could not open the tem file! temp will be set to zero!'
+                     lunitp(23) = 0
+                 endif
+         else
+               lunitp(23) = 0
          endif
-         nopart   = 0
-         npwndw   = 1
-         npwndn   = 0
-         acomp  = .false.
-         accrjv = 1.0e-9 !_sp
-         oil2dh = oil .and. layt == 1
-         oil3d  = oil .and. layt  > 1
+      endif
+
+      do i =1 , nosegp
+        volumep(cellpntp(i)) = dwqvol(i)
+      enddo
+
+      flow = 0.0
+      do i = 1, noqp
+        if ( flowpntp(i,1) .gt. 0 ) flow(flowpntp(i,1)) = flow(flowpntp(i,1)) + dwqflo(i)
+        if ( flowpntp(i,2) .gt. 0 ) flow(flowpntp(i,2)) = flow(flowpntp(i,2)) + dwqflo(i)
+      enddo
+      depmin = (0.05*nmaxp*mmaxp)/mnmaxk
+      depmin = max(depmin,0.001)
+      do i = 1, mnmaxk        !       limit volume to depmin
+        i2 = mod(i-1,nmaxp*mmaxp) + 1
+        volumep(i) = max(volumep(i), area(i2) * depmin)
+      enddo
+
+      call rdpart ( lunitp(1) , lunut     , fnamep(1) )
+      call plotgrp( npgrid    , pg        , nmaxp     , mmaxp    , lgrid    ,
+     &              lgrid2    , xb        , yb        )
+      call part08 ( lunut     , nodye     , nocont    , ictmax   , amassd   ,
+     &              ictime    , amassc    , aconc     , tmass    , tmassc   ,
+     &              nosubs    , ndprt     , tmassu    , ftime    , linear   ,
+     &              substi    , nmdyer    , nmconr    )
+      call part06 ( lunut     , lgrid     , lgrid2    , nmaxp    , mmaxp    ,
+     &              xb        , yb        , nodye     , nocont   , xwaste   ,
+     &              ywaste    , nwaste    , mwaste    )
+      nopart   = 0
+      npwndw   = 1
+      npwndn   = 0
+      acomp  = .false.
+      accrjv = 1.0e-9 !_sp
+      oil2dh = oil .and. layt == 1
+      oil3d  = oil .and. layt  > 1
+      ltrack = notrak  /=  0
+      call getdps ( lunut     , lunitp(17), fnamep(17), nmaxp    , mmaxp    ,
+     &              noseglp   , dpsp      , cellpntp  , ltrack   )
+      call part03 ( lgrid     , volumep   , flow      , dx       , dy       ,
+     &              nmaxp     , mmaxp     , mnmaxk    , lgrid2   , velo     ,
+     &              layt      , area      , depth     , dpsp     , locdep   ,
+     &              zlevel    , zmodel    , laytop    , laytopp  , laybot   ,
+     &              pagrid , aagrid , tcktot , ltrack , flow2m   ,
+     &              lgrid3 , vol1   , vol2   , vel1   , vel2     )
+
+      if (ltrack) then
+        call part11 ( lgrid    , xb       , yb        , nmaxp   , npart    ,
+     &                mpart    , xpart    , ypart     , xa      , ya       ,
+     &                nopart   , npwndw   , lgrid2    , kpart   , zpart    ,
+     &                za       , locdep   , dpsp      , layt    , mmaxp    ,
+     &                tcktot   )
+        call wrttrk ( lunut    , fout     , fnamep(16), itrakc  , nopart   ,
+     &                npmax    , xa       , ya        , za      , xyztrk      )
+      endif
+      oil    = modtyp == model_oil
+      if ( ini_opt .eq. 1 .and. oil ) then
+         call inipart( lgrid   , lgrid2  , nmaxp   , mmaxp   , xb      ,
+     &   yb      , nopart  , nosubs  , substi(1)  , ini_file,
+     &                  xpol    , ypol    , npolmax , wpart   , xpart   ,
+     &                  ypart   , zpart   , npart   , mpart   , kpart   ,
+     &                  iptime  , npmax   , nrowsmax, lunut   )
+      elseif ( ini_opt .eq. 2 .and. oil ) then
+          call inipart_asc( lgrid   , lgrid2  , nmaxp   , mmaxp   , xb  ,
+     &                  yb      , nopart  , nosubs  , substi(1)  , ini_file,
+     &                  xpol    , ypol    , wpart   , xpart   , conc2 ,
+     &                  ypart   , zpart   , npart   , mpart   , kpart   ,
+     &                  iptime  , npmax   , nrowsmax, lunut   )
+      endif
+      if ( modtyp .ne. model_ibm .and. idp_file .ne. ' ' ) then
+         if (modtyp .ne. model_prob_dens_settling) then
+            write ( lunut, * ) ' Opening initial particles file:', idp_file(1:len_trim(idp_file))
+            call openfl ( luini, idp_file, ftype(2), 0 )
+            read ( 50 ) ilp, nopart, nosubs_idp
+            if (nosubs_idp.ne.nosubs) then
+               write ( lunut, * ) ' Error: number of substances in the ini-file   : ',nosubs_idp
+               write ( lunut, * ) '        number of substances in the model setup: ',nosubs
+               write ( *    , * ) ' Error: number of substances in the ini-file   : ',nosubs_idp
+               write ( *    , * ) '        number of substances in the model setup: ',nosubs
+               call srstop(1)
+            endif
+            do ilp = 1, nopart
+               read( luini ) npart(ilp), mpart(ilp), kpart(ilp), xpart(ilp), ypart(ilp), zpart(ilp), wpart(1:nosubs,ilp),
+     &                       iptime(ilp)
+            enddo
+            close ( luini )
+         else
+            write ( lunut, * ) ' Opening initial particles file:', idp_file(1:len_trim(idp_file))
+            call openfl ( luini, idp_file, ftype(2), 0 )
+            read ( luini ) ilp, nopart, nosubs_idp
+            if (nosubs_idp.ne.nosubs) then
+               write ( lunut, * ) ' Error: number of substances in the ini-file   : ',nosubs_idp
+               write ( lunut, * ) '        number of substances in the model setup: ',nosubs
+               write ( *    , * ) ' Error: number of substances in the ini-file   : ',nosubs_idp
+               write ( *    , * ) '        number of substances in the model setup: ',nosubs
+               call srstop(1)
+            endif
+            do ilp = 1, nopart
+               read( luini) npart(ilp), mpart(ilp), kpart(ilp), xpart(ilp), ypart(ilp), zpart(ilp), wpart(1:nosubs,ilp),
+     &                      spart(1:nosubs,ilp), iptime(ilp)
+            enddo
+            do ilp = 1, nopart
+               do isp = 1, nosubs
+                  if (modtyp .eq. model_prob_dens_settling) then
+                     rhopart(isp, ilp) = pldensity(isp)
+                  endif
+               enddo
+            enddo
+            close ( luini )
+         end if
+      elseif (idp_file .ne. ' ') then
+            write ( lunut, * ) ' Opening initial particles file:', idp_file(1:len_trim(idp_file))
+            open( newunit = luini, file = idp_file,form = 'FORMATTED', status ='old')
+            read ( luini , *) nopart_res, nosubs_idp
+            close ( luini )
+            npmax = nopart_res
+      endif
+      !     Draw random log normal distributed particle sizes for non-restart particles
+      if (modtyp .eq. model_prob_dens_settling) then
+         do ilp = 1, npmax
+            rnorm = normal(rseed)
+            if (ilp .gt. nopart_res) then
+               do isp = 1, nosubs
+                   spart(isp,ilp) = exp(plmusize(isp) + plsigmasize(isp) * rnorm)
+               enddo
+            endif
+         enddo
+         if (pldebug) then
+            size_file = mdpfile
+            iext = len_trim(size_file) - 3
+            size_file(iext+1:iext+5) = 'size'    !dump file for drawn plastic sizes
+            open  (newunit = luini, file = size_file, form = 'formatted')
+            write( luini , '(A10,100A20)') 'particle', (trim(substi(isp)), isp=1,nosubs)
+            do ilp = 1, npmax
+               write( luini , '(I10,100E20.7)') ilp, spart(1:nosubs,ilp)
+            enddo
+            close( luini )
+         endif
+      end if
+
          if (oil2dh) hmin = const(noconsp ) ! 2dh: last par        =hmin
          if (oil3d) then
             hmin     = const(noconsp-1)
             defang   = const(noconsp)
          endif
-         if (modtyp == 1.or.modtyp >= 3) then
+         if ((modtyp == model_tracers).or.(modtyp >= model_red_tide)) then
             pblay = 0.0
-         elseif(modtyp==2) then
+         elseif(modtyp==model_two_layer_temp) then
             pblay = 0.7
          else
             write(*,*) 'This model type has not been implemented yet '
@@ -182,6 +314,8 @@
          ptlay  = 1.0 - pblay
          nstep = 1 + (itstopp - itstrtp)/idelt
          itrakc = 0
+         itraki = notrak  ! timestep for writing trackinformation to the track file, if notrack =0 then no track file
+         if ( ltrack) itrakc = itrakc + itraki
          itraki = notrak  ! timestep for writing trackinformation to the track file, if notrack =0 then no track file
          if (ltrack) then
 !     write initial information to track file

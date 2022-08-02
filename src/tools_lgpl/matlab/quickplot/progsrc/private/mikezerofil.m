@@ -18,7 +18,7 @@ function varargout=mikezerofil(FI,domain,field,cmd,varargin)
 
 %----- LGPL --------------------------------------------------------------------
 %                                                                               
-%   Copyright (C) 2011-2020 Stichting Deltares.                                     
+%   Copyright (C) 2011-2022 Stichting Deltares.                                     
 %                                                                               
 %   This library is free software; you can redistribute it and/or                
 %   modify it under the terms of the GNU Lesser General Public                   
@@ -43,8 +43,8 @@ function varargout=mikezerofil(FI,domain,field,cmd,varargin)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/private/mikezerofil.m $
-%   $Id: mikezerofil.m 65778 2020-01-14 14:07:42Z mourits $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/tools_lgpl/matlab/quickplot/progsrc/private/mikezerofil.m $
+%   $Id: mikezerofil.m 140618 2022-01-12 13:12:04Z klapwijk $
 
 %========================= GENERAL CODE =======================================
 T_=1; ST_=2; M_=3; N_=4; K_=5;
@@ -92,6 +92,9 @@ switch cmd
         return
     case 'subfields'
         varargout={{}};
+        return
+    case 'plotoptions'
+        varargout = {[]};
         return
     case 'plot'
         Parent=varargin{1};
@@ -248,10 +251,6 @@ val1=mike('read',FI,Props.Index,idx{T_});
 if triangular
     if sz(K_)==0
         val1 = reshape(val1,[length(idx{T_}) 1 sz(M_)]);
-    elseif sz(M_)==FI.NumCells
-        val1 = reshape(val1,[length(idx{T_}) sz(K_) sz(M_)]);
-        val1 = val1(:,idx{K_},:);
-        val1 = permute(val1,[1 3 2]);
     else
         val1 = reshape(val1,[length(idx{T_}) sz(K_) sz(M_)]);
         val1 = val1(:,idx{K_},:);
@@ -282,11 +281,11 @@ end
 % generate output ...
 if XYRead
     if triangular
-        Ans.TRI=TRI;
+        Ans.FaceNodeConnect=TRI;
+        Ans.X = x;
+        Ans.Y = y;
         if ~isempty(z)
-            Ans.XYZ=reshape([x(:) y(:) z(:)],[1 size(x) 3]);
-        else
-            Ans.XYZ=reshape([x y],[1 length(x) 1 2]);
+            Ans.Z = z;
         end
     else
         if ~isempty(x)
@@ -308,6 +307,13 @@ switch Props.NVal
     case 0
     case 1
         Ans.Val=val1;
+        if triangular
+            if sz(M_)==FI.NumCells
+                Ans.ValLocation = 'FACE';
+            else
+                Ans.ValLocation = 'NODE';
+            end
+        end
 end
 
 % read time ...
@@ -321,22 +327,30 @@ varargout={Ans FI};
 function Out=infile(FI,domain)
 %
 %======================== SPECIFIC CODE =======================================
-PropNames={'Name'                         'DimFlag'    'NVal' 'DataInCell' 'Index' 'UseGrid' 'Tri'};
-DataProps={'data field'                    [1 0 0 0 0]  1           1       0          1       0};
+PropNames={'Name'                         'DimFlag'    'NVal' 'DataInCell' 'Index' 'UseGrid'};
+DataProps={'data field'                    [1 0 0 0 0]  1           1       0          1    };
 Out=cell2struct(DataProps,PropNames,2);
 if isfield(FI,'DataType')
     DT = FI.DataType;
 else
     DT = 'structured';
 end
+unstructured = false;
 switch DT
     case 'unstructured'
-        Out(1).Tri=1;
+        unstructured = true;
+        %
+        iElmType = strcmp('Element type',{FI.Item.Name});
+        nElements = FI.Item(iElmType).MatrixSize;
+        %
         fm=strmatch('MIKE_FM',{FI.Attrib.Name},'exact');
+        Out(1).Geom = 'UGRID2D-FACE';
         if FI.Attrib(fm).Data(3)==3
             Out(1).DimFlag=[1 0 1 1 1];
+            Out(1).Coords = 'xyz';
         else
-            Out(1).DimFlag=[1 0 1 1 0];
+            Out(1).DimFlag=[1 0 1 0 0];
+            Out(1).Coords = 'xy';
         end
     case 'crosssections'
         Out(1).Name = 'cross sectional profile';
@@ -361,9 +375,32 @@ switch DT
         end
 end
 if ~isempty(FI.Item)
-    for i=1:length(FI.Item)
+    for i = length(FI.Item):-1:1
+        if strcmp(FI.Item(i).Name,'Connectivity')
+            if i < length(FI.Item)
+                Out(i) = [];
+            end
+            continue
+        end
+        %
         Out(i)=Out(1);
-        Out(i).Name=strtrim(FI.Item(i).Name);
+        if isfield(FI.Item,'EUMTypeStr') && ~strcmp(FI.Item(i).EUMTypeStr,'Undefined')
+            if 0
+                Out(i).Name  = [strtrim(FI.Item(i).Name) ' <' FI.Item(i).EUMTypeStr '>'];
+            else
+                Out(i).Name  = strtrim(FI.Item(i).Name);
+            end
+            Out(i).Units = FI.Item(i).UnitStr;
+        else
+            Out(i).Name  = strtrim(FI.Item(i).Name);
+            Out(i).Units = '';
+        end
+        if unstructured
+            if FI.Item(i).MatrixSize ~= nElements
+                Out(i).Geom = 'UGRID2D-NODE';
+                Out(i).DataInCell = 0;
+            end
+        end
         Out(i).Index=i;
     end
 else
@@ -394,7 +431,7 @@ switch FI.FileType
         end
     case 'MikeDFS'
         idx=Props.Index;
-        if Props.Tri
+        if isfield(Props,'Geom')
             szM = FI.Item(Props.Index).MatrixSize;
             sz(N_)=1;
             if szM == FI.NumCells*FI.NumLayers
@@ -455,7 +492,7 @@ switch FI.FileType
             if isequal(t,0)
                 t=1:FI.NumTimeSteps;
             end
-            T=FI.RefDate+(t-1)*FI.TimeStep;
+            T=FI.RefDate+FI.Times(t);
         end
 end
 % -----------------------------------------------------------------------------

@@ -17,7 +17,7 @@ function varargout=boxfile(cmd,varargin)
 
 %----- LGPL --------------------------------------------------------------------
 %
-%   Copyright (C) 2011-2020 Stichting Deltares.
+%   Copyright (C) 2011-2022 Stichting Deltares.
 %
 %   This library is free software; you can redistribute it and/or
 %   modify it under the terms of the GNU Lesser General Public
@@ -42,8 +42,8 @@ function varargout=boxfile(cmd,varargin)
 %
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/private/boxfile.m $
-%   $Id: boxfile.m 65778 2020-01-14 14:07:42Z mourits $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/tools_lgpl/matlab/quickplot/progsrc/private/boxfile.m $
+%   $Id: boxfile.m 140618 2022-01-12 13:12:04Z klapwijk $
 
 if nargin==0
     if nargout>0
@@ -95,7 +95,7 @@ if strcmp(filename,'?')
     filename=[fpath,fname];
 end
 
-fid=fopen(filename,'r');
+fid=fopen(filename,'r','n','US-ASCII');
 if fid<0
     error('Cannot open %s.',filename)
 end
@@ -162,9 +162,18 @@ try
                 if isempty(vals)
                     vals =[];
                 end
-                while length(vals)<nval2read
-                    xvals = fscanf(fid,'%f%*[ ,]',[1 nval2read-length(vals)]);
-                    vals = [vals xvals];
+                nvalread = length(vals);
+                if nvalread < nval2read
+                    vals(1,nval2read) = 0;
+                end
+                while nvalread < nval2read
+                    [xvals,nval] = fscanf(fid,' %f%*[ ,]',[1 nval2read-nvalread]);
+                    if nval==0
+                        str = fgetl(fid);
+                        error('Error while reading "%s".\nExpected to read %i values for BOX MNMN=(%i, %i, %i, %i); only %i values read.\n',str,nval2read,data{i,2},nvalread);
+                    end
+                    vals(nvalread+1:nvalread+nval) = xvals;
+                    nvalread = nvalread + nval;
                 end
                 data{i,3} = reshape(vals,[MNMN(4)-MNMN(2)+1 MNMN(3)-MNMN(1)+1])';
             otherwise
@@ -206,7 +215,7 @@ function OK=Local_depwrite(filename,DP)
 %    write the MATRIX to the file in boxfile format.
 %    Missing values (NaN's) are replaced by 999.999.
 
-fid=fopen(filename,'w');
+fid=fopen(filename,'w','n','US-ASCII');
 if fid<0
     error('Cannot open %s.',filename)
 end

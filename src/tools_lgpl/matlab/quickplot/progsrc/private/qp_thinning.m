@@ -11,7 +11,7 @@ function [data,s] = qp_thinning(data,Ops)
 
 %----- LGPL --------------------------------------------------------------------
 %
-%   Copyright (C) 2011-2020 Stichting Deltares.
+%   Copyright (C) 2011-2022 Stichting Deltares.
 %
 %   This library is free software; you can redistribute it and/or
 %   modify it under the terms of the GNU Lesser General Public
@@ -36,8 +36,8 @@ function [data,s] = qp_thinning(data,Ops)
 %
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/private/qp_thinning.m $
-%   $Id: qp_thinning.m 65778 2020-01-14 14:07:42Z mourits $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/tools_lgpl/matlab/quickplot/progsrc/private/qp_thinning.m $
+%   $Id: qp_thinning.m 140618 2022-01-12 13:12:04Z klapwijk $
 
 multi_time = isfield(data,'Time') && length(data(1).Time)>1;
 s = [];

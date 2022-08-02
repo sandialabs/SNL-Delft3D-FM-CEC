@@ -1,6 +1,6 @@
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -24,8 +24,8 @@
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: wrwaqgeomcl.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/io_hyd/packages/io_hyd/src/wrwaqgeomcl.f90 $
+!  $Id: wrwaqgeomcl.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_lgpl/io_hyd/packages/io_hyd/src/wrwaqgeomcl.f90 $
 !!--description-----------------------------------------------------------------
 ! This module prepares the structured grid into an unstructured data structure
 !   and writes it to a UGRID compliant NetCDF file    
@@ -123,7 +123,6 @@ contains
     logical                             :: found
     real(hp), dimension(:,:,:), pointer :: open_bnd              ! open boundary coordinates
     integer , dimension(:)    , pointer :: nr_bnd_cells          
-    integer, external                   :: newunit
     integer                             :: lunbnd                ! logical unit boundary file
     character(len=256)                  :: bndfilename           ! boundary filename
 

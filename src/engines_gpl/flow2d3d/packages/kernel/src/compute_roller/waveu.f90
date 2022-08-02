@@ -3,7 +3,7 @@ subroutine waveu(nmmax     ,kfs       ,sourw     , &
                & c         ,hbd       ,ewabr1    ,df        ,gdp       )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -27,8 +27,8 @@ subroutine waveu(nmmax     ,kfs       ,sourw     , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: waveu.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/kernel/src/compute_roller/waveu.f90 $
+!  $Id: waveu.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/flow2d3d/packages/kernel/src/compute_roller/waveu.f90 $
 !!--description-----------------------------------------------------------------
 !
 ! Computes wave energy dissipation terms due to breaking and bottom friction
@@ -233,7 +233,7 @@ subroutine waveu(nmmax     ,kfs       ,sourw     , &
                  !
                  ! Compute Gamma
                  !
-                 gamBaSti = 0.5_fp + 0.4_fp*tanh(33.0_fp*hrms0/rlabda0)
+                 gamBaSti = 0.5_fp + 0.4_fp*tanh(33.0_fp*hrms0/max(rlabda0,1.0e-12_fp))
               else
                  call prterr(lundia, 'U021', 'Battjes & Stive formulation can not be used without wavecon file')
                  call d3stop(1, gdp)

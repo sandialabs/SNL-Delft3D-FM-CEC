@@ -1,7 +1,7 @@
 module m_1d_structures
 !----- AGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2017-2020.                                
+!  Copyright (C)  Stichting Deltares, 2017-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify              
 !  it under the terms of the GNU Affero General Public License as               
@@ -25,8 +25,8 @@ module m_1d_structures
 !  Stichting Deltares. All rights reserved.
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: structures.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_gpl/flow1d/packages/flow1d_core/src/structures.f90 $
+!  $Id: structures.f90 140847 2022-03-01 08:17:35Z noort $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_gpl/flow1d/packages/flow1d_core/src/structures.f90 $
 !-------------------------------------------------------------------------------
 
    use MessageHandling
@@ -125,12 +125,10 @@ module m_1d_structures
 
    interface realloc
       module procedure reallocstructure
-      module procedure reallocForcingList
    end interface
 
    interface dealloc
       module procedure deallocstructure
-      module procedure deallocForcingList
    end interface dealloc
 
    ! TODO: the next declarations are duplicates of OMI_CF_DATA.
@@ -152,16 +150,16 @@ module m_1d_structures
       integer                          :: ibran          !< branch index
       double precision                 :: chainage       !< Chainage
       integer                          :: numCoordinates !< number of coordinates in the location polygon
-      double precision, pointer, dimension(:)   :: xCoordinates   !< x-coordinates of the location polygon
-      double precision, pointer, dimension(:)   :: yCoordinates   !< y-coordinates of the location polygon
+      double precision, pointer, dimension(:) :: xCoordinates => null() !< x-coordinates of the location polygon
+      double precision, pointer, dimension(:) :: yCoordinates => null() !< y-coordinates of the location polygon
       
       integer                          :: numlinks       !< number of links in structure
-      integer, pointer, dimension(:)   :: linknumbers    !< link numbers of structure (length = numlinks)
-      double precision, pointer, dimension(:)   :: fu    !< fu coefficient for momentum equation
-      double precision, pointer, dimension(:)   :: ru    !< ru coefficient for momentum equation
-      double precision, pointer, dimension(:)   :: au    !< flow area
-      double precision, pointer, dimension(:)   :: u0    !< flow velocity at previous time step
-      double precision, pointer, dimension(:)   :: u1    !< flow velocity at current time step
+      integer, pointer, dimension(:)   :: linknumbers => null() !< link numbers of structure (length = numlinks)
+      double precision, pointer, dimension(:) :: fu => null() !< fu coefficient for momentum equation
+      double precision, pointer, dimension(:) :: ru => null() !< ru coefficient for momentum equation
+      double precision, pointer, dimension(:) :: au => null() !< flow area
+      double precision, pointer, dimension(:) :: u0 => null() !< flow velocity at previous time step
+      double precision, pointer, dimension(:) :: u1 => null() !< flow velocity at current time step
     
       integer                          :: compound
       type(t_weir), pointer            :: weir => null()
@@ -182,7 +180,7 @@ module m_1d_structures
       integer, dimension(ST_MAX_TYPE)                       :: countByType        = 0
       integer                                               :: compoundCount      = 0
       logical                                               :: hasExtraResistance = .false.
-      type(t_structure), pointer, dimension(:)              :: struct
+      type(t_structure), pointer, dimension(:)              :: struct => null()
       !> Contains information on
       real, dimension(:,:), allocatable                     :: restartData
       type(t_hashlist)                                      :: hashlist_weir
@@ -199,37 +197,18 @@ module m_1d_structures
       integer                                               :: numGates                 !< Total number of gates in this structure set. See indices array below.
       integer                                               :: numGeneralStructures     !< Total number of general structures in this structure set. See indices array below.
       integer                                               :: numUniWeirs              !< Total number of universal weirs in this structure set. See indices array below.
-      integer, pointer, dimension(:)                        :: weirIndices              !< (numWeirs) indices of the weirs in the overall struct(:) array. Note: some may actually be of type ST_GENERAL_ST.
-      integer, pointer, dimension(:)                        :: culvertIndices           !< (numCulverts) indices of the culverts in the overall struct(:) array.
-      integer, pointer, dimension(:)                        :: pumpIndices              !< (numPumps) indices of the pumps in the overall struct(:) array.
-      integer, pointer, dimension(:)                        :: bridgeIndices            !< (numBridges) indices of the bridges in the overall struct(:) array.
-      integer, pointer, dimension(:)                        :: orificeIndices           !< (numOrifices) indices of the orifices in the overall struct(:) array. Note: some may actually be of type ST_GENERAL_ST.
-      integer, pointer, dimension(:)                        :: gateIndices              !< (numGates) indices of the gates in the overall struct(:) array. Note: some may actually be of type ST_GENERAL_ST.
-      integer, pointer, dimension(:)                        :: generalStructureIndices  !< (numGeneralStructures) indices of the general structures in the overall struct(:) array.
-      integer, pointer, dimension(:)                        :: uniWeirIndices           !< (numUniWeirs) indices of the universal weirs in the overall struct(:) array.
+      integer                                               :: numDambreaks             !< Total number of dambreaks in this structure set. See indices array below.
+      integer, pointer, dimension(:)                        :: weirIndices             => null() !< (numWeirs) indices of the weirs in the overall struct(:) array. Note: some may actually be of type ST_GENERAL_ST.
+      integer, pointer, dimension(:)                        :: culvertIndices          => null() !< (numCulverts) indices of the culverts in the overall struct(:) array.
+      integer, pointer, dimension(:)                        :: pumpIndices             => null() !< (numPumps) indices of the pumps in the overall struct(:) array.
+      integer, pointer, dimension(:)                        :: bridgeIndices           => null() !< (numBridges) indices of the bridges in the overall struct(:) array.
+      integer, pointer, dimension(:)                        :: orificeIndices          => null() !< (numOrifices) indices of the orifices in the overall struct(:) array. Note: some may actually be of type ST_GENERAL_ST.
+      integer, pointer, dimension(:)                        :: gateIndices             => null() !< (numGates) indices of the gates in the overall struct(:) array. Note: some may actually be of type ST_GENERAL_ST.
+      integer, pointer, dimension(:)                        :: generalStructureIndices => null() !< (numGeneralStructures) indices of the general structures in the overall struct(:) array.
+      integer, pointer, dimension(:)                        :: uniWeirIndices          => null() !< (numUniWeirs) indices of the universal weirs in the overall struct(:) array.
+      integer, pointer, dimension(:)                        :: dambreakIndices         => null() !< (numDambreaks) indices of the dambreaks in the overall struct(:) array.
    end type t_structureSet
 
-   !> Data type to store user input for structure forcings, to be processed later by a kernel.
-   !! For example, a pump's capacity may be prescribed by a time series in a .bc file.
-   !! The flow1d structure reader only reads all user-supplied input, and later it is up to
-   !! the calling kernel to initialize that forcing provider.
-   type, public :: t_forcing
-      character(IdLen)                 :: st_id      !< The structure's character Id.
-      integer                          :: st_type    !< Structure type (e.g., ST_PUMP).
-      character(IdLen)                 :: param_name !< Name of the structure's parameter that this forcing data is for.
-      double precision, pointer        :: targetptr  !< Pointer to scalar variable in which the provided
-                                                     !< parameter value(s) can later be stored.
-                                                     !< For example => pump%capacity.
-      character(Charln)                :: filename   !< Name of file that contains the forcing data (e.g., a time series file).
-   end type
-
-   !> An ordered list of structure forcing items.
-   type, public :: t_forcingList
-      integer                                :: Size     = 0  !< Current maximum size of the forcing list.
-      integer                                :: growsBy  = 20 !< Increment upon each realloc call.
-      integer                                :: Count    = 0  !< Current actual number of items in the forcing list.
-      type(t_forcing), pointer, dimension(:) :: forcing       !< Actual forcing list.
-   end type
 
    contains
    
@@ -411,6 +390,7 @@ subroutine deallocstructure(sts)
    call dealloc(sts%hashlist_pump)
    call dealloc(sts%hashlist_bridge)
    call dealloc(sts%hashlist_culvert)
+   call dealloc(sts%hashlist_structure)
 
    sts%struct       => null()
    sts%count         = 0
@@ -450,59 +430,6 @@ end subroutine deallocstructure
       endif
       sts%Size = sts%Size+sts%growsBy
    end subroutine
-
-!> Deallocates a forcing list and sets all counters to zero.
-subroutine deallocForcingList(fs)
-   ! Modules
-
-   implicit none
-
-   ! Input/output parameters
-   type(t_forcingList), intent(inout) :: fs !< The forcing list.
-
-   ! Local variables
-
-   ! Program code
-   if (associated(fs%forcing)) then
-      deallocate(fs%forcing)
-   endif
-   
-   fs%forcing => null()
-   fs%size  = 0
-   fs%count = 0
-
-end subroutine
-!
-!
-
-subroutine reallocForcingList(fs)
-   ! Modules
-
-   implicit none
-
-   ! Input/output parameters
-   type(t_forcingList), intent(inout)          :: fs
-
-   ! Local variables
-   type(t_forcing), pointer, dimension(:)      :: oldforcing
-
-   ! Program code
-
-   if (fs%Size > 0) then
-      oldforcing=>fs%forcing
-   endif
-
-   if (fs%growsBy <=0) then
-      fs%growsBy = 200
-   endif
-   allocate(fs%forcing(fs%Size+fs%growsBy))
-
-   if (fs%Size > 0) then
-      fs%forcing(1:fs%Size) = oldforcing(1:fs%Size)
-      deallocate(oldforcing)
-   endif
-   fs%Size = fs%Size+fs%growsBy
-end subroutine
 
    double precision function getTableValueStruc(pstru, x) result (res)
       double precision :: x
@@ -558,7 +485,7 @@ end subroutine
 !
 ! Local variables
 !
-      character(CharLn)                   :: line
+      character(IdLen)                   :: line
 !
 !
 !! executable statements -------------------------------------------------------
@@ -649,7 +576,7 @@ end subroutine
 !
 ! Local variables
 !
-      character(CharLn)                   :: line
+      character(IdLen)                   :: line
 !
 !
 !! executable statements -------------------------------------------------------
@@ -801,6 +728,8 @@ end subroutine
             strng = 'dambreak'
          case (ST_BRIDGE)
             strng = 'bridge'
+         case (ST_LONGCULVERT)
+            strng = 'longCulvert'
          case default
             strng = 'unknown'
       end select
@@ -1280,11 +1209,17 @@ end subroutine
          struct%generalst%fu = 0d0
          struct%generalst%ru = 0d0
          struct%generalst%au = 0d0
+         allocate(struct%generalst%gateclosedfractiononlink(numlinks))
+         struct%generalst%gateclosedfractiononlink = 0d0
       case (ST_CULVERT, ST_UNI_WEIR, ST_ORIFICE, ST_GATE, ST_WEIR, ST_PUMP, ST_BRIDGE)
          if (numlinks > 1) then
             istat = 1
             call setmessage(LEVEL_ERROR, 'Multiple links for culvert structures is not supported, check structure'//trim(struct%id))
          endif
+      case (ST_DAMBREAK)
+         ! NOTE: flow1d currently does not contain any special computations for dambreak on multiple flow links (2D grid).
+         !       But: allow this anyway, because flow1d only stores the dambreak input. Computation is done in kernel (e.g., dflowfm).
+         continue
       case default
          ! A reminder not to forget other structures that are added:
          istat = 1
@@ -1359,9 +1294,6 @@ end subroutine
          call compare_and_warn(level, pstru%bridge%flowArea, pstru%bridge%flowArea_actual, 'flow area', pstru%id)
       case(ST_UNI_WEIR)
          call compare_and_warn(level, pstru%uniweir%crestlevel, pstru%uniweir%crestlevel_actual, 'crest level', pstru%id)
-      case(ST_CULVERT)
-         call compare_and_warn(level, pstru%culvert%bob_orig(1), bob0(1), 'bed level of the channel at the left side', pstru%id)
-         call compare_and_warn(level, pstru%culvert%bob_orig(2), bob0(2), 'bed level of the channel at the right side', pstru%id)
       end select
          
    end subroutine check_for_changes_on_structures
@@ -1379,7 +1311,7 @@ end subroutine
       if (numberOfWarnings == Maxwarnings+1) then
          numberOfWarnings = numberOfWarnings+1
          write (msgbuf, '(a,i0,a)') 'The number of warnings for changed structure parameters exceeds ', &
-                     Maxwarnings, ', subsequent warnings are supppressed'
+                     Maxwarnings, ', subsequent warnings are suppressed'
          call setmessage(LEVEL_INFO,msgbuf)
       else if (numberOfWarnings <= Maxwarnings) then
          if (comparereal(val_org, val_new) /= 0) then
@@ -1461,7 +1393,7 @@ end subroutine
       if (lin2str(L) > 0) then
          istru = lin2str(L)
          do i = 1, struct(istru)%numlinks
-            if (L==struct(istru)%linknumbers(i)) then
+            if (L==abs(struct(istru)%linknumbers(i))) then
                L0 = i
             endif
          enddo

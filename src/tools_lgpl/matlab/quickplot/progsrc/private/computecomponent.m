@@ -9,7 +9,7 @@ function [data,scalar,vpt]=computecomponent(data,Ops)
 
 %----- LGPL --------------------------------------------------------------------
 %                                                                               
-%   Copyright (C) 2011-2020 Stichting Deltares.                                     
+%   Copyright (C) 2011-2022 Stichting Deltares.                                     
 %                                                                               
 %   This library is free software; you can redistribute it and/or                
 %   modify it under the terms of the GNU Lesser General Public                   
@@ -34,8 +34,8 @@ function [data,scalar,vpt]=computecomponent(data,Ops)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/private/computecomponent.m $
-%   $Id: computecomponent.m 65778 2020-01-14 14:07:42Z mourits $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/tools_lgpl/matlab/quickplot/progsrc/private/computecomponent.m $
+%   $Id: computecomponent.m 140618 2022-01-12 13:12:04Z klapwijk $
 
 if ischar(Ops)
     vpt=Ops;
@@ -236,7 +236,11 @@ for d=1:length(data)
                         data(d).Val(t,:)=-data(d).XComp(t,:).*dy + data(d).YComp(t,:).*dx;
                     end
                 end
-            else 
+            else
+                if ~isequal(size(data(d).XComp),size(dx))
+                    dx = repmat(dx, size(data(d).XComp)./size(dx));
+                    dy = repmat(dy, size(data(d).XComp)./size(dy));
+                end
                 if Tangential
                     data(d).Val=data(d).XComp.*dx + data(d).YComp.*dy;
                 else

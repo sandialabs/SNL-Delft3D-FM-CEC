@@ -1,6 +1,6 @@
 //---- GPL ---------------------------------------------------------------------
 //
-// Copyright (C)  Stichting Deltares, 2011-2020.
+// Copyright (C)  Stichting Deltares, 2011-2022.
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -24,8 +24,8 @@
 // Stichting Deltares. All rights reserved.
 //
 //------------------------------------------------------------------------------
-// $Id: shared_lib_fallve.c 65813 2020-01-17 16:46:56Z mourits $
-// $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_gpl/morphology/packages/morphology_plugins_c/src/shared_lib_fallve.c $
+// $Id: shared_lib_fallve.c 140618 2022-01-12 13:12:04Z klapwijk $
+// $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_gpl/morphology/packages/morphology_plugins_c/src/shared_lib_fallve.c $
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -39,7 +39,7 @@
 #  include <windows.h>
 #elif defined(salford32)
 #  include <windows.h>
-#elif defined(HAVE_CONFIG_H)
+#elif defined(linux)
 #  include <dlfcn.h>
 #endif
 
@@ -49,7 +49,7 @@
 #elif defined(salford32)
 #  define PERFORM_FUNCTION_FALLVE  PERF_FUNCTION_FALLVE
 #  define STDCALL __stdcall
-#elif defined(HAVE_CONFIG_H)
+#elif defined(linux)
 #   include "config.h"
 #  define PERFORM_FUNCTION_FALLVE  FC_FUNC(perf_function_fallve,PERFORM_FUNCTION_FALLVE)
 #  define STDCALL
@@ -66,7 +66,7 @@
     typedef HMODULE DllHandle;
 #elif defined(salford32)
     typedef HMODULE DllHandle;
-#elif defined(HAVE_CONFIG_H)
+#elif defined(linux)
     typedef void * DllHandle;
 #endif
 
@@ -111,7 +111,7 @@ extern "C" PERFORM_FUNCTION_FALLVE(  long   * sharedDLLHandle    ,
                               long     length_function    ,
                               long     length_dll_strings)
 	                          // message is a c-string: no length specification added
-#elif defined (HAVE_CONFIG_H)
+#elif defined (linux)
 long STDCALL PERFORM_FUNCTION_FALLVE(long   * sharedDLLHandle    ,
                               char   * function           ,
                               long   * dll_integers       ,
@@ -136,7 +136,7 @@ long STDCALL PERFORM_FUNCTION_FALLVE(long   * sharedDLLHandle    ,
                                     char   *, long   *,
                                     double *, char   *, long );
                                     // message is a c-string: no length specification added
-#elif defined (HAVE_CONFIG_H)
+#elif defined (linux)
   typedef void * (STDCALL * MyProc)(long   *, long   *,
                                     double *, long   *,
                                     char   *, long   *,
@@ -154,7 +154,7 @@ long STDCALL PERFORM_FUNCTION_FALLVE(long   * sharedDLLHandle    ,
   proc = (MyProc) GetProcAddress( sharedDLL->dllHandle, fun_name);
 #elif defined(salford32)
   proc = (MyProc) GetProcAddress( sharedDLL->dllHandle, fun_name);
-#elif defined(HAVE_CONFIG_H)
+#elif defined(linux)
   proc = (MyProc) dlsym( sharedDLL->dllHandle, fun_name);
 #endif
 
@@ -168,7 +168,7 @@ long STDCALL PERFORM_FUNCTION_FALLVE(long   * sharedDLLHandle    ,
                       ws          , message     ,
                       length_dll_strings);
 	                  // message is a c-string: no length specification added
-#elif defined (HAVE_CONFIG_H)
+#elif defined (linux)
      (void *) (*proc)(dll_integers, max_integers,
                       dll_reals   , max_reals   ,
                       dll_strings , max_strings ,

@@ -40,11 +40,14 @@ function delwaq2raster(ini_file)
 %   One or more [action] blocks containing the following keywords:
 %     time_op:  name of operation in time. The tool supports the following
 %               operations:
-%               max, mean, min, std, and ident (default)
+%               max, mean, min, std, percentile and ident (default)
 %               The default time operator "ident" will convert every time
 %               step in the specified period (from tstart until tstop). In
-%               the other cases, it will take the max, mean, min, std of
-%               all values in the selected time period.
+%               the other cases, it will take the max, mean, min, std or
+%               specified percentile of all values in the selected time
+%               period.
+%     percentile: percentile to be taken from the data of the selected
+%               time period (0-100%, required when time_op is percentile).
 %     tstart :  start index of time steps to include in processing (default
 %               value taken from [general] block).
 %     tstop  :  stop index of time steps to include in processing (default
@@ -85,6 +88,9 @@ function delwaq2raster(ini_file)
 %               variable is available on the delwaq MAP file.
 %     localdepth: specify the name of the variable to be used for the
 %               layer depth, by default this is: LocalDepth.
+%     outputgrid: user specified name for the output grid. By default a 
+%               name will be constructed from include, time_op, optionally
+%               percentile and timings.
 %
 %   One or more [<VarName>] blocks in which <VarName> matches the name of a
 %   variable specified in the "include" item of an [action] block. The
@@ -100,7 +106,7 @@ function delwaq2raster(ini_file)
 
 %----- LGPL --------------------------------------------------------------------
 %
-%   Copyright (C) 2011-2020 Stichting Deltares.
+%   Copyright (C) 2011-2022 Stichting Deltares.
 %
 %   This library is free software; you can redistribute it and/or
 %   modify it under the terms of the GNU Lesser General Public
@@ -125,8 +131,8 @@ function delwaq2raster(ini_file)
 %
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/delwaq2raster.m $
-%   $Id: delwaq2raster.m 65778 2020-01-14 14:07:42Z mourits $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/tools_lgpl/matlab/quickplot/progsrc/delwaq2raster.m $
+%   $Id: delwaq2raster.m 140618 2022-01-12 13:12:04Z klapwijk $
 
 LAYER_DEPTH_AVERAGE = -1001;
 LAYER_BOTTOM_MOST   = -1002;
@@ -223,11 +229,22 @@ else
 end
 %
 flw_qnt        = qpread(flw_info1);
-if isfield(flw_qnt,'varid')
+flw_is_structured = false;
+flw_use_mask = false;
+if isfield(flw_qnt,'Name')
     for i = length(flw_qnt):-1:1
-        idm = flw_qnt(i).varid;
-        if isempty(idm) || iscell(idm) || ~ismember('nFlowElem',flw_info1.Dataset(idm(1)+1).Dimension)
+        idm = flw_qnt(i).Name;
+        if isempty(idm) || iscell(idm) %|| ~ismember('nFlowElem',flw_info1.Dataset(idm(1)+1).Dimension)
             flw_qnt(i) = [];
+        end
+    end
+    if strcmp(flw_info1.QP_FileType, 'Delft3D-trim')
+        flw_is_structured = true;
+        maskid = filter_qnt('1/-1 Active/Non-active water level point (w.r.t. coordinates )',waq_qnt,flw_qnt);
+        if maskid < 0
+            flw_data = qpread(flw_info,flw_qnt(-maskid),'data',1,0);
+            flw_mask = reshape(flw_data.Val',[],1)';
+            flw_use_mask = true;
         end
     end
 else
@@ -254,17 +271,19 @@ for ifld = 1:nchp
             blockprocessed(ifld) = true;
         case 'action'
             blockprocessed(ifld) = true;
-            chp{ifld,1} = inifile('get',ini_info,ifld,'time_op','ident');
-            chp{ifld,2} = inifile('get',ini_info,ifld,'include',{});
+            chp{ifld,1} = inifile('getstring',ini_info,ifld,'time_op','ident');
+            [chp{ifld,2},ifldout] = inifile('cgetstring',ini_info,ifld,'include'); % ifldout needed to avoid error when no 'include' statement is found
             [chp{ifld,3},chp{ifld,2}] = filter_qnt(chp{ifld,2},waq_qnt,flw_qnt);
             info = [];
+            info.prctl  = inifile('get',ini_info,ifld,'percentile',-999);
             info.tstart = inifile('get',ini_info,ifld,'tstart',tstart);
             info.tstop  = inifile('get',ini_info,ifld,'tstop' ,tstop);
             info.ntstep = inifile('get',ini_info,ifld,'ntstep',ntstep);
             info.tshift = inifile('get',ini_info,ifld,'tshift',NaN);
             info.ntskip = inifile('get',ini_info,ifld,'skipstep',ntskip);
             info.layer  = inifile('get',ini_info,ifld,'layer',layer);
-            info.ldepth = inifile('get',ini_info,ifld,'localdepth','LocalDepth');
+            info.ldepth = inifile('getstring',ini_info,ifld,'localdepth','LocalDepth');
+            info.ogrid  = inifile('getstring',ini_info,ifld,'outputgrid','');
             if ischar(info.layer)
                 switch info.layer
                     case 'depth average'
@@ -431,6 +450,16 @@ for ifld = 1:nchp
     chp{ifld,4} = info;
 end
 %
+fprintf(1,'Checking percentile information ...\n');
+for ifld = 1:nchp
+    info = chp{ifld,4};
+    if strcmp(chp{ifld,1},'percentile')
+        if any(info.prctl < 0 | info.prctl > 100) || ~isreal(info.prctl)
+            error('Invalid or missing percentile specification in block %i', ifld)
+        end
+    end
+end
+%
 fprintf(1,'Segment number mapping ...\n');
 G = qpread(waq_info, 'segment number', 'gridcell');
 if size(G.X,2)>1
@@ -595,6 +624,10 @@ switch method
             warning('Raster cell centre coincides with simulation cell edge: using average value');
         end
 end
+% check if there is any overlap between input grid and output raster
+if sum(Wght) == 0
+    error('No overlap between the input grid and output raster found!')
+end
 %
 % process data sets
 %
@@ -630,7 +663,7 @@ for ifld = 1:nchp
     end
     %
     switch tmop
-        case {'ident','max','min'}
+        case {'ident','max','min','percentile'}
             missing_value = NaN;
         otherwise
             missing_value = 0;
@@ -642,19 +675,26 @@ for ifld = 1:nchp
         itstep  = info.ntskip+1;
         ntim    = 0;
         %
+        if strcmp(tmop,'percentile')
+            tmopstr = sprintf('%s_%i',tmop,info.prctl);
+        else
+            tmopstr = tmop;
+        end
         if itstep==1
-            tmopstr = sprintf('%s_%i-%i',tmop,itstart,itstop);
+            tmopstr = sprintf('%s_%i-%i',tmopstr,itstart,itstop);
         else
             itstop = itstart + itstep*floor((itstop-itstart)/itstep);
             if itstop>itstart
-                tmopstr = sprintf('%s_%i-%i-step%i',tmop,itstart,itstop,itstep);
+                tmopstr = sprintf('%s_%i-%i-step%i',tmopstr,itstart,itstop,itstep);
             else
-                tmopstr = sprintf('%s_%i',tmop,itstart);
+                tmopstr = sprintf('%s_%i',tmopstr,itstart);
             end
         end
         switch tmop
             case {'max','min'}
                 DATA = NaN;
+            case 'percentile'
+                DATA  = [];
             otherwise
                 DATA  = 0;
                 DATA2 = 0;
@@ -754,8 +794,33 @@ for ifld = 1:nchp
                             val(GlobNr(PartNr==ipar-1)) = X.Val(PartNr==ipar-1);
                         end
                     else
-                        X = qpread(flw_info,flw_qnt(iqnt_flw(i)),'data',it,0);
-                        val = X.Val';
+                        flw_data = qpread(flw_info,flw_qnt(iqnt_flw(i)),'data',it,0);
+                        if isfield(flw_data,'XComp') || isfield(flw_data,'YComp')
+                            val = sqrt(power(flw_data.XComp, 2) + power(flw_data.XComp, 2));
+                        elseif isfield(flw_data,'Val')
+                            val = flw_data.Val;
+                        else
+                            error('Error reading Flow data')
+                        end
+                        % check if it is 3D data
+                        % no 3D depth/active/inactive info, s use a simple approach
+                        flw_ndims = ndims(val);
+                        if flw_is_structured && flw_ndims == 3
+                            if info.layer == LAYER_BOTTOM_MOST
+                                val = val(:,:,1);
+                            elseif info.layer == LAYER_DEPTH_AVERAGE
+                                % just a non weighted average
+                                val = mean(val,3);
+                            else
+                                val = val(:,:,info.layer);
+                            end
+                        end
+                        % reshape data to N columns, 1 row
+                        val = reshape(val',[],1)';
+                        % apply active cells mask in case it was found (structured only)
+                        if (flw_use_mask)
+                            val = val(~isnan(flw_mask));
+                        end
                     end
                     %
                     iMissing(iflw(i),:) = isnan(val);
@@ -801,6 +866,13 @@ for ifld = 1:nchp
                         DATA = sqrt(DATA2 - (DATA.^2)./max(1,ntim))./max(1,ntim-1);
                         DATA(ntim==0) = NaN;
                     end
+                case 'percentile'
+                    DATA  = [DATA;DATA_t];
+                    ntim  = ntim  + ~iMissing;
+                    if it==itstop
+                        DATA = prctile(DATA, info.prctl, 1);
+                        DATA(ntim==0) = NaN;
+                    end
             end
             %
             if it==itstop || strcmp(tmop,'ident')
@@ -817,13 +889,18 @@ for ifld = 1:nchp
                         data = flipud(data);
                     end
                     %
-                    filename = fullfile(outdir,sprintf('%s.%s',qstr{i},tmopstr));
+                    if strcmp(info.ogrid,'')
+                        filename = fullfile(outdir,sprintf('%s.%s',qstr{i},tmopstr));
+                    else
+                        filename = info.ogrid;
+                    end
                     switch raster_info.FileType
                         case 'HDR Raster File - BIP/BIL/BSQ'
                             bil('write',filename,raster_info,data);
                         case 'arcgrid'
                             FD = raster_info;
                             FD.Data = data';
+                            FD.Comment = [];
                             arcgrid('write',FD,[filename '.asc']);
                     end
                     idataset = idataset+1;

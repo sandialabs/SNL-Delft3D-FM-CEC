@@ -3,7 +3,7 @@ function qp_updatefieldprop(UD)
 
 %----- LGPL --------------------------------------------------------------------
 %                                                                               
-%   Copyright (C) 2011-2020 Stichting Deltares.                                     
+%   Copyright (C) 2011-2022 Stichting Deltares.                                     
 %                                                                               
 %   This library is free software; you can redistribute it and/or                
 %   modify it under the terms of the GNU Lesser General Public                   
@@ -28,8 +28,8 @@ function qp_updatefieldprop(UD)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/private/qp_updatefieldprop.m $
-%   $Id: qp_updatefieldprop.m 65778 2020-01-14 14:07:42Z mourits $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/tools_lgpl/matlab/quickplot/progsrc/private/qp_updatefieldprop.m $
+%   $Id: qp_updatefieldprop.m 140618 2022-01-12 13:12:04Z klapwijk $
 
 MW=UD.MainWin;
 Inactive=UD.Inactive;
@@ -561,7 +561,7 @@ end
 if strcmp(get(MW.HSelType,'enable'),'on')
     vis = {'visible','off'};
     if v==2
-        vis = {'visible','on'};
+        vis = {'enable','on','visible','on'};
     end
     set(MW.MN,'enable','on',vis{:})
     set(MW.EditMN,'enable','on','backgroundcolor',Active,vis{:})
@@ -618,7 +618,7 @@ end
 if ~isempty(strmatch('(X,Y) ',get(MW.HSelType,'string'))) && strcmp(get(MW.HSelType,'enable'),'on')
     vis = {'visible','off'};
     if v==3
-        vis = {'visible','on'};
+        vis = {'enable','on','visible','on'};
     end
     set(MW.XY,'enable','on',vis{:})
     set(MW.EditXY,'enable','on','backgroundcolor',Active,vis{:})

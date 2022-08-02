@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -47,7 +47,7 @@
                                             ! current computing proces
       integer, intent(in)  :: notot         ! total number of systems
       integer, intent(in)  :: nosys         ! number of active systems
-      integer, intent(in)  :: noseg         ! total number of segments
+      integer, intent(in)  :: noseg         ! total number of segments (water and sediment!)
       integer, intent(in)  :: noq           ! total number of exchanges
       integer, intent(in)  :: ipoint(4,noq) ! exchange pointers
       integer, intent(in)  :: owners(noseg) ! partitioning of segments, for

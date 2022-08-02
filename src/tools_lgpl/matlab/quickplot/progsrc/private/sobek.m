@@ -14,7 +14,7 @@ function Network=sobek(cmd,varargin)
 
 %----- LGPL --------------------------------------------------------------------
 %                                                                               
-%   Copyright (C) 2011-2020 Stichting Deltares.                                     
+%   Copyright (C) 2011-2022 Stichting Deltares.                                     
 %                                                                               
 %   This library is free software; you can redistribute it and/or                
 %   modify it under the terms of the GNU Lesser General Public                   
@@ -39,8 +39,8 @@ function Network=sobek(cmd,varargin)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/private/sobek.m $
-%   $Id: sobek.m 65778 2020-01-14 14:07:42Z mourits $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/tools_lgpl/matlab/quickplot/progsrc/private/sobek.m $
+%   $Id: sobek.m 140618 2022-01-12 13:12:04Z klapwijk $
 
 switch cmd
     case {'open','read'}
@@ -159,7 +159,7 @@ Network.FileName=filename;
 Network.FileType='SOBEK River network';
 Network.Check='NotOK';
 
-fid=fopen(filename,'r');
+fid=fopen(filename,'r','n','US-ASCII');
 if fid<0
     return
 end
@@ -223,7 +223,7 @@ f=fileparts(filename);
 files=dir(fullfile(f,'*.1'));
 defgrd = find(strcmpi('defgrd.1',{files.name}));
 if length(defgrd)==1
-    fid=fopen(fullfile(f,files(defgrd).name),'r');
+    fid=fopen(fullfile(f,files(defgrd).name),'r','n','US-ASCII');
 else
     fid=0;
 end
@@ -258,7 +258,7 @@ end
 f=fileparts(filename);
 defstr = find(strcmpi('defstr.1',{files.name}));
 if length(defstr)==1
-    fid=fopen(fullfile(f,files(defstr).name),'r');
+    fid=fopen(fullfile(f,files(defstr).name),'r','n','US-ASCII');
 else
     fid=0;
 end
@@ -335,7 +335,7 @@ Network.FileName=filename;
 Network.FileType='SOBEK network';
 Network.Check='NotOK';
 
-fid=fopen(filename,'r');
+fid=fopen(filename,'r','n','US-ASCII');
 if fid<0
     return
 end
@@ -661,11 +661,11 @@ Matching = strncmp(CaseSpace,Lines,length(CaseSpace));
 description = char(sscanf(Lines{Matching},'%*d ''%[^'']'))';
 
 
-    function Network = parse_calcpoints(filename,Network,nReaches)
+function Network = parse_calcpoints(filename,Network,nReaches)
 if ~exist(filename,'file')
     return
 end
-fid = fopen(filename,'r');
+fid = fopen(filename,'r','n','US-ASCII');
 %CP_1.0
 Str = fgetl(fid);
 if ~ischar(Str)
@@ -857,7 +857,7 @@ elseif ~ok
 end
 
 function Lines = readfile(filename)
-fid = fopen(filename,'r');
+fid = fopen(filename,'r','n','US-ASCII');
 if fid<0
     error('Error opening %s.',filename)
 end

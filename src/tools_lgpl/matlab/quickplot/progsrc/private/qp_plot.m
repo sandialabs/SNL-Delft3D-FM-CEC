@@ -1,9 +1,9 @@
-function [hNewVec,Error,FileInfo,PlotState]=qp_plot(PlotState)
+function [hNewVec,Error,FileInfo,PlotState]=qp_plot(PlotState,Ops)
 %QP_PLOT Plot function of QuickPlot.
 
 %----- LGPL --------------------------------------------------------------------
 %                                                                               
-%   Copyright (C) 2011-2020 Stichting Deltares.                                     
+%   Copyright (C) 2011-2022 Stichting Deltares.                                     
 %                                                                               
 %   This library is free software; you can redistribute it and/or                
 %   modify it under the terms of the GNU Lesser General Public                   
@@ -28,47 +28,82 @@ function [hNewVec,Error,FileInfo,PlotState]=qp_plot(PlotState)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/private/qp_plot.m $
-%   $Id: qp_plot.m 65866 2020-01-26 20:25:09Z jagers $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/tools_lgpl/matlab/quickplot/progsrc/private/qp_plot.m $
+%   $Id: qp_plot.m 140975 2022-03-29 07:39:07Z jagers $
 
 T_=1; ST_=2; M_=3; N_=4; K_=5;
 
 hNewVec=0;
 Error=1;
+specialplot='';
 
 if isfield(PlotState,'FI')
-    FileInfo=PlotState.FI;
-    Domain=PlotState.Domain;
-    Props=PlotState.Props;
-    SubField=PlotState.SubField;
-    Selected=PlotState.Selected;
-    Parent=PlotState.Parent;
-    hOld=PlotState.Handles;
-    stats=PlotState.Stations;
-    Ops=PlotState.Ops;
-    Ops=qp_state_version(Ops);
+    FileInfo = PlotState.FI;
+    Domain = PlotState.Domain;
+    Props = PlotState.Props;
+    SubField = PlotState.SubField;
+    Selected = PlotState.Selected;
+    Parent = PlotState.Parent;
+    hOld = PlotState.Handles;
+    stats = PlotState.Stations;
+    Ops = PlotState.Ops;
+    Ops = qp_state_version(Ops);
     
-    DimFlag=Props.DimFlag;
+    DimFlag = Props.DimFlag;
     
-    SubSelected=Selected;
-    SubSelected(~DimFlag)=[];
+    SubSelected = Selected;
+    SubSelected(~DimFlag) = [];
     if isfield(Props,'MNK') && Props.MNK
         Props.MNK = xyz_or_mnk(Ops,Selected,Props.MNK);
     end
     
-    DataInCell=0;
+    DataInCell = 0;
     if Props.NVal<0
-        data=[];
+        data = [];
     else
-        if isfield(Ops,'extend2edge') && Ops.extend2edge
-            [Chk,data,FileInfo]=qp_getdata(FileInfo,Domain,Props,'griddefdata',SubField{:},SubSelected{:});
+        if isfield(Ops,'axestype') && strcmp(Ops.axestype,'Time')
+            [Chk,data.Time] = qp_getdata(FileInfo,Domain,Props,'times',Selected{T_});
+            specialplot = 'time';
+        elseif isfield(Ops,'extend2edge') && Ops.extend2edge
+            [Chk,data,FileInfo] = qp_getdata(FileInfo,Domain,Props,'griddefdata',SubField{:},SubSelected{:});
         else
-            switch Ops.presentationtype
-                case {'patches','patches with lines','patch centred vector','polygons'}%,'edges'} %--> edges needed for slice through patches
-                    [Chk,data,FileInfo]=qp_getdata(FileInfo,Domain,Props,'gridcelldata',SubField{:},SubSelected{:});
-                    DataInCell=1;
+            vslice = 0;
+            for i = 1:length(SubSelected)
+                if iscell(SubSelected{i})
+                    tp = SubSelected{i}{1};
+                    if strcmp(tp,'XY') || strcmp(tp,'MN')
+                        vslice = 1;
+                        break
+                    end
+                end
+            end
+            if DimFlag(M_) && DimFlag(N_) && ...
+                    (((isequal(Selected{M_},0) || length(Selected{M_})>1) && (~isequal(Selected{N_},0) && length(Selected{M_})==1)) ...
+                    || ((isequal(Selected{N_},0) || length(Selected{N_})>1) && (~isequal(Selected{M_},0) && length(Selected{M_})==1)))
+                vslice = 1;
+            end
+            presentationtype = Ops.presentationtype;
+            data_at_edges = isfield(Props,'Geom') && ~isempty(strfind(Props.Geom,'EDGE'));
+            if vslice && strcmp(presentationtype,'edges') && ~data_at_edges
+                presentationtype = 'patch_slices';
+            end
+            switch presentationtype
+                case {'patches','patches with lines','patch centred vector','polygons','patch_slices'}
+                    [Chk,data,FileInfo] = qp_getdata(FileInfo,Domain,Props,'gridcelldata',SubField{:},SubSelected{:});
+                    DataInCell = 1;
+                    if strcmp(presentationtype,'patch_slices')
+                        if size(data.X,2)==2 && size(data.X,1)>2
+                            % The following lines are not valid for geographic coordinates!
+                            data.X = (data.X(:,1,:) + data.X(:,2,:))/2;
+                            data.Y = (data.Y(:,1,:) + data.Y(:,2,:))/2;
+                        elseif size(data.X,1)==2 && size(data.X,2)>2
+                            % The following lines are not valid for geographic coordinates!
+                            data.X = (data.X(1,:,:) + data.X(2,:,:))/2;
+                            data.Y = (data.Y(1,:,:) + data.Y(2,:,:))/2;
+                        end
+                    end
                 otherwise
-                    [Chk,data,FileInfo]=qp_getdata(FileInfo,Domain,Props,'griddata',SubField{:},SubSelected{:});
+                    [Chk,data,FileInfo] = qp_getdata(FileInfo,Domain,Props,'griddata',SubField{:},SubSelected{:});
             end
         end
         if ~Chk
@@ -81,10 +116,30 @@ if isfield(PlotState,'FI')
     end
 else
     data = PlotState;
+    FileInfo = 'unknown origin';
+    data.Geom = 'UGRID2D-FACE';
+    Selected = {1 [] 1:2 [] []}; %TODO
+    Props.DimFlag = [1 0 1 0 0]; %TODO
+    DimFlag = Props.DimFlag;
+    SubField = {};
+    Ops = qp_state_version(Ops);
+    Props.Name = data.Name;
+    Props.NVal = 1; %TODO
+    stats = {}; % TODO
     hOld = [];
     Parent = gca;
 end
 
+hCLIMSYMM = [];
+if isfield(Ops,'symmetriccolourlimits') && Ops.symmetriccolourlimits
+    if iscell(hOld) && length(hOld{end}) == 1 && ishandle(hOld{end})
+        xde = get(hOld{end}, 'xdata');
+        if isequal(size(xde),[1 2]) && all(isnan(xde(:)))
+            hCLIMSYMM = hOld{end};
+            hOld(end) = [];
+        end
+    end
+end
 if iscell(hOld)
     hOldVec=cat(1,hOld{:});
 else
@@ -92,75 +147,82 @@ else
     hOld={hOld};
 end
 
-%
-% Determine all objects in the axes. If this is a new plot then the new
-% object will be added on top, but if this is an update of an existing
-% object then the new object will be located at the location of the old
-% object in the object stack.
-%
-hNewTag='';
-lParents=get(hOldVec(ishandle(hOldVec)),'Parent');
-if iscell(lParents)
-    lParents=unique([lParents{:}]);
-end
-nParents = length(lParents);
-%
-% PchildBefore lists objects plotted on top of this object.
-% PchildAfter lists objects plotted below this object.
-%
-PchildBefore = cell(1,nParents);
-PchildAfter = cell(1,nParents);
-SortObjs=1;
-for lP=1:nParents
-    Pchild=allchild(lParents(lP));
-    if isempty(hOldVec) || ~ishandle(hOldVec(1))
-        %
-        % If there is no old object, then plot new object on top.
-        %
-        PchildBefore{lP}=[];
-        PchildAfter{lP}=Pchild;
-    else
-        hNewTag=get(hOldVec(1),'tag');
-        IdxObj=find(Pchild==hOldVec(1));
-        if isempty(IdxObj)
+if ~strcmp(Parent,'loaddata')
+    %
+    % Determine all objects in the axes. If this is a new plot then the new
+    % object will be added on top, but if this is an update of an existing
+    % object then the new object will be located at the location of the old
+    % object in the object stack.
+    %
+    hNewTag='';
+    lParents=get(hOldVec(ishandle(hOldVec)),'Parent');
+    if iscell(lParents)
+        lParents=unique([lParents{:}]);
+    end
+    nParents = length(lParents);
+    %
+    % PchildBefore lists objects plotted on top of this object.
+    % PchildAfter lists objects plotted below this object.
+    %
+    PchildBefore = cell(1,nParents);
+    PchildAfter = cell(1,nParents);
+    SortObjs=1;
+    for lP=1:nParents
+        Pchild=allchild(lParents(lP));
+        if isempty(hOldVec) || ~ishandle(hOldVec(1))
             %
-            % If there is an old object, but not in the current Parent then
-            % switch off object sorting.
+            % If there is no old object, then plot new object on top.
             %
-            SortObjs=0;
             PchildBefore{lP}=[];
-            PchildAfter{lP}=[];
+            PchildAfter{lP}=Pchild;
         else
-            %
-            % Old object exists in current axes, identify objects before
-            % and after this object.
-            %
-            PchildBefore{lP}=Pchild(1:IdxObj);
-            PchildBefore{lP}=PchildBefore{lP}(~ismember(PchildBefore{lP},hOldVec));
-            PchildAfter{lP}=Pchild(IdxObj:end);
-            PchildAfter{lP}=PchildAfter{lP}(~ismember(PchildAfter{lP},hOldVec));
+            hNewTag=get(hOldVec(1),'tag');
+            IdxObj=find(Pchild==hOldVec(1));
+            if isempty(IdxObj)
+                %
+                % If there is an old object, but not in the current Parent then
+                % switch off object sorting.
+                %
+                SortObjs=0;
+                PchildBefore{lP}=[];
+                PchildAfter{lP}=[];
+            else
+                %
+                % Old object exists in current axes, identify objects before
+                % and after this object.
+                %
+                PchildBefore{lP}=Pchild(1:IdxObj);
+                PchildBefore{lP}=PchildBefore{lP}(~ismember(PchildBefore{lP},hOldVec));
+                PchildAfter{lP}=Pchild(IdxObj:end);
+                PchildAfter{lP}=PchildAfter{lP}(~ismember(PchildAfter{lP},hOldVec));
+            end
         end
     end
-end
-Level = -1;
-for i = 1:length(hOldVec)
-    if ishandle(hOldVec(i))
-        iLevel = getappdata(hOldVec(i),'Level');
-        if ~isempty(iLevel)
-            Level = iLevel;
+    %
+    if isfield(Ops,'zlevel')
+        Level = Ops.zlevel;
+    else
+        Level = -1;
+        for i = 1:length(hOldVec)
+            if ishandle(hOldVec(i))
+                iLevel = getappdata(hOldVec(i),'Level');
+                if ~isempty(iLevel)
+                    Level = iLevel;
+                end
+            end
+        end
+        if Level<0
+            Level = 0;
+            Pchild=allchild(Parent);
+            for i = 1:length(Pchild)
+                iLevel = getappdata(Pchild(i),'Level');
+                if ~isempty(iLevel)
+                    Level = max(Level,iLevel);
+                end
+            end
+            Level = Level+500;
         end
     end
-end
-if Level<0
-    Level = 0;
-    Pchild=allchild(Parent);
-    for i = 1:length(Pchild)
-        iLevel = getappdata(Pchild(i),'Level');
-        if ~isempty(iLevel)
-            Level = max(Level,iLevel);
-        end
-    end
-    Level = Level+500;
 end
 Thresholds=[]; % Thresholds is predefined to make sure that Thresholds always exists when its value is checked at the end of this routine
 
@@ -181,7 +243,7 @@ end
 
 Quant=Props.Name;
 Units='';
-if ~isempty(data)
+if ~isempty(data) && isfield(data,'Units')
     Units=data(1).Units;
 end
 %
@@ -237,6 +299,48 @@ elseif ~isempty(strfind(Ops.axestype,'Val'))
 end
 
 FirstFrame=isempty(hOldVec);
+
+% in case of track colour make sure to save a coordinate before it's lost.
+if isfield(Ops,'trackcolour')
+    data.Name = [data.Name, ': ', Ops.trackcolour];
+    Quant = data.Name;
+    if isfield(data,'XY')
+        data.Val = cell(size(data.XY));
+        for i = 1:length(data.XY)
+            data.Val{i} = data.XY{i}(:,3);
+            data.XY{i} = data.XY{i}(:,1:2);
+        end
+    else
+        switch Ops.trackcolour
+            case 'x coordinate'
+                data.Val = data.X;
+                if isfield(data,'XUnits')
+                    data.Units = data.XUnits;
+                else
+                    data.Units = '';
+                end
+            case 'y coordinate'
+                data.Val = data.Y;
+                if isfield(data,'YUnits')
+                    data.Units = data.YUnits;
+                else
+                    data.Units = '';
+                end
+            case 'z coordinate'
+                data.Val = data.Z;
+                if isfield(data,'ZUnits')
+                    data.Units = data.ZUnits;
+                else
+                    data.Units = '';
+                end
+            case 'time'
+                data.Val = repmat(data.Time,1,size(data.X,2));
+                data.Units = '<matlab_time>';
+        end
+    end
+    Props.NVal = 1;
+    Units = data.Units;
+end
 
 if isfield(Ops,'plotcoordinate')
     % TODO: take into account the EdgeGeometry length ...
@@ -314,7 +418,8 @@ end
 
 if strcmp(Ops.presentationtype,'vector') || ...
         strcmp(Ops.presentationtype,'markers') || ...
-        strcmp(Ops.presentationtype,'values')
+        strcmp(Ops.presentationtype,'values') || ...
+        strcmp(Ops.presentationtype,'labels')
     % data = geom2pnt(data);
     for i = length(data):-1:1
         if isfield(data,'ValLocation')
@@ -326,34 +431,63 @@ if strcmp(Ops.presentationtype,'vector') || ...
             data(i).EdgeNodeConnect = data(i).SEG;
         end
         if isfield(data,'XY')
-            data(i).X = data(i).XY(:,1);
-            data(i).Y = data(i).XY(:,2);
+            if iscell(data(i).XY)
+                data(i).X = NaN(size(data(i).XY));
+                data(i).Y = data(i).X;
+                for j = 1:numel(data(i).XY)
+                    if ~isempty(data(i).XY{j})
+                        if size(data(i).XY{j},1)==1
+                            data(i).X(j) = data(i).XY{j}(1);
+                            data(i).Y(j) = data(i).XY{j}(2);
+                        else
+                            d = pathdistance(data(i).XY{j}(:,1),data(i).XY{j}(:,2));
+                            uNode = d~=[-1;d(1:end-1)] & ~isnan(d);
+                            XY = interp1(d(uNode),data(i).XY{j}(uNode,1:2),d(end)/2);
+                            data(i).X(j) = XY(1);
+                            data(i).Y(j) = XY(2);
+                        end
+                    end
+                end
+            else
+                data(i).X = data(i).XY(:,1);
+                data(i).Y = data(i).XY(:,2);
+            end
         end
         switch LOC
             case 'EDGE'
                 if isfield(data,'Geom') && strcmp(data(i).Geom,'sQUAD')
                     data(i).EdgeNodeConnect = [1:length(data(i).X)-1;2:length(data(i).X)]';
                 end
-                data(i).X = mean(shaped_subsref(data(i).X,data(i).EdgeNodeConnect),2);
-                if isfield(data,'Y')
-                    data(i).Y = mean(shaped_subsref(data(i).Y,data(i).EdgeNodeConnect),2);
+                if isfield(data,'EdgeGeometry') && ~isempty(data(i).EdgeGeometry)
+                    if isfield(data, 'XUnits')
+                        Units = data.XUnits;
+                    else
+                        Units = '';
+                    end
+                    [data(i).X, data(i).Y] = geometry_midpoints(data(i).EdgeGeometry, Units);
+                else
+                    data(i).X = mean(shaped_subsref(data(i).X,data(i).EdgeNodeConnect),2);
+                    if isfield(data,'Y')
+                        data(i).Y = mean(shaped_subsref(data(i).Y,data(i).EdgeNodeConnect),2);
+                    end
                 end
             case 'FACE'
-                missing = isnan(data(i).FaceNodeConnect);
+                FNC = data(i).FaceNodeConnect;
+                missing = isnan(FNC);
                 nNodes = size(missing,2)-sum(missing,2);
-                data(i).FaceNodeConnect(missing) = 1;
-                data(i).X = data(i).X(data(i).FaceNodeConnect);
+                FNC(missing) = 1;
+                data(i).X = reshape(data(i).X(FNC),size(FNC));
                 data(i).X(missing) = 0;
                 data(i).X = sum(data(i).X,2)./nNodes;
                 if isfield(data,'Y')
-                    data(i).Y = data(i).Y(data(i).FaceNodeConnect);
+                    data(i).Y = reshape(data(i).Y(FNC),size(FNC));
                     data(i).Y(missing) = 0;
                     data(i).Y = sum(data(i).Y,2)./nNodes;
                 end
         end
         data(i).Geom = 'sSEG';
     end
-    for c = {'FaceNodeConnect','EdgeNodeConnect','ValLocation','SEG','XY'}
+    for c = {'FaceNodeConnect','EdgeNodeConnect','ValLocation','SEG','XY','EdgeGeometry'}
         s = c{1};
         if isfield(data,s)
             data = rmfield(data,s);
@@ -424,6 +558,7 @@ end
 
 if isfield(Ops,'operator') && ~strcmp(Ops.operator,'none')
     flds = {'Val','XDamVal','YDamVal'};
+    % Ops.operator = 'isnan';
     for i = 1:length(flds)
         fldi = flds{i};
         if isfield(data,fldi)
@@ -535,10 +670,10 @@ if isfield(Ops,'vectorscalingmode')
                     VecMag=data(d).Val;
                 else
                     VecMag=data(d).XComp.^2;
-                    if isfield(data,'YComp');
+                    if isfield(data,'YComp')
                         VecMag=VecMag+data(d).YComp.^2;
                     end
-                    if isfield(data,'ZComp');
+                    if isfield(data,'ZComp')
                         VecMag=VecMag+data(d).ZComp.^2;
                     end
                     VecMag=sqrt(VecMag);
@@ -643,7 +778,11 @@ if isfield(Ops,'presentationtype') && strcmp(Ops.presentationtype,'coloured cont
 end
 
 if Props.NVal==6
-    Ops.Thresholds = 0.5:1:length(data(1).Classes);
+    if isfield(data,'ClassVal')
+        Ops.Thresholds = data(1).ClassVal;
+    else
+        Ops.Thresholds = 1:length(data(1).Classes);
+    end
 elseif isfield(Ops,'thresholds') && ~strcmp(Ops.thresholds,'none')
     miv = inf;
     mv  = -inf;
@@ -746,82 +885,7 @@ for dir = 1:3
     end
 end
 
-clippingspatial = 0;
-for clipi=1:3
-    switch clipi
-        case 1
-            % clipping based on components gives all kinds of practical problems
-            % (e.g. rotated components), so not implemented.
-            fld={'Val','XDamVal','YDamVal'};
-            clp='clippingvalues';
-        case 2
-            fld={'X'};
-            clp='xclipping';
-        case 3
-            fld={'Y'};
-            clp='yclipping';
-    end
-    if isfield(Ops,clp)
-        clippingvals = Ops.(clp);
-    else
-        clippingvals = [];
-    end
-    %
-    if ~isempty(clippingvals)
-        if clipi>1
-            clippingspatial = 1;
-        end
-        for f=1:length(fld)
-            fldf = fld{f};
-            if isfield(data,fldf)
-                for d=1:length(data)
-                    val=getfield(data,{d},fldf);
-                    data=setfield(data,{d},fldf,[]);
-                    if isnumeric(clippingvals)
-                        check = logical(ismember(val,clippingvals));
-                        if any(check(:))
-                            if ~isa(val,'double') && ~isa(val,'single')
-                                val = double(val);
-                            end
-                            val(check)=NaN;
-                        end
-                    else
-                        val=realset(clippingvals,val);
-                    end
-                    data=setfield(data,{d},fldf,val);
-                end
-            end
-        end
-    end
-    val=[];
-end
-if isfield(data,'XYZ') && clippingspatial
-    for d = length(data):-1:1
-       val = data(d).XYZ;
-       szVal = size(val);
-       val = reshape(val,prod(szVal(1:end-1)),szVal(end));
-       for clipi = 2:3
-           switch clipi
-               case 2
-                   dim = 1;
-                   clippingvals = Ops.xclipping;
-               case 3
-                   dim = 2;
-                   clippingvals = Ops.yclipping;
-           end
-           if isempty(clippingvals)
-               % nothing
-           elseif isnumeric(clippingvals)
-               val(logical(ismember(val(:,dim),clippingvals)),dim)=NaN;
-           else
-               val(:,dim)=realset(clippingvals,val(:,dim));
-           end
-       end
-       val = reshape(val,szVal);
-       data(d).XYZ = val;
-    end
-    val=[];
-end
+data = qp_clipvalues(data, Ops);
 
 if ~isempty(Parent) && all(ishandle(Parent)) && strcmp(get(Parent(1),'type'),'axes')
     pfig=get(Parent(1),'parent');
@@ -830,13 +894,22 @@ if ~isempty(Parent) && all(ishandle(Parent)) && strcmp(get(Parent(1),'type'),'ax
 end
 
 if isfield(Ops,'linestyle') && isfield(Ops,'marker') && ~strcmp(Ops.presentationtype,'markers')
-    Ops.LineParams={'color',Ops.colour, ...
-        'linewidth',Ops.linewidth, ...
-        'linestyle',Ops.linestyle, ...
-        'marker',Ops.marker, ...
-        'markersize',Ops.markersize, ...
-        'markeredgecolor',Ops.markercolour, ...
-        'markerfacecolor',Ops.markerfillcolour};
+    if isfield(Ops,'linewidth')
+        Ops.LineParams={'color',Ops.colour, ...
+            'linewidth',Ops.linewidth, ...
+            'linestyle',Ops.linestyle, ...
+            'marker',Ops.marker, ...
+            'markersize',Ops.markersize, ...
+            'markeredgecolor',Ops.markercolour, ...
+            'markerfacecolor',Ops.markerfillcolour};
+    else % linewidth typically not specified if linestyle = 'none'
+        Ops.LineParams={'color',Ops.colour, ...
+            'linestyle',Ops.linestyle, ...
+            'marker',Ops.marker, ...
+            'markersize',Ops.markersize, ...
+            'markeredgecolor',Ops.markercolour, ...
+            'markerfacecolor',Ops.markerfillcolour};
+    end
 elseif isfield(Ops,'marker')
     Ops.LineParams={'linestyle','none', ...
         'marker',Ops.marker, ...
@@ -850,9 +923,12 @@ end
 if isfield(Ops,'fontsize')
     Ops.FontParams={'color',Ops.colour, ...
         'fontunits','points', ...
-        'fontsize',Ops.fontsize, ...
-        'horizontalalignment',Ops.horizontalalignment, ...
-        'verticalalignment',Ops.verticalalignment};
+        'fontsize',Ops.fontsize};
+    if isfield(Ops,'horizontalalignment')
+        Ops.FontParams = cat(2,Ops.FontParams, { ...
+            'horizontalalignment',Ops.horizontalalignment, ...
+            'verticalalignment',Ops.verticalalignment});
+    end
     if matlabversionnumber>=6.05
         if strcmp(Ops.textboxfacecolour,'none')
             TextBoxParams={'edgecolor','none','backgroundcolor','none'};
@@ -869,14 +945,8 @@ end
 %
 if isfield(data,'XUnits') && ...
         (strcmp(data(1).XUnits,'deg') || strcmp(data(1).XUnits,'degree'))
-    switch Ops.axestype
-        case 'X-Y'
-            Ops.axestype='Lon-Lat';
-        case 'X-Y-Z'
-            Ops.axestype='Lon-Lat-Z';
-        case 'X-Y-Val'
-            Ops.axestype='Lon-Lat-Val';
-    end
+    Ops.axestype = strrep(Ops.axestype,'X-Y','Lon-Lat');
+    Ops.axestype = strrep(Ops.axestype,'X-','Lon-');
 end
 %
 % If it the plot contains a Z co-ordinate.
@@ -956,8 +1026,43 @@ end
 % Begin of actual plotting
 %==========================================================================
 Quant = protectstring(Quant);
-if NVal==-2
+if isequal(Parent,'loaddata')
+    % load data
+    hNewVec = data;
+    Error = 0;
+    return
+elseif ~isempty(specialplot)
+    switch specialplot
+        case 'time'
+            axtype = getappdata(Parent, 'BasicAxesType');
+            hNew = hOld;
+            switch axtype
+                case {'analog clock','digital clock','calendar page'}
+                    md_clock(Parent, data.Time)
+                    hNewVec = [hNew{:}];
+                otherwise
+                    hNewVec = hOld{1};
+                    if strncmp(axtype, 'Time', 4)
+                        ylim = get(Parent, 'ylim');
+                        if isempty(hNewVec)
+                            hNewVec = line(data.Time*[1 1], ylim, Ops.LineParams{:});
+                        else
+                            set(hNewVec, 'xdata', data.Time*[1 1], 'ydata', ylim)
+                        end
+                    else
+                        xlim = get(Parent, 'xlim');
+                        if isempty(hNewVec)
+                            hNewVec = line(xlim, data.Time*[1 1], Ops.LineParams{:});
+                        else
+                            set(hNewVec, 'xdata', xlim, 'ydata',  data.Time*[1 1])
+                        end
+                    end
+                    hNew{1} = hNewVec;
+            end
+    end
+elseif NVal==-2
     [Chk,hNewVec,FileInfo]=qp_getdata(FileInfo,Domain,Props,'plot',Parent,Ops,hOld,SubField{:},SubSelected{:});
+    Error = ~Chk;
     return
 elseif NVal==-1
     [Chk,hNewVec,FileInfo]=qp_getdata(FileInfo,Domain,Props,'plot',Parent,Ops,hOld,SubField{:},SubSelected{:});
@@ -1031,7 +1136,7 @@ else
     hNewVec=cat(1,hNew{:});
 end
 
-if isfield(Ops,'basicaxestype') && ~isempty(Ops.basicaxestype) && length(Parent)==1
+if isempty(specialplot) && isfield(Ops,'basicaxestype') && ~isempty(Ops.basicaxestype) && length(Parent)==1
     axestype = multiline(strtok(Ops.basicaxestype),'-','cell');
     nAxes = length(axestype);
     %
@@ -1068,6 +1173,9 @@ if isfield(Ops,'basicaxestype') && ~isempty(Ops.basicaxestype) && length(Parent)
                 end
             case 'Z'
                 dimension{d} = 'elevation';
+                if isfield(data,'ZName')
+                    dimension{d} = data(1).ZName;
+                end
                 if isfield(data,'ZUnits')
                     if ~isempty(data(1).ZUnits)
                         unit{d} = data(1).ZUnits;
@@ -1108,6 +1216,23 @@ if isfield(Ops,'basicaxestype') && ~isempty(Ops.basicaxestype) && length(Parent)
         end
     end
     setaxesprops(Parent,Ops.axestype,dimension,unit)
+    xyz = 'xyz';
+    for d = 1:nAxes
+        x = xyz(d);
+        switch axestype{d}
+            case 'Val'
+                if isfield(data, 'Classes')
+                    if isfield(data, 'ClassVal')
+                        cv = data(1).ClassVal;
+                    else
+                        cv = 1:length(data(1).Classes);
+                    end
+                    set(Parent, ...
+                        [x 'tick'], cv, ...
+                        [x 'ticklabel'], data(1).Classes)
+                end
+        end
+    end
 end
 %==========================================================================
 % End of actual plotting
@@ -1120,17 +1245,14 @@ if isfield(Ops,'colourlimits') && ~isempty(Ops.colourlimits)
         set(Parent,'clim',Ops.colourlimits)
     end
 elseif isfield(Ops,'symmetriccolourlimits') && Ops.symmetriccolourlimits
-    lastCLIMSYMM=0;
-    if ~isempty(hOldVec)
-        xde=get(hOldVec(end),'xdata');
-        lastCLIMSYMM=isequal(size(xde),[1 2]) & all(isnan(xde(:)));
-    end
-    clim=limits(hNewVec,'clim'); clim=max(abs(clim));
-    if lastCLIMSYMM
-        set(hOldVec(end),'cdata',[-1 1;-1 1]*clim)
-        hNew{end+1}=hOldVec(end);
+    clim = limits(hNewVec,'clim');
+    clim = max(abs(clim));
+    if isempty(hCLIMSYMM)
+        hNew{end+1} = surface([NaN NaN], [NaN NaN], [NaN NaN;NaN NaN], ...
+                              'cdata', [-1 1;-1 1]*clim);
     else
-        hNew{end+1}=surface([NaN NaN],[NaN NaN],[NaN NaN;NaN NaN],'cdata',[-1 1;-1 1]*clim);
+        set(hCLIMSYMM, 'cdata', [-1 1;-1 1]*clim)
+        hNew{end+1} = hCLIMSYMM;
     end
 end
 
@@ -1149,7 +1271,17 @@ if isfield(Ops,'colourbar') && ~strcmp(Ops.colourbar,'none')
     Ax   =Chld(isAx);
     h=qp_colorbar(Ops.colourbar,'peer',Parent);
     if ~isempty(Units)
-        PName = sprintf('%s (%s)',Quant,Units);
+        if isequal(Units,'<matlab_time>')
+            switch Ops.colourbar
+                case 'vert'
+                    tick(h,'y','autodate')
+                case 'horiz'
+                    tick(h,'x','autodate')
+            end
+            PName = Quant;
+        else
+            PName = sprintf('%s (%s)',Quant,Units);
+        end
     else
         PName = Quant;
     end
@@ -1183,7 +1315,7 @@ if isfield(Ops,'colourbar') && ~strcmp(Ops.colourbar,'none')
 end
 
 if isempty(hNewVec)
-    hNewVec=line('xdata',[],'ydata',[],'zdata',[]);
+    hNewVec=line('parent',Parent(1),'xdata',[],'ydata',[],'zdata',[]);
     hNew{end+1}=hNewVec;
 end
 if isempty(hNewTag)
@@ -1252,3 +1384,20 @@ function y = shaped_subsref(x,ind)
 % are vectors. In that case x(ind) is a similar (row or column) vector as
 % x. This function reshapes it to the shape of ind.
 y = reshape(x(ind),size(ind));
+
+
+function [x, y] = geometry_midpoints(EdgeGeometry, Units)
+X = EdgeGeometry.X;
+Y = EdgeGeometry.Y;
+x = zeros(size(X));
+y = zeros(size(X));
+for i = 1:numel(X)
+    xg = X{i};
+    yg = Y{i};
+    d = pathdistance(xg, yg, Units);
+    dmid = d(end)/2;
+    j = sum(d<dmid);
+    fac = (dmid - d(j)) / (d(j+1) - d(j));
+    x(i) = xg(j) + fac * (xg(j+1) - xg(j));
+    y(i) = yg(j) + fac * (yg(j+1) - yg(j));
+end

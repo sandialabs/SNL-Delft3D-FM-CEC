@@ -2,7 +2,7 @@
 #include "config.h"
 #endif
 
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -34,7 +34,7 @@
 !
 !-- VERSION HISTORY ----------------------------------------------------------
 !
-!   $URL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/waq/packages/waq_utils_f/src/mod_couplib/m_prcgrp.F90 $
+!   $URL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/waq/packages/waq_utils_f/src/mod_couplib/m_prcgrp.F90 $
 !   $Revision: 42 $, $Date: 2007-11-26 15:20:20 +0100 (Mon, 26 Nov 2007) $
 !
 !   Programmer: Edwin Vollebregt (VORtech)
@@ -44,6 +44,8 @@
 module m_prcgrp
 use m_timings
 use m_coupcns
+use mpi
+
 implicit none
 !-----------------------------------------------------------------------------
 ! WARNING: using default PUBLIC instead of PRIVATE because of mpif.h
@@ -66,9 +68,7 @@ public
 ! now we assume that processes are ordered by rank, such that the task-id of a
 ! process is itid = irank = iprc-1.
 
-#ifdef HAVE_MPI_WAQ
-include 'mpif.h'
-#endif
+
 !integer, parameter, public :: MPI_REAL8 = MPI_DOUBLE_PRECISION
 
 ! subroutines for configuration of processes and groups:

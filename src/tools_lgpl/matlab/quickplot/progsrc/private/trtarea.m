@@ -3,7 +3,7 @@ function varargout=trtarea(cmd,varargin)
 
 %----- LGPL --------------------------------------------------------------------
 %                                                                               
-%   Copyright (C) 2011-2020 Stichting Deltares.                                     
+%   Copyright (C) 2011-2022 Stichting Deltares.                                     
 %                                                                               
 %   This library is free software; you can redistribute it and/or                
 %   modify it under the terms of the GNU Lesser General Public                   
@@ -28,8 +28,8 @@ function varargout=trtarea(cmd,varargin)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/private/trtarea.m $
-%   $Id: trtarea.m 65778 2020-01-14 14:07:42Z mourits $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/tools_lgpl/matlab/quickplot/progsrc/private/trtarea.m $
+%   $Id: trtarea.m 140618 2022-01-12 13:12:04Z klapwijk $
 
 if nargin==0
     error('Missing command string.')
@@ -53,7 +53,7 @@ function Struct=Local_arearead(filename,grid)
 if nargin==0
     error('Missing file name.')
 end
-fid=fopen(filename,'r');
+fid=fopen(filename,'r','n','US-ASCII');
 if fid<0
     return
 end
@@ -112,7 +112,7 @@ Struct.Records=Record;
 Struct.RoughnessIDs=unique(Record(:,5));
 
 function OK=Local_areawrite(filename,Struct)
-fid=fopen(filename,'w');
+fid=fopen(filename,'w','n','US-ASCII');
 idx4=[1:2 5:6];
 for line=1:size(Struct.Records,1)
     if Struct.Records(line,3)==0

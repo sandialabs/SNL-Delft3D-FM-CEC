@@ -1,7 +1,7 @@
 module m_1d_networkreader
 !----- AGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2017-2020.                                
+!  Copyright (C)  Stichting Deltares, 2017-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify              
 !  it under the terms of the GNU Affero General Public License as               
@@ -25,111 +25,24 @@ module m_1d_networkreader
 !  Stichting Deltares. All rights reserved.
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: 1d_networkreader.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_gpl/flow1d/packages/flow1d_io/src/1d_networkreader.f90 $
+!  $Id: 1d_networkreader.f90 141372 2022-06-15 13:30:48Z dam_ar $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_gpl/flow1d/packages/flow1d_io/src/1d_networkreader.f90 $
 !-------------------------------------------------------------------------------
-   
+
    use MessageHandling
    use properties
    use m_hash_search
-   use m_hash_list
    use m_network
    
    implicit none
 
    private
    
-   public NetworkReader
-   public NetworkUgridReader
    public read_1d_ugrid
-   public read_network_cache
-   public write_network_cache
    public construct_network_from_meshgeom
 
    contains
-    
-   subroutine NetworkReader(network, networkFile)
-   
-      use m_hash_search
-      
-      implicit none
-   
-      type(t_network), target, intent(inout) :: network
-      character(len=*), intent(in) :: networkFile
-      
-      type(tree_data), pointer  :: md_ptr
-      integer :: istat
-      integer :: numstr
-      integer :: i
-
-      call tree_create(trim(networkFile), md_ptr, maxlenpar)
-      call prop_file('ini',trim(networkFile), md_ptr, istat)
-
-      numstr = 0
-      if (associated(md_ptr%child_nodes)) then
-         numstr = size(md_ptr%child_nodes)
-      end if
-
-      ! Get the Nodes First
-      do i = 1, numstr
-         
-         if (tree_get_name(md_ptr%child_nodes(i)%node_ptr) .eq. 'node') then
-           call readNode(network%nds, md_ptr%child_nodes(i)%node_ptr)
-         endif
-
-      enddo
-      call fill_hashtable(network%nds)
-      
-      ! Get the Branches
-      do i = 1, numstr
-         
-         if (tree_get_name(md_ptr%child_nodes(i)%node_ptr) .eq. 'branch') then
-           call readBranch(network%brs, network%nds, md_ptr%child_nodes(i)%node_ptr)
-         endif
-
-      enddo
-      
-      call adminBranchOrders(network%brs)
-      call fill_hashtable(network%brs)
-      
-      call tree_destroy(md_ptr)
-      
-   end subroutine NetworkReader
-   
-   subroutine NetworkUgridReader(network, networkUgridFile)
-   
-      use io_netcdf
-      use io_ugrid
-      use m_hash_search
-      use gridgeom
-      use meshdata
-      
-      implicit none
-   
-      type(t_network), target, intent(inout) :: network
-      character(len=*), intent(in)           :: networkUgridFile
-      
-      integer                   :: ierr
-      integer                   :: ioncid
-      
-      ! Open UGRID-File
-      ierr = ionc_open(networkUgridFile, NF90_NOWRITE, ioncid)
-      if (ierr .ne. 0) then
-         call SetMessage(LEVEL_FATAL, 'Error Opening UGRID-File: '''//trim(networkUgridFile)//'''')
-      endif
-
-      ! Do the actual read
-      call read_1d_ugrid(network, ioncid)
-      
-      ! Close UGRID-File
-      ierr = ionc_close(ioncid)
-      if (ierr .ne. 0) then
-         call SetMessage(LEVEL_FATAL, 'Error Closing UGRID-File: '''//trim(networkUgridFile)//'''')
-      endif
-       
-   end subroutine NetworkUgridReader  
-
-
+ 
    !> Constructs a flow1d t_network datastructure, based on meshgeom read from a 1D UGRID file.
    !! meshgeom is only used for reading a UGRID NetCDF file, whereas network is used during
    !! a model computation.
@@ -137,47 +50,59 @@ module m_1d_networkreader
    !! but the input meshgeom often will only have one unique grid point on a connection node.
    !! In that case, parameter nodesOnBranchVertices allows to automatically create duplicate start/end points.
    integer function construct_network_from_meshgeom(network, meshgeom, branchids, branchlongnames, nodeids, nodelongnames, & !1d network character variables
-      gpsID, gpsIDLongnames, network1dname, mesh1dname, nodesOnBranchVertices) result(ierr)
+      gpsID, gpsIDLongnames, network1dname, mesh1dname, nodesOnBranchVertices, jampi, my_rank) result(ierr)
 
    use gridgeom
    use meshdata
    use m_hash_search
    use odugrid
+   use precision_basics
 
    !in variables
-   type(t_network),  intent(inout) :: network
-   type(t_ug_meshgeom), intent(in) :: meshgeom
-   character(len=ug_idsLen), allocatable, dimension(:), intent(in)             :: branchids
-   character(len=ug_idsLongNamesLen), allocatable, dimension(:),intent(in)     :: branchlongnames
-   character(len=ug_idsLen), allocatable, dimension(:),intent(in)              :: nodeids
-   character(len=ug_idsLongNamesLen), allocatable, dimension(:),intent(in)     :: nodelongnames
-   character(len=IdLen),allocatable, dimension(:),intent(inout)                :: gpsID
-   character(len=ug_idsLongNamesLen), allocatable, dimension(:),intent(inout)  :: gpsIDLongnames
-   character(len=ug_idsLongNamesLen),intent(in)                                :: network1dname
-   character(len=ug_idsLongNamesLen),intent(in)                                :: mesh1dname
-   integer, intent(in)                                                         :: nodesOnBranchVertices !< Whether or not (1/0) the input meshgeom itself already contains duplicate points on each connection node between multiple branches.
-                                                                                                        !! If not (0), additional grid points will be created.
+   type(t_network),                             intent(inout) :: network
+   type(t_ug_meshgeom),                         intent(in   ) :: meshgeom
+   character(len=*), allocatable, dimension(:), intent(in   ) :: branchids
+   character(len=*), allocatable, dimension(:), intent(in   ) :: branchlongnames
+   character(len=*), allocatable, dimension(:), intent(in   ) :: nodeids
+   character(len=*), allocatable, dimension(:), intent(in   ) :: nodelongnames
+   character(len=*), allocatable, dimension(:), intent(inout) :: gpsID
+   character(len=*), allocatable, dimension(:), intent(inout) :: gpsIDLongnames
+   character(len=*),                            intent(in   ) :: network1dname
+   character(len=*),                            intent(in   ) :: mesh1dname
+   integer,                                     intent(in   ) :: nodesOnBranchVertices !< Whether or not (1/0) the input meshgeom itself already contains duplicate points on each connection node between multiple branches.
+                                                                                       !! If not (0), additional grid points will be created.
+   integer,                                     intent(in   ), optional :: jampi       !< running in parallel mode (1) or not (0)
+   integer,                                     intent(in   ), optional :: my_rank     !< my rank in parallel mode, for (debugging) output
 
    !locals
-   integer, allocatable, dimension(:)               :: gpFirst
-   integer, allocatable, dimension(:)               :: gpLast
-   double precision, allocatable, dimension(:)      :: gpsX
-   double precision, allocatable, dimension(:)      :: gpsY
-   type(t_node), dimension(:), pointer              :: pnodes
-   integer                                          :: ibran, inode, i, j, jsferic
-   integer                                          :: gridPointsCount
-   double precision, allocatable, dimension(:)      :: localOffsets
-   double precision, allocatable, dimension(:)      :: localOffsetsSorted
-   integer, allocatable, dimension(:)               :: localSortedIndexses  
-   double precision, allocatable, dimension(:)      :: localGpsX
-   double precision, allocatable, dimension(:)      :: localGpsY
-   character(len=IdLen), allocatable, dimension(:)  :: localGpsID
-   character(len=IdLen), allocatable, dimension(:)  :: idMeshNodesInNetworkNodes
-   integer                                          :: firstNode, lastNode
-   double precision, parameter                      :: snapping_tolerance = 1e-10
-   
+   integer, allocatable, dimension(:)                   :: gpFirst
+   integer, allocatable, dimension(:)                   :: gpLast
+   integer, allocatable, dimension(:)                   :: lnkFirst
+   integer, allocatable, dimension(:)                   :: lnkLast
+   double precision, allocatable, dimension(:)          :: gpsX
+   double precision, allocatable, dimension(:)          :: gpsY
+   integer                                              :: i, ibran, jsferic
+   integer                                              :: gridPointsCount, linkCount
+   double precision, allocatable, dimension(:)          :: localOffsets, localUOffsets
+   double precision, allocatable, dimension(:)          :: localOffsetsSorted
+   integer, allocatable, dimension(:)                   :: localSortedIndexses
+   double precision, allocatable, dimension(:)          :: localGpsX
+   double precision, allocatable, dimension(:)          :: localGpsY
+   character(len=ug_idsLen), allocatable, dimension(:)  :: localGpsID
+   character(len=ug_idsLen), allocatable, dimension(:)  :: idMeshNodesInNetworkNodes
+   integer                                              :: firstNode, lastNode, firstLink, LastLink
+   double precision, parameter                          :: snapping_tolerance = 1d-10
+   integer                                              :: jampi_, my_rank_
+   integer                                              :: maxGridPointCount, maxLinkCount
+   logical                                              :: startEndPointMissing(2)
 
    ierr = -1
+
+   jampi_ = 0
+   if (present(jampi)) jampi_ = jampi
+   my_rank_ = -1
+   if (present(my_rank)) my_rank_ = my_rank
+
    ! check data are present and correct
    if (meshgeom%numnode .eq. -1) then
       call SetMessage(LEVEL_FATAL, 'Network UGRID-File: Error in meshgeom%numnode')
@@ -222,6 +147,12 @@ module m_1d_networkreader
    if (.not.allocated(gpsIDLongnames)) then
       call SetMessage(LEVEL_FATAL, 'Network UGRID-File: Error in gpsIDLongnames')
    endif
+   if (.not.associated(meshgeom%edgebranchidx)) then
+      call SetMessage(LEVEL_FATAL, 'Network UGRID-File: Error in meshgeom%edgebranchidx')
+   endif
+   if (meshgeom%edgebranchidx(1) < 0) then
+      call SetMessage(LEVEL_FATAL, 'Network UGRID-File: Error in meshgeom%edgebranchidx: found missing values')
+   endif
 
    ! Store Network Node Data ('connection nodes') into Data Structures.
    call storeNodes(network%nds, meshgeom%nnodes, meshgeom%nnodex, meshgeom%nnodey, nodeids, nodelongnames)
@@ -240,69 +171,68 @@ module m_1d_networkreader
    endif
    ierr = ggeo_get_xy_coordinates(meshgeom%nodebranchidx, meshgeom%nodeoffsets, meshgeom%ngeopointx, meshgeom%ngeopointy, &
       meshgeom%nbranchgeometrynodes, meshgeom%nbranchlengths, jsferic, gpsX, gpsY)
-   if (ierr .ne. 0) then
-      call SetMessage(LEVEL_FATAL, 'Network UGRID-File: Error Getting Mesh Coordinates From UGrid Data')
+   if (ierr /= 0) then
+      call SetMessage(LEVEL_FATAL, 'Network UGRID-File: Error Getting Mesh Coordinates From UGrid Data. Are all grid points ordered by branchId, chainage?')
    endif
 
    ! Get the starting and ending mesh1d grid point indexes for each network branch.
-   ibran = 0
-   allocate(gpFirst(meshgeom%nbranches), stat = ierr)
-   if (ierr == 0) allocate(gpLast(meshgeom%nbranches), stat = ierr)
-   if (ierr .ne. 0) then
+   allocate(gpFirst (meshgeom%nbranches), gpLast (meshgeom%nbranches), &
+            lnkFirst(meshgeom%nbranches), lnkLast(meshgeom%nbranches), stat = ierr)
+   if (ierr /= 0) then
       call SetMessage(LEVEL_FATAL, 'Network UGRID-File: Error Allocating Memory for Branches')
    endif
 
    ierr = ggeo_get_start_end_nodes_of_branches(meshgeom%nodebranchidx, gpFirst, gpLast)
-   if (ierr .ne. 0) then
-      call SetMessage(LEVEL_FATAL, 'Network UGRID-File: Error Getting first and last nodes of the network branches')
+   if (ierr /= 0) then
+      call SetMessage(LEVEL_FATAL, 'Network UGRID-File: Error Getting first and last nodes of the network branches. Are all grid points ordered by branchId, chainage?')
+   endif
+   ierr = ggeo_get_start_end_nodes_of_branches(meshgeom%edgebranchidx, lnkFirst, lnkLast)
+   if (ierr /= 0) then
+      call SetMessage(LEVEL_FATAL, 'Network UGRID-File: Error Getting first and last links of the network branches. Are all edges ordered by branchId, chainage?')
    endif
 
    ! Fill the array storing the mesh1d node ids for each network node.
-   if(nodesOnBranchVertices==0) then
+   if (nodesOnBranchVertices==0) then
       allocate(idMeshNodesInNetworkNodes(meshgeom%nnodes))
       idMeshNodesInNetworkNodes = ' '
       do ibran = 1, meshgeom%nbranches
          firstNode = gpFirst(ibran)
          lastNode  = gpLast(ibran)
-         ! if no mesh points in the branch, cycle
-         if(firstNode==-1 .or. lastNode==-1) then
-            cycle
+         if (firstNode > 0) then
+            if (meshgeom%nodeoffsets(firstNode) < snapping_tolerance) then
+               idMeshNodesInNetworkNodes(meshgeom%nedge_nodes(1,ibran)) = gpsID(firstNode)
+            endif
+         end if
+         if (lastNode > 0) then
+            if (comparereal(meshgeom%nodeoffsets(lastNode), meshgeom%nbranchlengths(ibran), snapping_tolerance) == 0) then
+               idMeshNodesInNetworkNodes(meshgeom%nedge_nodes(2,ibran)) = gpsID(lastNode)
+            endif
          endif
-         do inode = firstNode, lastNode
-            if(meshgeom%nodeoffsets(inode)<snapping_tolerance) then
-               idMeshNodesInNetworkNodes(meshgeom%nedge_nodes(1,ibran))(1:len_trim(gpsID(inode))) = gpsID(inode)(1:len_trim(gpsID(inode)))
-            endif
-            if(abs(meshgeom%nodeoffsets(inode)-meshgeom%nbranchlengths(ibran))<snapping_tolerance) then
-               idMeshNodesInNetworkNodes(meshgeom%nedge_nodes(2,ibran))(1:len_trim(gpsID(inode))) = gpsID(inode)(1:len_trim(gpsID(inode)))
-            endif
-         enddo
       enddo
    endif
 
    ! allocate local arrays
-   allocate(localOffsets(meshgeom%numnode))
-   allocate(localOffsetsSorted(meshgeom%numnode))
-   allocate(localSortedIndexses(meshgeom%numnode))
-   allocate(localGpsX(meshgeom%numnode))
-   allocate(localGpsY(meshgeom%numnode))
-   allocate(localGpsID(meshgeom%numnode))
+   maxGridPointCount = 3 + maxval(gpLast  - gpFirst)
+   maxLinkCount      = 1 + maxval(lnkLast - lnkFirst)
+   allocate(localOffsets(maxGridPointCount))
+   allocate(localUOffsets(maxLinkCount))
+   allocate(localOffsetsSorted(maxGridPointCount))
+   allocate(localSortedIndexses(maxGridPointCount))
+   allocate(localGpsX(maxGridPointCount))
+   allocate(localGpsY(maxGridPointCount))
+   allocate(localGpsID(maxGridPointCount))
 
    ! Store the branches + computational grid points on them into Data Structures.
    do ibran = 1, meshgeom%nbranches
 
       firstNode = gpFirst(ibran)
       lastNode  = gpLast(ibran)
-      ! if no mesh points in the branch, cycle
-      if(firstNode==-1 .or. lastNode==-1) then
+
+      if (firstNode < 0 .or. lastNode < 0) then
          ! end node and begin node are missing and no internal gridpoints on branch.
-         localOffsets = 0d0
          gridpointscount = 0
-         ! set dummy local offset to half the branch length
-         localGpsX   = 0d0
-         localGpsY   = 0d0
-         localGpsID  = ''
+         ! localOffsets, localGpsX, localGpsY and localGpsID will be filled in add_point
       else
-         localOffsets = 0d0
          gridPointsCount                 = lastNode - firstNode + 1
          localOffsets(1:gridPointsCount) = meshgeom%nodeoffsets(firstNode:lastNode)
          localGpsX(1:gridPointsCount)    = gpsX(firstNode:lastNode)
@@ -310,40 +240,70 @@ module m_1d_networkreader
          localGpsID(1:gridPointsCount)   = gpsID(firstNode:lastNode)
       endif
 
-      if(nodesOnBranchVertices==0) then
-         if(localOffsets(1)>snapping_tolerance .or. gridpointsCount == 0) then
-            !start point missing
-            localOffsets(1:gridPointsCount+1)=(/ 0.0d0, localOffsets(1:gridPointsCount) /)
-            localGpsX(1:gridPointsCount+1)=(/ meshgeom%nnodex(meshgeom%nedge_nodes(1,ibran)), localGpsX(1:gridPointsCount) /)
-            localGpsY(1:gridPointsCount+1)=(/ meshgeom%nnodey(meshgeom%nedge_nodes(1,ibran)), localGpsY(1:gridPointsCount) /)
-            localGpsID(1:gridPointsCount+1)=(/ idMeshNodesInNetworkNodes(meshgeom%nedge_nodes(1,ibran)), localGpsID(1:gridPointsCount) /)
-            gridPointsCount = gridPointsCount + 1
-         endif
-         ! TODO: consider using a relative tolerance
-         if(abs(localOffsets(gridPointsCount)-meshgeom%nbranchlengths(ibran))> snapping_tolerance .or. gridpointsCount == 1) then
-            !end point missing
-            localOffsets(1:gridPointsCount+1)=(/ localOffsets(1:gridPointsCount), meshgeom%nbranchlengths(ibran) /)
-            localGpsX(1:gridPointsCount+1)=(/ localGpsX(1:gridPointsCount), meshgeom%nnodex(meshgeom%nedge_nodes(2,ibran)) /)
-            localGpsY(1:gridPointsCount+1)=(/ localGpsY(1:gridPointsCount), meshgeom%nnodey(meshgeom%nedge_nodes(2,ibran)) /)
-            localGpsID(1:gridPointsCount+1)=(/ localGpsID(1:gridPointsCount), idMeshNodesInNetworkNodes(meshgeom%nedge_nodes(2,ibran)) /)
-            gridPointsCount = gridPointsCount + 1
-         endif
+      firstLink = lnkFirst(ibran)
+      lastLink  = lnkLast(ibran)
+      if (firstLink < 0 .or. lastLink < 0) then
+         linkCount = 0
+      else
+         linkCount                       = lastLink - firstLink + 1
+         localUOffsets(1:linkCount)      = meshgeom%edgeoffsets(firstLink:lastLink)
+      end if
+
+      if (nodesOnBranchVertices==0 .and. linkCount /= 0) then
+         if (gridPointsCount > 0) then
+            startEndPointMissing(1) = (localUOffsets(1)         < localOffsets(1))
+            startEndPointMissing(2) = (localUOffsets(linkCount) > localOffsets(gridPointsCount))
+         else
+            startEndPointMissing(1:2) = .true. ! both are missing
+         end if
+         do i = 1, 2
+            if (startEndPointMissing(i)) then
+               call add_point(i == 1, localOffsets, localGpsX, localGpsY, localGpsID, idMeshNodesInNetworkNodes, gridPointsCount, ibran, meshgeom)
+            endif
+         enddo
       endif
 
-      call storeBranch(network%brs, network%nds, branchids(ibran), nodeids(meshgeom%nedge_nodes(1,ibran)), nodeids(meshgeom%nedge_nodes(2,ibran)), meshgeom%nbranchorder(ibran),&
-         gridPointsCount, localGpsX(1:gridPointsCount), localGpsY(1:gridPointsCount),localOffsets(1:gridPointsCount), localGpsID(1:gridPointsCount))
+      call storeBranch(network%brs, network%nds, branchids(ibran), nodeids(meshgeom%nedge_nodes(1,ibran)), &
+         nodeids(meshgeom%nedge_nodes(2,ibran)), meshgeom%nbranchlengths(ibran), meshgeom%nbranchorder(ibran), gridPointsCount, localGpsX(1:gridPointsCount), &
+         localGpsY(1:gridPointsCount),localOffsets(1:gridPointsCount), localUoffsets(1:linkCount), &
+         localGpsID(1:gridPointsCount), my_rank_)
+    
    enddo
 
    call adminBranchOrders(network%brs)
    call fill_hashtable(network%brs)
-
+   
    network%loaded = .true.
 
-   !free local memory
-   deallocate(gpsX)
-   deallocate(gpsY)
-
    end function construct_network_from_meshgeom
+
+   !> helper function to add a point at the start or end of a branch
+   subroutine add_point(atStart, localOffsets, localGpsX, localGpsY, localGpsID, idMeshNodesInNetworkNodes, gridPointsCount, ibran, meshgeom)
+   use meshdata, only : t_ug_meshgeom
+   use precision
+   logical,                                         intent(in   ) :: atStart     !< add point at start (true) or end (false) of branch
+   double precision,     allocatable, dimension(:), intent(inout) :: localGpsX
+   double precision,     allocatable, dimension(:), intent(inout) :: localGpsY
+   double precision,     allocatable, dimension(:), intent(inout) :: localOffsets
+   character(len=*),     allocatable, dimension(:), intent(inout) :: localGpsID
+   character(len=*),     allocatable, dimension(:), intent(in   ) :: idMeshNodesInNetworkNodes
+   integer,                                         intent(inout) :: gridPointsCount
+   integer,                                         intent(in   ) :: ibran
+   type(t_ug_meshgeom),                             intent(in   ) :: meshgeom
+
+   if (atStart) then
+      localOffsets(1:gridPointsCount+1)=(/ 0.0d0, localOffsets(1:gridPointsCount) /)
+      localGpsX(1:gridPointsCount+1)   =(/ meshgeom%nnodex(meshgeom%nedge_nodes(1,ibran)), localGpsX(1:gridPointsCount) /)
+      localGpsY(1:gridPointsCount+1)   =(/ meshgeom%nnodey(meshgeom%nedge_nodes(1,ibran)), localGpsY(1:gridPointsCount) /)
+      localGpsID(1:gridPointsCount+1)  =(/ idMeshNodesInNetworkNodes(meshgeom%nedge_nodes(1,ibran)), localGpsID(1:gridPointsCount) /)
+   else
+      localOffsets(gridPointsCount+1)= meshgeom%nbranchlengths(ibran)
+      localGpsX(gridPointsCount+1)   = meshgeom%nnodex(meshgeom%nedge_nodes(2,ibran))
+      localGpsY(gridPointsCount+1)   = meshgeom%nnodey(meshgeom%nedge_nodes(2,ibran))
+      localGpsID(gridPointsCount+1)  = idMeshNodesInNetworkNodes(meshgeom%nedge_nodes(2,ibran))
+   end if
+   gridPointsCount = gridPointsCount + 1
+   end subroutine add_point
 
    subroutine read_1d_ugrid(network, ioncid, dflowfm)
 
@@ -359,8 +319,6 @@ module m_1d_networkreader
    integer, intent(in)                    :: ioncid
    logical, optional, intent(inout)       :: dflowfm
 
-   integer                   :: igridpoint
-
    integer                   :: ierr
    integer                   :: numMesh
    integer                   :: meshIndex
@@ -371,7 +329,7 @@ module m_1d_networkreader
    character(len=ug_idsLongNamesLen), allocatable, dimension(:)     :: branchlongnames
    character(len=ug_idsLen), allocatable, dimension(:)              :: nodeids
    character(len=ug_idsLongNamesLen), allocatable, dimension(:)     :: nodelongnames
-   character(len=IdLen), allocatable, dimension(:)                  :: gpsID
+   character(len=ug_idsLen), allocatable, dimension(:)              :: gpsID
    character(len=ug_idsLongNamesLen), allocatable, dimension(:)     :: gpsIDLongnames
    character(len=ug_idsLongNamesLen)                                :: network1dname
    character(len=ug_idsLongNamesLen)                                :: mesh1dname
@@ -540,7 +498,7 @@ module m_1d_networkreader
          endif
       
          nds%node(nds%Count)%id                  = nodeids(iNode)
-         nds%node(nds%Count)%name                = nodelongnames(iNode)(1:40)
+         nds%node(nds%Count)%name                = nodelongnames(iNode)
          nds%node(nds%Count)%index               = nds%count
          nds%node(nds%Count)%nodetype            = nt_NotSet
          nds%node(nds%Count)%numberOfConnections = 0
@@ -669,22 +627,15 @@ module m_1d_networkreader
       
       call realloc(pbr%gridPointschainages, pbr%gridPointsCount)
       call realloc(pbr%uPointschainages, pbr%uPointsCount)
-      call realloc(pbr%dx, pbr%uPointsCount)
       call realloc(pbr%Xs, pbr%gridPointsCount)
       call realloc(pbr%Ys, pbr%gridPointsCount)
-      call realloc(pbr%Xu, pbr%uPointsCount)
-      call realloc(pbr%Yu, pbr%uPointsCount)
-      
+
       ip1 = brs%gridPointsCount + 1
       brs%gridPointsCount = brs%gridPointsCount + gridPointsCount
       ip2 = brs%gridPointsCount
-      pbr%Points(1)         = ip1
-      pbr%Points(2)         = ip2
-      pbr%upoints(1)        = ip1
-      pbr%upoints(2)        = ip2 - 1
+      pbr%StartPoint        = ip1
       pbr%gridPointschainages = gpchainages
       pbr%uPointschainages    = (pbr%gridPointschainages(1:uPointsCount) + pbr%gridPointschainages(2:uPointsCount+1) ) / 2.0d0
-      pbr%dx                = pbr%gridPointschainages(2:uPointsCount+1) - pbr%gridPointschainages(1:uPointsCount)
       pbr%length            = gpchainages(gridPointsCount)
       pbr%Xs                = gpX
       pbr%Ys                = gpY
@@ -692,13 +643,7 @@ module m_1d_networkreader
       pbr%fromNode%y        = gpY(1)
       pbr%toNode%x          = gpX(gridPointsCount)
       pbr%toNode%y          = gpY(gridPointsCount)
-      pbr%iTrench           = 0
-         
-      do j = 1, gridPointsCount-1
-         pbr%Xu(j) = 0.5d0 * (pbr%Xs(j) + pbr%Xs(j + 1))
-         pbr%Yu(j) = 0.5d0 * (pbr%Ys(j) + pbr%Ys(j + 1))
-      enddo
-         
+
       do j = 1, 2
          if (j==1) then
             node => pbr%fromNode
@@ -710,7 +655,7 @@ module m_1d_networkreader
          if (node%nodeType == nt_NotSet) then
             ! probably end node (until proved otherwise
             node%nodeType = nt_endNode
-         node%gridNumber = gridIndex
+         node%gridNumber = gridIndex ! TODO: Not safe in parallel models (check gridpointsseq as introduced in UNST-5013)
          elseif (node%nodeType == nt_endNode) then
             ! Already one branch connected, so not an endNode
             node%nodeType = nt_LinkNode
@@ -754,25 +699,31 @@ module m_1d_networkreader
       
    end subroutine readBranch
 
-   subroutine storeBranch(brs, nds, branchId, begNodeId, endNodeId, ordernumber, gridPointsCount, gpX, gpY, gpchainages, gpID)
+   subroutine storeBranch(brs, nds, branchId, begNodeId, endNodeId, branchlength, ordernumber, gridPointsCount, gpX, gpY, &
+                          gpchainages, gpUchainages, gpID, my_rank)
    
       use m_branch
+      use messagehandling
+      use precision_basics, only: comparereal
       
       implicit none
 
       type(t_branchSet), target, intent(inout)       :: brs
       type(t_nodeSet), target, intent(inout)         :: nds
-      character(len=IdLen), intent(in)               :: branchId
-      character(len=IdLen), intent(in)               :: begNodeId
-      character(len=IdLen), intent(in)               :: endNodeId
+      character(len=*), intent(in)                   :: branchId
+      character(len=*), intent(in)                   :: begNodeId
+      character(len=*), intent(in)                   :: endNodeId
+      double precision, intent(in)                   :: branchlength !< Actual length of this branch
       integer, intent(in)                            :: orderNumber
-      
-      integer, intent(in)                                          :: gridPointsCount
-      double precision, dimension(gridPointsCount), intent(in)     :: gpX
-      double precision, dimension(gridPointsCount), intent(in)     :: gpY
-      double precision, dimension(gridPointsCount), intent(in)     :: gpchainages
-      character(len=IdLen), dimension(gridPointsCount), intent(in) :: gpID
-      
+
+      integer, intent(in)                            :: gridPointsCount
+      double precision, dimension(:), intent(in)     :: gpX
+      double precision, dimension(:), intent(in)     :: gpY
+      double precision, dimension(:), intent(in)     :: gpchainages
+      double precision, dimension(:), intent(in)     :: gpUchainages
+      character(len=*), dimension(:), intent(in)     :: gpID
+      integer                       , intent(in)     :: my_rank
+
       ! Local Variables
       integer                                  :: ibr
       type(t_branch), pointer                  :: pbr
@@ -785,7 +736,10 @@ module m_1d_networkreader
       integer                                  :: j
       integer                                  :: ip1
       integer                                  :: ip2
+      integer                                  :: igpFrom
+      integer                                  :: igpTo
       character(len=IdLen)                     :: Chainage
+      character(len=4)                         :: cnum
       
       brs%Count = brs%Count + 1
       ibr = brs%Count
@@ -829,60 +783,66 @@ module m_1d_networkreader
       do igr = 1, gridPointsCount - 1
          if (gpchainages(igr) + minSectionLength > gpchainages(igr + 1)) then
             ! Two adjacent gridpoints too close
-            write (msgbuf, '(a, a, a, g11.4, a, g11.4)' ) 'Two grid points on branch ''', trim(branchid), ''' are too close at chainage ',               &
+            write (msgbuf, '(3a, g11.4, a, g11.4)' ) 'Two grid points on branch ''', trim(branchid), ''' are too close at chainage ',               &
                                     gpchainages(igr), ' and ', gpchainages(igr + 1)
+            if (my_rank >= 0) then
+               write(cnum, '(i4)') my_rank
+               msgbuf = 'Rank = ' // cnum // ': ' // msgbuf
+            end if
             call SetMessage(LEVEL_WARN, msgbuf)
          endif 
       enddo
 
       pbr%gridPointsCount = gridPointsCount
-      uPointsCount        = pbr%gridPointsCount - 1
+      uPointsCount        = size(gpUchainages)
       pbr%uPointsCount    = uPointsCount
-      
+
       call realloc(pbr%gridPointschainages, pbr%gridPointsCount)
       call realloc(pbr%uPointschainages, pbr%uPointsCount)
-      call realloc(pbr%dx, pbr%uPointsCount)
       call realloc(pbr%Xs, pbr%gridPointsCount)
       call realloc(pbr%Ys, pbr%gridPointsCount)
-      call realloc(pbr%Xu, pbr%uPointsCount)
-      call realloc(pbr%Yu, pbr%uPointsCount)
-      
+
       ip1 = brs%gridPointsCount + 1
       brs%gridPointsCount = brs%gridPointsCount + gridPointsCount
       ip2 = brs%gridPointsCount
-      pbr%Points(1)         = ip1
-      pbr%Points(2)         = ip2
-      pbr%upoints(1)        = ip1
-      pbr%upoints(2)        = ip2 - 1
+      pbr%StartPoint         = ip1
       pbr%gridPointschainages = gpchainages
-      pbr%uPointschainages    = (pbr%gridPointschainages(1:uPointsCount) + pbr%gridPointschainages(2:uPointsCount+1) ) / 2.0d0
-      pbr%dx                = pbr%gridPointschainages(2:uPointsCount+1) - pbr%gridPointschainages(1:uPointsCount)
-      pbr%length            = gpchainages(gridPointsCount)
+      pbr%uPointschainages    = gpUchainages(1:uPointsCount)
+      pbr%length            = branchlength ! NOTE: in parallel models, this is not necessarily equal to gpchainages(gridPointsCount)
       pbr%Xs                = gpX
       pbr%Ys                = gpY
-      pbr%fromNode%x        = gpX(1)
-      pbr%fromNode%y        = gpY(1)
-      pbr%toNode%x          = gpX(gridPointsCount)
-      pbr%toNode%y          = gpY(gridPointsCount)
-      pbr%iTrench           = 0
-         
-      do j = 1, gridPointsCount-1
-         pbr%Xu(j) = 0.5d0 * (pbr%Xs(j) + pbr%Xs(j + 1))
-         pbr%Yu(j) = 0.5d0 * (pbr%Ys(j) + pbr%Ys(j + 1))
-      enddo
-         
+
+      igpFrom = -1
+      igpTo   = -1
+      if (gridPointsCount > 0) then
+         if (comparereal(gpchainages(1), 0d0) == 0) then
+            pbr%fromNode%x        = gpX(1)
+            pbr%fromNode%y        = gpY(1)
+            igpFrom               = ip1
+         end if
+         if (comparereal(gpchainages(gridPointsCount), branchlength) == 0) then
+            pbr%toNode%x          = gpX(gridPointsCount)
+            pbr%toNode%y          = gpY(gridPointsCount)
+            igpTo                 = ip2
+         elseif (comparereal(gpchainages(gridPointsCount), branchlength) > 0) then
+            ! Only check for points beyond the branch length, in parallel mode a missing end node is possible.
+            msgbuf = 'The chainage of the last gridpoint on branch '''// trim(pbr%Id)// ''' is larger than the edge length of this branch'
+            call err_flush()
+         end if
+      end if
+
       do j = 1, 2
          if (j==1) then
             node => pbr%fromNode
-            gridIndex = ip1
+            gridIndex = igpFrom
          else
             node => pbr%toNode
-            gridIndex = ip2
+            gridIndex = igpTo
          endif
          if (node%nodeType == nt_NotSet) then
-            ! probably end node (until proved otherwise
+            ! probably end node (until proved otherwise)
             node%nodeType = nt_endNode
-         node%gridNumber = gridIndex
+            node%gridNumber = gridIndex
          elseif (node%nodeType == nt_endNode) then
             ! Already one branch connected, so not an endNode
             node%nodeType = nt_LinkNode
@@ -908,219 +868,5 @@ module m_1d_networkreader
       enddo
       
    end subroutine storeBranch
-
-   subroutine read_network_cache(ibin, network)
-   
-      type(t_network), intent(inout)  :: network
-      integer, intent(in)             :: ibin
-
-      call read_node_cache(ibin, network)
-      
-      call read_branch_cache(ibin, network)
-   
-   end subroutine read_network_cache
-   
-   subroutine write_network_cache(ibin, network)
-   
-      type(t_network), intent(in)     :: network
-      integer, intent(in)             :: ibin
-
-      call write_node_cache(ibin, network%nds)
-      
-      call write_branch_cache(ibin, network%brs)
-   
-   end subroutine write_network_cache
-   
-   subroutine read_node_cache(ibin, network)
-   
-      type(t_network), intent(inout)    :: network
-      integer, intent(in)               :: ibin
-      
-      type(t_node), pointer             :: pnod
-      integer                           :: i
-
-      read(ibin) network%nds%count
-      
-      network%nds%growsby = network%nds%count + 2
-      call realloc(network%nds)
-
-      read(ibin) network%nds%maxNumberOfConnections
-      
-      network%nds%LevelBoundaryCount = 0
-      network%nds%DisBoundaryCount   = 0
-      network%nds%bndCount           = 0
-
-      do i = 1, network%nds%Count
-      
-         pnod => network%nds%node(i)
-         
-         read(ibin) pnod%id
-         read(ibin) pnod%name
-         read(ibin) pnod%index
-         read(ibin) pnod%nodeType
-
-         read(ibin) pnod%x
-         read(ibin) pnod%y
-         read(ibin) pnod%gridNumber
-         
-         read(ibin) pnod%numberOfConnections
-      
-      enddo
  
-      call read_hash_list_cache(ibin, network%nds%hashlist)
-
-   end subroutine read_node_cache
-   
-   subroutine write_node_cache(ibin, nds)
-   
-      type(t_nodeSet), intent(in)     :: nds
-      integer, intent(in)             :: ibin
-
-      type(t_node), pointer           :: pnod
-      integer                         :: i
-
-      write(ibin) nds%Count
-      
-      write(ibin) nds%maxNumberOfConnections
-
-      do i = 1, nds%Count
-      
-         pnod => nds%node(i)
-         
-         write(ibin) pnod%id
-         write(ibin) pnod%name
-         write(ibin) pnod%index
-         write(ibin) pnod%nodeType
-
-         write(ibin) pnod%x
-         write(ibin) pnod%y
-         write(ibin) pnod%gridNumber
-         
-         write(ibin) pnod%numberOfConnections
-      
-      enddo
- 
-      call write_hash_list_cache(ibin, nds%hashlist)
-      
-   end subroutine write_node_cache
-   
-   subroutine read_branch_cache(ibin, network)
-   
-      type(t_network), intent(inout)   :: network
-      integer, intent(in)              :: ibin
-   
-      type(t_branch), pointer          :: pbrn
-      integer                          :: i
-      integer                          :: j
-
-      read(ibin) network%brs%Count
-      
-      network%brs%growsby = network%brs%count + 2
-      call realloc(network%brs)
-
-      read(ibin) network%brs%gridpointsCount
-
-      do i = 1, network%brs%Count
-      
-         pbrn => network%brs%branch(i)
-         
-         read(ibin) pbrn%id
-         read(ibin) pbrn%index
-         read(ibin) pbrn%name
-         read(ibin) pbrn%length
-         read(ibin) pbrn%orderNumber
-         
-         read(ibin) pbrn%iTrench
-         read(ibin) pbrn%flapGate
-         
-         read(ibin) (pbrn%nextBranch(j), j = 1, 2)
-         
-         read(ibin) (pbrn%nodeIndex(j), j = 1, 2)
-         pbrn%FromNode => network%nds%node(pbrn%nodeIndex(1))
-         pbrn%ToNode => network%nds%node(pbrn%nodeIndex(2))
-
-         read(ibin) pbrn%gridPointsCount
-         
-         allocate(pbrn%gridPointschainages(pbrn%gridPointsCount))
-         allocate(pbrn%gridPointIDs(pbrn%gridPointsCount))
-         allocate(pbrn%Xs(pbrn%gridPointsCount))
-         allocate(pbrn%Ys(pbrn%gridPointsCount))
-         
-         read(ibin) (pbrn%gridPointschainages(j), j = 1, pbrn%gridPointsCount)   
-         read(ibin) (pbrn%gridPointIDs(j), j = 1, pbrn%gridPointsCount)   
-         read(ibin) (pbrn%Xs(j), j = 1, pbrn%gridPointsCount)   
-         read(ibin) (pbrn%Ys(j), j = 1, pbrn%gridPointsCount)   
-      
-         read(ibin) pbrn%uPointsCount
-         
-         allocate(pbrn%uPointschainages(pbrn%uPointsCount))
-         allocate(pbrn%Xu(pbrn%uPointsCount))
-         allocate(pbrn%Yu(pbrn%uPointsCount))
-         allocate(pbrn%dx(pbrn%uPointsCount))
-         
-         read(ibin) (pbrn%uPointschainages(j), j = 1, pbrn%uPointsCount)   
-         read(ibin) (pbrn%Xu(j), j = 1, pbrn%uPointsCount)   
-         read(ibin) (pbrn%Yu(j), j = 1, pbrn%uPointsCount)   
-         read(ibin) (pbrn%dx(j), j = 1, pbrn%uPointsCount)   
-      
-         read(ibin) (pbrn%Points(j), j = 1, 2)
-         read(ibin) (pbrn%uPoints(j), j = 1, 2)
-
-      enddo
- 
-      call read_hash_list_cache(ibin, network%brs%hashlist)
-
-   end subroutine read_branch_cache
-   
-   subroutine write_branch_cache(ibin, brs)
-   
-      type(t_branchSet), intent(in)   :: brs
-      integer, intent(in)             :: ibin
-
-      type(t_branch), pointer         :: pbrn
-      integer                         :: i
-      integer                         :: j
-
-      write(ibin) brs%Count
-      
-      write(ibin) brs%gridpointsCount
-
-      do i = 1, brs%Count
-      
-         pbrn => brs%branch(i)
-         
-         write(ibin) pbrn%id
-         write(ibin) pbrn%index
-         write(ibin) pbrn%name
-         write(ibin) pbrn%length
-         write(ibin) pbrn%orderNumber
-         
-         write(ibin) pbrn%iTrench
-         write(ibin) pbrn%flapGate
-
-         write(ibin) (pbrn%nextBranch(j), j = 1, 2)
-         write(ibin) (pbrn%nodeIndex(j), j = 1, 2)
-
-         write(ibin) pbrn%gridPointsCount
-         write(ibin) (pbrn%gridPointschainages(j), j = 1, pbrn%gridPointsCount)   
-         write(ibin) (pbrn%gridPointIDs(j), j = 1, pbrn%gridPointsCount)   
-         write(ibin) (pbrn%Xs(j), j = 1, pbrn%gridPointsCount)   
-         write(ibin) (pbrn%Ys(j), j = 1, pbrn%gridPointsCount)   
-      
-         write(ibin) pbrn%uPointsCount
-         write(ibin) (pbrn%uPointschainages(j), j = 1, pbrn%uPointsCount)   
-         write(ibin) (pbrn%Xu(j), j = 1, pbrn%uPointsCount)   
-         write(ibin) (pbrn%Yu(j), j = 1, pbrn%uPointsCount)   
-         write(ibin) (pbrn%dx(j), j = 1, pbrn%uPointsCount)   
-      
-         write(ibin) (pbrn%Points(j), j = 1, 2)
-         write(ibin) (pbrn%uPoints(j), j = 1, 2)
-
-      enddo
- 
-      call write_hash_list_cache(ibin, brs%hashlist)
-
-   end subroutine write_branch_cache
-   
-   
 end module m_1d_networkreader

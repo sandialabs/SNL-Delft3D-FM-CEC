@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -73,7 +73,7 @@
       integer(4) :: ithndl = 0
       if (timon) call timstrt( "primpro", ithndl )
 
-      write ( line , '(a)' ) '# determinig the processes to model the substances.'
+      write ( line , '(a)' ) '# Determining the processes to model the substances.'
       call monsys( line , 2 )
       line = ' '
       call monsys( line , 2 )

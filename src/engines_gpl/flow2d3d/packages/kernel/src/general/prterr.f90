@@ -1,7 +1,7 @@
 subroutine prterr(lundia, msgno, filtxt)
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -25,8 +25,8 @@ subroutine prterr(lundia, msgno, filtxt)
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: prterr.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/kernel/src/general/prterr.f90 $
+!  $Id: prterr.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/flow2d3d/packages/kernel/src/general/prterr.f90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: This routine prints a message to output device.
@@ -234,7 +234,7 @@ subroutine prterr(lundia, msgno, filtxt)
     case ('U003')
        msg = '*** ERROR Undefined grid dimensions - goto domain/grid/dimension menu'
     case ('U004')
-       msg = '*** ERROR Value lies outside the valid range #'
+       msg = '*** ERROR Layer thickness is equal to or less than zero for k = #'
     case ('U005')
        msg = '*** WARNING Iteration parameter is set to #'
     case ('U006')

@@ -14,7 +14,7 @@
 subroutine bilin5(xa, ya, x0, y0, w, ier)
 !----- LGPL --------------------------------------------------------------------
 !
-!  Copyright (C)  Stichting Deltares, 2011-2020.
+!  Copyright (C)  Stichting Deltares, 2011-2022.
 !
 !  This library is free software; you can redistribute it and/or
 !  modify it under the terms of the GNU Lesser General Public
@@ -38,8 +38,8 @@ subroutine bilin5(xa, ya, x0, y0, w, ier)
 !  Stichting Deltares. All rights reserved.
 !
 !-------------------------------------------------------------------------------
-!  $Id: bilin5.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/deltares_common/packages/deltares_common/src/bilin5.f90 $
+!  $Id: bilin5.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_lgpl/deltares_common/packages/deltares_common/src/bilin5.f90 $
 !!--description-----------------------------------------------------------------
 
 !!--pseudo code and references--------------------------------------------------

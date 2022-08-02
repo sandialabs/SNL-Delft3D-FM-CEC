@@ -1,7 +1,7 @@
 subroutine dfbladm(ipown, icom, mmax, nmax, runid, gdp)
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -25,8 +25,8 @@ subroutine dfbladm(ipown, icom, mmax, nmax, runid, gdp)
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: dfbladm.F90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/data/src/parallel_mpi/dfbladm.F90 $
+!  $Id: dfbladm.F90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/flow2d3d/packages/data/src/parallel_mpi/dfbladm.F90 $
 !!--description-----------------------------------------------------------------
 !
 !   For the present node, carries out the block administration
@@ -187,8 +187,7 @@ subroutine dfbladm(ipown, icom, mmax, nmax, runid, gdp)
        !
        call DATE_AND_TIME(date, time)
        ddbfile = trim(runid) // "_" // trim(date) // "_" // trim(time) // ".ddb"
-       fillun = newlun(gdp)
-       open(fillun, file=trim(ddbfile), action="WRITE", iostat = istat)
+       open(newunit=fillun, file=trim(ddbfile), action="WRITE", iostat = istat)
        if (istat /= 0) then
           write(message,'(3a)') "Unable to open file """,trim(ddbfile),""". Skipping generation."
           call prterr(lundia, 'U190', trim(message))

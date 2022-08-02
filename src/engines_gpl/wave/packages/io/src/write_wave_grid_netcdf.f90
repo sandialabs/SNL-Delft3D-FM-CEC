@@ -1,7 +1,7 @@
 subroutine write_wave_grid_netcdf (i_grid, sg, gridname, filename)
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -25,8 +25,8 @@ subroutine write_wave_grid_netcdf (i_grid, sg, gridname, filename)
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: write_wave_grid_netcdf.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/wave/packages/io/src/write_wave_grid_netcdf.f90 $
+!  $Id: write_wave_grid_netcdf.f90 140678 2022-01-27 16:41:07Z nabi $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/wave/packages/io/src/write_wave_grid_netcdf.f90 $
 !!--description-----------------------------------------------------------------
 !
 !  Write SWAN grid to a temporary NetCDF file, to be used by ESMF_RegridWeightsGen

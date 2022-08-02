@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -68,6 +68,8 @@
       integer   (4), intent(inout) :: wqid2(notot2,2)      ! NetCDF ids of variables in conc2
       integer   (4), intent(in   ) :: lunut                ! unit number monitoring file
 
+      character(len=len(synam1))   :: name
+
       integer(4) iseg                   ! loop counter for segments
       integer(4) k                      ! loop counter for substances
       real   (4) amiss   /-999.0/       ! missing value indicator
@@ -92,7 +94,7 @@
       character(len=nf90_max_name) :: mesh_name
       character(len=nf90_max_name) :: dimname
 
-      integer :: i, j, id, cnt
+      integer :: i, j, id, cnt, errcnt
       integer :: type_ugrid
       logical :: success
       real, dimension(:), allocatable :: dlwq_values
@@ -101,17 +103,16 @@
       integer :: station_names_id, station_x_id, station_y_id, station_z_id
 
       integer, dimension(3)             :: coord_id
-      character(len=25), dimension(4,4) :: station_property = reshape(
-
+      character(len=25), dimension(5,4) :: station_property = reshape(
      &    [ 'variableName             ', 'standard_name            ',
-     &      'long_name                ', 'unit                     ',
+     &      'long_name                ', 'unit                     ', 'units                    ',
      &      'station_x                ', 'projection_x_coordinate  ',
-     &      'x-coordinate             ', 'm                        ',
+     &      'x-coordinate             ', 'm                        ', 'm                        ',
      &      'station_y                ', 'projection_y_coordinate  ',
-     &      'y-coordinate             ', 'm                        ',
+     &      'y-coordinate             ', 'm                        ', 'm                        ',
      &      'station_z                ', 'projection_z_coordinate  ',
-     &      'z-coordinate             ', 'm                        '],
-     &    [4,4] )
+     &      'z-coordinate             ', 'm                        ', 'm                        '],
+     &    [5,4] )
 
 
       integer(4) ithandl /0/
@@ -230,7 +231,7 @@
                  goto 800
              endif
 
-             do j = 2,4
+             do j = 2,5
                  inc_error = nf90_put_att( ncidhis, coord_id(i-1), station_property(j,1), station_property(j,i) )
                  if ( inc_error /= nf90_noerr ) then
                      write( lunut , 2586) station_property(j,i)
@@ -280,7 +281,8 @@
          ! long name and unit will follow later, they are in the ouput.wrk-file!
          !
          do iout = 1, notot1
-            inc_error = nf90_def_var( ncidhis, trim(adjustl(synam1(iout))), nf90_float,
+            name      = nospaces( synam1(iout) )
+            inc_error = nf90_def_var( ncidhis, trim(name), nf90_float,
      &                      [nostations_id, ntimeid], wqid1(iout,1) )
             if ( inc_error /= nf90_noerr ) then
                 if ( inc_error /= nf90_enameinuse ) then
@@ -289,7 +291,7 @@
                 else
                     success = .false.
                     do cnt = 2,100
-                        write( altname, '(i0,2a)' ) cnt, '-', adjustl(synam1(iout))
+                        write( altname, '(i0,2a)' ) cnt, '-', name
                         inc_error = nf90_def_var( ncidhis, trim(altname), nf90_float,
      &                                  [nostations_id, ntimeid], wqid1(iout,1) )
                         if ( inc_error == nf90_noerr ) then
@@ -304,6 +306,7 @@
                 endif
             endif
 
+            errcnt    = 6
             inc_error =
      &          0         + nf90_put_att( ncidhis, wqid1(iout,1),
      &              '_FillValue', -999.0 )
@@ -313,11 +316,23 @@
      &              'station_x station_y station_z station_name' )
             inc_error =
      &          inc_error + nf90_put_att( ncidhis, wqid1(iout,1),
-     &              'long_name', trim(synam1(iout)) )
+     &              'delwaq_name', trim(synam1(iout)) )
             inc_error =
      &          inc_error + nf90_put_att( ncidhis, wqid1(iout,1),
-     &              'unit', 'mg/l' )                                  ! TODO: correct unit!
-            if ( inc_error /= 4*nf90_noerr ) then
+     &              'long_name', trim(sydsc1(iout)) )
+            if ( len_trim(sysnm1(iout)) > 0 ) then
+                errcnt    = errcnt + 1
+                inc_error =
+     &              inc_error + nf90_put_att( ncidhis, wqid1(iout,1),
+     &                  'standard_name', trim(sysnm1(iout)) )
+            endif
+            inc_error =
+     &          inc_error + nf90_put_att( ncidhis, wqid1(iout,1),
+     &              'unit', syuni1(iout) )
+            inc_error =
+     &          inc_error + nf90_put_att( ncidhis, wqid1(iout,1),
+     &              'units', syuni1(iout) )
+            if ( inc_error /= errcnt*nf90_noerr ) then
                 write( lunut , 2586) 'substance ' // synam1(iout)
                 goto 800
             endif
@@ -325,7 +340,8 @@
          enddo
 
          do iout = 1, notot2
-            inc_error = nf90_def_var( ncidhis, trim(adjustl(synam2(iout))), nf90_float,
+            name      = nospaces( synam2(iout) )
+            inc_error = nf90_def_var( ncidhis, trim(name), nf90_float,
      &                      [nostations_id, ntimeid], wqid2(iout,1) )
             if ( inc_error /= nf90_noerr ) then
                 if ( inc_error /= nf90_enameinuse ) then
@@ -334,7 +350,7 @@
                 else
                     success = .false.
                     do cnt = 2,100
-                        write( altname, '(i0,2a)' ) cnt, '-', adjustl(synam2(iout))
+                        write( altname, '(i0,2a)' ) cnt, '-', name
                         inc_error = nf90_def_var( ncidhis, trim(altname), nf90_float,
      &                                  [nostations_id, ntimeid], wqid2(iout,1) )
                         if ( inc_error == nf90_noerr ) then
@@ -349,6 +365,7 @@
                 endif
             endif
 
+            errcnt    = 6
             inc_error =
      &          0         + nf90_put_att( ncidhis, wqid2(iout,1),
      &              '_FillValue', -999.0 )
@@ -358,11 +375,23 @@
      &              'station_x station_y station_z station_name' )
             inc_error =
      &          inc_error + nf90_put_att( ncidhis, wqid2(iout,1),
-     &              'long_name', trim(synam2(iout)) )
+     &              'delwaq_name', trim(synam2(iout)) )
             inc_error =
      &          inc_error + nf90_put_att( ncidhis, wqid2(iout,1),
-     &              'unit', 'mg/l' )                                  ! TODO: correct unit!
-            if ( inc_error /= 4*nf90_noerr ) then
+     &              'long_name', trim(sydsc2(iout)) )
+            if ( len_trim(sysnm2(iout)) > 0 ) then
+                errcnt    = errcnt + 1
+                inc_error =
+     &              inc_error + nf90_put_att( ncidhis, wqid2(iout,1),
+     &                  'standard_name', trim(sysnm2(iout)) )
+            endif
+            inc_error =
+     &          inc_error + nf90_put_att( ncidhis, wqid2(iout,1),
+     &              'unit', syuni2(iout) )
+            inc_error =
+     &          inc_error + nf90_put_att( ncidhis, wqid2(iout,1),
+     &              'units', syuni2(iout) )
+            if ( inc_error /= errcnt*nf90_noerr ) then
                 write( lunut , 2586) 'substance ' // synam2(iout)
                 goto 800
             endif
@@ -467,5 +496,24 @@
  2594 format ( / ' Dimension "',A,'" not found' )
  2600 format ( / ' NetCDF error number: ', I6 )
  2610 format ( / ' NetCDF error message: ', A )
-      end
 
+      contains
+
+      ! Replace embedded spaces by underscores (and remove leading spaces)
+      !
+      function nospaces( string )
+
+      character(len=*), intent(in) :: string
+      character(len=len(string))   :: nospaces
+
+      integer                      :: i
+
+      nospaces = adjustl(string)
+      do i = 1,len_trim(nospaces)
+          if ( nospaces(i:i) == ' ' ) then
+              nospaces(i:i) = '_'
+          endif
+      enddo
+
+      end function nospaces
+      end

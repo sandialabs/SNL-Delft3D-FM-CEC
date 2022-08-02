@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -90,10 +90,16 @@
       use delwaq2_data
       use m_openda_exchange_items, only : get_openda_buffer
       use report_progress
+      use m_actions
+      use m_sysn          ! System characteristics
+      use m_sysi          ! Timer characteristics
+      use m_sysa          ! Pointers in real array workspace
+      use m_sysj          ! Pointers in integer array workspace
+      use m_sysc          ! Pointers in character array workspace
+      use m_dlwqdata_save_restore
 
       implicit none
 
-      include 'actions.inc'
 !
 !     Declaration of arguments
 !
@@ -106,26 +112,7 @@
       TYPE(DELWAQ_DATA), TARGET   :: DLWQD
       type(GridPointerColl)       :: GridPs               ! collection of all grid definitions
 
-!
-!     COMMON  /  SYSN   /   System characteristics
-!
-      INCLUDE 'sysn.inc'
-!
-!     COMMON  /  SYSI  /    Timer characteristics
-!
-      INCLUDE 'sysi.inc'
-!
-!     COMMON  /  SYSA   /   Pointers in real array workspace
-!
-      INCLUDE 'sysa.inc'
-!
-!     COMMON  /  SYSJ   /   Pointers in integer array workspace
-!
-      INCLUDE 'sysj.inc'
-!
-!     COMMON  /  SYSC   /   Pointers in character array workspace
-!
-      INCLUDE 'sysc.inc'
+
 
 !     Common to define external communications in SOBEK
 !     olcfwq             Flag indicating ONLINE running of CF and WQ
@@ -141,28 +128,16 @@
 !
       REAL             RDUMMY(1)
       LOGICAL          IMFLAG , IDFLAG , IHFLAG
-      LOGICAL          LDUMMY , LSTREC , LREWIN , LDUMM2
-      LOGICAL          FORESTER
-      INTEGER          ITIME
+      LOGICAL          LREWIN , LDUMM2
       INTEGER          NSTEP
-      INTEGER          IFFLAG
-      INTEGER          IAFLAG
-      INTEGER          IBFLAG
-      INTEGER          NDDIM
-      INTEGER          NVDIM
-      INTEGER          NOWARN
-      INTEGER          NOPRED
-      INTEGER          ITIMEL
-      INTEGER          INWTYP
-      INTEGER          LLENG
       INTEGER          ICREEP
       INTEGER          ICENTR
       INTEGER          IZ
       INTEGER          IDUMMY
       REAL             RDT
 
-      INTEGER         IBND
-      INTEGER         ISYS
+      INTEGER          IBND
+      INTEGER           ISYS
 
       real             dsdksi(1,1), dsdeta(1,1), dtdksi(1,1), dtdeta(1,1)
       real             rbnd
@@ -171,8 +146,7 @@
       integer          kmxsed
       logical          eqmbc
       character*4      sedtyp(2)
-      INTEGER         sindex
-      integer       :: ithandl
+      INTEGER          sindex
 
       !
       ! Variables local to this method
@@ -184,17 +158,8 @@
       real, save    :: vicmol
       real, save    :: eps
 
-      !
-      ! Dumy variables - used in DLWQD
-      !
-      integer       :: nosss
-      integer       :: noqtt
-      integer       :: noqt
-      integer       :: ioptzb
-      logical       :: updatr
-      real(kind=kind(1.0d0)) :: tol
 
-      include 'state_data.inc'
+
 
 ! ====================================================================
 ! SOME REMARKS:
@@ -206,7 +171,7 @@
 ! ====================================================================
 !
       if ( action == ACTION_FINALISATION ) then
-          include 'dlwqdata_restore.inc'
+          call dlwqdata_restore(dlwqd)
           if ( timon ) call timstrt ( "dlwqnj", ithandl )
           goto 20
       endif
@@ -275,13 +240,13 @@
 !
       IF ( ACTION == ACTION_INITIALISATION ) THEN
           if ( timon ) call timstrt ( "dlwqnj", ithandl )
-          INCLUDE 'dlwqdata_save.inc'
+          call dlwqdata_save(dlwqd)
           if ( timon ) call timstop ( ithandl )
           RETURN
       ENDIF
 
       IF ( ACTION == ACTION_SINGLESTEP ) THEN
-          INCLUDE 'dlwqdata_restore.inc'
+          call dlwqdata_restore(dlwqd)
           call apply_operations( dlwqd )
       ENDIF
 

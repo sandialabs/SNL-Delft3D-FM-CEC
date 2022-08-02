@@ -14,7 +14,7 @@ subroutine z_bott3d(nmmax     ,kmax      ,lsed      ,lsedtot   , &
                   & kfvmax    ,dt        ,gdp       )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -38,8 +38,8 @@ subroutine z_bott3d(nmmax     ,kmax      ,lsed      ,lsedtot   , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: z_bott3d.f90 65844 2020-01-23 20:56:06Z platzek $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/kernel/src/compute_sediment/z_bott3d.f90 $
+!  $Id: z_bott3d.f90 141416 2022-06-29 08:31:13Z spee $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/flow2d3d/packages/kernel/src/compute_sediment/z_bott3d.f90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: Computes suspended sediment transport correction
@@ -82,10 +82,11 @@ subroutine z_bott3d(nmmax     ,kmax      ,lsed      ,lsedtot   , &
     real(fp)                             , pointer :: morfac
     real(fp)                             , pointer :: sus
     real(fp)                             , pointer :: bed
-    real(fp)                             , pointer :: thetsd
+    real(fp)              , dimension(:) , pointer :: thetsd
     real(fp)                             , pointer :: sedthr
     real(fp)                             , pointer :: hmaxth
     integer                              , pointer :: mergehandle
+    integer                              , pointer :: itcmp
     integer                              , pointer :: itmor
     type (handletype)                    , pointer :: bcmfile
     type (bedbndtype)     , dimension(:) , pointer :: morbnd
@@ -102,6 +103,7 @@ subroutine z_bott3d(nmmax     ,kmax      ,lsed      ,lsedtot   , &
     logical                              , pointer :: sedim
     logical                              , pointer :: scour
     logical                              , pointer :: snelli
+    logical                              , pointer :: l_suscor
     real(fp), dimension(:)               , pointer :: factor
     real(fp)                             , pointer :: slope
     real(fp), dimension(:)               , pointer :: bc_mor_array
@@ -169,7 +171,7 @@ subroutine z_bott3d(nmmax     ,kmax      ,lsed      ,lsedtot   , &
     integer , dimension(gdp%d%nmlb:gdp%d%nmub)         , intent(in)  :: kfu    !  Description and declaration in esm_alloc_int.f90
     integer , dimension(gdp%d%nmlb:gdp%d%nmub)         , intent(in)  :: kfv    !  Description and declaration in esm_alloc_int.f90
     logical                                            , intent(in)  :: sscomp
-    real(fp)                                           , intent(in)  :: dt
+    real(fp)                                           , intent(in)  :: dt     !< (half) time step in seconds
     real(fp)                                                         :: timhr
     real(fp), dimension(gdp%d%nmlb:gdp%d%nmub)                       :: depchg !  Description and declaration in esm_alloc_real.f90
     real(fp), dimension(gdp%d%nmlb:gdp%d%nmub)                       :: dp     !  Description and declaration in esm_alloc_real.f90
@@ -260,6 +262,7 @@ subroutine z_bott3d(nmmax     ,kmax      ,lsed      ,lsedtot   , &
     real(fp) :: totfixfrac
     real(fp) :: trndiv
     real(fp) :: z
+    real(hp) :: dim_real
     real(fp) :: cellht
     real(fp) :: zusum
 !
@@ -275,6 +278,7 @@ subroutine z_bott3d(nmmax     ,kmax      ,lsed      ,lsedtot   , &
     sedthr              => gdp%gdmorpar%sedthr
     hmaxth              => gdp%gdmorpar%hmaxth
     mergehandle         => gdp%gdmorpar%mergehandle
+    itcmp               => gdp%gdmorpar%itcmp
     itmor               => gdp%gdmorpar%itmor
     bcmfile             => gdp%gdmorpar%bcmfile
     morbnd              => gdp%gdmorpar%morbnd
@@ -282,6 +286,7 @@ subroutine z_bott3d(nmmax     ,kmax      ,lsed      ,lsedtot   , &
     bedupd              => gdp%gdmorpar%bedupd
     cmpupd              => gdp%gdmorpar%cmpupd
     neglectentrainment  => gdp%gdmorpar%neglectentrainment
+    l_suscor            => gdp%gdmorpar%l_suscor    
     multi               => gdp%gdmorpar%multi
     wind                => gdp%gdprocs%wind
     temp                => gdp%gdprocs%temp
@@ -333,6 +338,7 @@ subroutine z_bott3d(nmmax     ,kmax      ,lsed      ,lsedtot   , &
     bedload = .false.
     dtmor   = dt*morfac
     nm_pos  = 1
+    dim_real = real(nmmax*lsedtot,hp)
     !
     !   Calculate suspended sediment transport correction vector (for SAND)
     !   Note: uses GLM velocites, consistent with DIFU
@@ -353,7 +359,7 @@ subroutine z_bott3d(nmmax     ,kmax      ,lsed      ,lsedtot   , &
     !
     ! calculate corrections
     !
-    if (sus /= 0.0_fp) then
+    if (sus /= 0.0_fp .and. l_suscor) then
        !
        ! suspension transport correction vector only for 3D
        !
@@ -565,7 +571,7 @@ subroutine z_bott3d(nmmax     ,kmax      ,lsed      ,lsedtot   , &
        ! output
        ! Note: uses DIFU fluxes
        ! if suspended sediment vector is required this half timestep
-       ! note, will be required if nst.ge.itmor for cumulative
+       ! note, will be required if nst >= itmor for cumulative
        ! transports
        !
        if (sscomp .or. nst>=itmor) then
@@ -605,18 +611,9 @@ subroutine z_bott3d(nmmax     ,kmax      ,lsed      ,lsedtot   , &
        endif        ! sscomp .or. nst>=itmor
     endif           ! sus /= 0.0
     !
-    ! if morphological computations have started
+    ! if bed composition computations have started
     !
-    if (nst >= itmor) then
-       !
-       ! Increment morphological time
-       ! Note: dtmor in seconds, hydrt and morft in days!
-       !
-       morft = morft + real(dtmor,hp)/86400.0_hp
-       !
-       ! Increment hydraulic time if morfac>0; don't include morfac=0 periods while computing average morfac.
-       !
-       if (morfac > 0.0_fp) hydrt = hydrt + real(dt,hp)/86400.0_hp
+    if (nst >= itcmp) then
        !
        ! Bed boundary conditions: transport condition
        !
@@ -930,10 +927,10 @@ subroutine z_bott3d(nmmax     ,kmax      ,lsed      ,lsedtot   , &
                 !
                 if (hmaxth > sedthr) then
                    h1   = real(dps(nm),fp) + s1(nm)
-                   thet = (h1 - sedthr)/(hmaxth - sedthr)*thetsd
-                   thet = min(thet, thetsd)
+                   thet = (h1 - sedthr)/(hmaxth - sedthr)*thetsd(nm)
+                   thet = min(thet, thetsd(nm))
                 else
-                   thet = thetsd
+                   thet = thetsd(nm)
                 endif
                 !
                 ! Combine some constant factors in variable THET
@@ -994,7 +991,13 @@ subroutine z_bott3d(nmmax     ,kmax      ,lsed      ,lsedtot   , &
                 mergebuf(i) = real(dbodsd(l, nm),hp)
              enddo
           enddo
+          ! First sent the array size
+          ! Needed since FM communicates the time step (dim_real=1)
+          ! Since here the dbodsed array is going to be communicated, dim_real=nmmax*lsedtot
+          call putarray (mergehandle,dim_real,1)
+          ! Then sent the dbodsed array
           call putarray (mergehandle,mergebuf(1:nmmax*lsedtot),nmmax*lsedtot)
+          ! Then receive the merged dbodsed array
           call getarray (mergehandle,mergebuf(1:nmmax*lsedtot),nmmax*lsedtot)
           i = 0
           do l = 1, lsedtot
@@ -1045,7 +1048,20 @@ subroutine z_bott3d(nmmax     ,kmax      ,lsed      ,lsedtot   , &
           call bndmorlyr(lsedtot   ,timhr        , &
                        & nto       ,bc_mor_array , &
                        & gdp       )
-       else
+       endif
+    endif ! nst >= itcmp
+    !
+    ! if bed level computations have started
+    !
+    if (nst >= itmor) then
+       !
+       ! Increment morphological and hydraulic time (the latter is used to compute the average morfac over periods with morfac>0).
+       ! Note: dtmor in seconds, hydrt and morft in days!
+       !
+       morft = morft + real(dtmor,hp)/86400.0_hp
+       if (morfac > 0.0_fp) hydrt = hydrt + real(dt,hp)/86400.0_hp
+       !
+       if (.not. cmpupd) then
           !
           ! Compute bed level changes without actually updating the bed composition
           !
@@ -1097,6 +1113,7 @@ subroutine z_bott3d(nmmax     ,kmax      ,lsed      ,lsedtot   , &
              ! entries in the morbnd structure. The sum of alfa_mag(ib)**2
              ! will be equal to 1.
              !
+             icond = morbnd(jb)%icond
              if (nxmx == nmu) then
                 if (umean(nm)<0.0) icond = 0
              elseif (nxmx == nmd) then
@@ -1149,14 +1166,14 @@ subroutine z_bott3d(nmmax     ,kmax      ,lsed      ,lsedtot   , &
              end select
           enddo ! ib (boundary point)
        enddo    ! jb (open boundary)
-    else
+    else ! nst < itmor
        !
        ! if morphological computations haven't started yet
        !
        do nm = 1, nmmax
           depchg(nm) = 0.0_fp
        enddo
-    endif ! nst >= itmor
+    endif
     !
     ! Update bottom elevations
     !
@@ -1217,8 +1234,7 @@ subroutine z_bott3d(nmmax     ,kmax      ,lsed      ,lsedtot   , &
        ! Dredging and Dumping
        !
        if (dredge) then
-          call dredgedump(dbodsd    ,cdryb     ,nst       ,timhr     ,morft     , &
-                        & gdp       )
+          call dredge_d3d4(dps, s1, timhr, nst, gdp)
        endif
     endif
     ! -----------------------------------------------------------

@@ -4,7 +4,7 @@ subroutine mkmap(code      ,x1        ,y1        ,m1        ,n1        , &
                & iref      ,iprint    ,covered   ,xymiss)
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -28,8 +28,8 @@ subroutine mkmap(code      ,x1        ,y1        ,m1        ,n1        , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: mkmap.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/wave/packages/data/src/mkmap.f90 $
+!  $Id: mkmap.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/wave/packages/data/src/mkmap.f90 $
 !!--description-----------------------------------------------------------------
 ! NONE
 !!--pseudo code and references--------------------------------------------------
@@ -55,7 +55,7 @@ subroutine mkmap(code      ,x1        ,y1        ,m1        ,n1        , &
     integer , dimension(n2)                  :: nrin
     integer , dimension(n2)                  :: nrx
     integer , dimension(n2)                  :: nry
-    real                       , intent(in)  :: xymiss  ! missing value in grid 1
+    real(hp)                   , intent(in)  :: xymiss  ! missing value in grid 1
     real    , dimension(4 , n2)              :: w       ! Remains single precision!
     real(hp), dimension(m1, n1), intent(in)  :: x1
     real(hp), dimension(m1, n1), intent(in)  :: y1

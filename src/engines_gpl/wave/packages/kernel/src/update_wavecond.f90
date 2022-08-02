@@ -1,7 +1,7 @@
 module update_waves
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -25,14 +25,14 @@ module update_waves
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: update_wavecond.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/wave/packages/kernel/src/update_wavecond.f90 $
+!  $Id: update_wavecond.f90 141401 2022-06-24 13:08:33Z saggiora $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/wave/packages/kernel/src/update_wavecond.f90 $
 !!--description-----------------------------------------------------------------
 ! NONE
 !!--pseudo code and references--------------------------------------------------
 ! NONE
 !!--declarations----------------------------------------------------------------
-!
+use precision_basics
 ! Module parameters
 !
     integer :: luniwp = -1  ! Unibest wave conditions input file unit
@@ -48,7 +48,7 @@ subroutine update_wavecond(sr,wavetime)
    !
    implicit none
    !
-   type(swan)              :: sr
+   type(swan_type)         :: sr
    type(wave_time_type)    :: wavetime
    !
    integer                    :: i
@@ -198,7 +198,7 @@ subroutine update_wavecond_mdw(sr,wavetime)
    !
    implicit none
    !
-   type(swan)              :: sr
+   type(swan_type)         :: sr
    type(wave_time_type)    :: wavetime
    !
    integer                    :: i
@@ -277,7 +277,7 @@ subroutine iniswn(nnest     , sr)
 !
 ! Global variables
 !
-    type(swan)                         :: sr
+    type(swan_type)                    :: sr
     integer              , intent(in)  :: nnest
 !
 ! Local variables
@@ -316,7 +316,7 @@ subroutine setswn(nnest     ,hs        ,per       ,dir       ,dd        , &
 !
 ! Global variables
 !
-    type(swan)                         :: sr
+    type(swan_type)                    :: sr
     integer              , intent(in)  :: nnest
     real                 , intent(in)  :: dd
     real                 , intent(in)  :: dir
@@ -383,7 +383,7 @@ subroutine varcon(fname     ,timmin    ,result    ,isdir     ,nres )
 !
     integer                 , intent(in)  :: nres    ! number of values on record
     integer, dimension(nres), intent(in)  :: isdir   ! mask array, 0 if scalar, 1 if direction (deg)
-    real                    , intent(in)  :: timmin  ! time in minutes
+    real(hp)                , intent(in)  :: timmin  ! time in minutes
     real   , dimension(nres)              :: result  ! array containing interpolated values
     character(*)            , intent(in)  :: fname   ! filename time series file
 !

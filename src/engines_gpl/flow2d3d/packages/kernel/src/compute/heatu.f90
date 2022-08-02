@@ -8,7 +8,7 @@ subroutine heatu(ktemp     ,anglat    ,sferic    ,timhr     ,keva      , &
                & anglon    ,gdp       )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -32,8 +32,8 @@ subroutine heatu(ktemp     ,anglat    ,sferic    ,timhr     ,keva      , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: heatu.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/kernel/src/compute/heatu.f90 $
+!  $Id: heatu.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/flow2d3d/packages/kernel/src/compute/heatu.f90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: Computes heat exchange through water surface
@@ -49,6 +49,7 @@ subroutine heatu(ktemp     ,anglat    ,sferic    ,timhr     ,keva      , &
     use meteo
     use precision
     use mathconsts
+    use physicalconsts, only: CtoKelvin
     !
     use globaldata
     use dfparall
@@ -244,6 +245,7 @@ subroutine heatu(ktemp     ,anglat    ,sferic    ,timhr     ,keva      , &
     real(fp)      :: zbottom
     real(fp)      :: zdown
     real(fp)      :: ztop
+    real(fp), parameter :: fCtoKelvin = real(CtoKelvin, fp)
     logical       :: success
     character(100):: errmsg
 !
@@ -450,8 +452,8 @@ subroutine heatu(ktemp     ,anglat    ,sferic    ,timhr     ,keva      , &
              !
              tl = 2.5e6_fp - 2.3e3_fp*r0(nm,k0,ltem)
              !
-             easp     = (rhum/100.0_fp) * 23.38_fp * exp( 18.1_fp - 5303.3_fp/(tdryb         +273.15_fp) )
-             esvp     =                   23.38_fp * exp( 18.1_fp - 5303.3_fp/(r0(nm,k0,ltem)+273.15_fp) )
+             easp     = (rhum/100.0_fp) * 23.38_fp * exp( 18.1_fp - 5303.3_fp/(tdryb         +fCtoKelvin) )
+             esvp     =                   23.38_fp * exp( 18.1_fp - 5303.3_fp/(r0(nm,k0,ltem)+fCtoKelvin) )
              !
              ! No negative evaporation
              ! Assumption: Negative evaporation is caused by
@@ -581,8 +583,8 @@ subroutine heatu(ktemp     ,anglat    ,sferic    ,timhr     ,keva      , &
              !
              tl = 2.5e6_fp - 2.3e3_fp*r0(nm,k0,ltem)
              !
-             easp = (rhum/100.0_fp) * 23.38_fp * exp( 18.1_fp - 5303.3_fp/(tdryb         +273.15_fp) )
-             esvp =                   23.38_fp * exp( 18.1_fp - 5303.3_fp/(r0(nm,k0,ltem)+273.15_fp) )
+             easp = (rhum/100.0_fp) * 23.38_fp * exp( 18.1_fp - 5303.3_fp/(tdryb         +fCtoKelvin) )
+             esvp =                   23.38_fp * exp( 18.1_fp - 5303.3_fp/(r0(nm,k0,ltem)+fCtoKelvin) )
              !
              ! No negative evaporation
              ! Assumption: Negative evaporation is caused by
@@ -797,11 +799,11 @@ subroutine heatu(ktemp     ,anglat    ,sferic    ,timhr     ,keva      , &
              tl = 2.5e6_fp - 2.3e3_fp*r0(nm,k0,ltem)
              !
              if (ivapop == 0) then
-                easp = (rhum/100.0_fp) * 23.38_fp * exp(18.1_fp - 5303.3_fp/(tair           + 273.15_fp))
+                easp = (rhum/100.0_fp) * 23.38_fp * exp(18.1_fp - 5303.3_fp/(tair           + fCtoKelvin))
              else
                 easp = vapres
              endif
-             esvp =                      23.38_fp * exp(18.1_fp - 5303.3_fp/(r0(nm,k0,ltem) + 273.15_fp))
+             esvp =                      23.38_fp * exp(18.1_fp - 5303.3_fp/(r0(nm,k0,ltem) + fCtoKelvin))
              !
              ! No negative evaporation
              ! Assumption: Negative evaporation is caused by
@@ -847,7 +849,7 @@ subroutine heatu(ktemp     ,anglat    ,sferic    ,timhr     ,keva      , &
              ! (see for comparison Eq. B.7 from Deltares internal note; QBL= QAN-QBR)
              ! All units are in SI
              !
-             tkelvi = tair + 273.15_fp
+             tkelvi = tair + fCtoKelvin
              tkcube = tkelvi * tkelvi * tkelvi
              if (easp > eps) then
                 sq_ea = sqrt(easp)
@@ -1163,7 +1165,7 @@ subroutine heatu(ktemp     ,anglat    ,sferic    ,timhr     ,keva      , &
                 !
                 rdry   = 287.05_fp
                 rvap   = 461.495_fp
-                tkelvn = 273.15_fp
+                tkelvn = fCtoKelvin
                 !
                 ! For sensible heat
                 ! Reduced gravity GRED
@@ -1221,7 +1223,7 @@ subroutine heatu(ktemp     ,anglat    ,sferic    ,timhr     ,keva      , &
              ! heat loss by effective infrared back radiation hl, restricted by
              ! presence of clouds and water vapour in air
              !
-             qbl = em * sboltz * ( (r0(nm,k0,ltem) + 273.15_fp)**4.0_fp )                 &
+             qbl = em * sboltz * ( (r0(nm,k0,ltem) + fCtoKelvin)**4.0_fp )                 &
                  & * (0.39_fp - 0.05_fp*sq_eal) * (1.0_fp - 0.6_fp*cfclou*cfclou)
              !
              qbl = max(0.0_fp, qbl)

@@ -1,7 +1,7 @@
 module compbsskin_module
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -25,15 +25,70 @@ module compbsskin_module
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: compbsskin.f90 65875 2020-01-28 09:57:58Z j.reyns $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_gpl/morphology/packages/morphology_kernel/src/compbsskin.f90 $
+!  $Id: compbsskin.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_gpl/morphology/packages/morphology_kernel/src/compbsskin.f90 $
 !-------------------------------------------------------------------------------
 
 contains
 
+function get_alpha_fluff(iflufflyr, lsed, nm, mfluff, trapar, sedpar) result (alpha_fluff)
+!!--declarations----------------------------------------------------------------
+    use precision
+    use morphology_data_module, only:sedpar_type, trapar_type
+    !
+    implicit none
+!
+! Global variables
+!
+    integer               , intent(in)    :: iflufflyr
+    integer               , intent(in)    :: lsed
+    integer               , intent(in)    :: nm
+    real(fp), dimension(:), intent(in)    :: mfluff
+    type(trapar_type)     , intent(in)    :: trapar
+    type(sedpar_type)     , intent(in)    :: sedpar
+ 
+    real(fp)                              :: alpha_fluff
+!
+! Local variables
+!
+    integer                        :: j
+    integer                        :: l
+    real(fp)                       :: parfluff0
+    real(fp)                       :: parfluff1
+    real(fp)                       :: fluff_cover_factor
+!
+!! executable statements -------------------------------------------------------
+!
+    alpha_fluff = 0.0_fp
+    if (iflufflyr>0) then
+       fluff_cover_factor = sedpar%sc_flcf
+       do l = 1,lsed
+          if (trapar%iform(l) == -3) then
+             j = trapar%iparfld(15,l)
+             if (j>0) then ! spatially varying
+                 parfluff0 = trapar%parfld(nm,j)
+             else
+                 parfluff0 = trapar%par(15,l)
+             endif
+             !
+             j = trapar%iparfld(16,l)
+             if (j>0) then ! spatially varying
+                 parfluff1 = trapar%parfld(nm,j)
+             else
+                 parfluff1 = trapar%par(16,l)
+             endif
+             !
+             alpha_fluff = alpha_fluff + mfluff(l) * parfluff1 / parfluff0
+          endif
+       enddo
+       alpha_fluff = min(alpha_fluff / fluff_cover_factor, 1.0_fp)
+    endif
+end function get_alpha_fluff
+
+
 subroutine compbsskin (umean , vmean , depth , wave  , uorb  , tper  , &
                      & teta  , thcmud, mudfrac, taumax, rhowat, vicmol, &
-                     & sedpar)
+                     & sedpar, alpha_fluff)
 !!--description-----------------------------------------------------------------
 !
 ! Compute tau in case of muddy bed (skin fraction  only)
@@ -64,23 +119,24 @@ subroutine compbsskin (umean , vmean , depth , wave  , uorb  , tper  , &
 !
 ! Global variables
 !
-    real(fp)         , intent(in)  :: umean   ! depth averaged flow velocity in u-direction
-    real(fp)         , intent(in)  :: vmean   ! depth averaged flow velocity in v-direction
-    real(fp)         , intent(in)  :: depth   ! local water depth
-    real(fp)         , intent(in)  :: uorb    ! orbital velocity based upon Hrms
-    real(fp)         , intent(in)  :: tper    ! wave period
-    real(fp)         , intent(in)  :: teta    ! angle between wave direction and local
-                                              ! grid orientation
-    real(fp)         , intent(in)  :: thcmud  ! Total hickness of mud layers
-    real(fp)         , intent(in)  :: mudfrac ! Total mud fraction in top layer
-    real(fp)         , intent(out) :: taumax  ! resulting (maximum) bed shear stress muddy silt bed
-    logical          , intent(in)  :: wave    ! wave impacts included in flow comp. or not
-    real(fp)         , intent(in)  :: rhowat  ! water density
-    real(fp)         , intent(in)  :: vicmol  ! molecular viscosity
-    type(sedpar_type), target      :: sedpar
+    real(fp)         , intent(in)  :: umean       ! depth averaged flow velocity in u-direction
+    real(fp)         , intent(in)  :: vmean       ! depth averaged flow velocity in v-direction
+    real(fp)         , intent(in)  :: depth       ! local water depth
+    real(fp)         , intent(in)  :: uorb        ! orbital velocity based upon Hrms
+    real(fp)         , intent(in)  :: tper        ! wave period
+    real(fp)         , intent(in)  :: teta        ! angle between wave direction and local grid orientation
+    real(fp)         , intent(in)  :: thcmud      ! Total hickness of mud layers
+    real(fp)         , intent(in)  :: mudfrac     ! Total mud fraction in top layer
+    real(fp)         , intent(out) :: taumax      ! resulting (maximum) bed shear stress muddy silt bed
+    logical          , intent(in)  :: wave        ! wave impacts included in flow comp. or not
+    real(fp)         , intent(in)  :: rhowat      ! water density
+    real(fp)         , intent(in)  :: vicmol      ! molecular viscosity
+    type(sedpar_type), target      :: sedpar      ! sediment parameters, including Soulsby & Clark parameters
+    real(fp)         , intent(in)  :: alpha_fluff ! fluff layer coverage factor
 !
 ! Local variables
 !
+    logical  :: effwave ! Flag to indicate whether waves are locally active
     real(fp) :: a1      ! Help variable
     real(fp) :: a2      ! Help variable
     real(fp) :: alpha   ! Help variable
@@ -93,6 +149,8 @@ subroutine compbsskin (umean , vmean , depth , wave  , uorb  , tper  , &
     real(fp) :: cdmax   ! Drag coefficient (current + waves)
     real(fp) :: fws     ! Wave friction coeefficient smooth turbulent flows
     real(fp) :: fwr     ! Wave friction coeefficient rough  turbulent flows
+    real(fp) :: ksbed   ! Roughness height based on bed composition
+    real(fp) :: kseff   ! Roughness height corrected for fluff layer
     real(fp) :: mudfac  ! Characteristic mud factor (fraction or thickness)
     real(fp) :: phicur  ! Angle beteen mean flow and local grid orientation
     real(fp) :: phiwr   ! Angle beteen flow and wave direction
@@ -135,6 +193,7 @@ subroutine compbsskin (umean , vmean , depth , wave  , uorb  , tper  , &
     !
     ! Compute basic parameters
     !
+    effwave = wave .and. (tper > 0.0_fp) .and. (uorb >= 1.0-6_fp)
     umod   = max( sqrt(umean*umean + vmean*vmean) , localeps )
     !
     if (sc_mudfac == SC_MUDFRAC) then
@@ -150,7 +209,9 @@ subroutine compbsskin (umean , vmean , depth , wave  , uorb  , tper  , &
     else
        alpha = 0.0_fp
     endif
-    z0silt = max( (alpha*kssilt+(1.0_fp-alpha)*kssand)/30.0_fp , localeps )
+    ksbed  = alpha*kssilt+(1.0_fp-alpha)*kssand
+    kseff  = alpha_fluff*kssilt + (1.0_fp-alpha_fluff)*ksbed
+    z0silt = max( kseff/30.0_fp , localeps )
     !
     rec    = umod * depth / vicmol
     cds    = 1.615e-4_fp * exp(6.0_fp * rec**(-0.08_fp))
@@ -158,18 +219,16 @@ subroutine compbsskin (umean , vmean , depth , wave  , uorb  , tper  , &
     phicur = atan2(vmean,umean) / degrad
     if (phicur < 0.0_fp) phicur = phicur + 360.0_fp
     !
-    if (wave) then
+    ! Determine flow regime
+    !
+    if (effwave) then
        phiwr  = (teta - phicur) * degrad
        uorbm  = max( uorb , 0.01_fp )
        aorb   = uorbm * tper / 2.0_fp / pi
        rew    = max(uorbm * aorb / vicmol, 1e3_fp) ! limit rew to avoid t1->1 and a1,a2->Inf in computation of taums 
        fws    = 0.0521_fp * rew**(-0.187_fp)
        fwr    = 1.39_fp * (aorb/z0silt)**(-0.52_fp)
-    endif
-    !
-    ! Determine flow regime
-    !
-    if (wave .and. uorb >= 1.0-6_fp) then
+       !
        if (umod >= 1.0e-6_fp) then
           !
           ! Combined flow and waves

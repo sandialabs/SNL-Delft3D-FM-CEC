@@ -1,7 +1,7 @@
 module morstatistics
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -25,8 +25,8 @@ module morstatistics
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: morstatistics.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/kernel/src/compute_sediment/morstatistics.f90 $
+!  $Id: morstatistics.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/flow2d3d/packages/kernel/src/compute_sediment/morstatistics.f90 $
 !-------------------------------------------------------------------------------
 private
 
@@ -42,12 +42,10 @@ end interface morstats
 
 contains
 
-subroutine morstats_simple(gdp, dbodsd, nmlb, nmub, lsedtot)
+subroutine morstats_simple(gderosed, gdmorpar, dbodsd, nmlb, nmub, lsedtot)
     use globaldata
     !
     implicit none
-    !
-    type(globdat),target :: gdp
 !
 ! Global variables
 !
@@ -55,20 +53,20 @@ subroutine morstats_simple(gdp, dbodsd, nmlb, nmub, lsedtot)
     integer                                , intent(in)  :: nmub
     integer                                , intent(in)  :: lsedtot
     real(fp), dimension(lsedtot, nmlb:nmub), intent(in)  :: dbodsd !  change in sediment composition, units : kg/m2
+    type (sedtra_type)                     , target      :: gderosed
+    type (morpar_type)                     , intent(in)  :: gdmorpar
 !
 ! Local variables
 !
-    type (moroutputtype)                , pointer :: moroutput  ! structure containing morphology output options
     real(fp), dimension(:,:)            , pointer :: statqnt
     integer                                       :: lsed
     integer                                       :: nm
 !
 !! executable statements -------------------------------------------------------
 !
-    moroutput => gdp%gdmorpar%moroutput
-    statqnt   => gdp%gderosed%statqnt
+    statqnt   => gderosed%statqnt
     !
-    if (moroutput%nstatqnt > 0) then
+    if (gdmorpar%moroutput%nstatqnt > 0) then
        do nm = nmlb, nmub
            do lsed = 1, lsedtot
                statqnt(nm,1+lsed) = statqnt(nm,1+lsed) + dbodsd(lsed, nm)

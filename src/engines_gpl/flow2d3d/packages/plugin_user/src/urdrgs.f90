@@ -3,7 +3,7 @@ subroutine urdrgs(lundia    ,error     ,filusr    ,nmax      ,mmax      , &
                 & ubrlsu    ,ubrlsv    ,gdp       )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -27,8 +27,8 @@ subroutine urdrgs(lundia    ,error     ,filusr    ,nmax      ,mmax      , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: urdrgs.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/plugin_user/src/urdrgs.f90 $
+!  $Id: urdrgs.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/flow2d3d/packages/plugin_user/src/urdrgs.f90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: - Test existence of user defined file for
@@ -125,8 +125,7 @@ subroutine urdrgs(lundia    ,error     ,filusr    ,nmax      ,mmax      , &
        !--------File exists
        !
        nrigid = 0
-       luntmp = newlun(gdp)
-       open (luntmp, file = filusr(1:lfile), form = 'formatted', status = 'old')
+       open (newunit=luntmp, file = filusr(1:lfile), form = 'formatted', status = 'old')
        !
        !-->     Read input till end-of-file
        !

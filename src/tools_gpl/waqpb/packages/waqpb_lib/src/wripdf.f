@@ -1,6 +1,6 @@
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -24,8 +24,8 @@
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: wripdf.f 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_gpl/waqpb/packages/waqpb_lib/src/wripdf.f $
+!  $Id: wripdf.f 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/tools_gpl/waqpb/packages/waqpb_lib/src/wripdf.f $
 
       subroutine wripdf ( procid, procnm, procco, procfo, lun   )
 
@@ -141,7 +141,7 @@
      j(dis_su(i),dis_it(i),dis_sc(i),i=1,dis)
 
       write ( lun , '(i10,
-     j ''# stoichiometry lines velocity arrays'')' ) vel
+     j ''; # stoichiometry lines velocity arrays'')' ) vel
       if ( vel .gt. 0 )
      jwrite ( lun , '(a10,2x,a10,2x,f10.5)' )
      j(vel_su(i),vel_it(i),vel_sc(i),i=1,vel)

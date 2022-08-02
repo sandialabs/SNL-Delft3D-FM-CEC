@@ -1,6 +1,6 @@
 !----- LGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This library is free software; you can redistribute it and/or                
 !  modify it under the terms of the GNU Lesser General Public                   
@@ -24,8 +24,8 @@
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: tst-shmDatablock-get.F90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/delftio/tests/tstShmDataBlocksF90/src/tst-shmDatablock-get.F90 $
+!  $Id: tst-shmDatablock-get.F90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_lgpl/delftio/tests/tstShmDataBlocksF90/src/tst-shmDatablock-get.F90 $
 program test_get_shmds_f90
 
     use Dio_Shm
@@ -36,9 +36,9 @@ program test_get_shmds_f90
     character(len=100) :: name = 'testje'
 
     character(len=100) :: resFileName = 'TESTShmF90-res.txt' ! result file
-    integer            :: resLun = 11    ! handle to result file
+    integer            :: resLun                             ! handle to result file
 
-    open(resLun,file=resFileName)
+    open(newunit=resLun,file=resFileName)
 
     do t = 1, nTimes
 

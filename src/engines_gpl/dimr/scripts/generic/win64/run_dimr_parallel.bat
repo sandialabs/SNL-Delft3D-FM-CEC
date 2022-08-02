@@ -1,14 +1,15 @@
 @ echo off
 title run_dimr_parallel
-    rem When using mpich2 for the first time on a machine:
-    rem Execute "smpd -install" as administrator:
-    rem     Preparation: Check that your Delft3D installation contains "...\x64\share\bin\smpd.exe". Optionally copy it to a local directory (it will run as a service).
-    rem     "Start" -> "All programs" -> "Accessories", right-click "Command Prompt", "Run as Administrator"
+    rem When using intelMPI for the first time on a machine:
+    rem Execute "hydra_service.exe -install" as administrator:
+    rem     Preparation: Check that your Delft3D installation contains "...\x64\share\bin\hydra_service.exe". Optionally copy it to a local directory (it will run as a service).
+    rem     "Windows Start button" -> type "cmd", right-click "Command Prompt" App, "Run as Administrator"
     rem     In this command box:
-    rem         cd ...\x64\share\bin
-    rem         smpd -install
-    rem     When there is an smpd already running on the machine, it must be ended first, using the Microsoft Task Manager, 
-    rem     or in the command  box: smpd -uninstall
+    rem         cd ...\x64\share\bin (or your local copy)
+    rem         hydra_service.exe -install
+    rem         mpiexec.exe -register -username <user> -password <password> -noprompt
+    rem     When there is an hydra_service/smpd already running on the machine, it must be ended first, using the Microsoft Task Manager, 
+    rem     or in the command  box: hydra_service.exe -uninstall (smpd -uninstall)
 
     rem
     rem This script runs dimr in parallel mode on Windows
@@ -81,7 +82,6 @@ echo OMP_NUM_THREADS is already defined
    set /A OMP_NUM_THREADS=!NumberOfPhysicalCores! - 2
    if /I OMP_NUM_THREADS LEQ 2 ( set OMP_NUM_THREADS=2 )
 )
-echo OMP_NUM_THREADS is %OMP_NUM_THREADS%
 
 echo number of partitions: %numpar%
 
@@ -99,6 +99,7 @@ for %%f in ("%D3DT%") do set ARCH=%%~nxf
 
 set delwaqexedir=%D3D_HOME%\%ARCH%\dwaq\bin
 set dflowfmexedir=%D3D_HOME%\%ARCH%\dflowfm\bin
+set proc_def_dir=%D3D_HOME%\%ARCH%\dflowfm\default
 set dimrexedir=%D3D_HOME%\%ARCH%\dimr\bin
 set esmfexedir=%D3D_HOME%\%ARCH%\esmf\bin
 set esmfbatdir=%D3D_HOME%\%ARCH%\esmf\scripts
@@ -118,8 +119,15 @@ set waveexedir=%D3D_HOME%\%ARCH%\dwaves\bin
 
     rem Run
 set PATH=%dimrexedir%;%delwaqexedir%;%dflowfmexedir%;%flow1dexedir%;%flow1d2dexedir%;%rtctoolsexedir%;%rrexedir%;%waveexedir%;%swanbatdir%;%swanexedir%;%esmfbatdir%;%esmfexedir%;%sharedir%
+if exist %sharedir%\vars.bat (
+    echo executing: "%sharedir%\vars.bat"
+        call "%sharedir%\vars.bat"
+) else (
+    echo "WARNING: File not found: %sharedir%\vars.bat"
+    echo "         Problems may occur when using IntelMPI"
+)
 echo executing: "%sharedir%\mpiexec.exe" -n %numpar% -localonly "%dimrexedir%\dimr.exe" %debugarg% %argfile%
-"%sharedir%\mpiexec.exe" -n %numpar% -localonly "%dimrexedir%\dimr.exe" %debugarg% %argfile%
+                "%sharedir%\mpiexec.exe" -n %numpar% -localonly "%dimrexedir%\dimr.exe" %debugarg% %argfile%
 
 goto end
 

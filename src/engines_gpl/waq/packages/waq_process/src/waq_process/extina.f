@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -35,7 +35,7 @@
 !
       INTEGER  NALG  , ISWFIX, NIPALG, IFLUX , ISEG  ,
      +         IALG  , IP    , IFIX
-      REAL     EXTALG, EXTCF , BIOMAS
+      REAL(8)  EXTALG, EXTCF , BIOMAS
 !
       NALG  = NINT(PMSA(IPOINT(1)))
       ISWFIX= NINT(PMSA(IPOINT(2)))

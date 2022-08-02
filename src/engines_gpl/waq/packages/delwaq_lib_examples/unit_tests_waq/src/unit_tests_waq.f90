@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -48,10 +48,11 @@ contains
 !     are indeed run
 !
 subroutine prepare_tests
+    integer :: lunrun
 
-    open( 10, file = 'ftnunit.run' )
-    write( 10, '(a)' ) 'ALL'
-    close( 10 )
+    open( newunit = lunrun, file = 'ftnunit.run' )
+    write( lunrun, '(a)' ) 'ALL'
+    close( lunrun )
 
 end subroutine prepare_tests
 

@@ -1,6 +1,6 @@
 !----- LGPL --------------------------------------------------------------------
 !
-!  Copyright (C)  Stichting Deltares, 2011-2020.
+!  Copyright (C)  Stichting Deltares, 2011-2022.
 !
 !  This library is free software; you can redistribute it and/or
 !  modify it under the terms of the GNU Lesser General Public
@@ -24,8 +24,8 @@
 !  Stichting Deltares. All rights reserved.
 !
 !-------------------------------------------------------------------------------
-!  $Id: tree_struct.f90 65932 2020-02-05 11:10:04Z leander $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/deltares_common/packages/deltares_common/src/tree_struct.f90 $
+!  $Id: tree_struct.f90 141035 2022-04-07 14:34:02Z buwalda $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_lgpl/deltares_common/packages/deltares_common/src/tree_struct.f90 $
 ! tree_struct.f90 --
 !    Module that implements a general tree structure in Fortran 90
 !
@@ -89,7 +89,7 @@ module TREE_STRUCTURES
               tree_get_data_ptr, tree_put_data, tree_get_name, tree_get_data,                      &
               tree_get_datatype, tree_get_data_string,                                             &
               tree_traverse, tree_traverse_level, print_tree,                                      &
-              tree_fold, tree_destroy, tree_get_data_alloc_string
+              tree_fold, tree_destroy, tree_get_data_alloc_string, tree_remove_child_by_name
    ! nested function has to be public for gfortran
    public ::  dealloc_tree_data
 
@@ -181,6 +181,55 @@ subroutine tree_create_node( tree, name, node )
    endif
 end subroutine tree_create_node
 
+subroutine tree_remove_child_by_name(tree,name,ierror)
+  character(len=*), intent(in)            :: name   !< name of child node to be removed
+  type(TREE_DATA), intent(inout), pointer :: tree   !< tree from which the node has to be removed
+  
+  type(TREE_DATA_PTR), dimension(:), pointer :: children
+  integer :: removeindex
+  integer :: i
+  integer,            intent(out) :: ierror !< Error status, 0 if succesful.
+  integer                         :: newsize
+  
+  ierror = 0
+  
+  if ( .not. associated(tree) ) then
+    ierror = 1
+    return
+  end if
+  
+  newsize = 0
+  if ( associated( tree%child_nodes ) ) then
+    newsize =  size( tree%child_nodes ) -1
+  endif
+  
+  removeindex = -1
+  do i = 1, newsize+1
+    if ( str_tolower(tree_get_name(tree%child_nodes(i)%node_ptr)) == str_tolower(name) ) then
+      removeindex = i
+    endif
+  enddo
+  
+  if (removeindex == -1) then
+    ierror = 1
+    return
+  end if
+  
+  allocate( children(1:newsize), stat = ierror )
+  if ( ierror .ne. 0 ) then
+    return
+  else
+    if ( newsize > 1 ) then
+      children(1:removeindex-1)     = tree%child_nodes(1:removeindex-1)
+      children(removeindex:newsize) = tree%child_nodes(removeindex+1:newsize+1)
+      deallocate( tree%child_nodes )
+    endif
+  
+    tree%child_nodes => children
+  
+  endif
+  
+end subroutine tree_remove_child_by_name
 !> Adds an existing tree node to the children array of a tree.
 !! Both the tree and the new node are pointers, use this to efficiently
 !! create or extend a tree with already existing subtrees.

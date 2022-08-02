@@ -1,7 +1,7 @@
 module wave_main
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -25,8 +25,8 @@ module wave_main
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: wave_main.f90 65790 2020-01-15 13:52:06Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/wave/packages/manager/src/wave_main.f90 $
+!  $Id: wave_main.f90 141401 2022-06-24 13:08:33Z saggiora $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/wave/packages/manager/src/wave_main.f90 $
 !!--description-----------------------------------------------------------------
 ! NONE
 !!--pseudo code and references--------------------------------------------------
@@ -38,37 +38,115 @@ module wave_main
    use flow_data
    use sync_flowwave
    use wave_data
+   use wave_mpi
    use meteo
+
+   implicit none
+
+   private
+
+   public wave_main_init
+   public wave_main_step
+   public wave_main_finish
+   
+   public wavedata
 !
 ! Module variables
 !
-   integer                                      :: i
-   integer                                      :: ierr
    integer                                      :: n_swan_grids ! number of SWAN grids
    integer                                      :: n_flow_grids ! number of FLOW grids
-   integer                                      :: i_flow       ! counter
-   integer                                      :: i_swan       ! counter
-   integer                                      :: i_meteo      ! counter
-   integer                                      :: timtscale    ! time in tscale units, integer representation
-   integer                                      :: it01flow     ! reference date obtained from FLOW
-   integer                                      :: command
-   real                                         :: tscaleflow   ! basic time unit == flow time step (s)
-   real(fp)       , dimension(:,:), allocatable :: x_fp         ! Copy of x-coordinate of grid in flexible precision, needed for meteo module
-   real(fp)       , dimension(:,:), allocatable :: y_fp         ! Copy of y-coordinate of grid in flexible precision, needed for meteo module
-   logical                                      :: success      ! flag indicating whether delftio communication went correct
-   logical                                      :: mud
-   character(20)                                :: tmpchar
-   character(256), dimension(:), pointer        :: meteotypes
-   character(500)                               :: message
    type(wave_data_type),target                  :: wavedata
-
+   integer :: tmpchar
 
 contains
-
 
 !
 ! ====================================================================================
 function wave_main_init(mode_in, mdw_file) result(retval)
+   !
+   ! To raise floating-point invalid, divide-by-zero, and overflow exceptions:
+   ! Activate the following line
+   ! See also statements below
+   !
+   ! use ifcore
+   ! 
+   use deltares_common_version_module
+   implicit none
+!
+! return value
+!
+   integer :: retval
+!
+! Global variables
+!
+   integer      :: mode_in
+   character(*) :: mdw_file     ! filename mdw file
+!
+! Local variables
+!
+   integer                :: n
+   character(256)         :: version_full  !  Version nr. of the module of the current package
+   character(1024)        :: txthlp        !  Help var.
+   !
+   ! To raise floating-point invalid, divide-by-zero, and overflow exceptions:
+   ! Activate the following line
+   ! See also statements below
+   !
+   ! INTEGER*4 OLD_FPE_FLAGS, NEW_FPE_FLAGS
+!
+!! executable statements -----------------------------------------------
+!
+   ! To raise floating-point invalid, divide-by-zero, and overflow exceptions:
+   ! Activate the following two lines
+   ! See also use statement above
+   !
+   ! NEW_FPE_FLAGS = FPE_M_TRAP_OVF + FPE_M_TRAP_DIV0 + FPE_M_TRAP_INV
+   ! OLD_FPE_FLAGS = FOR_SET_FPE (NEW_FPE_FLAGS)
+   !
+   retval = 0
+   !
+   version_full  = ' '
+   call getfullversionstring_WAVE(version_full)
+   txthlp = deltares_common_source_code
+   n = index(txthlp,'/src/utils_lgpl') ! regular checkout with src and examples level
+   if (n==0) then
+       n = index(txthlp,'/utils_lgpl') ! reduced checkout with src and examples level
+   endif
+   if (n==0) then
+       txthlp = 'unknown source code location'
+   else
+       txthlp = txthlp(16:n-1)
+   endif
+   write (*,'(a)')
+   write (*,'(80a1)') ('*', n = 1, 80)
+   write (*,'(a)')    '***'
+   write (*,'(2a)')   '*** ',trim(version_full)
+   write (*,'(2a)')   '***           built from : ', trim(txthlp)
+   write (*,'(a)')    '***'
+   write (*,'(2a)')   '***           runid      : ', trim(mdw_file)
+   write (*,'(a)')    '***'
+   write (*,'(80a1)') ('*', n = 1, 80)
+   write (*,'(a)')
+   !
+   call initialize_wavedata(wavedata)
+   call initialize_wave_mpi()
+   !
+   if (my_rank == master) then
+      !
+      ! master node does all the work ...
+      !
+      retval = wave_master_init(mode_in, mdw_file)
+   else
+      !
+      ! nothing to do for slave nodes
+      !
+   endif
+end function wave_main_init
+
+
+!
+! ====================================================================================
+function wave_master_init(mode_in, mdw_file) result(retval)
    !
    ! To raise floating-point invalid, divide-by-zero, and overflow exceptions:
    ! Activate the following line
@@ -89,7 +167,19 @@ function wave_main_init(mode_in, mdw_file) result(retval)
 !
 ! Local variables
 !
-   integer :: mtdim
+   logical                                      :: success      ! flag indicating whether delftio communication went correct
+   integer                                      :: i_icefrac    ! index of ice fraction
+   integer                                      :: i_floe       ! index of floe diameter
+   integer                                      :: i_flow       ! counter
+   integer                                      :: i_extfo      ! counter
+   integer                                      :: i_swan       ! counter
+   integer                                      :: it01flow     ! reference date obtained from FLOW
+   integer                                      :: mtdim
+   real                                         :: tscaleflow   ! basic time unit == flow time step (s)
+   real(fp)       , dimension(:,:), allocatable :: x_fp         ! Copy of x-coordinate of grid in flexible precision, needed for external forcing module
+   real(fp)       , dimension(:,:), allocatable :: y_fp         ! Copy of y-coordinate of grid in flexible precision, needed for external forcing module
+   character(60) , dimension(:), allocatable    :: extforce_quantities
+   character(256), dimension(:), pointer        :: extforce_types
    !
    ! To raise floating-point invalid, divide-by-zero, and overflow exceptions:
    ! Activate the following line
@@ -99,20 +189,7 @@ function wave_main_init(mode_in, mdw_file) result(retval)
 !
 !! executable statements -----------------------------------------------
 !
-   ! To raise floating-point invalid, divide-by-zero, and overflow exceptions:
-   ! Activate the following two lines
-   ! See also use statement above
-   !
-   ! NEW_FPE_FLAGS = FPE_M_TRAP_OVF + FPE_M_TRAP_DIV0 + FPE_M_TRAP_INV
-   ! OLD_FPE_FLAGS = FOR_SET_FPE (NEW_FPE_FLAGS)
-   !
-   call checklicense(success)
-   if ( .not. success ) then
-      write(*,'(a)') '*** ERROR: No authorization'
-      call wavestop(1, '*** ERROR: No authorization')
-   endif
-   !
-   call initialize_wavedata(wavedata)
+   retval = 0
    call setmode(wavedata, mode_in)
    !
    ! Read mdw file
@@ -187,62 +264,105 @@ function wave_main_init(mode_in, mdw_file) result(retval)
    !
    swan_run%sferic = swan_grids(1)%sferic
    !
-   ! Meteo data from file?
-   ! Only if 1 or more meteoitems have been specified
-   ! and meteo information has not been received from FLOW
+   ! External forcing data from file?
+   ! Only if 1 or more external forcing have been specified.
    !
    do i_swan = 1, n_swan_grids
-      if (swan_run%dom(i_swan)%n_meteofiles_dom > 0 .and. swan_run%dom(i_swan)%qextnd(q_wind) == 0) then
+      if (swan_run%dom(i_swan)%n_extforces > 0) then
          !
-         ! Grid coordinates of all swan grids are needed by the meteo module
+         ! Grid coordinates of all swan grids are needed by the external forcing module
          !
          success  = initmeteo(swan_grids(i_swan)%grid_name)
          call checkmeteoresult_wave(success)
          !
+         ! Read the external forcing files
+         !
+         do i_extfo = 1, swan_run%dom(i_swan)%n_extforces
+            success = addmeteoitem(swan_grids(i_swan)%grid_name                , &
+                                 & swan_run%dom(i_swan)%extforce_names(i_extfo), &
+                                 & swan_grids(i_swan)%sferic                   , &
+                                 & swan_grids(i_swan)%mmax                     , &
+                                 & swan_grids(i_swan)%nmax                     )
+            call checkmeteoresult_wave(success)
+         enddo
+         !
          ! Allocate local copies of coordinate arrays
-         ! Must be in flexible precision for the meteo module
+         ! Must be in flexible precision for the external forcing module
          !
          allocate(x_fp(swan_grids(i_swan)%mmax,swan_grids(i_swan)%nmax))
          allocate(y_fp(swan_grids(i_swan)%mmax,swan_grids(i_swan)%nmax))
          x_fp = real(swan_grids(i_swan)%x, fp)
          y_fp = real(swan_grids(i_swan)%y, fp)
          !
-         ! Read the meteo files
-         !
-         do i_meteo = 1, swan_run%dom(i_swan)%n_meteofiles_dom
-            success = addmeteoitem(swan_grids(i_swan)%grid_name               , &
-                                 & swan_run%dom(i_swan)%meteofile_dom(i_meteo), &
-                                 & swan_grids(i_swan)%sferic                  , &
-                                 & swan_grids(i_swan)%mmax                    , &
-                                 & swan_grids(i_swan)%nmax                    )
-            call checkmeteoresult_wave(success)
-            !
-            success  = gridtometeo(   swan_grids(i_swan)%grid_name, &
-                                 &    swan_grids(i_swan)%nmax     , &
-                                 &    swan_grids(i_swan)%mmax     , &
-                                 & 1, swan_grids(i_swan)%nmax     , &
-                                 & 1, swan_grids(i_swan)%mmax     , &
-                                 &    swan_grids(i_swan)%kcs      , &
-                                 &    x_fp                        , &
-                                 &    y_fp                        )
-            call checkmeteoresult_wave(success)
-         enddo
+         success  = gridtometeo(   swan_grids(i_swan)%grid_name, &
+                              &    swan_grids(i_swan)%nmax     , &
+                              &    swan_grids(i_swan)%mmax     , &
+                              & 1, swan_grids(i_swan)%nmax     , &
+                              & 1, swan_grids(i_swan)%mmax     , &
+                              &    swan_grids(i_swan)%kcs      , &
+                              &    x_fp                        , &
+                              &    y_fp                        )
+         call checkmeteoresult_wave(success)
          !
          ! Deallocate local copies of coordinate arrays
          !
          deallocate(x_fp)
          deallocate(y_fp)
-         nullify(meteotypes)
+         nullify(extforce_types)
          mtdim = 0
-         success = getmeteotypes(swan_grids(i_swan)%grid_name, meteotypes,mtdim)
+         success = getmeteotypes(swan_grids(i_swan)%grid_name, extforce_types,mtdim)
          call checkmeteoresult_wave(success)
-         do i_meteo = 1, size(meteotypes)
-            if (meteotypes(i_meteo) == "meteo_on_computational_grid") then
+         do i_extfo = 1, size(extforce_types)
+            if (extforce_types(i_extfo) == "meteo_on_computational_grid") then
                write(*,'(a)') '*** ERROR: "meteo on computational grid" (flow grid) is not supported by Delft3D-WAVE'
                call wavestop(1, '*** ERROR: "meteo on computational grid" (flow grid) is not supported by Delft3D-WAVE')
             endif
          enddo
-         deallocate(meteotypes)
+         deallocate(extforce_types)
+         !
+         ! Some ice checks
+         !
+         if (swan_run%icedamp > 0) then
+            i_icefrac = 0
+            i_floe    = 0
+            success = getmeteoquantities(swan_grids(i_swan)%grid_name, extforce_quantities)
+            call checkmeteoresult_wave(success)
+            do i_extfo = 1, size(extforce_quantities)
+               if (extforce_quantities(i_extfo) == "sea_ice_area_fraction") then
+                  i_icefrac = i_extfo
+                  swan_run%dom(i_swan)%n_extforces = swan_run%dom(i_swan)%n_extforces - 1
+               elseif (extforce_quantities(i_extfo) == "floe_diameter") then
+                  i_floe = i_extfo
+                  swan_run%dom(i_swan)%n_extforces = swan_run%dom(i_swan)%n_extforces - 1
+               endif
+            enddo
+            !
+            if (swan_run%icedamp == 1) then
+               if (i_icefrac == 0 .and. i_floe == 0) then
+                  write(*,'(a)') '*** ERROR: ice cover effect needs "sea_ice_area_fraction" and "floe_diameter" specification'
+                  stop
+               elseif (i_icefrac /= 0 .and. i_floe == 0) then
+                  write(*,'(a)') '*** ERROR: "sea_ice_area_fraction" specified by a external forcing but "floe_diameter" is missing'
+                  stop
+               elseif (i_icefrac == 0 .and. i_floe /= 0) then
+                  write(*,'(a)') '*** ERROR: "floe_diameter" specified by a external forcing but "sea_ice_area_fraction" is missing'
+                  stop
+               else
+                  write(*,'(a)') '*** MESSAGE: Modelling ice cover effect, using "sea_ice_area_fraction" and "floe_diameter", specified by external forcing'
+                  swan_run%dom(i_swan)%ice = 1
+               endif
+            elseif (swan_run%icedamp == 2) then
+               if (i_icefrac == 0) then
+                  write(*,'(a)') '*** ERROR: ice cover effect needs "sea_ice_area_fraction" specification by external forcing'
+                  stop
+               else
+                  write(*,'(a)') '*** MESSAGE: Modelling ice cover effect, using "sea_ice_area_fraction", specified by external forcing'
+                  swan_run%dom(i_swan)%ice = 1
+               endif
+            endif
+            !
+            deallocate(extforce_quantities)
+         endif
       endif
    enddo
    !
@@ -251,9 +371,7 @@ function wave_main_init(mode_in, mdw_file) result(retval)
    ! ====================================================================================
    !
    call check_input(swan_run, wavedata)
-   
-   retval = 0
-end function wave_main_init
+end function wave_master_init
 
 
 
@@ -270,13 +388,58 @@ function wave_main_step(stepsize) result(retval)
 !
    real(hp) :: stepsize
 !
-! Locals
+! Local variables
 !
-   integer  :: iold
-   real(hp) :: tend
+   integer                                      :: command
 !
 !! executable statements -----------------------------------------------
 !
+   if (my_rank == master) then
+      !
+      ! master node does all the work ...
+      !
+      retval = wave_master_step(stepsize)
+   else
+      !
+      ! nothing to do for slave nodes except for waiting and calling swan as needed
+      !
+      retval = 0
+      do
+         call run_swan_slave (command, retval)
+         if (command == SWAN_DONE) exit
+      enddo
+   endif
+end function wave_main_step
+
+
+!
+! ====================================================================================
+function wave_master_step(stepsize) result(retval)
+   implicit none
+!
+! return value
+!
+   integer :: retval
+!
+! Globals
+!
+   real(hp) :: stepsize
+!
+! Locals
+!
+   logical                                      :: mud
+   logical                                      :: success      ! flag indicating whether delftio communication went correct
+   integer                                      :: command
+   integer                                      :: i
+   integer                                      :: ierr
+   integer                                      :: iold
+   integer                                      :: timtscale    ! time in tscale units, integer representation
+   real(hp)                                     :: tend
+!
+!! executable statements -----------------------------------------------
+!
+   retval = 0
+   !
    if (wavedata%mode /= stand_alone) then
       !
       ! In combination with flow, perform the swan computation (including mapping etc.)
@@ -335,7 +498,9 @@ function wave_main_step(stepsize) result(retval)
       !
       ! Standalone swan computation
       !
-      if (swan_run%timwav(1) < 0.0) then
+      if (swan_run%flowgridfile == ' ') then
+         call swan_tot(n_swan_grids, n_flow_grids, wavedata, 0)
+      elseif (swan_run%timwav(1) < 0.0) then
          !
          ! No times specified in mdw file: just do one computation with specified timestep
          !
@@ -376,21 +541,21 @@ function wave_main_step(stepsize) result(retval)
                ! Set the current time to "step_end_time" (to be sure it has the correct value)
                ! and exit the do-loop
                !
-               call settimmin(wavedata%time, real(tend,sp), swan_run%modsim, swan_run%nonstat_interval)
+               call settimmin(wavedata%time, real(tend,hp), swan_run%modsim, swan_run%nonstat_interval)
                exit
             endif
          enddo
       endif
    endif
-   retval = 0
-end function wave_main_step
+   if (numranks>1) call wave_mpi_bcast(SWAN_DONE, ierr)
+end function wave_master_step
 
 
 
 !
 ! ====================================================================================
 function wave_main_finish() result(retval)
-   use swan_input
+   use wave_mpi
    implicit none
 !
 ! return value
@@ -399,19 +564,52 @@ function wave_main_finish() result(retval)
 !
 !! executable statements -----------------------------------------------
 !
+   if (my_rank == master) then
+      !
+      ! master node does all the work ...
+      !
+      retval = wave_master_finish()
+   else
+      !
+      ! slave nodes only need to finalize MPI
+      !
+      retval = 0
+      call finalize_wave_mpi()
+   endif
+end function wave_main_finish
+
+
+!
+! ====================================================================================
+function wave_master_finish() result(retval)
+   use swan_input
+   use wave_mpi
+   implicit none
+!
+! return value
+!
+   integer :: retval
+!
+! local variables
+!
+   integer                                      :: i_swan       ! counter
+!
+!! executable statements -----------------------------------------------
+!
+   retval = 0
+   !
    call del_temp_files(n_swan_grids)
    !
-   ! Deallocate memory used by meteo module
+   ! Deallocate memory used by external forcing module
    !
    do i_swan = 1, n_swan_grids
       call deallocmeteo(swan_grids(i_swan)%grid_name)
    enddo
    !
    call dealloc_swan(swan_run)
+   call finalize_wave_mpi()
    write(*,'(a)') 'Delft3D-WAVE finished normally.'
-   retval = 0
-end function wave_main_finish
-
+end function wave_master_finish
 
 
 !

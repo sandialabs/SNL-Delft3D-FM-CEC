@@ -1,7 +1,7 @@
 module system_utils
 !----- LGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This library is free software; you can redistribute it and/or                
 !  modify it under the terms of the GNU Lesser General Public                   
@@ -25,8 +25,8 @@ module system_utils
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: system_utils.F90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/deltares_common/packages/deltares_common/src/system_utils.F90 $
+!  $Id: system_utils.F90 141416 2022-06-29 08:31:13Z spee $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_lgpl/deltares_common/packages/deltares_common/src/system_utils.F90 $
 !-------------------------------------------------------------------------------
 !
 !   Support for low level system routines
@@ -34,15 +34,23 @@ module system_utils
 !-------------------------------------------------------------------------------
 !
 
-#if (defined(HAVE_CONFIG_H))
+#if (defined(__linux__))
+    character(5), parameter :: ARCH = 'linux'
+    character(3), parameter :: SCRIPT_EXTENSION = '.sh'
     character(3), parameter :: SHARED_LIB_PREFIX = 'lib'
     character(3), parameter :: SHARED_LIB_EXTENSION = '.so'
     character(1), parameter :: FILESEP = '/'
-#else
+
+    character(1), parameter :: FILESEP_OTHER_ARCH = '\'
+#else    
+    character(7), parameter :: ARCH = 'windows'
+    character(4), parameter :: SCRIPT_EXTENSION = '.bat'
     character(0), parameter :: SHARED_LIB_PREFIX = ''
     character(4), parameter :: SHARED_LIB_EXTENSION = '.dll'
     character(1), parameter :: FILESEP = '\'
-#endif
+
+    character(1), parameter :: FILESEP_OTHER_ARCH = '/'
+#endif    
 
 contains
 
@@ -57,7 +65,7 @@ function cat_filename(path, file, ext) result(name)
     !
     implicit none
     !
-    ! Call variables
+    ! Arguments
     !
     character(*)          , intent(in) :: path   ! Path name
     character(*)          , intent(in) :: file   ! File name
@@ -106,7 +114,7 @@ subroutine split_filename(name, path, file, ext)
     !
     implicit none
     !
-    ! Call variables
+    ! Arguments
     !
     character(*)          , intent(in)  :: name   ! Full name of file (path,file,ext)
     character(*)          , intent(out) :: path   ! Path name
@@ -158,7 +166,7 @@ subroutine remove_path(name, file)
     !
     implicit none
     !
-    ! Call variables
+    ! Arguments
     !
     character(*)          , intent(in)  :: name   ! Full name of file (path,file,ext)
     character(*)          , intent(out) :: file   ! File name (including extension if ext is present)
@@ -193,7 +201,7 @@ function exifil(name, unit)
     !
     implicit none
     !
-    ! Call variables
+    ! Arguments
     !
     integer  , optional  :: unit   ! File unit number for 
     logical              :: exifil
@@ -294,5 +302,16 @@ logical function is_abs(path)
 #endif
 
 end function is_abs
-   
+
+!> find the last slash in a string.
+!! can a forward or a backward slash
+!! returns 0 if not found
+function find_last_slash(path) result (ipos)
+   character(len=*), intent(in) :: path  !< string with a path including slash(es)
+   integer                      :: ipos  !< position of slash
+
+   ipos = max(index(path,'\', .true.), index(path,'/', .true.))
+
+end function find_last_slash
+
 end module system_utils

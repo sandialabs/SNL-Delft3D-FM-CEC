@@ -1,3 +1,32 @@
+!----- GPL ---------------------------------------------------------------------
+!
+!  Copyright (C)  Stichting Deltares, 2011-2022.
+!
+!  This program is free software: you can redistribute it and/or modify
+!  it under the terms of the GNU General Public License as published by
+!  the Free Software Foundation version 3.
+!
+!  This program is distributed in the hope that it will be useful,
+!  but WITHOUT ANY WARRANTY; without even the implied warranty of
+!  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!  GNU General Public License for more details.
+!
+!  You should have received a copy of the GNU General Public License
+!  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+!
+!  contact: delft3d.support@deltares.nl
+!  Stichting Deltares
+!  P.O. Box 177
+!  2600 MH Delft, The Netherlands
+!
+!  All indications and logos of, and references to, "Delft3D" and "Deltares"
+!  are registered trademarks of Stichting Deltares, and remain the property of
+!  Stichting Deltares. All rights reserved.
+!
+!  $Id: ec_module_api.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_lgpl/ec_module/packages/ec_module/src/ec_module_api.f90 $
+
+
 module ec_module_api
 
    use iso_c_binding
@@ -149,7 +178,7 @@ function averaging(meshtwoddim, meshtwod, startIndex, c_sampleX, c_sampleY, c_sa
     !DEC$ ATTRIBUTES DLLEXPORT :: averaging
     use kdtree2Factory
     use m_ec_interpolationsettings
-    use m_ec_basic_interpolation, only: averaging2
+    use m_ec_basic_interpolation, only: averaging2, TerrorInfo
     use gridoperations
     use precision_basics
     use m_missing
@@ -175,6 +204,7 @@ function averaging(meshtwoddim, meshtwod, startIndex, c_sampleX, c_sampleY, c_sa
     real(c_double), intent(in)              :: relativeSearchSize  !< relative search cell size
     integer(c_int), intent(in)              :: jsferic
     integer(c_int), intent(in)              :: jasfer3D
+    integer                                 :: ierr
 
     ! local variables
     type(t_ug_meshgeom)                     :: meshgeom            !< fortran meshgeom
@@ -190,13 +220,14 @@ function averaging(meshtwoddim, meshtwod, startIndex, c_sampleX, c_sampleY, c_sa
     double precision, allocatable           :: targetX(:)
     double precision, allocatable           :: targetY(:)
     double precision, allocatable           :: rawTargetValues(:)
-    integer                                 :: k, IAVtmp, NUMMINtmp, INTTYPEtmp, ierr, i, jakdtree, numTargets
+    integer                                 :: k, IAVtmp, NUMMINtmp, INTTYPEtmp, i, jakdtree, numTargets
     double precision                        :: RCELtmp, valFirstNode,valSecondNode
     integer                                 :: nMaxNodesPolygon
     real(hp), allocatable                   :: xx(:,:), yy(:,:), xxx(:), yyy(:)
     integer, allocatable                    :: nnn(:)
     integer                                 :: nNetCells, shift
-       
+    type(TerrorInfo)                        :: errorInfo
+
     !get and convert meshgeom to kn table
     ierr = network_data_destructor()
     ierr = convert_cptr_to_meshgeom(meshtwod, meshtwoddim, meshgeom)
@@ -316,14 +347,20 @@ function averaging(meshtwoddim, meshtwod, startIndex, c_sampleX, c_sampleY, c_sa
     dmiss,&
     jsferic,&
     jasfer3D,&
-    jins = 1,&
-    NPL = 0,&
-    XPL = XPL,&
-    YPL = YPL,&
-    ZPL = ZPL)
-    
+    1,&
+    0,&
+    XPL,&
+    YPL,&
+    ZPL, &
+    errorInfo)
+
     !delete kdtree
     call delete_kdtree2(treeglob)
+
+    if ( .not. errorInfo%success) then
+       ierr = -1
+       goto 1234
+    end if
 
     !copy values back
     if (locType.eq.0) then

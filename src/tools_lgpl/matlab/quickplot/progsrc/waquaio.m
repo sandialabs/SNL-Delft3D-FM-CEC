@@ -79,6 +79,8 @@ function varargout=waquaio(sds,exper,field,varargin)
 %                    NO_BACKTRANSFORM keyword in SIMINP file)
 %   * flowcrs-u   : u-discharge crosssection names
 %   * flowcrs-v   : v-discharge crosssection names
+%   * mq-stat     : instantaneous discharge
+%   * cq-stat     : cumulative discharge
 %
 %   * substances  : substance names,substance units
 %   * transtat    : concentration station names
@@ -90,7 +92,7 @@ function varargout=waquaio(sds,exper,field,varargin)
 
 %----- LGPL --------------------------------------------------------------------
 %
-%   Copyright (C) 2011-2020 Stichting Deltares.
+%   Copyright (C) 2011-2022 Stichting Deltares.
 %
 %   This library is free software; you can redistribute it and/or
 %   modify it under the terms of the GNU Lesser General Public
@@ -115,8 +117,8 @@ function varargout=waquaio(sds,exper,field,varargin)
 %
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/waquaio.m $
-%   $Id: waquaio.m 65778 2020-01-14 14:07:42Z mourits $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/tools_lgpl/matlab/quickplot/progsrc/waquaio.m $
+%   $Id: waquaio.m 140618 2022-01-12 13:12:04Z klapwijk $
 
 if nargin<3
     error('Not enough input arguments.')
@@ -526,6 +528,9 @@ switch field
                 % the instaneous v cross-sections follow after the
                 % cumulative u cross-sections. Add the ntra skip to
                 % the indices for v cross-sections.
+                if isequal(stationi,':')
+                    stationi = 1:ntra+ntrav;
+                end
                 stationi(stationi>ntra) = stationi(stationi>ntra)+ntra;
                 statmax=ntra+ntrav;
             case 'cq-stat'
@@ -539,6 +544,9 @@ switch field
                 % the cumulative v cross-sections follow after the
                 % instaneous v cross-sections. Add the ntrav skip to
                 % the indices for v cross-sections.
+                if isequal(stationi,':')
+                    stationi = 1:ntra+ntrav;
+                end
                 stationi(stationi>ntra) = stationi(stationi>ntra)+ntrav;
                 statmax=ntra+ntrav;
             case barrierfields
@@ -592,7 +600,7 @@ switch field
                 statmax=nopol;
         end
         if ~isequal(stationi_org,':')
-            if stationi_org<1 || stationi_org>statmax || stationi_org~=round(stationi_org)
+            if any(stationi_org<1 | stationi_org>statmax | stationi_org~=round(stationi_org))
                 if statmax<0
                     error('The variable statmax has not been set for ''%s''',field)
                 elseif statmax==0
@@ -1411,28 +1419,30 @@ switch field
         Y=repmat(Y,[1 1 num_k]);
         varargout={X Y Z refdate+data.SimTime/1440};
         
-    case {'depth','height','depth_wl_points'}
+    case {'depth','height','depth_wl_points','height_wl_points'}
         [n,m]=local_argin(argin);
         nm=nm(n,m);
-        if strcmp(field,'depth_wl_points')
-            %DPS_FLOW only for Waqua
-            data=waqua('readsds',sds,exper,'DPS_FLOW');
-            data(inact)=NaN;
-            data(data==-999)=NaN;
-            Dep=data(nm);
-            Dep(~sact)=NaN;
-        else
-            sact = sact(n,m);
-            dact = sact | sact([2:end end],:) | ...
-                sact(:,[2:end end]) | sact([2:end end],[2:end end]);
-            data=waqua('readsds',sds,exper,'MESH_H');
-            data(inact)=NaN;
-            data(data==-999)=NaN;
-            Dep=data(nm);
-            Dep(~dact)=NaN;
+        switch field
+            case {'height_wl_points','depth_wl_points'}
+                sact = sact(n,m);
+                %DPS_FLOW only for Waqua
+                data=waqua('readsds',sds,exper,'DPS_FLOW');
+                data(inact)=NaN;
+                data(data==-999)=NaN;
+                Dep=data(nm);
+                Dep(~sact)=NaN;
+            otherwise
+                sact = sact(n,m);
+                dact = sact | sact([2:end end],:) | ...
+                    sact(:,[2:end end]) | sact([2:end end],[2:end end]);
+                data=waqua('readsds',sds,exper,'MESH_H');
+                data(inact)=NaN;
+                data(data==-999)=NaN;
+                Dep=data(nm);
+                Dep(~dact)=NaN;
         end
         switch field
-            case 'height'
+            case {'height','height_wl_points'}
                 varargout={-Dep};
             otherwise
                 varargout={Dep};

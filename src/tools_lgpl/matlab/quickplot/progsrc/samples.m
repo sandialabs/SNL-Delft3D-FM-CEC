@@ -22,7 +22,7 @@ function [x,y,z]=samples(cmd,varargin)
 
 %----- LGPL --------------------------------------------------------------------
 %
-%   Copyright (C) 2011-2020 Stichting Deltares.
+%   Copyright (C) 2011-2022 Stichting Deltares.
 %
 %   This library is free software; you can redistribute it and/or
 %   modify it under the terms of the GNU Lesser General Public
@@ -47,8 +47,8 @@ function [x,y,z]=samples(cmd,varargin)
 %
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/samples.m $
-%   $Id: samples.m 65778 2020-01-14 14:07:42Z mourits $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/tools_lgpl/matlab/quickplot/progsrc/samples.m $
+%   $Id: samples.m 140618 2022-01-12 13:12:04Z klapwijk $
 
 switch lower(cmd)
     case 'read'
@@ -96,6 +96,9 @@ if exist(filename)~=2
 end
 try
     xyz0 = load(filename);
+    if isempty(xyz0)
+        error('Empty samples set returned: is this a valid sample file?');
+    end
     simplexyz = 1;
 catch
     try
@@ -107,6 +110,10 @@ catch
 end
 
 if simplexyz
+    %
+    % relatively simple sample file without header, data alrady read by the
+    % load or asciiload call above. We may have to add a bit of metadata.
+    %
     switch readtype
         case {'simple','default'}
             xyz = xyz0;
@@ -127,7 +134,7 @@ if simplexyz
             xyz.FileType = 'samples';
             xyz.FileName = filename;
             %
-            fid=fopen(filename,'r');
+            fid=fopen(filename,'r','n','US-ASCII');
             Line=fgetl(fid);
             xyz.Header = {};
             while ~isempty(Line) && Line(1)=='%'
@@ -163,9 +170,19 @@ if simplexyz
                 end
             end
     end
-else % readtype always forced to 'struct'
-    fid=fopen(filename,'r');
+else
+    %
+    % So far unable to read the file. It probably contains some comments,
+    % header or labels. Let's analyze the content in more detail; the
+    % readtype is always forced to 'struct'
+    %
+    fid=fopen(filename,'r','n','US-ASCII');
+    csv = false;
     try
+        %
+        % All non-empty lines starting with * or # are considered to be
+        % header lines.
+        %
         skiplines=0;
         Line=fgetl(fid);
         xyz.Header={};
@@ -175,35 +192,101 @@ else % readtype always forced to 'struct'
             Line=fgetl(fid);
         end
         if ~ischar(Line)
+            %
+            % End of file read while skipping the header lines ...
+            % ... fail because we didn't find any data.
+            %
             fclose(fid);
             error('%s does not contain samples.',filename);
         end
         %
+        % First non-header line ... check for column labels ...
+        %
         Params = {};
-        firstitem = strtok(Line);
-        while firstitem(1)=='"'
-            try
-                X = textscan(Line,' "%[^"]"','returnonerror',0);
-                Params = [Params X{1}'];
-            catch
-                error('Reading line: %s\nAll parameter names should be enclosed by double quotes.',Line);
-            end
-            skiplines=skiplines+1;
-            Line=fgetl(fid);
+        first_token = strtok(Line);
+        if first_token(1) == '"'
+            %
+            % Column labels on one or more lines surrounded by double
+            % quotes separated by spaces.
+            %
             firstitem = strtok(Line);
+            while firstitem(1)=='"'
+                X = strsplit(Line,'"');
+                for i = 1:2:length(X)
+                    sep = strtrim(X{i});
+                    if isequal(sep,',')
+                        if i == 3
+                            csv = true;
+                        elseif csv
+                            % OK, comma when expecting comma
+                        else
+                            error('Reading line: %s\nInconsistent separation cf column labels: initial column lables were separated by space or new line, but now comma encountered.',Line);
+                        end
+                    elseif isempty(sep)
+                        if csv && i ~= length(X)
+                            error('Reading line: %s\nInconsistent separation cf column labels:initial column labels were separated by comma, but now there is no comma.',Line);
+                        else
+                            % OK, no comma when expecting no comma
+                        end
+                    else
+                        % separator not empty and not comma
+                        error('Reading line: %s\nInvalid separator "%s" encountered.',Line,sep);
+                    end
+                end
+                Params = [Params X(2:2:end)];
+                skiplines=skiplines+1;
+                Line=fgetl(fid);
+                firstitem = strtok(Line);
+            end
+        else
+            %
+            % Column labels may occur on one line separated by commas.
+            %
+            try
+                X = textscan(Line,' %[^,],','returnonerror',0);
+                if length(X{1}) < 2
+                    error('Too few columns for a sample file.')
+                else
+                    csv = true;
+                    Params = X{1}';
+                    skiplines=skiplines+1;
+                    Line=fgetl(fid);
+                end
+            catch
+            end
         end
         %
-        X = textscan(Line,' %[^ \t]','returnonerror',0);
+        % First data line ... may contain more data columns than the number
+        % of column labels read (e.g. in case of a file without column
+        % labels), or fewer (should we really support this?)
+        %
+        if csv
+            X = textscan(Line,' %[^,],','returnonerror',0);
+        else
+            X = textscan(Line,' %[^ \t]','returnonerror',0);
+        end
         n = length(X{1});
         if n<3
             error('Not enough values for sample data (X,Y,Value1,...)')
         end
+        %
+        % Second data line ... should contain the same number of data
+        % columns.
+        %
         Line=fgetl(fid);
-        X  = textscan(Line,' %[^ \t]','returnonerror',0);
+        if csv
+            X = textscan(Line,' %[^,],','returnonerror',0);
+        else
+            X  = textscan(Line,' %[^ \t]','returnonerror',0);
+        end
         n2 = length(X{1});
         if n2~=n && ~feof(fid)
-            error('Number of values per line should be consistent.')
+            error('Number of values per data line should be consistent.')
         end
+        %
+        % Correct any mismatch between the number of data columns and the
+        % number of column labels on the label side ...
+        %
         if length(Params)<n
             for i=n:-1:(length(Params)+1)
                 Params{i}=sprintf('Parameter %i',i);
@@ -304,7 +387,7 @@ if strcmp(filename,'?')
     end
     filename=[fp fn];
 end
-fid=fopen(filename,'wt');
+fid=fopen(filename,'wt','n','US-ASCII');
 if fid<0
     error(['Could not create or open: ',filename])
 end

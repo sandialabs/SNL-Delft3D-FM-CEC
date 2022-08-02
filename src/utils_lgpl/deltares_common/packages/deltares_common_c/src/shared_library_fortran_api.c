@@ -1,6 +1,6 @@
 //---- LGPL --------------------------------------------------------------------
 //
-// Copyright (C)  Stichting Deltares, 2011-2020.
+// Copyright (C)  Stichting Deltares, 2011-2022.
 //
 // This library is free software; you can redistribute it and/or
 // modify it under the terms of the GNU Lesser General Public
@@ -24,8 +24,8 @@
 // Stichting Deltares. All rights reserved.
 //
 //------------------------------------------------------------------------------
-// $Id: shared_library_fortran_api.c 65813 2020-01-17 16:46:56Z mourits $
-// $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/deltares_common/packages/deltares_common_c/src/shared_library_fortran_api.c $
+// $Id: shared_library_fortran_api.c 140618 2022-01-12 13:12:04Z klapwijk $
+// $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_lgpl/deltares_common/packages/deltares_common_c/src/shared_library_fortran_api.c $
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -42,7 +42,7 @@
 #  include <windows.h>
 #elif defined(salford32)
 #  include <windows.h>
-#elif defined(HAVE_CONFIG_H)
+#elif defined(linux)
 #  include <dlfcn.h>
 #endif
 
@@ -54,7 +54,7 @@
 #  define OPEN_SHARED_LIBRARY  OPEN_SHARED_LIBRARY
 #  define CLOSE_SHARED_LIBRARY CLOSE_SHARED_LIBRARY
 #  define STDCALL __stdcall
-#elif defined(HAVE_CONFIG_H)
+#elif defined(linux)
 #   include "config.h"
 #  define OPEN_SHARED_LIBRARY      FC_FUNC(open_shared_library,OPEN_SHARED_LIBRARY)
 #  define CLOSE_SHARED_LIBRARY     FC_FUNC(close_shared_library,CLOSE_SHARED_LIBRARY)
@@ -72,7 +72,7 @@
     typedef HMODULE DllHandle;
 #elif defined(salford32)
     typedef HMODULE DllHandle;
-#elif defined(HAVE_CONFIG_H)
+#elif defined(linux)
     typedef void * DllHandle;
 #endif
 
@@ -110,7 +110,7 @@ void RemoveTrailingBlanks_dll(char * String)
 /*
  * ============================================================================
  */
-#if defined(WIN32) || defined (HAVE_CONFIG_H)
+#if defined(WIN32) || defined (linux)
 long STDCALL OPEN_SHARED_LIBRARY(long long int * sharedDLLHandle, char * library, long length_lib)
 #elif defined (salford32)
 extern "C" OPEN_SHARED_LIBRARY(int64_t * sharedDLLHandle, char * library, long length_lib)
@@ -129,7 +129,7 @@ extern "C" OPEN_SHARED_LIBRARY(int64_t * sharedDLLHandle, char * library, long l
     tmpSharedDLL->dllHandle = LoadLibrary(lib_name);
 #elif defined(salford32)
     tmpSharedDLL->dllHandle = LoadLibrary(lib_name);
-#elif defined(HAVE_CONFIG_H)
+#elif defined(linux)
     tmpSharedDLL->dllHandle = dlopen(lib_name, RTLD_LAZY);
 #endif
 
@@ -147,7 +147,7 @@ extern "C" OPEN_SHARED_LIBRARY(int64_t * sharedDLLHandle, char * library, long l
  * ============================================================================
  */
 
-#if defined (WIN32) || defined (HAVE_CONFIG_H)
+#if defined (WIN32) || defined (linux)
 long STDCALL CLOSE_SHARED_LIBRARY(int64_t * sharedDLLHandle)
 #elif defined (salford32)
 extern "C" CLOSE_SHARED_LIBRARY(int64_t * sharedDLLHandle)
@@ -159,7 +159,7 @@ extern "C" CLOSE_SHARED_LIBRARY(int64_t * sharedDLLHandle)
     (void) FreeLibrary(sharedDLL->dllHandle);
 #elif defined(salford32)
     (void) FreeLibrary(sharedDLL->dllHandle);
-#elif defined(HAVE_CONFIG_H)
+#elif defined(linux)
     (void) dlclose(sharedDLL->dllHandle);
 #endif
 

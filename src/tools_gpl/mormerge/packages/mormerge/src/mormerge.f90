@@ -1,7 +1,7 @@
 program mormerge
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -25,13 +25,14 @@ program mormerge
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: mormerge.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_gpl/mormerge/packages/mormerge/src/mormerge.f90 $
+!  $Id: mormerge.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/tools_gpl/mormerge/packages/mormerge/src/mormerge.f90 $
 !!--description-----------------------------------------------------------------
 !
 !!--pseudo code and references--------------------------------------------------
 ! NONE
 !!--declarations----------------------------------------------------------------
+use mormerge_version_module
 implicit none
 !
 ! Local constants
@@ -49,7 +50,7 @@ character(256)                            :: version_full   ! by calling getfull
 !
 !! executable statements -------------------------------------------------------
 !
-call getfullversionstring_MORMERGE(version_full)
+call get_full_versionstring_mormerge_full(version_full)
 !
 if (COMMAND_ARGUMENT_COUNT() /= numarg) then
    call printUsage()

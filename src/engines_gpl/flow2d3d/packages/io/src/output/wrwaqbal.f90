@@ -9,7 +9,7 @@
      &                      lunsrctmp , lunwlk , dvol   , mtimstep, lundia )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -33,8 +33,8 @@
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: wrwaqbal.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/io/src/output/wrwaqbal.f90 $
+!  $Id: wrwaqbal.f90 141352 2022-06-10 10:07:28Z jeuke_ml $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/flow2d3d/packages/io/src/output/wrwaqbal.f90 $
 !!--description-----------------------------------------------------------------
 ! NONE
 !!--pseudo code and references--------------------------------------------------
@@ -119,6 +119,7 @@
       if ( mode .eq. 0 ) changed = .true.
       do i = 1, nsrc
          if (mnksrc(3,i) == -1) cycle ! awkward disabling of discharges outside partition when running parallel
+         if (mnksrc(7,i) == 4 .or. mnksrc(7,i) == 5 .or. mnksrc(7,i) == 8) cycle ! skip e,d and f culverts, output is not correct
          m = mnksrc(1,i)
          n = mnksrc(2,i)
          k = mnksrc(3,i)
@@ -155,6 +156,7 @@
       endif
       do i = 1, nsrc
          if (mnksrc(3,i) == -1) cycle ! awkward disabling of discharges outside partition when running parallel
+         if (mnksrc(7,i) == 4 .or. mnksrc(7,i) == 5 .or. mnksrc(7,i) == 8) cycle ! skip e,d and f culverts, output is not correct
          m = mnksrc(1,i)
          n = mnksrc(2,i)
          k = mnksrc(3,i)
@@ -190,7 +192,8 @@
          endif
       enddo
       do i = 1, nsrc
-         if ( mnksrc(7,i) .le. 1 ) cycle   !  no inlet-outlet and no culverts
+         if (mnksrc(7,i) .le. 1) cycle   !  no inlet-outlet and no culverts
+         if (mnksrc(7,i) == 4 .or. mnksrc(7,i) == 5 .or. mnksrc(7,i) == 8) cycle ! skip e,d and f culverts, output is not correct
          m = mnksrc(4,i)
          n = mnksrc(5,i)
          k = mnksrc(6,i)

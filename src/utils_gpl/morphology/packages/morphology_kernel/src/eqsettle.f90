@@ -3,7 +3,7 @@ subroutine eqsettle(dll_function, dll_handle, max_integers, max_reals, max_strin
                   & parloc, npar, wsloc, error)
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -27,8 +27,8 @@ subroutine eqsettle(dll_function, dll_handle, max_integers, max_reals, max_strin
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: eqsettle.f90 65813 2020-01-17 16:46:56Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_gpl/morphology/packages/morphology_kernel/src/eqsettle.f90 $
+!  $Id: eqsettle.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_gpl/morphology/packages/morphology_kernel/src/eqsettle.f90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: 

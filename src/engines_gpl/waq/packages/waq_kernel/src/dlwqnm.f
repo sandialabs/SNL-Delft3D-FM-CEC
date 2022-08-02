@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -83,10 +83,16 @@
       use delwaq2_data
       use m_openda_exchange_items, only : get_openda_buffer
       use report_progress
+      use m_actions
+      use m_sysn          ! System characteristics
+      use m_sysi          ! Timer characteristics
+      use m_sysa          ! Pointers in real array workspace
+      use m_sysj          ! Pointers in integer array workspace
+      use m_sysc          ! Pointers in character array workspace
+      use m_dlwqdata_save_restore
 
       implicit none
 
-      include 'actions.inc'
 
 !     Declaration of arguments
 
@@ -101,20 +107,6 @@
 
 !$    include "omp_lib.h"
 
-!     common  /  sysn   /   system characteristics
-      include 'sysn.inc'
-
-!     common  /  sysi  /    timer characteristics
-      include 'sysi.inc'
-
-!     common  /  sysa   /   pointers in real array workspace
-      include 'sysa.inc'
-
-!     common  /  sysj   /   pointers in integer array workspace
-      include 'sysj.inc'
-
-!     common  /  sysc   /   pointers in character array workspace
-      include 'sysc.inc'
 
 !     common to define external communications in SOBEK
 !     olcfwq             flag indicating ONLINE running of CF and WQ
@@ -128,29 +120,15 @@
 
       real            rdummy(1)
       logical         imflag , idflag , ihflag
-      logical         updatr , update , lstrec , lrewin
-      logical         litrep , ldummy,  timon_old
-      real(8)         tol
+      logical         update , lrewin
+      logical         litrep , timon_old
       integer         laatst
 
       logical         antidiffusion
       INTEGER         sindex
 
-      integer       :: ithandl
       integer, save :: ithand1 = 0 ! Leave local
 
-      integer         itime
-      integer         itimel
-      integer         ifflag
-      integer         iaflag
-      integer         ibflag
-      integer         nddim
-      integer         nvdim
-      integer         noqt
-      integer         nosss
-      integer         noqtt
-      integer         nopred
-      integer         inwtyp
       integer         isys
       integer         nstep
 
@@ -166,14 +144,7 @@
       integer, save          :: iscale
 
 
-!       Dummy variables - used in DLWQD
 
-      logical                :: forester
-      integer                :: nowarn
-      integer                :: lleng
-      integer                :: ioptzb
-
-      include 'state_data.inc'
 
 !     special remarks    : mass-array is used for rhs vector!!
 !
@@ -221,7 +192,7 @@
 !                                                              (kht, 13/11/96)
 
       if ( action == ACTION_FINALISATION ) then
-          include 'dlwqdata_restore.inc'
+          call dlwqdata_restore(dlwqd)
           if ( timon ) call timstrt ( "dlwqnm", ithandl )
           goto 50
       endif
@@ -281,13 +252,13 @@
 !
       if ( action == ACTION_INITIALISATION ) then
           if ( timon ) call timstrt ( "dlwqnm", ithandl )
-          include 'dlwqdata_save.inc'
+          call dlwqdata_save(dlwqd)
           if ( timon ) call timstop ( ithandl )
           return
       endif
 
       if ( action == ACTION_SINGLESTEP ) then
-          include 'dlwqdata_restore.inc'
+          call dlwqdata_restore(dlwqd)
           call apply_operations( dlwqd )
       endif
 

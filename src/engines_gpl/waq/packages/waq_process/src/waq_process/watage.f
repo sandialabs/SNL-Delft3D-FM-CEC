@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -83,8 +83,10 @@
           ARGUM =  CONCTR/CONCWA
           IF (ARGUM .LT. 1E-20 ) THEN
               AGE = -999.
-          ELSE
+          ELSEIF ( ABS(ARGUM-1.0) > 1.0E-3 ) THEN
               AGE = - LOG(ARGUM) / DECAYR
+          ELSE
+              AGE = - ( (ARGUM-1.0) - (ARGUM-1.0)**2 / 2.0 ) / DECAYR
           ENDIF
       ENDIF
 !

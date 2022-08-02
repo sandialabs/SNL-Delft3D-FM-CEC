@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -35,9 +35,7 @@
 !              bar, berror, xlog, del, lp, matinx, rcalc
 !           solve uses double precision version of
 !              abs, amax1, amin1, exp, float, sqrt
-      include  'char1.inc'
-      equivalence (g(1),v1(1)), (dx(1),x1(1))
-      equivalence (alpha(1),x2(1)), (th(1),x3(1))
+      use m_char1
       dimension dx(maxn), alpha(maxn), th(maxn), g(maxmd)
       logical bsec
       data ittt/1/

@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -56,11 +56,10 @@
       use m_couplib
       use delwaq2_data
       use grids
+      use m_sysn          ! System characteristics
+      use m_syst          ! Time function flags
 
       implicit none
-
-      include 'sysn.inc'     !  common with system dimensions
-      include 'syst.inc'     !  common with time function flags
 
 !     Parameters          :
 

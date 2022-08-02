@@ -4,15 +4,16 @@ subroutine bedbc2004(tp        ,rhowat    , &
                    & taucr0    ,u2dhim    ,aks       ,ra        ,usus      , &
                    & zusus     ,uwb       ,muc       ,tauwav    ,ustarc    , &
                    & tauc      ,taurat    ,ta        ,caks      ,dss       , &
-                   & uwc       ,uuu       ,vvv       ,rlabda    , &
+                   & uwc       ,uuu       ,vvv       ,rlabda    ,taubcw    , &
                    & hrms      ,delw      ,uon       ,uoff      ,uwbih     , &
                    & delm      ,fc1       ,fw1       ,phicur    ,kscr      , &
                    & i2d3d     ,mudfrac   ,fsilt     ,taucr1    ,psi       , &
                    & dzduu     ,dzdvv     ,eps       ,camax     ,iopsus    , &
-                   & ag        ,wave      ,tauadd    ,gamtcr    ,betam     ) 
+                   & ag        ,wave      ,tauadd    ,gamtcr    ,betam     , &
+                   & awb       ,wform     ,phi_phase ,r         ,uw_lt     ) 
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -36,8 +37,8 @@ subroutine bedbc2004(tp        ,rhowat    , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: bedbc2004.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_gpl/morphology/packages/morphology_kernel/src/bedbc2004.f90 $
+!  $Id: bedbc2004.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_gpl/morphology/packages/morphology_kernel/src/bedbc2004.f90 $
 !!--description-----------------------------------------------------------------
 !
 ! Compute bed roughness and shear stress parameters
@@ -47,73 +48,77 @@ subroutine bedbc2004(tp        ,rhowat    , &
 ! NONE
 !!--declarations----------------------------------------------------------------
     use precision
-    use mathconsts
+    use mathconsts, only: pi, degrad
     use sediment_basics_module
+    use sed_support_routines, only: ruessink_etal_2012
     !
     implicit none
 !
-! Call variables
+! Arguments
 !
     integer, intent(in)   :: i2d3d
-    real(fp)              :: aks    !  Description and declaration in esm_alloc_real.f90
+    real(fp), intent(out) :: aks    !< reference height
+    real(fp), intent(out) :: awb    !< peak orbital excursion at edge of wave boundary layer
     real(fp), intent(in)  :: betam
-    real(fp)              :: caks
-    real(fp)              :: d10
-    real(fp)              :: d50
-    real(fp)              :: d90
-    real(fp)              :: delw
+    real(fp), intent(out) :: caks
+    real(fp), intent(in)  :: d10
+    real(fp), intent(in)  :: d50
+    real(fp), intent(in)  :: d90
+    real(fp), intent(out) :: delw
     real(fp), intent(in)  :: drho
-    real(fp), intent(out) :: dss    !  Description and declaration in esm_alloc_real.f90
+    real(fp), intent(out) :: dss    !< characteristic diameter of sediment in suspension
     real(fp), intent(in)  :: dstar
     real(fp), intent(out) :: fc1
     real(fp), intent(out) :: fsilt
     real(fp), intent(in)  :: gamtcr
-    real(fp)              :: h1
-    real(fp)              :: hrms   !  Description and declaration in esm_alloc_real.f90
+    real(fp), intent(in)  :: h1
+    real(fp), intent(in)  :: hrms   !< root mean square wave height
     real(fp), intent(in)  :: kscr
-    real(fp)              :: muc
+    real(fp), intent(out) :: muc
     real(fp), intent(in)  :: mudfrac
     real(fp), intent(out) :: phicur
-    real(fp)              :: ra
-    real(fp)              :: rc
-    real(fp), intent(in)  :: rhowat !  Description and declaration in esm_alloc_real.f90
-    real(fp)              :: rlabda !  Description and declaration in esm_alloc_real.f90
-    real(fp)              :: ta
-    real(fp)              :: taubcw
-    real(fp)              :: tauc
+    real(fp), intent(out) :: ra
+    real(fp), intent(in)  :: rhowat !< specific density of water
+    real(fp), intent(in)  :: rlabda !< wave length
+    real(fp), intent(out) :: ta
+    real(fp), intent(out) :: taubcw
+    real(fp), intent(out) :: tauc
     real(fp), intent(in)  :: taucr0
     real(fp), intent(out) :: taucr1
     real(fp), intent(out) :: taurat
-    real(fp)              :: tauwav
-    real(fp)              :: tp     !  Description and declaration in esm_alloc_real.f90
+    real(fp), intent(out) :: tauwav
+    real(fp), intent(in)  :: tp     !< peak wave period
     real(fp), intent(in)  :: umod
-    real(fp)              :: ustarc
-    real(fp)              :: usus   !  Description and declaration in esm_alloc_real.f90
+    real(fp), intent(out) :: ustarc
+    real(fp), intent(out) :: usus
     real(fp), intent(in)  :: uuu
-    real(fp)              :: uwb
+    real(fp), intent(out) :: uwb
     real(fp), intent(in)  :: vvv
-    real(fp)              :: z0cur
+    real(fp), intent(in)  :: z0cur
     real(fp), intent(in)  :: z0rou
     real(fp), intent(in)  :: zumod
-    real(fp)              :: zusus
+    real(fp), intent(out) :: zusus
     real(fp), intent(out) :: uon  
     real(fp), intent(out) :: uoff 
-    real(fp), intent(out) :: uwbih
+    real(fp), intent(out) :: uwbih    !< representative peak orbital velocity near the bed
     real(fp), intent(out) :: psi
-    real(fp), intent(in)  :: dzduu    !  Description and declaration in esm_alloc_real.f90
-    real(fp), intent(in)  :: dzdvv    !  Description and declaration in esm_alloc_real.f90
+    real(fp), intent(in)  :: dzduu    !< bed slope in U-direction
+    real(fp), intent(in)  :: dzdvv    !< bed slope in V-direction
     real(fp), intent(in)  :: eps
     real(fp), intent(in)  :: camax
     integer , intent(in)  :: iopsus
     real(fp), intent(in)  :: ag
     logical , intent(in)  :: wave
     real(fp), intent(in)  :: tauadd
+    integer , intent(in)  :: wform
+    real(fp), intent(out) :: phi_phase
+    real(fp), intent(out) :: r
+    real(fp), intent(out) :: uw_lt
 !
 ! Local variables
 !
     real(fp) :: a11  
     real(fp) :: alfacw
-    real(fp) :: awb
     real(fp) :: cmax
     real(fp) :: cc
     real(fp) :: cmaxs
@@ -128,6 +133,7 @@ subroutine bedbc2004(tp        ,rhowat    , &
     real(fp) :: kswr
     real(fp) :: muw
     real(fp) :: raih 
+    real(fp) :: rc
     real(fp) :: rmax 
     real(fp) :: rr
     real(fp) :: t1   
@@ -145,6 +151,33 @@ subroutine bedbc2004(tp        ,rhowat    , &
     real(fp) :: dzdn
     real(fp) :: fac_slp
     real(fp) :: phi
+    real(fp) :: p1
+    real(fp) :: p2
+    real(fp) :: p3
+    real(fp) :: p4
+    real(fp) :: p5
+    real(fp) :: p6
+    real(fp) :: omega
+    real(fp) :: k
+    real(fp) :: urs
+    real(fp) :: bb
+    real(fp) :: s
+    real(fp) :: a
+    real(fp) :: b
+    real(fp) :: psi_phase
+    real(fp) :: bb_phase
+    real(fp) :: rsf
+    real(fp) :: aas
+    real(fp) :: bbs
+    real(fp) :: ccs
+    real(fp) :: xa
+    real(fp) :: xb
+    real(fp) :: xc
+    real(fp) :: x1
+    real(fp) :: x2
+    real(fp) :: t1_sol
+    real(fp) :: t2_sol
+    real(fp) :: f
 !
 !! executable statements -------------------------------------------------------
 !
@@ -153,6 +186,7 @@ subroutine bedbc2004(tp        ,rhowat    , &
     !
     ! Dimensionless density and grain size
     !
+    hs    = hrms*sqrt(2.0_fp)
     uwb   = 0.0_fp
     usus  = umod
     zusus = zumod
@@ -194,8 +228,7 @@ subroutine bedbc2004(tp        ,rhowat    , &
        phicur = phicur + 2.0_fp*pi
     endif
     if (wave .and. tp>0.1_fp) then
-       hs  = hrms*sqrt(2.0_fp)
-       arg = 2.0_fp * pi * h1 / rlabda
+       arg = 2.0_fp * pi * h1 / max(rlabda,1.0e-12_fp)
        if (arg > 50.0_fp) then
           awb = 0.0_fp
           uwb = 0.0_fp
@@ -262,24 +295,67 @@ subroutine bedbc2004(tp        ,rhowat    , &
        !
        fw1 = min(0.3_fp , exp(-6.0_fp + 5.2_fp*(awb/d90 )**(-0.19_fp)))
        !
-       !   WAVE VELOCITY ASYMMETRY ACCORDING TO ISOBE-HORIKAWA
-       !   (modified from tr2004 code)
-       !
-       rr     = -0.4_fp*hs/h1 + 1.0_fp
-       umax   = rr * 2.0_fp * uwb
-       t1     = tp * sqrt(ag/h1)
-       u1     = umax / sqrt(ag*h1)
-       a11    = -0.0049_fp*t1**2 - 0.069_fp*t1 + 0.2911_fp
-       raih   = max(0.5_fp  , -5.25_fp-6.1_fp*tanh(a11*u1 - 1.76_fp))
-       rmax   = max(0.62_fp , min(0.75_fp, -2.5_fp*h1/rlabda + 0.85_fp) )
-       !
-       uon    = umax * (0.5_fp+(rmax-0.5_fp)*tanh((raih-0.5_fp)/(rmax-0.5_fp)))
-       uoff   = umax - uon
-       uon    = max(1.0e-5_fp , uon)
-       uoff   = max(1.0e-5_fp , uoff)
-       !
-       uwbih  = (0.5_fp*uon**3.0_fp + 0.5_fp*uoff**3.0_fp)**(1.0_fp/3.0_fp)
-       tauwav = 0.25_fp * rhowat * fw * uwbih**2
+       if (wform == 1) then
+          !   WAVE VELOCITY ASYMMETRY ACCORDING TO ISOBE-HORIKAWA
+          !   (modified from tr2004 code)
+          !
+          rr     = -0.4_fp*hs/h1 + 1.0_fp
+          umax   = rr * 2.0_fp * uwb
+          t1     = tp * sqrt(ag/h1)
+          u1     = umax / sqrt(ag*h1)
+          a11    = -0.0049_fp*t1**2 - 0.069_fp*t1 + 0.2911_fp
+          raih   = max(0.5_fp  , -5.25_fp-6.1_fp*tanh(a11*u1 - 1.76_fp))
+          rmax   = max(0.62_fp , min(0.75_fp, -2.5_fp*h1/rlabda + 0.85_fp) )
+          !
+          uon    = umax * (0.5_fp+(rmax-0.5_fp)*tanh((raih-0.5_fp)/(rmax-0.5_fp)))
+          uoff   = umax - uon
+          uon    = max(1.0e-5_fp , uon)
+          uoff   = max(1.0e-5_fp , uoff)
+       else if (wform==2) then
+          ! Modification by Marcio Boechat Albernaz
+          !
+          omega     = 2.0_fp*pi/tp ! (w)
+          !
+          ! Wave parameters W and K 
+          call wavenr(h1         ,tp        ,k         ,ag        )! Also considering the input gravity
+
+          ! Wave velocity skewness & asymmetry according to Ruessink et al 2012 CE
+          call ruessink_etal_2012(k, hs, h1, s, a, phi_phase, urs, bb)
+
+          ! Computes b and r
+          b = sqrt((2.0_fp*bb**2.0_fp)/(9.0_fp+2.0_fp*bb**2.0_fp))
+          r = 2.0_fp*b/(1.0_fp+b**2.0_fp) 
+
+          ! Getting uon and uoff
+          rsf    = r*sin(phi_phase)/(1.0_fp+sqrt(1.0_fp-r**2.0_fp))   ! constant
+          aas      = 1.0_fp+rsf*r*sin(phi_phase)                      ! constant
+          bbs      = rsf*r*cos(phi_phase)                             ! constant
+          ccs      = r*cos(phi_phase)                                 ! constant
+          !
+          xa       = bbs**2.0_fp+aas**2.0_fp                          ! members of quadr. func. ax^2
+          xb       = -2.0_fp*bbs*ccs                                  ! members of quadr. func. bx
+          xc       = ccs**2.0_fp-aas**2.0_fp                          ! members of quadr. func. c
+          !
+          x2       = -xb+sqrt(-xb-4.0_fp*xa*xc)/(2.0_fp*xc)           ! positive quadr. func.
+          x2       = max(x2,-1.0_fp)                                  ! makes asin(x) real.
+          x1       = -xb-sqrt(-xb-4.0_fp*xa*xc)/(2.0_fp*xc)           ! negative quadr. func.
+          x1       = min(x1,1.0_fp)                                   ! makes asin(x) real.
+          !
+          t1_sol   = asin(x1)/omega                                   ! du/dt=0 solution 1 -> bounded to be real from limiting x1
+          t2_sol   = asin(x2)/omega                                   ! du/dt=0 solution 2 -> bounded to be real from limiting x2
+
+          ! With solutions for t -> compute uon and uoff
+          f      = sqrt(1.0_fp-r**2.0_fp)
+          uw_lt  = hrms*pi/(tp*sinh(k*h1)) ! velocity ampliture from linear theory
+          !
+          ! Algebraic solution for uon and uoff, updated in bedtr2004.f90
+          uon    = uw_lt*f*(sin(omega*t1_sol)+(r*sin(phi_phase))/(1.0_fp+f))/(1.0_fp-r*cos(omega*t1_sol+phi_phase))
+          uoff   = uw_lt*f*(sin(omega*t2_sol)+(r*sin(phi_phase))/(1.0_fp+f))/(1.0_fp-r*cos(omega*t2_sol+phi_phase))
+       endif
+
+       ! Calculate velocity Amplitude Uw
+       uwbih  = (0.5_fp*uon**3.0_fp + 0.5_fp*uoff**3.0_fp)**(1.0_fp/3.0_fp)   ! Representative peak orbital velocity 
+       tauwav = 0.25_fp * rhowat * fw * uwbih**2                              ! Wave related shear stress
        !
        ! Updated muw expression in TR2004
        !

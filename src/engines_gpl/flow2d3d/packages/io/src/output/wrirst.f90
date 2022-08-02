@@ -4,7 +4,7 @@ subroutine wrirst(lundia    ,runid     ,itrstc    ,nmaxus    ,mmax      , &
                 & vmnldf    ,gdp       )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -28,8 +28,8 @@ subroutine wrirst(lundia    ,runid     ,itrstc    ,nmaxus    ,mmax      , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: wrirst.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/io/src/output/wrirst.f90 $
+!  $Id: wrirst.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/flow2d3d/packages/io/src/output/wrirst.f90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: This routine writes the relevant output arrays to
@@ -129,10 +129,6 @@ subroutine wrirst(lundia    ,runid     ,itrstc    ,nmaxus    ,mmax      , &
        write (filrst(8 + lrid + 1:8 + lrid + 16), '(a1,i8.8,a1,i6.6)') &
            & '.', idate, '.', itime
        !
-       !-----Define new unit number
-       !
-       lunrst = newlun(gdp)
-       !
        !-----Test existence of restart file
        !
        inquire (file = filrst(1:8 + lrid + 16), exist = ex)
@@ -144,13 +140,13 @@ subroutine wrirst(lundia    ,runid     ,itrstc    ,nmaxus    ,mmax      , &
              call prterr(lundia    ,'S014'    ,filrst(:8 + lrid + 16)          )
           !
           endif
-          open (lunrst, file = filrst(:8 + lrid + 16))
+          open (newunit=lunrst, file = filrst(:8 + lrid + 16))
           close (lunrst, status = 'delete')
        endif
        !
        !-----New file => open file
        !
-       open (lunrst, file = filrst(:8 + lrid + 16), form = 'unformatted',          &
+       open (newunit=lunrst, file = filrst(:8 + lrid + 16), form = 'unformatted',          &
             & status = 'new')
        !
     endif

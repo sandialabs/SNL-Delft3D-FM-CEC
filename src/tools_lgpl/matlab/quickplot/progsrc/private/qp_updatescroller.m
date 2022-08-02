@@ -3,7 +3,7 @@ function qp_updatescroller(hNew,pfig)
 
 %----- LGPL --------------------------------------------------------------------
 %
-%   Copyright (C) 2011-2020 Stichting Deltares.
+%   Copyright (C) 2011-2022 Stichting Deltares.
 %
 %   This library is free software; you can redistribute it and/or
 %   modify it under the terms of the GNU Lesser General Public
@@ -28,8 +28,8 @@ function qp_updatescroller(hNew,pfig)
 %
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/private/qp_updatescroller.m $
-%   $Id: qp_updatescroller.m 65778 2020-01-14 14:07:42Z mourits $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/tools_lgpl/matlab/quickplot/progsrc/private/qp_updatescroller.m $
+%   $Id: qp_updatescroller.m 140618 2022-01-12 13:12:04Z klapwijk $
 
 DimMenu = {'subfield' 'time' 'station' 'M' 'N' 'K'};
 DimStr={'subfield','time step','station','M','N','K'};
@@ -104,13 +104,18 @@ for i = 1:length(UDs)
             DimStr(3:length(Props.DimName)+1)  = Props.DimName(2:end);
         end
         %
+        if CanAnim(2)
+            animdim = 2;
+        else
+            animdim = min(find(CanAnim));
+        end
         for m_ = 1:length(sz)
             if CanAnim(m_)
                 Anim.Dim=m_-1; %! CONVERT from 1:6 back to AnimLoc (0=subf, 1=time, ...]
                 Anim.Label=DimStr{m_};
                 Anim.Values=Values{m_};
                 hMenu=uimenu('label',DimMenu{m_},'parent',it,'userdata',Anim,'callback','d3d_qp animselect');
-                if isempty(AnimSel)
+                if m_ == animdim
                     AnimSel=Anim;
                     hAnimSel=hMenu;
                 end

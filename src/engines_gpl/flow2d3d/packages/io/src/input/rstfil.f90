@@ -5,7 +5,7 @@ subroutine rstfil(lundia    ,error     ,restid    ,lturi     ,mmax      , &
                 & dp        ,namcon    ,coninit   ,gdp       )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -29,8 +29,8 @@ subroutine rstfil(lundia    ,error     ,restid    ,lturi     ,mmax      , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: rstfil.f90 65926 2020-02-04 09:27:46Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/io/src/input/rstfil.f90 $
+!  $Id: rstfil.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/flow2d3d/packages/io/src/input/rstfil.f90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: Reads initial field condition records from an
@@ -109,10 +109,12 @@ subroutine rstfil(lundia    ,error     ,restid    ,lturi     ,mmax      , &
     logical                                              :: ex
     logical                                              :: ex_nfs
     character(16)                                        :: datetime
+    character(300)                                       :: restid0 ! File name restart file 300 = 256 + a bit
     character(300)                                       :: filtmp  ! File name restart file 300 = 256 + a bit
     character(256)                                       :: filpath ! Path specification of restid
     integer                                              :: nm_pos ! indicating the array to be exchanged has nm index at the 2nd place, e.g., dbodsd(lsedtot,nm)
     real(fp), dimension(:,:,:), pointer                  :: rst_rtur1
+    real(fp)                                             :: rdum
 !
 !! executable statements -------------------------------------------------------
 !
@@ -134,6 +136,23 @@ subroutine rstfil(lundia    ,error     ,restid    ,lturi     ,mmax      , &
     error = .false.
     nm_pos = 1
     !
+    ! Not all array entries are filled by the data from the restart file.
+    ! This may cause non-relevant entries to have a random value.
+    ! These values might be NaN ... which cause the nan_check of the whole
+    ! array to unnecessarily raise the alarm. Initialize all array entries
+    ! using an extreme number such that it's still clear if these array
+    ! entries used.
+    !
+    rdum = -9999999.0_fp
+    s1 = rdum
+    u1 = rdum
+    v1 = rdum
+    if (lstsci > 0) r1 = rdum
+    if (ltur > 0) rtur1 = rdum
+    umnldf = rdum
+    vmnldf = rdum
+    ! dps, roller, fluff layer, ... not initialized.
+    !
     ! test file existence, first 'tri-rst.<restid>.idate.itime'
     !
     write(lundia, '(a)') '*** Start of restart messages'
@@ -145,7 +164,7 @@ subroutine rstfil(lundia    ,error     ,restid    ,lturi     ,mmax      , &
        filpath = restid(1:ipos)
        restid  = restid(ipos+1:)
     else
-      filpath = ""
+       filpath = ""
     endif
     write (filtmp, '(4a,a1,i8.8,a1,i6.6)') trim(filpath), 'tri-rst.', trim(restid), trim(datetime)
     inquire (file = trim(filtmp), exist = ex)
@@ -162,8 +181,8 @@ subroutine rstfil(lundia    ,error     ,restid    ,lturi     ,mmax      , &
           ! Check new option: it may be a reference to a TRIM file.
           ! Use restid, because flow_nefis_restart will put it's value in gdp%gdrestart%restid
           !
-          write (filtmp, '(2a)') trim(filpath), trim(restid)
-          restid = filtmp
+          restid0 = restid
+          write (restid, '(2a)') trim(filpath), trim(restid0)
           call restart_trim_flow(lundia    ,error     ,restid    ,lturi     ,mmax      , &
                                & nmaxus    ,kmax      ,lstsci    ,ltur      , &
                                & s1        ,u1        ,v1        ,r1        ,rtur1     , &
@@ -171,8 +190,8 @@ subroutine rstfil(lundia    ,error     ,restid    ,lturi     ,mmax      , &
                                & dp        ,ex_nfs    ,namcon    ,coninit   ,gdp       )
           if (error .and. .not.ex_nfs) then
              call prterr(lundia    ,'G004'    , &
-                 & 'tri-rst.' // trim(restid) // trim(datetime) // ', tri-rst.' // trim(restid) // &
-                 & ' and ' // trim(restid) // '.dat/.def')
+                 & 'tri-rst.' // trim(restid0) // trim(datetime) // ', tri-rst.' // trim(restid0) // &
+                 & ' and ' // trim(restid0) // '.dat/.def')
           endif
        endif
     endif
@@ -190,8 +209,7 @@ subroutine rstfil(lundia    ,error     ,restid    ,lturi     ,mmax      , &
           ! This check is based on the assumption of a 4 bytes integer representing the record length
           ! (ifort default convention, i.e. not /assume:byterecl).
           !
-          luntmp = newlun(gdp)
-          open (luntmp, file = trim(filtmp), form = 'unformatted',              &
+          open (newunit=luntmp, file = trim(filtmp), form = 'unformatted',              &
                & access = 'direct', recl = 4, status = 'old')
           read (luntmp, rec=1) l
           close(luntmp)
@@ -205,7 +223,7 @@ subroutine rstfil(lundia    ,error     ,restid    ,lturi     ,mmax      , &
               ftype = FTYPE_UNKNOWN
           endif
           !
-          open (luntmp, file = trim(filtmp), form = 'unformatted',              &
+          open (newunit=luntmp, file = trim(filtmp), form = 'unformatted',              &
                & status = 'old')
        endif
        !
@@ -320,7 +338,7 @@ subroutine rstfil(lundia    ,error     ,restid    ,lturi     ,mmax      , &
               & .not. nan_check(r1    , 'r1 (restart-file)'    , lundia) .or. &
               & .not. nan_check(rtur1 , 'rtur1 (restart-file)' , lundia) .or. &
               & .not. nan_check(umnldf, 'umnldf (restart-file)', lundia) .or. &
-              & .not. nan_check(umnldf, 'vmnldf (restart-file)', lundia)      ) then
+              & .not. nan_check(vmnldf, 'vmnldf (restart-file)', lundia)      ) then
                ierror = 1
            endif
        endif

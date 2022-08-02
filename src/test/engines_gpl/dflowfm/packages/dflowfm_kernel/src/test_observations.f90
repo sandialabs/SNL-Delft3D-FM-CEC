@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -58,7 +58,7 @@ contains
 !==============================================================================
 subroutine tests_observations
     call test( test_read_obs_points, 'Tests the reading of observation points' )
-    call test( test_read_snapped_obs_points, 'Tests the reading of snapped observation points' )
+    !call test( test_read_snapped_obs_points, 'Tests the reading of snapped observation points' )
 end subroutine tests_observations
 !
 !
@@ -85,11 +85,14 @@ subroutine test_read_obs_points
     ! Body
     jampi = 0
     call loadObservations("observations/ObservationPoints_2.ini", 0)
-    do i=1,N_OBS_POINTS
-        call assert_comparable(xobs(i)  , refdata(1,i), eps, 'x-coordinate of observation points incorrect' )
-        call assert_comparable(yobs(i)  , refdata(2,i), eps, 'y-coordinate of observation points incorrect' )
-        call assert_equal     (namobs(i), refnames(i) , "Observation point name incorrect" )
-    enddo
+    call assert_true(allocated(xobs), 'xobs is allocated')
+    if (allocated(xobs)) then
+       do i=1,N_OBS_POINTS
+           call assert_comparable(xobs(i)  , refdata(1,i), eps, 'x-coordinate of observation points incorrect' )
+           call assert_comparable(yobs(i)  , refdata(2,i), eps, 'y-coordinate of observation points incorrect' )
+           call assert_equal     (namobs(i), refnames(i) , "Observation point name incorrect" )
+       enddo
+    end if
 end subroutine test_read_obs_points
 !
 !
@@ -114,6 +117,7 @@ subroutine test_read_snapped_obs_points
     integer          , dimension(N_OBS_POINTS)   :: ref_k
     double precision , dimension(2,N_OBS_POINTS) :: refdata
     character(len=40), dimension(N_OBS_POINTS)   :: refnames
+    character(len=40)                            :: mdufile
     !
     data ref_k / 522, 1043, 1565, 1304 /
     data refdata /100000.000000         , 25000.0000000         , &
@@ -135,7 +139,8 @@ subroutine test_read_snapped_obs_points
     istat = CHANGEDIRQQ("observations_snapped")
     !istat = SYSTEM("echo %CD%")
     
-    call loadModel('Flow1d.mdu')
+    mdufile = 'Flow1d.mdu'
+    call loadModel(mdufile)
     istat = flow_modelinit()
     
     istat = CHANGEDIRQQ("..")

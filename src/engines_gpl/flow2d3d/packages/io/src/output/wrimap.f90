@@ -13,7 +13,7 @@ subroutine wrimap(lundia      ,error     ,filename  ,selmap    ,simdat    , &
                   & ntruvto   ,ntruvgl   ,order_tra ,ipartition,gdp       )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -37,8 +37,8 @@ subroutine wrimap(lundia      ,error     ,filename  ,selmap    ,simdat    , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: wrimap.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/io/src/output/wrimap.f90 $
+!  $Id: wrimap.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/flow2d3d/packages/io/src/output/wrimap.f90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: Writes the initial group 2 ('map-const') to
@@ -299,7 +299,7 @@ subroutine wrimap(lundia      ,error     ,filename  ,selmap    ,simdat    , &
        if (sferic) then
           xcoordname = 'longitude'
           xcoordunit = 'degrees_east'
-          ycoordname = 'laitude'
+          ycoordname = 'latitude'
           ycoordunit = 'degrees_north'
        else
           xcoordname = 'projection_x_coordinate'
@@ -331,9 +331,9 @@ subroutine wrimap(lundia      ,error     ,filename  ,selmap    ,simdat    , &
        !
        if (lstsci  >0) iddim_lstsci = adddim(gdp, lundia, ifile, 'LSTSCI'            , lstsci  ) ! Number of constituents
        if (ltur    >0) iddim_ltur   = adddim(gdp, lundia, ifile, 'LTUR'              , ltur    ) ! Number of turbulence quantities
-       if (nostat  >0) iddim_nostat = adddim(gdp, lundia, ifile, 'NOSTAT'            , nostatgl) ! Number of monitoring stations
+       if (nostatgl>0) iddim_nostat = adddim(gdp, lundia, ifile, 'NOSTAT'            , nostatgl) ! Number of monitoring stations
        if (nsrc    >0) iddim_nsrc   = adddim(gdp, lundia, ifile, 'NSRC'              , nsrc    ) ! Number of discharges
-       if (ntruv   >0) iddim_ntruv  = adddim(gdp, lundia, ifile, 'NTRUV'             , ntruvgl ) ! Number of monitoring cross-sections
+       if (ntruvgl >0) iddim_ntruv  = adddim(gdp, lundia, ifile, 'NTRUV'             , ntruvgl ) ! Number of monitoring cross-sections
                        iddim_norow  = adddim(gdp, lundia, ifile, 'NOROW'             , norow   ) ! Number of rows for IROCOL table 
                        iddim_noroco = adddim(gdp, lundia, ifile, 'NOROCO'            , noroco  ) ! Number of columns of IROCOL table
        if (lsed    >0) iddim_lsed   = adddim(gdp, lundia, ifile, 'LSED'              , lsed    ) ! Number of sediment constituents

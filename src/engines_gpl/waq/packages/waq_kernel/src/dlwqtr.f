@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -109,7 +109,7 @@
 !
 !     Local
 !
-      PARAMETER  ( LCCCO  = 98 )
+      INTEGER    LCCCO
       LOGICAL    FIRST ,  LINIT , LEXI
       DATA       FIRST / .TRUE. /
       DATA       LINIT / .FALSE. /
@@ -158,8 +158,8 @@
 !              WRITE (LUNREP,2020)
 !              WRITE (  *   ,2020)
             ELSE
-               OPEN ( LCCCO, FILE='areachar.dat', FORM  ='UNFORMATTED',
-     +                       STATUS='OLD'       , IOSTAT=IER2         )
+               OPEN ( NEWUNIT = LCCCO, FILE='areachar.dat', FORM  ='UNFORMATTED',
+     +                                 STATUS='OLD'       , IOSTAT=IER2         )
                IF ( IER2 .NE. 0 ) THEN
                   WRITE (LUNREP,2010)
                   WRITE ( *    ,2010)

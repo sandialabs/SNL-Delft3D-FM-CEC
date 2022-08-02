@@ -1,7 +1,7 @@
 module properties
 !----- LGPL --------------------------------------------------------------------
 !
-!  Copyright (C)  Stichting Deltares, 2011-2020.
+!  Copyright (C)  Stichting Deltares, 2011-2022.
 !
 !  This library is free software; you can redistribute it and/or
 !  modify it under the terms of the GNU Lesser General Public
@@ -25,8 +25,8 @@ module properties
 !  Stichting Deltares. All rights reserved.
 !
 !-------------------------------------------------------------------------------
-!  $Id: properties.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/deltares_common/packages/deltares_common/src/properties.f90 $
+!  $Id: properties.f90 141288 2022-05-27 09:47:13Z markus $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_lgpl/deltares_common/packages/deltares_common/src/properties.f90 $
 !!--description-----------------------------------------------------------------
 ! NONE
 !!--pseudo code and references--------------------------------------------------
@@ -70,31 +70,77 @@ module properties
        module procedure prop_set_double
        module procedure prop_set_doubles
     end interface
-    
+
     interface get_version_number
        module procedure prop_get_version_number
     end interface
-    
-contains
 
-subroutine prop_file(filetype, filename , tree, error)
+   contains
+
+!> Loads an .ini file into a tree structure.
+!! Some optional arguments may be used to obtain error status + message.
+subroutine readIniFile(filename, ini_ptr, filetypename, errmsg, istat)
+    character(len=*),           intent(in   ) :: filename     !< File to be read
+    type(tree_data),            pointer       :: ini_ptr      !< tree_data structure into which file is read, subsequently ready for prop_get calls.
+    character(len=*), optional, intent(in   ) :: filetypename !< Optional name of this file type, used in a possible error message. Default: 'ini file'.
+    character(len=*), optional, intent(  out) :: errmsg       !< Optional character string that will be filled with a printable error message (to be done on call site).
+    integer,          optional, intent(  out) :: istat        !< Optional result status (0 if successful).
+
+    integer :: istat_
+    character(len=64) :: filetypename_
+
+    istat_ = 0 ! Success
+
+    ! Prepare error message:
+    if (present(filetypename)) then
+       filetypename_ = filetypename
+    else
+       filetypename_ = 'ini file'
+    end if
+
+    ! Construct + fill tree
+    call tree_create(trim(filename), ini_ptr)
+    call prop_file('ini',trim(filename), ini_ptr, istat_)
+
+    ! Handle possible error
+    if (istat_ /= 0 .and. present(errmsg)) then
+       write(errmsg, '(a," ''",a,"'' not found. Code: ",i0)') trim(filetypename), trim(filename), istat_
+    endif
+    if (present(istat)) then
+       istat = istat_
+    end if
+
+end subroutine readIniFile
+
+
+subroutine prop_file(filetype, filename , tree, error, errmsg)
     use tree_structures
     !
     implicit none
     !
     ! Parameters
     !
-    character(*), intent(in)  :: filetype
-    character(*), intent(in)  :: filename
-    type(tree_data), pointer  :: tree
-    integer     , intent(out) :: error
+    character(*), intent(in)                :: filetype
+    character(*), intent(in)                :: filename
+    type(tree_data), pointer                :: tree
+    integer     , intent(out)               :: error
+    character(len=*), intent(out), optional :: errmsg
     !
     ! Local variables
     !
-    character(10) :: ftype
+    integer        :: lu
+    character(10)  :: ftype
 
-    ftype = str_tolower(filetype)
-    error = 0
+    ftype         = str_tolower(filetype)
+    error         = 0
+
+    ! Get the error message first if requested - keeps the interface for the individual routines the same as before
+    if ( present(errmsg) ) then
+       errmsg = ' '
+       open(newunit=lu,file=filename,iostat=error,status='old', iomsg = errmsg)
+       close(lu)
+    endif
+
     select case (trim(ftype))
     case ('ini')
        call prop_inifile(filename, tree, error)
@@ -102,6 +148,9 @@ subroutine prop_file(filetype, filename , tree, error)
        call prop_tekalfile(filename, tree, error)
     case default
        write(*,*)'file type ',filetype,' not supported'
+       if ( present(errmsg) ) then
+          errmsg = 'file type ' // trim(filetype) // ' not supported'
+       endif
        error = 5
     endselect
 end subroutine prop_file
@@ -227,6 +276,10 @@ subroutine prop_inifile_pointer(lu, tree)
 
         do ! Check on line continuation
             call GetLine(lu, lineconttemp, eof)
+            if (index(lineconttemp, 'END PARAMETERS') == 1) then
+               eof = -1
+               return ! stop reading from file
+            endif
             linecont = adjustl(lineconttemp)
             lcend = len_trim(linecont)
             if (lcend == 0) then
@@ -263,25 +316,23 @@ subroutine prop_inifile_pointer(lu, tree)
                 if (mod(num_bs, 2) == 1) then ! Odd nr of backslashes, indeed line continuation
                     multiple_lines = .true.
                     lcend = lcend-1 ! Strip off single line cont character
-                    goto 700
+                    line = line(1:lend)//' '//linecont(1:lcend)
+                    lend = lend + lcend + 1
+                    ! Line continuation, proceed to next line
                 else
                     if (.not. multiple_lines) then
                         ! No continuation, so leave possible comment as well
                         lcend = len_trim(linecont)
                     end if
-                    goto 800
+                    line = line(1:lend)//' '//linecont(1:lcend)
+                    lend = lend + lcend + 1
+                    exit  ! No further lines for this value
                 end if
             else
                 ! Empty line, leave continuation loop
                 exit
             end if
 
-        700 line = line(1:lend)//' '//linecont(1:lcend)
-            lend = lend + lcend + 1
-            cycle ! Line continuation, proceed to next line
-        800 line = line(1:lend)//' '//linecont(1:lcend)
-            lend = lend + lcend + 1
-            exit  ! No further lines for this value
         end do
 
        if (eof/=0) exit
@@ -915,11 +966,11 @@ end subroutine print_initree
 !!    StringIn = # AFileName # Comments are allowed behind the second "#"
 subroutine prop_get_string(tree, chapterin ,keyin, value, success)
     implicit none
-    type(tree_data), pointer        :: tree        !< The property tree
-    character(*),intent(in)         :: chapterin   !< Name of the chapter (case-insensitive) or "*" to get any key
-    character(*),intent(in)         :: keyin       !< Name of the key (case-insensitive)
-    character(*)                    :: value       !< Value of the key (not set if the key is not found, so you can set a default value)
-    logical, optional, intent (out) :: success     !< Whether successful or not (optional)
+    type(tree_data)  , pointer       :: tree        !< The property tree
+    character(*)     , intent(in)    :: chapterin   !< Name of the chapter (case-insensitive) or "*" to get any key
+    character(*)     , intent(in)    :: keyin       !< Name of the key (case-insensitive)
+    character(*)     , intent(inout) :: value       !< Value of the key (not set if the key is not found, so you can set a default value)
+    logical, optional, intent(out)   :: success     !< Whether successful or not (optional)
     !
     ! Local variables
     !
@@ -953,11 +1004,11 @@ end subroutine prop_get_string
 !!    StringIn = # AFileName # Comments are allowed behind the second "#"
 subroutine prop_get_alloc_string(tree, chapterin, keyin, value, success)
     implicit none
-    type(tree_data), pointer        :: tree       !< The property tree
-    character(*),intent(in)         :: chapterin  !< Name of the chapter (case-insensitive) or "*" to get any key
-    character(*),intent(in)         :: keyin      !< Name of the key (case-insensitive)
-    character(:), allocatable       :: value      !< Value of the key (not set if the key is not found, so you can set a default value)
-    logical, optional, intent (out) :: success    !< Whether successful or not (optional)
+    type(tree_data)          , pointer       :: tree       !< The property tree
+    character(*)             , intent(in)    :: chapterin  !< Name of the chapter (case-insensitive) or "*" to get any key
+    character(*)             , intent(in)    :: keyin      !< Name of the key (case-insensitive)
+    character(:), allocatable, intent(inout) :: value      !< Value of the key (not set if the key is not found, so you can set a default value)
+    logical        , optional, intent (out)  :: success    !< Whether successful or not (optional)
     !
     ! Local variables
     !
@@ -1113,11 +1164,11 @@ end subroutine node_unvisit
 !!    IntegerIn = Index 8, denoting the startpoint for searches
 subroutine prop_get_integer(tree, chapter, key, value, success)
     implicit none
-    type(tree_data), pointer        :: tree    !< The property tree
-    integer     ,intent (inout)     :: value   !< Value of the key (not set if the key is not found, so you can set a default value)
-    character(*),intent (in)        :: chapter !< Name of the chapter (case-insensitive) or "*" to get any key
-    character(*),intent (in)        :: key     !< Name of the key (case-insensitive)
-    logical, optional, intent (out) :: success !< Whether successful or not (optional)
+    type(tree_data)  , pointer       :: tree    !< The property tree
+    integer          , intent(inout) :: value   !< Value of the key (not set if the key is not found, so you can set a default value)
+    character(*)     , intent(in)    :: chapter !< Name of the chapter (case-insensitive) or "*" to get any key
+    character(*)     , intent(in)    :: key     !< Name of the key (case-insensitive)
+    logical, optional, intent(out)   :: success !< Whether successful or not (optional)
     !
     ! Local variables
     !
@@ -1144,12 +1195,12 @@ end subroutine prop_get_integer
 !!    IntegersIn = (n,m): 4,5
 subroutine prop_get_integers(tree, chapter, key, value, valuelength, success)
     implicit none
-    type(tree_data), pointer           :: tree         !< The property tree
-    integer              ,intent (in)  :: valuelength  !< Size of the array value
-    integer, dimension(*),intent (out) :: value        !< Values of the key (not set if the key is not found, so you can set a default value)
-    character(*)         ,intent (in)  :: chapter      !< Name of the chapter (case-insensitive) or "*" to get any key
-    character(*)         ,intent (in)  :: key          !< Name of the key (case-insensitive)
-    logical, optional    ,intent (out) :: success      !< Whether successful or not (optional)
+    type(tree_data)      , pointer       :: tree         !< The property tree
+    integer              , intent(in)    :: valuelength  !< Size of the array value
+    integer, dimension(*), intent(inout) :: value        !< Values of the key (not set if the key is not found, so you can set a default value)
+    character(*)         , intent(in)    :: chapter      !< Name of the chapter (case-insensitive) or "*" to get any key
+    character(*)         , intent(in)    :: key          !< Name of the key (case-insensitive)
+    logical, optional    , intent(out)   :: success      !< Whether successful or not (optional)
     !
     ! Local variables
     !
@@ -1222,11 +1273,11 @@ end subroutine prop_get_integers
 !!              RealIn = Gravity 9.8, m/s*2
 subroutine prop_get_real(tree, chapter, key, value, success)
     implicit none
-    type(tree_data), pointer    :: tree !< The property tree
-    real        ,intent (inout) :: value !< Value of the key (not set if the key is not found, so you can set a default value)
-    character(*),intent (in)    :: chapter !< Name of the chapter (case-insensitive) or "*" to get any key
-    character(*),intent (in)    :: key !< Name of the key (case-insensitive)
-    logical, optional, intent(out) :: success !< Whether successful or not (optional)
+    type(tree_data)  , pointer       :: tree !< The property tree
+    real             , intent(inout) :: value !< Value of the key (not set if the key is not found, so you can set a default value)
+    character(*)     , intent(in)    :: chapter !< Name of the chapter (case-insensitive) or "*" to get any key
+    character(*)     , intent(in)    :: key !< Name of the key (case-insensitive)
+    logical, optional, intent(out)   :: success !< Whether successful or not (optional)
     !
     ! Local variables
     !
@@ -1253,12 +1304,12 @@ end subroutine prop_get_real
 !!     RealsIn = (x,y): 4.5,5.9 Start point
 subroutine prop_get_reals(tree, chapter, key, value, valuelength, success)
     implicit none
-    type(tree_data), pointer         :: tree         !< The property tree
-    integer           , intent (in)  :: valuelength  !< Size of the array value
-    real, dimension(*), intent (out) :: value        !< Values of the key (not set if the key is not found, so you can set a default value)
-    character(*)      , intent (in)  :: chapter      !< Name of the chapter (case-insensitive) or "*" to get any key
-    character(*)      , intent (in)  :: key          !< Name of the key (case-insensitive)
-    logical, optional , intent (out) :: success      !< Whether successful or not (optional)
+    type(tree_data)   , pointer        :: tree         !< The property tree
+    integer           , intent (in)    :: valuelength  !< Size of the array value
+    real, dimension(*), intent (inout) :: value        !< Values of the key (not set if the key is not found, so you can set a default value)
+    character(*)      , intent (in)    :: chapter      !< Name of the chapter (case-insensitive) or "*" to get any key
+    character(*)      , intent (in)    :: key          !< Name of the key (case-insensitive)
+    logical, optional , intent (out)   :: success      !< Whether successful or not (optional)
     !
     ! Local variables
     !
@@ -1342,11 +1393,11 @@ end subroutine prop_get_reals
 !!    RealIn = Gravity 9.8, m/s*2
 subroutine prop_get_double(tree, chapter, key, value, success)
     implicit none
-    type(tree_data), pointer       :: tree    !< The property tree
-    real(kind=dp) ,intent (inout)  :: value   !< Value of the key (not set if the key is not found, so you can set a default value)
-    character(*)  ,intent (in)     :: chapter !< Name of the chapter (case-insensitive) or "*" to get any key
-    character(*)  ,intent (in)     :: key     !< Name of the key (case-insensitive)
-    logical, optional, intent(out) :: success !< Whether successful or not (optional)
+    type(tree_data)  , pointer       :: tree    !< The property tree
+    real(kind=dp)    , intent(inout) :: value   !< Value of the key (not set if the key is not found, so you can set a default value)
+    character(*)     , intent(in)    :: chapter !< Name of the chapter (case-insensitive) or "*" to get any key
+    character(*)     , intent(in)    :: key     !< Name of the key (case-insensitive)
+    logical, optional, intent(out)   :: success !< Whether successful or not (optional)
     !
     ! Local variables
     !
@@ -1373,12 +1424,12 @@ end subroutine prop_get_double
 !!    RealsIn = (x,y): 4.5,5.9 Start point
 subroutine prop_get_doubles(tree, chapter, key, value, valuelength, success)
     implicit none
-    type(tree_data), pointer                  :: tree        !< The property tree
-    integer                    , intent (in)  :: valuelength !< Size of the array value
-    real(kind=dp), dimension(*), intent (out) :: value       !< Values of the key (not set if the key is not found, so you can set a default value)
-    character(*)               , intent (in)  :: chapter     !< Name of the chapter (case-insensitive) or "*" to get any key
-    character(*)               , intent (in)  :: key         !< Name of the key (case-insensitive)
-    logical, optional          , intent (out) :: success     !< Whether successful or not (optional)
+    type(tree_data)            , pointer       :: tree        !< The property tree
+    integer                    , intent(in)    :: valuelength !< Size of the array value
+    real(kind=dp), dimension(*), intent(inout) :: value       !< Values of the key (not set if the key is not found, so you can set a default value)
+    character(*)               , intent(in)    :: chapter     !< Name of the chapter (case-insensitive) or "*" to get any key
+    character(*)               , intent(in)    :: key         !< Name of the key (case-insensitive)
+    logical, optional          , intent(out)   :: success     !< Whether successful or not (optional)
     !
     ! Local variables
     !
@@ -1463,11 +1514,11 @@ end subroutine prop_get_doubles
 !!    Not allowed
 subroutine prop_get_logical(tree, chapter, key, value, success)
     implicit none
-    type(tree_data), pointer        :: tree    !< The property tree
-    character(*),intent (in)        :: chapter !< Name of the chapter (case-insensitive) or "*" to get any key
-    character(*),intent (in)        :: key     !< Name of the key (case-insensitive)
-    logical     ,intent (out)       :: value   !< Value of the key (not set if the key is not found, so you can set a default value)
-    logical, optional, intent (out) :: success !< Whether successful or not (optional)
+    type(tree_data)  , pointer       :: tree    !< The property tree
+    character(*)     , intent(in)    :: chapter !< Name of the chapter (case-insensitive) or "*" to get any key
+    character(*)     , intent(in)    :: key     !< Name of the key (case-insensitive)
+    logical          , intent(inout) :: value   !< Value of the key (not set if the key is not found, so you can set a default value)
+    logical, optional, intent(out)   :: success !< Whether successful or not (optional)
     !
     ! Local variables
     !
@@ -1708,21 +1759,21 @@ subroutine prop_set_integers(tree, chapter, key, value, anno, success)
 
     strvalue = ' '
     n = size(value)
-    if (n==0) goto 10
+    if (n > 0) then
+        ! Pretty print all integers into strvalue, separated by single spaces
+        write(strvalue, *) value(1)
+        strvalue = adjustl(strvalue)
+        iv = len_trim(strvalue)
+        do i=2,n
+            write(strscalar,*) value(i)
+            strscalar = adjustl(strscalar)
+            is = len_trim(strscalar)
+            strvalue(iv+2:iv+is+1) = strscalar(1:is)
+            iv  = iv+is+1
+        end do
+    end if
 
-    ! Pretty print all integers into strvalue, separated by single spaces
-    write(strvalue, *) value(1)
-    strvalue = adjustl(strvalue)
-    iv = len_trim(strvalue)
-    do i=2,n
-        write(strscalar,*) value(i)
-        strscalar = adjustl(strscalar)
-        is = len_trim(strscalar)
-        strvalue(iv+2:iv+is+1) = strscalar(1:is)
-        iv  = iv+is+1
-    end do
-
- 10 continue ! Put the string representation into the tree
+    ! Put the string representation into the tree
     if (present(anno)) then
         call prop_set_data(tree, chapter, key, transfer(trim(strvalue), node_value), 'STRING', anno = anno, success = success_)
     else
@@ -1876,13 +1927,13 @@ end subroutine count_occurrences
     !
     ! Parameters
     !
-    type(tree_data), pointer                          :: tree
-    character(*),intent(in)                           :: chapterin
-    character(*),intent(in)                           :: keyin
-    integer, intent(in)                               :: valuelength
-    character*(*), intent(out), dimension(:)          :: value
-    logical, intent (out)                             :: success
-    character(1), optional                            :: spChar
+    type(tree_data)            , pointer       :: tree
+    character(*)               , intent(in)    :: chapterin
+    character(*)               , intent(in)    :: keyin
+    integer                    , intent(in)    :: valuelength
+    character*(*), dimension(:), intent(inout) :: value
+    logical                    , intent(out)   :: success
+    character(1)               , optional      :: spChar
     !
     ! Local variables
     !
@@ -1973,32 +2024,30 @@ end subroutine count_occurrences
  end subroutine prop_get_strings
 
  !> Returns the version number found in the ini file default location is "[General], fileVersion".
- !! FileVersion should contain <<major>>.<<minor>><<additional info>>. 
+ !! FileVersion should contain <<major>>.<<minor>><<additional info>>.
  !! SUCCESS is set to false, when no '.' is found or when the key cannot be found.
  subroutine prop_get_version_number(tree, chapterin, keyin, major, minor, versionstring, success)
     use MessageHandling
-    
+
     implicit none
     !
     ! Parameters
     !
     type(tree_data), pointer, intent(in   )                 :: tree           !< pointer to treedata structure of input
-    character(*)            , intent(in   ), optional       :: chapterin      !< chapter for the fileVersion, if not present 'General' is used 
-    character(*)            , intent(in   ), optional       :: keyin          !< key for fileVersion, if not present 'fileVersion' is used 
+    character(*)            , intent(in   ), optional       :: chapterin      !< chapter for the fileVersion, if not present 'General' is used
+    character(*)            , intent(in   ), optional       :: keyin          !< key for fileVersion, if not present 'fileVersion' is used
     integer                 , intent(  out), optional       :: major          !< Major number of the fileVersion
     integer                 , intent(  out), optional       :: minor          !< Minor number of the fileVersion
     character(len=*)        , intent(  out), optional       :: versionstring  !< Version string
     logical                 , intent(  out), optional       :: success        !< Returns whether fileVersion is found
-    
+
     character(len=IdLen)      :: chapterin_
     character(len=IdLen)      :: keyin_
     character(len=IdLen)      :: string
-    logical                   :: success_
     logical                   :: isnum
     integer                   :: idot
     integer                   :: iend
-    
-    
+
     if (present(chapterin)) then
        chapterin_ = chapterin
     else
@@ -2009,29 +2058,29 @@ end subroutine count_occurrences
     else
        keyin_ = 'fileVersion'
     endif
-    
+
     call prop_get_string(tree, chapterin_, keyin_, string, success)
     if (.not. success) then
        return
     endif
-    
+
     if (present(versionstring)) then
        versionstring= string
     endif
-   
+
     idot = index(string, '.')
     if (idot==0) then
        success = .false.
        return
     endif
-       
+
     if (present(major)) then
        read(string(1:idot-1), *) major
     endif
     if (present(minor)) then
        iend = idot
        isnum = .true.
-       do while (isnum) 
+       do while (isnum)
           if (iend+1 > len(string)) then
              isnum = .false.
           elseif (scan(string(iend+1:iend+1),'0123456789') /= 0) then
@@ -2040,7 +2089,7 @@ end subroutine count_occurrences
              isnum = .false.
           endif
        enddo
-       
+
        read(string(idot+1:iend), *) minor
     endif
  end subroutine prop_get_version_number

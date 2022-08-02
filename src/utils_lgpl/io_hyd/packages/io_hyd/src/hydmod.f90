@@ -1,6 +1,6 @@
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -24,8 +24,8 @@
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: hydmod.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/io_hyd/packages/io_hyd/src/hydmod.f90 $
+!  $Id: hydmod.f90 141387 2022-06-17 13:31:44Z jeuke_ml $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_lgpl/io_hyd/packages/io_hyd/src/hydmod.f90 $
 
       module hydmod
 
@@ -56,6 +56,12 @@
       integer, parameter          :: HYD_GEOM_UNKNOWN  =   0          ! unknown
       integer, parameter          :: HYD_GEOM_CURVI    =   1          ! curvilinear-grid
       integer, parameter          :: HYD_GEOM_UNSTRUC  =   2          ! unstructured
+
+      ! layer types
+
+      integer, parameter          :: HYD_LAYERS_UNKNOWN  =   0          ! unknown
+      integer, parameter          :: HYD_LAYERS_SIGMA    =   1          ! curvilinear-grid
+      integer, parameter          :: HYD_LAYERS_Z        =   2          ! unstructured
 
       ! attributes types
 
@@ -98,6 +104,10 @@
          character*40                           :: creation_date          ! date and time of hyd-file creation
          integer                                :: task                   !
          integer                                :: geometry               !
+         integer                                :: layer_type             !
+         real*8                                 :: zbot                   ! Maximum depth in the model (relative to the reference level; unit: metres; positive upwards, z-layer only).
+         real*8                                 :: ztop                   ! The ‘imaginary’ maximum water level in the model (relative to the reference level; unit: metres; positive upwards, z-layer only).
+                                                                          ! This imaginary level is used only to determine the grid distribution. It does not mark the maximum surface level.
          integer                                :: horizontal_aggregation !
          integer                                :: minimum_vdf_used       !
          integer                                :: vertical_diffusion     !
@@ -194,6 +204,7 @@
          integer, pointer                       :: idomain(:)             ! idomain
          integer, pointer                       :: iglobal(:)             ! global cell numbering
          integer, pointer                       :: iglobal_bnd(:)         ! global boundary numbering
+         logical, pointer                       :: ispoint_bnd(:)         ! is boundary a point source
          integer, pointer                       :: ilocal_link(:)         ! local number in owner domain
          integer, pointer                       :: iglobal_link(:)        ! iglobal_link
          integer                                :: numcontpts             ! numcontpts number of contour nodes

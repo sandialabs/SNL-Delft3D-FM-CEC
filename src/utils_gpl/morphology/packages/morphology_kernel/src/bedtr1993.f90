@@ -3,10 +3,11 @@ subroutine bedtr1993(uuu       ,vvv       ,u2dh      ,d50       ,d90       , &
                    & dstar     ,ws        ,hrms      ,tp        ,teta      , &
                    & rlabda    ,umod      ,qbcu      ,qbcv      ,qbwu      , &
                    & qbwv      ,qswu      ,qswv      ,rhowat    ,ag        , &
-                   & wave      ,eps       ,error     ,message   )
+                   & wave      ,eps       ,uon       ,uoff      ,vcr       , &
+                   & error     ,message   )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -30,8 +31,8 @@ subroutine bedtr1993(uuu       ,vvv       ,u2dh      ,d50       ,d90       , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: bedtr1993.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_gpl/morphology/packages/morphology_kernel/src/bedtr1993.f90 $
+!  $Id: bedtr1993.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_gpl/morphology/packages/morphology_kernel/src/bedtr1993.f90 $
 !!--description-----------------------------------------------------------------
 !
 ! Compute bed load transport according to Van Rijn
@@ -52,7 +53,7 @@ subroutine bedtr1993(uuu       ,vvv       ,u2dh      ,d50       ,d90       , &
     !
     implicit none
 !
-! Call variables
+! Arguments
 !
     real(fp)    , intent(in)  :: ag
     real(fp)    , intent(in)  :: d50
@@ -80,6 +81,9 @@ subroutine bedtr1993(uuu       ,vvv       ,u2dh      ,d50       ,d90       , &
     real(fp)    , intent(in)  :: uuu
     real(fp)    , intent(in)  :: vvv
     real(fp)    , intent(in)  :: ws      !  Description and declaration in esm_alloc_real.f90
+    real(fp)    , intent(out) :: uoff
+    real(fp)    , intent(out) :: uon
+    real(fp)    , intent(out) :: vcr
     logical     , intent(out) :: error
     logical     , intent(in)  :: wave
     character(*), intent(out) :: message !  Contains error message
@@ -120,9 +124,6 @@ subroutine bedtr1993(uuu       ,vvv       ,u2dh      ,d50       ,d90       , &
     real(fp) :: ua
     real(fp) :: ubw
     real(fp) :: umax
-    real(fp) :: uoff
-    real(fp) :: uon
-    real(fp) :: vcr
     real(fp) :: veff
     real(fp) :: vr
 !
@@ -177,7 +178,7 @@ subroutine bedtr1993(uuu       ,vvv       ,u2dh      ,d50       ,d90       , &
           ! Calculate Uon and Uoff, asymmetrie ISOBE
           !
           hs    = hrms*sqrt(2.0)
-          rls   = rlabda
+          rls   = max(rlabda,1.0e-12_fp)
           rhs13 = hs/rls
           tp1   = tp
           if (h1*2.0*pi/rls > 20.0) then

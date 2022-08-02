@@ -21,7 +21,7 @@ function DATA = qpcross(varargin)
 
 %----- LGPL --------------------------------------------------------------------
 %                                                                               
-%   Copyright (C) 2011-2020 Stichting Deltares.                                     
+%   Copyright (C) 2011-2022 Stichting Deltares.                                     
 %                                                                               
 %   This library is free software; you can redistribute it and/or                
 %   modify it under the terms of the GNU Lesser General Public                   
@@ -46,8 +46,8 @@ function DATA = qpcross(varargin)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/qpcross.m $
-%   $Id: qpcross.m 65778 2020-01-14 14:07:42Z mourits $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/tools_lgpl/matlab/quickplot/progsrc/qpcross.m $
+%   $Id: qpcross.m 140618 2022-01-12 13:12:04Z klapwijk $
 
 if nargin<4 % DOMAINNR and SUBFIELD are only required for some FIELDs
     error('Not enough input arguments.')

@@ -1,6 +1,6 @@
 !----- LGPL --------------------------------------------------------------------
 !
-!  Copyright (C)  Stichting Deltares, 2011-2020.
+!  Copyright (C)  Stichting Deltares, 2011-2022.
 !
 !  This library is free software; you can redistribute it and/or
 !  modify it under the terms of the GNU Lesser General Public
@@ -23,8 +23,8 @@
 !  are registered trademarks of Stichting Deltares, and remain the property of
 !  Stichting Deltares. All rights reserved.
 
-!  $Id: ec_filereader_read.F90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/ec_module/packages/ec_module/src/ec_filereader_read.F90 $
+!  $Id: ec_filereader_read.F90 140881 2022-03-09 10:15:54Z reyns $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_lgpl/ec_module/packages/ec_module/src/ec_filereader_read.F90 $
 
 !> This module contains the read methods for the meteo files.
 !! @author stef.hummel@deltares.nl
@@ -551,8 +551,8 @@ module m_ec_filereader_read
                item2%sourceT0FieldPtr%arr1dPtr(i*n_cols) = item2%sourceT0FieldPtr%arr1dPtr(1+(i-1)*n_cols)
                item3%sourceT0FieldPtr%arr1dPtr(i*n_cols) = item3%sourceT0FieldPtr%arr1dPtr(1+(i-1)*n_cols)
             end do
-            ! Compensate for unit of pressure (mbar versus Pa)
-            if (trim(item3%quantityPtr%units) == 'mbar') then
+            ! Compensate for unit of pressure (mbar (= hpa) versus Pa)
+            if ((index(item3%quantityPtr%units,'mbar') == 1) .or. (index(item3%quantityPtr%units,'hPa') == 1)) then
                do i=1, size(item3%sourceT0FieldPtr%arr1dPtr)
                   item3%sourceT0FieldPtr%arr1dPtr(i) = item3%sourceT0FieldPtr%arr1dPtr(i)*100.0_hp
                end do
@@ -651,8 +651,8 @@ module m_ec_filereader_read
                item2%sourceT1FieldPtr%arr1dPtr(i*n_cols) = item2%sourceT1FieldPtr%arr1dPtr(1+(i-1)*n_cols)
                item3%sourceT1FieldPtr%arr1dPtr(i*n_cols) = item3%sourceT1FieldPtr%arr1dPtr(1+(i-1)*n_cols)
             end do
-            ! Compensate for unit of pressure (mbar versus Pa)
-            if (trim(item3%quantityPtr%units) == 'mbar') then
+            ! Compensate for unit of pressure (mbar, hPa versus Pa)
+            if ((index(item3%quantityPtr%units,'mbar') == 1) .or. (index(item3%quantityPtr%units,'hPa') == 1)) then
                do i=1, size(item3%sourceT1FieldPtr%arr1dPtr)
                   item3%sourceT1FieldPtr%arr1dPtr(i) = item3%sourceT1FieldPtr%arr1dPtr(i)*100.0_hp
                end do
@@ -819,8 +819,13 @@ module m_ec_filereader_read
 
                if (item%elementSetPtr%nCoordinates > 0) then
                   if ( issparse == 1 ) then
-                     call read_data_sparse(fileReaderPtr%fileHandle, varid, n_cols, n_rows, item%elementSetPtr%n_layers, timesndx, ia, ja, Ndatasize, fieldPtr%arr1dPtr, ierror)
-                     valid_field = .true.
+                     call read_data_sparse(fileReaderPtr%fileHandle, varid, n_cols, n_rows, item%elementSetPtr%n_layers, &
+                                           timesndx, fileReaderPtr%relndx, ia, ja, Ndatasize, fieldPtr%arr1dPtr, ierror)
+                     if (ecSupportNetcdfCheckError(ierror, 'Error reading quantity '//trim(item%quantityptr%name)//' from sparse data. ', fileReaderPtr%filename)) then
+                         valid_field = .true.
+                     else
+                         return
+                     endif
                   else
                      if (item%elementSetPtr%n_layers == 0) then 
                         if (item%elementSetPtr%ofType == elmSetType_samples) then
@@ -896,6 +901,7 @@ module m_ec_filereader_read
          integer                             :: idvar_q       !< id as obtained from NetCDF
          integer                             :: ntimes        !< number of times on the NetCDF file
          integer                             :: read_index    !< index of field to read
+         real(hp)                            :: tim           !< instantanious time
          real(hp), dimension(:), allocatable :: times         !< time array read from NetCDF
          character(NF90_MAX_NAME)            :: string        !< to catch NetCDF messages
          !
@@ -937,6 +943,11 @@ module m_ec_filereader_read
             call setECMessage("Allocation error in ec_filereader_read::ecNetcdfReadBlock.")
             return
          endif
+         ! Parse refdate and tunit to reconstruct mjd from netcdf timestep vector
+         string = '' ! NetCDF does not completely overwrite a string, so re-initialize.
+         if (.not. ecSupportNetcdfCheckError(nf90_get_att(fileReaderPtr%fileHandle, idvar_time, "units", string), "obtain units", fileReaderPtr%fileName)) return
+         if (.not. ecSupportTimestringToUnitAndRefdate(string, fileReaderPtr%tframe%ec_timestep_unit, fileReaderPtr%tframe%ec_refdate, &
+                                                              tzone = fileReaderPtr%tframe%ec_timezone)) return
          ierror = nf90_get_var(fileReaderPtr%fileHandle, idvar_time, times, start=(/1/), count=(/ntimes/)); success = ecSupportNetcdfCheckError(ierror, "get_var time", fileReaderPtr%fileName)
          !
          ! Search in times the first time bigger than lastReadTime
@@ -968,13 +979,15 @@ module m_ec_filereader_read
             endif
             !
             ! T0
-            if (t0t1==0) then
-               item1%sourceT0FieldPtr%timesteps = times(read_index)
+            if (t0t1==0) then   ! JRE: needed to be changed to mjd because of use in ecItemUpdateSourceItem
+               tim=fileReaderPtr%tframe%ec_refdate + times(read_index) * ecSupportTimeUnitConversionFactor(fileReaderPtr%tframe%ec_timestep_unit) / 86400.0_hp - fileReaderPtr%tframe%ec_timezone / 24.0_hp
+               item1%sourceT0FieldPtr%timesteps = tim
                ierror = nf90_get_var(fileReaderPtr%fileHandle, idvar_q, item1%sourceT0FieldPtr%arr1dPtr, start=(/ 1, read_index /), count = (/ n, 1 /))
                success = ecSupportNetcdfCheckError(ierror, "get_var "//item1%quantityPtr%name, fileReaderPtr%fileName)
             ! ===== T1 =====
             else if(t0t1==1) then
-               item1%sourceT1FieldPtr%timesteps = times(read_index)
+               tim=fileReaderPtr%tframe%ec_refdate + times(read_index) * ecSupportTimeUnitConversionFactor(fileReaderPtr%tframe%ec_timestep_unit) / 86400.0_hp - fileReaderPtr%tframe%ec_timezone / 24.0_hp
+               item1%sourceT1FieldPtr%timesteps = tim
                ierror = nf90_get_var(fileReaderPtr%fileHandle, idvar_q, item1%sourceT1FieldPtr%arr1dPtr, start=(/ 1, read_index /), count = (/ n, 1 /))
                success = ecSupportNetcdfCheckError(ierror, "get_var "//item1%quantityPtr%name, fileReaderPtr%fileName)
             else
@@ -1308,9 +1321,9 @@ module m_ec_filereader_read
          indxComment = index(rec, '#')
          if (indx /= 0) then
             if (indxComment /= 0) then
-               answer = rec(indx+1:indxComment - 1)
+               answer = adjustl(rec(indx+1:indxComment - 1))
             else
-               answer = rec(indx+1:)
+               answer = adjustl(rec(indx+1:))
             endif
          else
             call setECMessage("ERROR: ec_filereader_read::ecSpiderwebAndCurviFindInFile: Failed to read an existing line.")
@@ -1915,9 +1928,9 @@ module m_ec_filereader_read
          success = .true.
 
          if (corFileReaderPtr%bc%func==BC_FUNC_HARMOCORR) then
-            cmpFileReaderPtr => ecSupportFindRelatedBCBlock(instancePtr, corFileReaderPtr, corFileReaderPtr % bc % qname, corFileReaderPtr % bc % bcname, BC_FUNC_HARMONIC)
+            cmpFileReaderPtr => ecSupportFindRelatedBCBlock(instancePtr, corFileReaderPtr, BC_FUNC_HARMONIC)
          elseif (corFileReaderPtr%bc%func==BC_FUNC_ASTROCORR) then
-            cmpFileReaderPtr => ecSupportFindRelatedBCBlock(instancePtr, corFileReaderPtr, corFileReaderPtr % bc % qname, corFileReaderPtr % bc % bcname, BC_FUNC_ASTRO)
+            cmpFileReaderPtr => ecSupportFindRelatedBCBlock(instancePtr, corFileReaderPtr, BC_FUNC_ASTRO)
          endif
 
          if (.not. associated(cmpFileReaderPtr)) then
@@ -2061,8 +2074,11 @@ module m_ec_filereader_read
        end subroutine strip_comment
        
 !     read data and store in CRS format
-      subroutine read_data_sparse(filehandle, varid, n_cols, n_rows, n_layers, timesndx, ia, ja, Ndatasize, arr1d, ierror)
+      subroutine read_data_sparse(filehandle, varid, n_cols, n_rows, n_layers, timesndx, relndx, ia, ja, Ndatasize, arr1d, ierror)
          use netcdf
+         use netcdf_utils, only: ncu_get_att
+         use io_ugrid
+         
          implicit none
          
          integer,                        intent(in)    :: filehandle  !< filehandle
@@ -2071,6 +2087,7 @@ module m_ec_filereader_read
          integer,                        intent(in)    :: n_rows      !< number of rows in input
          integer,                        intent(in)    :: n_layers    !< number of layers in input
          integer,                        intent(in)    :: timesndx    !< time index
+         integer,                        intent(in)    :: relndx      !< realization index in an ensemble
          integer,          dimension(:), intent(in)    :: ia          !< CRS sparsity pattern, startpointers
          integer,          dimension(:), intent(in)    :: ja          !< CRS sparsity pattern, column numbers
          integer,                        intent(in)    :: Ndatasize   !< dimension of sparse data
@@ -2090,10 +2107,11 @@ module m_ec_filereader_read
          integer                                       :: ndims
          integer                                       :: ierr
          integer                                       :: Nreadrow      !< number of rows read at once
-         character(len=32)                             :: standard_name
+         character(len=:), allocatable                 :: standard_name
          integer, allocatable                          :: start(:), cnt(:)
 
          ierror = 1
+         allocate(character(len=0) :: standard_name)
 
          Nreadrow = n_rows
 
@@ -2144,6 +2162,9 @@ module m_ec_filereader_read
 !                 read data
                   start(1:2)   = (/ mcolmin(j), nrowmin /)
                   start(ndims) = timesndx
+                  if (relndx>0 .and. ndims>=4) then
+                     start(3) = relndx
+                  endif
                   if ( n_layers /= 0 ) then
                      start(ndims-1) = k
                   end if
@@ -2151,7 +2172,8 @@ module m_ec_filereader_read
                   ierror = nf90_get_var(fileHandle, varid, data_block, start=start, count=cnt)
 
                   if ( ierror /= 0 ) then
-                     ierr = nf90_get_att(fileHandle, varid, 'standard_name', standard_name)
+                     standard_name = ''
+                     ierr = ncu_get_att(fileHandle, varid, 'standard_name', standard_name)
                      if (ierr /= 0) write(standard_name,*) 'varid = ', varid
                      call setECMessage("Read error in read_data_sparse for " // trim(standard_name))
                      goto 1234
@@ -2172,6 +2194,7 @@ module m_ec_filereader_read
  1234    continue
 
 !        deallocate
+         deallocate(standard_name)
          if ( allocated(data_block) ) deallocate(data_block)
          if ( allocated(mcolmin)    ) deallocate(mcolmin)
          if ( allocated(mcolmax)    ) deallocate(mcolmax)

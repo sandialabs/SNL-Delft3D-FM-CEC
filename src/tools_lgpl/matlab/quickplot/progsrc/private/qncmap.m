@@ -5,7 +5,7 @@ function map = qncamp(m)
 
 %----- LGPL --------------------------------------------------------------------
 %                                                                               
-%   Copyright (C) 2011-2020 Stichting Deltares.                                     
+%   Copyright (C) 2011-2022 Stichting Deltares.                                     
 %                                                                               
 %   This library is free software; you can redistribute it and/or                
 %   modify it under the terms of the GNU Lesser General Public                   
@@ -30,8 +30,8 @@ function map = qncamp(m)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/private/qncmap.m $
-%   $Id: qncmap.m 65778 2020-01-14 14:07:42Z mourits $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/tools_lgpl/matlab/quickplot/progsrc/private/qncmap.m $
+%   $Id: qncmap.m 140618 2022-01-12 13:12:04Z klapwijk $
 
 if nargin < 1, m = size(get(gcf,'colormap'),1); end
 h = (0:m-1)'/max(m-1,1);

@@ -1,6 +1,6 @@
 //---- LGPL --------------------------------------------------------------------
 //
-// Copyright (C)  Stichting Deltares, 2011-2020.
+// Copyright (C)  Stichting Deltares, 2011-2022.
 //
 // This library is free software; you can redistribute it and/or
 // modify it under the terms of the GNU Lesser General Public
@@ -24,8 +24,8 @@
 // Stichting Deltares. All rights reserved.
 //
 //------------------------------------------------------------------------------
-// $Id: stream.cpp 65778 2020-01-14 14:07:42Z mourits $
-// $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/deltares_common/packages/deltares_common_c/src/stream.cpp $
+// $Id: stream.cpp 140618 2022-01-12 13:12:04Z klapwijk $
+// $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_lgpl/deltares_common/packages/deltares_common_c/src/stream.cpp $
 //------------------------------------------------------------------------------
 //  DelftStream
 //  Stream Class Implementation - TCP/IP and MPI
@@ -805,7 +805,7 @@ Stream::lookup_dotaddr (
     if (sscanf (ipdotaddr, "%d.%d.%d.%d", &a, &b, &c, &d) != 4)
         error ("Cannot parse dotted IP address \"%s\"\n", ipdotaddr);
 
-#if defined(HAVE_CONFIG_H) || defined(IRIX)
+#if defined(linux) || defined(IRIX)
     IPaddr addr = a | b << 8 | c << 16 | d << 24;
 #elif defined(WIN32)
     struct in_addr addr;

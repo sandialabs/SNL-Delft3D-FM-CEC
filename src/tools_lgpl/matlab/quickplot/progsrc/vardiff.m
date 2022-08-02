@@ -23,7 +23,7 @@ function out=vardiff(var1,var2,fid,formatflag,var1name,var2name)
 
 %----- LGPL --------------------------------------------------------------------
 %                                                                               
-%   Copyright (C) 2011-2020 Stichting Deltares.                                     
+%   Copyright (C) 2011-2022 Stichting Deltares.                                     
 %                                                                               
 %   This library is free software; you can redistribute it and/or                
 %   modify it under the terms of the GNU Lesser General Public                   
@@ -48,8 +48,8 @@ function out=vardiff(var1,var2,fid,formatflag,var1name,var2name)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/vardiff.m $
-%   $Id: vardiff.m 65778 2020-01-14 14:07:42Z mourits $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/tools_lgpl/matlab/quickplot/progsrc/vardiff.m $
+%   $Id: vardiff.m 140618 2022-01-12 13:12:04Z klapwijk $
 
 if nargin<2
     error('Not enough input arguments.')
@@ -239,6 +239,23 @@ elseif isstruct(s1) || isobject(s1)
     nf=length(fn1);
     [sfn1,i1] = sort(fn1);
     [sfn2,i2] = sort(fn2);
+    if ~isequal(fn1,fn2) && ~isequal(sfn1,sfn2) % fieldnames the same?
+        DiffFound=1;
+        printdiff(fid,br,'fieldnames',fn1,fn2,substr);
+        rfn1 = setdiff(fn1,fn2);
+        rfn2 = setdiff(fn2,fn1);
+        s1 = rmfield(s1,rfn1);
+        s2 = rmfield(s2,rfn2);
+        if fid == 0
+            return
+        end
+        myfprintf(fid,'Checking other fields ...\n')
+        fn1=fieldnames(s1);
+        fn2=fieldnames(s2);
+        nf=length(fn1);
+        [sfn1,i1] = sort(fn1);
+        [sfn2,i2] = sort(fn2);
+    end
     if ~isequal(fn1,fn2) && isequal(sfn1,sfn2)
         s1=struct2cell(s1);
         s2=struct2cell(s2);
@@ -246,10 +263,6 @@ elseif isstruct(s1) || isobject(s1)
         s2 = s2(i2,:);
         fields = sfn1;
         printdiff(fid,br,'fieldnames',fn1,fn2,substr);
-    elseif ~isequal(fn1,fn2)  % fieldnames the same?
-        DiffFound=1;
-        printdiff(fid,br,'fieldnames',fn1,fn2,substr);
-        return
     else
         s1=struct2cell(s1);
         s2=struct2cell(s2);
@@ -269,6 +282,7 @@ elseif isstruct(s1) || isobject(s1)
         if ~isequal(s1{i},s2{i})
             Diff=detailedcheck(s1{i},s2{i},fid,formatflag,br,Nsubstr);
             if Diff
+                Diff = Diff+1;
                 if ~DiffFound
                     DiffFound=Diff;
                 else
@@ -276,9 +290,6 @@ elseif isstruct(s1) || isobject(s1)
                 end
             end
         end
-    end
-    if DiffFound
-        DiffFound=DiffFound+1;
     end
 else  % some numeric type of equal size
     if isempty(s1)  % same size, numeric, empty -> no difference

@@ -1,7 +1,7 @@
-subroutine write_wave_map_netcdf (sg, sof, n_swan_grids, wavedata, casl, singleprecision)
+subroutine write_wave_map_netcdf (sg, sof, sif, n_swan_grids, wavedata, casl, prevtime, singleprecision, sif_mmax, sif_nmax, sif_veg, output_ice)
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -25,8 +25,8 @@ subroutine write_wave_map_netcdf (sg, sof, n_swan_grids, wavedata, casl, singlep
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: write_wave_map_netcdf.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/wave/packages/io/src/write_wave_map_netcdf.f90 $
+!  $Id: write_wave_map_netcdf.f90 140678 2022-01-27 16:41:07Z nabi $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/wave/packages/io/src/write_wave_map_netcdf.f90 $
 !!--description-----------------------------------------------------------------
 ! NONE
 !!--pseudo code and references--------------------------------------------------
@@ -40,12 +40,18 @@ subroutine write_wave_map_netcdf (sg, sof, n_swan_grids, wavedata, casl, singlep
 !
 ! Global variables
 !
-    integer     , intent(in)  :: n_swan_grids ! number of swan grids
-    character(*), intent(in)  :: casl         ! runid
-    type (grid)               :: sg           ! swan grid
-    type (output_fields)      :: sof          ! output fields defined on swan grid
-    type (wave_data_type)     :: wavedata
-    logical                   :: singleprecision
+    integer                       , intent(in)  :: n_swan_grids ! number of swan grids
+    character(*)                  , intent(in)  :: casl         ! runid
+    type (grid)                   , intent(in)  :: sg           ! swan grid
+    type (output_fields)          , intent(in)  :: sof          ! output fields defined on swan grid
+    type (input_fields)           , intent(in)  :: sif          ! input fields defined on swan grid
+    type (wave_data_type)         , intent(in)  :: wavedata
+    logical                       , intent(in)  :: prevtime     ! true: the time to be written is the "previous time"
+    logical                       , intent(in)  :: singleprecision
+    integer                       , intent(in)  :: output_ice   ! switch for writing ice quantities
+    integer                       , intent(in)  :: sif_mmax
+    integer                       , intent(in)  :: sif_nmax
+    real   , dimension(sif_mmax,sif_nmax)       :: sif_veg
 !
 ! Local variables
 !
@@ -87,13 +93,17 @@ subroutine write_wave_map_netcdf (sg, sof, n_swan_grids, wavedata, casl, singlep
     integer                                     :: idvar_fy
     integer                                     :: idvar_windu
     integer                                     :: idvar_windv
+    integer                                     :: idvar_icefrac
+    integer                                     :: idvar_floedia
     integer       , dimension(:)  , allocatable :: idvar_outpars
+    integer                                     :: idvar_nstems
     integer                                     :: ierror
     integer                                     :: ind
     integer                                     :: precision
     integer                                     :: year
     integer                                     :: month
     integer                                     :: day
+    integer       , dimension(1)                :: idummy ! Help array to read/write Nefis files 
     integer, external                           :: nc_def_var
     real(hp)                                    :: dearthrad
     character(100)                              :: string
@@ -110,6 +120,13 @@ subroutine write_wave_map_netcdf (sg, sof, n_swan_grids, wavedata, casl, singlep
 !
 !! executable statements -------------------------------------------------------
 !
+    if (sif_mmax /= sof%mmax) then
+       write(*,'(a,i0,a,i0,a)') "ERROR: sif_mmax(", sif_mmax, ") is assumed to be identical to sof%mmax(", sof%mmax, ") but isn't. Vegetation arrays may contain wrong information."
+    endif
+    if (sif_nmax /= sof%nmax) then
+       write(*,'(a,i0,a,i0,a)') "ERROR: sif_nmax(", sif_nmax, ") is assumed to be identical to sof%nmax(", sof%nmax, ") but isn't. Vegetation arrays may contain wrong information."
+    endif
+    
     dearthrad = 6378137.0_hp
     call getfullversionstring_WAVE(version_full)
     call getprogramname_WAVE(programname)
@@ -233,6 +250,13 @@ subroutine write_wave_map_netcdf (sg, sof, n_swan_grids, wavedata, casl, singlep
        idvar_fy      = nc_def_var(idfile, 'fy'      , precision, 3, (/iddim_mmax, iddim_nmax, iddim_time/), ''    , 'Wave induced force (y-component)'    , 'n/m2', .true., filename)
        idvar_windu   = nc_def_var(idfile, 'windu'   , precision, 3, (/iddim_mmax, iddim_nmax, iddim_time/), ''    , 'Wind velocity (x-component)'    , 'm/s', .true., filename)
        idvar_windv   = nc_def_var(idfile, 'windv'   , precision, 3, (/iddim_mmax, iddim_nmax, iddim_time/), ''    , 'Wind velocity (y-component)'    , 'm/s', .true., filename)
+       idvar_nstems  = nc_def_var(idfile, 'nstems'  , precision, 3, (/iddim_mmax, iddim_nmax, iddim_time/), ''    , 'Stem density'    , '1/m2', .true., filename)
+       if (output_ice > 0) then
+          idvar_icefrac = nc_def_var(idfile, 'icefrac' , precision, 3, (/iddim_mmax, iddim_nmax, iddim_time/), ''    , 'Area fraction covered by ice'   , '1', .true., filename)
+          if (output_ice == 1) then
+             idvar_floedia = nc_def_var(idfile, 'floedia' , precision, 3, (/iddim_mmax, iddim_nmax, iddim_time/), ''    , 'Ice floe diameter'           , 'm', .true., filename)
+          endif
+       endif
        do i=1, sof%n_outpars
           idvar_outpars(i) = nc_def_var(idfile, sof%add_out_names(i), precision, 3, (/iddim_mmax, iddim_nmax, iddim_time/), ''    , sof%add_out_names(i)    , 'unknown', .true., filename)
        enddo
@@ -278,6 +302,13 @@ subroutine write_wave_map_netcdf (sg, sof, n_swan_grids, wavedata, casl, singlep
        ierror = nf90_inq_varid(idfile, 'fy'      , idvar_fy     ); call nc_check_err(ierror, "inq_varid fy     ", filename)
        ierror = nf90_inq_varid(idfile, 'windu'   , idvar_windu  ); call nc_check_err(ierror, "inq_varid windu  ", filename)
        ierror = nf90_inq_varid(idfile, 'windv'   , idvar_windv  ); call nc_check_err(ierror, "inq_varid windv  ", filename)
+       ierror = nf90_inq_varid(idfile, 'nstems'  , idvar_nstems ); call nc_check_err(ierror, "inq_varid nstems ", filename)
+       if (output_ice > 0) then
+          ierror = nf90_inq_varid(idfile, 'icefrac' , idvar_icefrac); call nc_check_err(ierror, "inq_varid icefrac", filename)
+          if (output_ice == 1) then
+             ierror = nf90_inq_varid(idfile, 'floedia' , idvar_floedia); call nc_check_err(ierror, "inq_varid floedia", filename)
+          endif
+       endif
        do i=1, sof%n_outpars
           ierror = nf90_inq_varid(idfile, sof%add_out_names(i), idvar_outpars(i)); call nc_check_err(ierror, "inq_varid "//sof%add_out_names(i), filename)
        enddo
@@ -285,7 +316,13 @@ subroutine write_wave_map_netcdf (sg, sof, n_swan_grids, wavedata, casl, singlep
     !
     ! put vars (time dependent)
     !
-    ierror = nf90_put_var(idfile, idvar_time   , wavedata%time%timsec, start=(/ wavedata%output%count /)); call nc_check_err(ierror, "put_var time", filename)
+    if (prevtime) then
+       idummy(1) = wavedata%time%calctimtscale_prev * wavedata%time%tscale
+    else
+       idummy(1) = wavedata%time%calctimtscale * wavedata%time%tscale
+    endif
+
+    ierror = nf90_put_var(idfile, idvar_time   , idummy(1)     , start=(/ wavedata%output%count /)); call nc_check_err(ierror, "put_var time", filename)
     ierror = nf90_put_var(idfile, idvar_hsign  , sof%hs        , start=(/ 1, 1, wavedata%output%count /), count = (/ sof%mmax, sof%nmax, 1 /)); call nc_check_err(ierror, "put_var hsign", filename)
     ierror = nf90_put_var(idfile, idvar_dir    , sof%dir       , start=(/ 1, 1, wavedata%output%count /), count = (/ sof%mmax, sof%nmax, 1 /)); call nc_check_err(ierror, "put_var dir    ", filename)
     ierror = nf90_put_var(idfile, idvar_pdir   , sof%pdir      , start=(/ 1, 1, wavedata%output%count /), count = (/ sof%mmax, sof%nmax, 1 /)); call nc_check_err(ierror, "put_var pdir   ", filename)
@@ -313,6 +350,13 @@ subroutine write_wave_map_netcdf (sg, sof, n_swan_grids, wavedata, casl, singlep
     ierror = nf90_put_var(idfile, idvar_fy     , sof%fy        , start=(/ 1, 1, wavedata%output%count /), count = (/ sof%mmax, sof%nmax, 1 /)); call nc_check_err(ierror, "put_var fy     ", filename)
     ierror = nf90_put_var(idfile, idvar_windu  , sof%windu     , start=(/ 1, 1, wavedata%output%count /), count = (/ sof%mmax, sof%nmax, 1 /)); call nc_check_err(ierror, "put_var windu  ", filename)
     ierror = nf90_put_var(idfile, idvar_windv  , sof%windv     , start=(/ 1, 1, wavedata%output%count /), count = (/ sof%mmax, sof%nmax, 1 /)); call nc_check_err(ierror, "put_var windv  ", filename)
+    ierror = nf90_put_var(idfile, idvar_nstems , sif_veg     , start=(/ 1, 1, wavedata%output%count /), count = (/ sof%mmax, sof%nmax, 1 /)); call nc_check_err(ierror, "put_var nstems ", filename)
+    if (output_ice > 0) then
+       ierror = nf90_put_var(idfile, idvar_icefrac, sif%ice_frac  , start=(/ 1, 1, wavedata%output%count /), count = (/ sof%mmax, sof%nmax, 1 /)); call nc_check_err(ierror, "put_var icefrac", filename)
+       if (output_ice == 1) then
+          ierror = nf90_put_var(idfile, idvar_floedia, sif%floe_dia  , start=(/ 1, 1, wavedata%output%count /), count = (/ sof%mmax, sof%nmax, 1 /)); call nc_check_err(ierror, "put_var floedia", filename)
+       endif
+    endif
     do i=1, sof%n_outpars
        ierror = nf90_put_var(idfile, idvar_outpars(i), sof%add_out_vals(:,:,i), start=(/ 1, 1, wavedata%output%count /), count = (/ sof%mmax, sof%nmax, 1 /)); call nc_check_err(ierror, "put_var "//sof%add_out_names(i), filename)
     enddo

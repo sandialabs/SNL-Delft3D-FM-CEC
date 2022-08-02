@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -106,7 +106,6 @@
       DATA     FIRST /.TRUE./
 !
       CALL GETMLU(ILUMON)
-!
 !
       IN1  = INCREM( 1)
       IN2  = INCREM( 2)
@@ -239,20 +238,20 @@
             TEMP20 = TEMP - 20.0
             TEMPC  = KTOXI1 ** TEMP20
 !
-            IF ( (KSCH4 * POROS + CCH4) .GT. 0.0) THEN
+            IF ( (KSCH4 * POROS + CCH4) .GT. 0.0 ) THEN
                   CHFUNC = CCH4 / ( KSCH4 * POROS + CCH4 )
             ELSE
                   CHFUNC = 0.0
             ENDIF
 !
-            IF ( (KSOX * POROS + COX) .GT. 0.0) THEN
+            IF ( (KSOX * POROS + COX) .GT. 0.0 ) THEN
                   OXFUNC = COX  / ( KSOX * POROS  + COX  )
             ELSE
                   OXFUNC = 0.0
             ENDIF
 !
 
-            IF ( (KSSU * POROS + CSU) .GT. 0.0) THEN
+            IF ( (KSSU * POROS + CSU) .GT. 0.0 ) THEN
                   SUFUNC = CSU  / ( KSSU * POROS  + CSU  )
             ELSE
                   SUFUNC = 0.0

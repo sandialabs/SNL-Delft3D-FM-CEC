@@ -3,7 +3,7 @@ subroutine inibcq(lundia    ,error     ,runid     ,itbct     ,nto       , &
                 & bubble    ,kmax      ,gdp       )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -27,8 +27,8 @@ subroutine inibcq(lundia    ,error     ,runid     ,itbct     ,nto       , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: inibcq.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/kernel/src/inichk/inibcq.f90 $
+!  $Id: inibcq.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/flow2d3d/packages/kernel/src/inichk/inibcq.f90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: Reads the QH relations from file for the
@@ -113,8 +113,7 @@ subroutine inibcq(lundia    ,error     ,runid     ,itbct     ,nto       , &
     !
     inquire (file = filnam(:8 + lrid), opened = opend)
     if (.not.opend) then
-       lunbcq = newlun(gdp)
-       open (lunbcq, file = filnam(:8 + lrid), form = 'formatted',              &
+       open (newunit=lunbcq, file = filnam(:8 + lrid), form = 'formatted',              &
             & status = 'old')
        read (lunbcq, '(a1,i5)', iostat = iocond) dumchr, lrec
        !
@@ -136,7 +135,7 @@ subroutine inibcq(lundia    ,error     ,runid     ,itbct     ,nto       , &
           !
           ! file not open as direct access!
           !
-          open (lunbcq, file = filnam(:8 + lrid), form = 'formatted')
+          open (newunit=lunbcq, file = filnam(:8 + lrid), form = 'formatted')
    10     continue
           irecrd = irecrd + 1
           read (lunbcq, '(a)', end=20) record(:lrec - 1)
@@ -164,7 +163,7 @@ subroutine inibcq(lundia    ,error     ,runid     ,itbct     ,nto       , &
        !
        ! Open file as direct access
        !
-       open (lunbcq, file = filnam(:8 + lrid), form = 'formatted',              &
+       open (newunit=lunbcq, file = filnam(:8 + lrid), form = 'formatted',              &
             & access = 'direct', recl = lrec)
        !
        ! Initialize ITBCT array

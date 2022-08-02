@@ -21,7 +21,7 @@ function varargout = incremental(cmd,varargin)
 
 %----- LGPL --------------------------------------------------------------------
 %
-%   Copyright (C) 2011-2020 Stichting Deltares.
+%   Copyright (C) 2011-2022 Stichting Deltares.
 %
 %   This library is free software; you can redistribute it and/or
 %   modify it under the terms of the GNU Lesser General Public
@@ -46,8 +46,8 @@ function varargout = incremental(cmd,varargin)
 %
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/private/incremental.m $
-%   $Id: incremental.m 65778 2020-01-14 14:07:42Z mourits $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/tools_lgpl/matlab/quickplot/progsrc/private/incremental.m $
+%   $Id: incremental.m 140618 2022-01-12 13:12:04Z klapwijk $
 
 switch cmd
     case 'open'
@@ -66,7 +66,7 @@ function FileInfo=Local_open_incremental(filename,DomainSize)
 FileInfo.Check='NotOK';
 FileInfo.FileType='FLS-inc';
 
-fid=fopen(filename,'r');
+fid=fopen(filename,'r','n','US-ASCII');
 if fid<0
     return
 end
@@ -302,7 +302,7 @@ for d = 1:length(FileInfo.Domain)
     Data.Domain(d) = Domain;
 end
 %
-fid=fopen(FileInfo.FileName,'r');
+fid=fopen(FileInfo.FileName,'r','n','US-ASCII');
 if fid<0
     return
 end
@@ -538,7 +538,7 @@ if Time<FileInfo.Quant(Field).Time
     FileInfo.Quant(Field).Offset=FileInfo.StartData;
     FileInfo.Quant(Field).Time=-inf;
 end
-fid=fopen(FileInfo.FileName,'r');
+fid=fopen(FileInfo.FileName,'r','n','US-ASCII');
 if fid<0
     if isempty(FI2)
         FI2=FileInfo;

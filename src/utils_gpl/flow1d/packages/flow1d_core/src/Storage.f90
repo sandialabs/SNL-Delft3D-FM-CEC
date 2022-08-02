@@ -1,7 +1,7 @@
 module m_Storage
 !----- AGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2017-2020.                                
+!  Copyright (C)  Stichting Deltares, 2017-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify              
 !  it under the terms of the GNU Affero General Public License as               
@@ -25,8 +25,8 @@ module m_Storage
 !  Stichting Deltares. All rights reserved.
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: Storage.f90 65948 2020-02-07 11:07:24Z noort $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_gpl/flow1d/packages/flow1d_core/src/Storage.f90 $
+!  $Id: Storage.f90 141183 2022-05-10 12:56:36Z noort $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_gpl/flow1d/packages/flow1d_core/src/Storage.f90 $
 !-------------------------------------------------------------------------------
 
    use MessageHandling
@@ -53,6 +53,7 @@ module m_Storage
    public getSurface
    public printData
    public fill_hashtable
+   public getTopLevel
 
    interface printData
       module procedure printStorageSet
@@ -83,10 +84,13 @@ module m_Storage
   
    type, public :: t_storage
       character(len=idlen)    :: id                      !< unique id of storage area
-      character(len=idlen)    :: nodeId                  !< Node Id
+      character(len=idlen)    :: nodeId                  !< (optional) Node Id
+      character(len=idlen)    :: branchId                !< (optional) branchId
       character(len=idlen)    :: name                    !< Long name in the user interface
       integer                 :: gridPoint               !< gridpoint index
       integer                 :: node_index              !< connection node index
+      integer                 :: branch_index            !< branch index
+      double precision        :: chainage                !< location of the storage node w.r.t the start of the branch
       integer                 :: storageType             !< type of storage on street\n
                                                          !! 0: no storage\n
                                                          !! 2: reservoir storage\n
@@ -137,7 +141,7 @@ contains
       
       ! Local variables
       integer istor
-      character(len=CharLn) :: line
+      character(len=IdLen) :: line
 
       ! Program code
       
@@ -284,6 +288,15 @@ contains
       endif
    end function getVolumeByStorNode
 
+   double precision function getTopLevel(storage)
+      type(t_storage), intent(in)            :: storage
+      if (storage%useStreetStorage .and. (.not. storage%useTable)) then
+         getTopLevel = storage%streetArea%x(storage%streetArea%length)
+      else
+         getTopLevel = storage%storageArea%x(storage%storageArea%length)
+      endif
+   end function getTopLevel
+   
    subroutine fill_hashtable_sto(storS)
    
       type (t_storageSet), intent(inout), target   :: storS

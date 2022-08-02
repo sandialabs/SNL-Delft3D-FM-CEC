@@ -2,7 +2,7 @@ subroutine urdbcc(lundia    ,error     ,filusr    ,ltur      ,kmax      , &
                 & nto       ,ubnd      ,gdp       )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -26,8 +26,8 @@ subroutine urdbcc(lundia    ,error     ,filusr    ,ltur      ,kmax      , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: urdbcc.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/plugin_user/src/urdbcc.f90 $
+!  $Id: urdbcc.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/flow2d3d/packages/plugin_user/src/urdbcc.f90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: - Test existence of user defined file for
@@ -109,8 +109,7 @@ subroutine urdbcc(lundia    ,error     ,filusr    ,ltur      ,kmax      , &
        !
        !--------file = exist
        !
-       luntmp = newlun(gdp)
-       open (luntmp, file = filusr(1:lfile), form = 'formatted', status = 'old')
+       open (newunit=luntmp, file = filusr(1:lfile), form = 'formatted', status = 'old')
        into = 0
        !
        !-->     read boundary condition input (each boundary is optional)

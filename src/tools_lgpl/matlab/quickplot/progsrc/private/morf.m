@@ -13,7 +13,7 @@ function Out=morf(cmd,varargin)
 
 %----- LGPL --------------------------------------------------------------------
 %                                                                               
-%   Copyright (C) 2011-2020 Stichting Deltares.                                     
+%   Copyright (C) 2011-2022 Stichting Deltares.                                     
 %                                                                               
 %   This library is free software; you can redistribute it and/or                
 %   modify it under the terms of the GNU Lesser General Public                   
@@ -38,8 +38,8 @@ function Out=morf(cmd,varargin)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/private/morf.m $
-%   $Id: morf.m 65778 2020-01-14 14:07:42Z mourits $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/tools_lgpl/matlab/quickplot/progsrc/private/morf.m $
+%   $Id: morf.m 140618 2022-01-12 13:12:04Z klapwijk $
 
 if nargin==0
     if nargout>0
@@ -87,15 +87,15 @@ end
 function Structure=Local_read_morf(filename)
 Structure=[];
 
-if nargin==0,
+if nargin==0
     [fn,fp]=uigetfile('morf.*');
     if ~ischar(fn),
         return;
     end
     filename=[fp fn];
 end
-fid=fopen(filename,'rt');
-if fid<0,
+fid=fopen(filename,'rt','n','US-ASCII');
+if fid<0
     error('Cannot open file: %s.',filename)
 end
 Data={};
@@ -105,7 +105,7 @@ i=0;
 while ~feof(fid),
     Line=fgetl(fid);
     i=i+1;
-    if ~isempty(Line) && ~strcmp(Line(1),'*'),
+    if ~isempty(Line) && ~strcmp(Line(1),'*')
         DataLine=DataLine+1;
         Data{DataLine}=Line;
         LineNr(DataLine)=i;

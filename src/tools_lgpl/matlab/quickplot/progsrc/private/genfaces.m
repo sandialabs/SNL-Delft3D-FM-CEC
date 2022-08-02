@@ -3,7 +3,7 @@ function hNew=genfaces(hOld,Ops,Parent,Val,X,Y,Z)
 
 %----- LGPL --------------------------------------------------------------------
 %                                                                               
-%   Copyright (C) 2011-2020 Stichting Deltares.                                     
+%   Copyright (C) 2011-2022 Stichting Deltares.                                     
 %                                                                               
 %   This library is free software; you can redistribute it and/or                
 %   modify it under the terms of the GNU Lesser General Public                   
@@ -28,8 +28,8 @@ function hNew=genfaces(hOld,Ops,Parent,Val,X,Y,Z)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/private/genfaces.m $
-%   $Id: genfaces.m 65778 2020-01-14 14:07:42Z mourits $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/tools_lgpl/matlab/quickplot/progsrc/private/genfaces.m $
+%   $Id: genfaces.m 140618 2022-01-12 13:12:04Z klapwijk $
 
 special_edges = 0;
 if nargin==4
@@ -154,7 +154,7 @@ else
     %
     if isempty(hOld)
         if isempty(Ops.colourmap) && ~strcmp(Ops.presentationtype,'grid')
-            fv=fv(~isnan(cv) & cv~=0,:);
+            fv=fv(~isnan(cv),:);
             hNew=patch('vertices',xv, ...
                 'faces',fv, ...
                 'parent',Parent, ...

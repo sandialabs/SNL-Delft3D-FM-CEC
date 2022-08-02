@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -105,10 +105,9 @@ contains
 
   subroutine get_openda_buffer(quantity, loc_from_waq, dim1, dim2, qarray)
 
-
+  use m_sysn          ! System characteristics
+  
   implicit none
-
-  include 'sysn_ff.inc'
 
   integer, intent(in)    :: dim1, dim2, loc_from_waq
   integer , intent (in) :: quantity

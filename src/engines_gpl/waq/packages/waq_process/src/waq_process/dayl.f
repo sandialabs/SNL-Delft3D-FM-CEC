@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -38,7 +38,7 @@
 ! Name    T   L I/O   Description                                    Units
 ! ----    --- -  -    -------------------                            -----
 ! TIME    R*4 1 I  DELWAQ time in scu                              [scu]
-! TREF    R*4 1 I  Refernce tim in days                              [d]
+! TREF    R*4 1 I  Reference time in days                            [d]
 ! RLAT    R*4 1 I  Latitude, north pos., south neg. [ radians ]   [grad]
 !     Logical Units : -
 

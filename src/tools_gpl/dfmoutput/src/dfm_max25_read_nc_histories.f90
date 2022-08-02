@@ -1,6 +1,6 @@
 !----- AGPL --------------------------------------------------------------------
 !
-!  Copyright (C)  Stichting Deltares, 2017-2020.
+!  Copyright (C)  Stichting Deltares, 2017-2022.
 !
 !  This file is part of Delft3D (D-Flow Flexible Mesh component).
 !
@@ -27,8 +27,8 @@
 !
 !-------------------------------------------------------------------------------
 
-! $Id: dfm_max25_read_nc_histories.f90 65778 2020-01-14 14:07:42Z mourits $
-! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_gpl/dfmoutput/src/dfm_max25_read_nc_histories.f90 $
+! $Id: dfm_max25_read_nc_histories.f90 140618 2022-01-12 13:12:04Z klapwijk $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/tools_gpl/dfmoutput/src/dfm_max25_read_nc_histories.f90 $
 
 !> READ_NC_HISTORIES - Subroutine to read the histories from a NetCDF file
 
@@ -42,7 +42,7 @@ module read_nc_histories
 
    private
 
-   public :: read_meta_data, read_data, close_nc_his_file, read_station_names
+   public :: read_meta_data, read_data, close_nc_his_file, read_station_names, find_stations_var
 
    interface read_data
       module procedure read_data_r4
@@ -57,7 +57,7 @@ module read_nc_histories
       integer         , intent(out) :: nStat     !< number of stations found on input file
       integer                       :: status    !< function result; 0=OK
 
-      integer :: timeID, name_lenID, stationsID
+      integer :: timeID, name_lenID, stationsID, cross_name_lenID, nCrossNameLength
 
                                 status = nf90_open(filename, nf90_nowrite, ncid)
       if (status == nf90_noerr) status = nf90_inq_dimid(ncid, "time", timeID)
@@ -67,6 +67,14 @@ module read_nc_histories
       if (status == nf90_noerr) status = nf90_inquire_dimension(ncid, timeID, len = nTimes)
       if (status == nf90_noerr) status = nf90_inquire_dimension(ncid, name_lenID, len = nNameLength)
       if (status == nf90_noerr) status = nf90_inquire_dimension(ncid, stationsID, len = nStations)
+
+      status = nf90_inq_dimid(ncid, "cross_section_name_len", cross_name_lenID)
+      if (status == nf90_noerr) then
+         status = nf90_inquire_dimension(ncid, cross_name_lenID, len = nCrossNameLength)
+         nNameLength = max(nNameLength, nCrossNameLength)
+      else
+         status = nf90_noerr
+      end if
 
       nStat = nStations
 
@@ -147,21 +155,49 @@ module read_nc_histories
       endif
    end function read_data_r8
 
+   !> find stations variable for a time serie
+   !! result will be in most cases 'station_name' or 'cross_section_name'
+   !! assumes ncid is already opened
+   subroutine find_stations_var(field_name, stations_var, nStat)
+      character(len=*), intent(in   ) :: field_name
+      character(len=*), intent(  out) :: stations_var
+      integer         , intent(  out) :: nStat
+
+      integer :: i, status, nVar, dimids(10), ndims, varid_name, dim_stations
+      character(len=64) :: name
+
+      status = nf90_inquire(ncid, nVariables = nVar)
+      varid_name = get_varid(field_name)
+      status = nf90_inquire_variable(ncid, varId_name, ndims=ndims, dimids=dimids)
+      dim_stations = dimids(1)
+
+      do i = 1, nVar
+         status = nf90_inquire_variable(ncid, i, name=name, ndims=ndims, dimids=dimids)
+         if (index(name, '_name') > 0 .and. ndims == 2) then
+            if (dimids(2) == dim_stations) then
+               stations_var = name
+               status = nf90_inquire_dimension(ncid, dim_stations, len = nStat)
+               nStations = nStat
+               return
+            end if
+         end if
+      end do
+
+      ! previous default:
+      stations_var = 'station_name'
+      nStat = nStations
+   end subroutine find_stations_var
+
    !> read station names from an already opened NetCDF file
    function read_station_names(stations, stations_varname) result(status)
-      character(len=*), allocatable, intent(out) :: stations(:)       !< output array
+      character(len=:), allocatable, intent(out) :: stations(:)       !< output array
       character(len=*)             , intent(in ) :: stations_varname  !< variable name on NetCDF file
       integer                                    :: status            !< function result: 0=OK
 
-      integer :: nVar, varid, i
-      character(len=80) :: namei
+      integer :: varid, i
 
-      allocate(stations(nStations))
-      status = nf90_inquire(ncid, nVariables = nVar)
-      do varid = 1, nVar
-         status = nf90_inquire_variable(ncid, varId, namei)
-         if (namei == stations_varname) exit
-      enddo
+      allocate(character(nNameLength) :: stations(nStations))
+      varid = get_varid(stations_varname)
 
       status = nf90_get_var(ncid, varId, stations)
 
@@ -169,6 +205,20 @@ module read_nc_histories
          call convertCstring(stations(i))
       enddo
    end function read_station_names
+
+   function get_varid(varname) result(varid)
+      character(len=*), intent(in) :: varname
+      integer                      :: varid  !< function result
+      integer                      :: nVar, status
+      character(len=80)            :: namei
+
+      status = nf90_inquire(ncid, nVariables = nVar)
+      do varid = 1, nVar
+         status = nf90_inquire_variable(ncid, varId, namei)
+         if (namei == varname) return
+      enddo
+      varid = 0
+   end function get_varid
 
    !> close file
    function close_nc_his_file() result(status)

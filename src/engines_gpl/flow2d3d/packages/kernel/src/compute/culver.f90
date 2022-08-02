@@ -4,7 +4,7 @@ subroutine culver(icx       ,icy       ,kmax      ,nsrc      ,kfs       , &
                 & sumrho    ,gdp       )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -28,8 +28,8 @@ subroutine culver(icx       ,icy       ,kmax      ,nsrc      ,kfs       , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: culver.f90 65813 2020-01-17 16:46:56Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/kernel/src/compute/culver.f90 $
+!  $Id: culver.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/flow2d3d/packages/kernel/src/compute/culver.f90 $
 !!--description-----------------------------------------------------------------
 ! Computes the discharge relation through a culvert.
 !
@@ -522,7 +522,7 @@ integer function intlay    (lundia     ,zmodel    ,kfsmin    ,kfsmax    , &
                           & kmax       ,thick     ,isrc      ,intake    )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -546,8 +546,8 @@ integer function intlay    (lundia     ,zmodel    ,kfsmin    ,kfsmax    , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: culver.f90 65813 2020-01-17 16:46:56Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/kernel/src/compute/culver.f90 $
+!  $Id: culver.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/flow2d3d/packages/kernel/src/compute/culver.f90 $
 !!--description-----------------------------------------------------------------
 ! Computes the discharge relation through a culvert.
 !

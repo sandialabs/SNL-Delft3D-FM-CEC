@@ -34,7 +34,7 @@ function Out = ecomsed(cmd,varargin)
 
 %----- LGPL --------------------------------------------------------------------
 %                                                                               
-%   Copyright (C) 2011-2020 Stichting Deltares.                                     
+%   Copyright (C) 2011-2022 Stichting Deltares.                                     
 %                                                                               
 %   This library is free software; you can redistribute it and/or                
 %   modify it under the terms of the GNU Lesser General Public                   
@@ -59,8 +59,8 @@ function Out = ecomsed(cmd,varargin)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/ecomsed.m $
-%   $Id: ecomsed.m 65778 2020-01-14 14:07:42Z mourits $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/tools_lgpl/matlab/quickplot/progsrc/ecomsed.m $
+%   $Id: ecomsed.m 140618 2022-01-12 13:12:04Z klapwijk $
 
 switch cmd
     case 'open'
@@ -77,7 +77,7 @@ function S = open_ecomsed(FileName)
 S.FileName = FileName;
 S.FileType = 'ecomsed-binary';
 % Initial guess: assume a file created on a UNIX system
-fid = fopen(FileName,'r','b');
+fid = fopen(FileName,'r','b','US-ASCII');
 S.ByteOrder = 'b';
 S = process_file(fid,S);
 
@@ -114,7 +114,7 @@ switch BlockSize
         if strcmp(S.ByteOrder,'b')
             % Can't understand the file if it is big-endian. Before giving
             % up, try opening the file as little-endian.
-            fid = fopen(S.FileName,'r','l');
+            fid = fopen(S.FileName,'r','l','US-ASCII');
             S.ByteOrder = 'l';
             S = process_file(fid,S);
         else
@@ -603,7 +603,7 @@ for i = 1:length(varargin)
     end
 end
 V = zeros([szact 1]);
-fid = fopen(S.FileName,'r',S.ByteOrder);
+fid = fopen(S.FileName,'r',S.ByteOrder,'US-ASCII');
 for t = 1:length(Time)
     fseek(fid,S.OffsetTimeDepData+(Time(t)-1)*S.TimeDepData.BlockSize+Q.offset,-1);
     V1 = checkedread(fid,Qnt,Q.size,Q.type);

@@ -3,7 +3,7 @@ function State=qp_state_version(OldState)
 
 %----- LGPL --------------------------------------------------------------------
 %                                                                               
-%   Copyright (C) 2011-2020 Stichting Deltares.                                     
+%   Copyright (C) 2011-2022 Stichting Deltares.                                     
 %                                                                               
 %   This library is free software; you can redistribute it and/or                
 %   modify it under the terms of the GNU Lesser General Public                   
@@ -28,8 +28,8 @@ function State=qp_state_version(OldState)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/private/qp_state_version.m $
-%   $Id: qp_state_version.m 65778 2020-01-14 14:07:42Z mourits $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/tools_lgpl/matlab/quickplot/progsrc/private/qp_state_version.m $
+%   $Id: qp_state_version.m 140744 2022-02-13 20:56:16Z jagers $
 
 State=OldState;
 if ~isfield(OldState,'version')
@@ -74,7 +74,7 @@ if ~isfield(OldState,'version')
     end
     %
     State=mvopt(State,'VecSMode','vectorscalingmode'); %,''
-    if ~isfield(State,'VecScale') | isempty(State.VecScale)
+    if ~isfield(State,'VecScale') || isempty(State.VecScale)
         State.VecScale=1;
     end
     State=mvopt(State,'VecScale','vectorscale'); %,1
@@ -85,7 +85,7 @@ if ~isfield(OldState,'version')
     %
     State=mvopt(State,'Colormap','colourmap'); %,[]
     State=mvopt(State,'Colorbar','colourbar'); %,0
-    if isfield(State,'colourbar') & ischar(State.colourbar)
+    if isfield(State,'colourbar') && ischar(State.colourbar)
         cbdir={'none' 'vert' 'horiz'};
         State.colourbar=cbdir{State.colourbar+1};
     end
@@ -130,7 +130,7 @@ State=setopt(State,'colour',[1 0 0]);
 %State=setopt(State,'verticalscalingmode','unrestricted');
 %State=setopt(State,'clippingvalues',[]);
 State=setopt(State,'extend2edge',0);
-if strcmp(State.axestype,'Distance-Val')
+if isfield(State,'axestype') && strcmp(State.axestype,'Distance-Val')
     State=setopt(State,'plotcoordinate','path distance');
 end
 if isfield(State,'marker')
@@ -143,16 +143,16 @@ end
 
 function State=setopt(State,Field,Val)
 if ~isfield(State,Field)
-    State=setfield(State,Field,Val);
+    State.(Field) = Val;
 end
 
 
 function State=mvopt(State,oldField,newField,defaultVal)
 if isfield(State,oldField)
-    Val=getfield(State,oldField);
-    State=rmfield(State,oldField);
-    State=setfield(State,newField,Val);
+    Val = State.(oldField);
+    State = rmfield(State,oldField);
+    State.(newField) = Val;
 elseif nargin>3
-    Val=defaultVal;
-    State=setfield(State,newField,Val);
+    Val = defaultVal;
+    State.(newField) = Val;
 end

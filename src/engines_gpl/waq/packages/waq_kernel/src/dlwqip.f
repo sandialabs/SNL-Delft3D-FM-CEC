@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -42,7 +42,6 @@
 !                           Reads proces work file.
 !
 !     SUBROUTINES CALLED  : PRONRS, gives module number
-!                           PROPOI, computes absolute pointers, increments
 !
 !     FILES               : LUNWRP, Proces work file
 !                           LUREP , Monitoring file

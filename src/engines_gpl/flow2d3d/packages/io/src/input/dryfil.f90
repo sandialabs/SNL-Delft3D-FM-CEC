@@ -2,7 +2,7 @@ subroutine dryfil(lundia    ,lundry    ,error     ,fildry    ,fmttmp    , &
                 & fldry     ,gdp       )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -26,8 +26,8 @@ subroutine dryfil(lundia    ,lundry    ,error     ,fildry    ,fmttmp    , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: dryfil.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/io/src/input/dryfil.f90 $
+!  $Id: dryfil.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/flow2d3d/packages/io/src/input/dryfil.f90 $
 !!--description-----------------------------------------------------------------
 !
 !   Reads the dam points from the attribute file
@@ -84,8 +84,7 @@ subroutine dryfil(lundia    ,lundry    ,error     ,fildry    ,fmttmp    , &
     lfile = len(fildry)
     !
     if (exifil(fildry, lundia)) then
-       luntmp = newlun(gdp)
-       open (luntmp, file = fildry(1:lfile), form = fmttmp, status = 'old')
+       open (newunit=luntmp, file = fildry(1:lfile), form = fmttmp, status = 'old')
        !
        !--------unformatted file
        !

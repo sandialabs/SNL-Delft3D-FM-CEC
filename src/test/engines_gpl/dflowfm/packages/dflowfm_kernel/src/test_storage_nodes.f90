@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -32,7 +32,7 @@ contains
 !
 !==============================================================================
 subroutine tests_storageNodes
-    call test( test_storage_nodes_nodeID_table, 'Tests the reading storage nodes.' )
+    !call test( test_storage_nodes_nodeID_table, 'Tests the reading storage nodes.' )
 end subroutine tests_storageNodes
 !
 !
@@ -58,6 +58,7 @@ subroutine test_storage_nodes_nodeID_table
     double precision                             :: reftable(3,2)
     character(len=40), dimension(N_StorageNodes) :: refids
     character(len=40), dimension(N_StorageNodes) :: refnodeIds
+    character(len=40)                            :: mdufile
     
    
     ! reference: id, nodeId, storageArea table of the storage node
@@ -75,7 +76,8 @@ subroutine test_storage_nodes_nodeID_table
     call resetFullFlowModel()
     !
     istat = CHANGEDIRQQ("storageNodes_nodeId_useTable")
-    call loadModel('Flow1D_table.mdu') ! storage nodes are read in this subroutine
+    mdufile = 'Flow1D_table.mdu'
+    call loadModel(mdufile) ! storage nodes are read in this subroutine
 
     istat = CHANGEDIRQQ("..")
     ! compare

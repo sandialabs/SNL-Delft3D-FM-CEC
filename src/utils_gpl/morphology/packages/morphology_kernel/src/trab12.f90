@@ -1,9 +1,10 @@
 subroutine trab12(u         ,v         ,hrms      ,h         ,tp        , &
-                & dir       ,d50       ,par       ,sbotx     ,sboty     , &
-                & ssusx     ,ssusy     ,ubot      ,vonkar    ,ubot_from_com)
+                & dir       ,d50       ,npar      ,par       ,sbotx     , &
+                & sboty     ,ssusx     ,ssusy     ,ubot      ,vonkar    , &
+                & ubot_from_com )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -27,8 +28,8 @@ subroutine trab12(u         ,v         ,hrms      ,h         ,tp        , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: trab12.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_gpl/morphology/packages/morphology_kernel/src/trab12.f90 $
+!  $Id: trab12.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_gpl/morphology/packages/morphology_kernel/src/trab12.f90 $
 !!--description-----------------------------------------------------------------
 ! computes sediment transport according to
 ! the bed load transport formula of Soulsby;
@@ -43,23 +44,25 @@ subroutine trab12(u         ,v         ,hrms      ,h         ,tp        , &
     !
     implicit none
 !
-! Call variables
+! Arguments
 !
-    real(fp)               , intent(in)  :: d50
-    real(fp)               , intent(in)  :: dir
-    real(fp)                             :: h
-    real(fp)                             :: hrms  !  Description and declaration in esm_alloc_real.f90
-    real(fp)                             :: ubot  !  Description and declaration in esm_alloc_real.f90
-    real(fp)               , intent(out) :: sbotx
-    real(fp)               , intent(out) :: sboty
-    real(fp)               , intent(out) :: ssusx
-    real(fp)               , intent(out) :: ssusy
-    real(fp)                             :: tp    !  Description and declaration in esm_alloc_real.f90
-    real(fp)               , intent(in)  :: u
-    real(fp)               , intent(in)  :: v
-    real(fp), dimension(30), intent(in)  :: par
-    real(fp)               , intent(in)  :: vonkar
-    logical                , intent(in)  :: ubot_from_com
+    logical                  , intent(in)    :: ubot_from_com
+    integer                  , intent(in)    :: npar
+    real(fp)                 , intent(in)    :: d50
+    real(fp)                 , intent(in)    :: dir
+    real(fp)                                 :: h
+    real(fp)                                 :: hrms  !  Description and declaration in esm_alloc_real.f90
+    real(fp), dimension(npar), intent(in)    :: par
+    real(fp)                                 :: tp    !  Description and declaration in esm_alloc_real.f90
+    real(fp)                 , intent(in)    :: u
+    real(fp)                                 :: ubot  !  Description and declaration in esm_alloc_real.f90
+    real(fp)                 , intent(in)    :: v
+    real(fp)                 , intent(in)    :: vonkar
+    !
+    real(fp)                 , intent(out)   :: sbotx
+    real(fp)                 , intent(out)   :: sboty
+    real(fp)                 , intent(out)   :: ssusx
+    real(fp)                 , intent(out)   :: ssusy
 !
 !
 ! Local variables

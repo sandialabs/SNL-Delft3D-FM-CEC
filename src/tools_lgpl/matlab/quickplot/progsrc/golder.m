@@ -19,7 +19,7 @@ function Data = golder(cmd,varargin)
 
 %----- LGPL --------------------------------------------------------------------
 %                                                                               
-%   Copyright (C) 2011-2020 Stichting Deltares.                                     
+%   Copyright (C) 2011-2022 Stichting Deltares.                                     
 %                                                                               
 %   This library is free software; you can redistribute it and/or                
 %   modify it under the terms of the GNU Lesser General Public                   
@@ -44,8 +44,8 @@ function Data = golder(cmd,varargin)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/golder.m $
-%   $Id: golder.m 65778 2020-01-14 14:07:42Z mourits $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/tools_lgpl/matlab/quickplot/progsrc/golder.m $
+%   $Id: golder.m 140618 2022-01-12 13:12:04Z klapwijk $
 
 switch lower(cmd)
    case 'read'
@@ -58,7 +58,7 @@ end
 
 
 function Data = readgolder(FileName)
-fid = fopen(FileName,'r');
+fid = fopen(FileName,'r','n','US-ASCII');
 Line = fgetl(fid);
 if length(Line)<7 | ~strcmp(Line(1:7),'# Cell[')
    fclose(fid);
@@ -130,7 +130,7 @@ for i = 1:2:length(varargin)
    %
    data(j+3,:) = varargin{i+1}(:)';
 end
-fid = fopen(FileName,'w');
+fid = fopen(FileName,'w','n','US-ASCII');
 fprintf(fid,['# Cell[I_J_K]' repmat(' "%s"',1,ndatafields),'\n'],Name{:});
 fprintf(fid,['Cell[%i_%i_%i]' repmat(' %f',1,ndatafields) ,'\n'],data);
 fclose(fid);

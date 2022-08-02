@@ -1,6 +1,6 @@
 !----- LGPL --------------------------------------------------------------------
 !
-!  Copyright (C)  Stichting Deltares, 2011-2020.
+!  Copyright (C)  Stichting Deltares, 2011-2022.
 !
 !  This library is free software; you can redistribute it and/or
 !  modify it under the terms of the GNU Lesser General Public
@@ -23,8 +23,8 @@
 !  are registered trademarks of Stichting Deltares, and remain the property of
 !  Stichting Deltares. All rights reserved.
 
-!  $Id: ec_converter.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/ec_module/packages/ec_module/src/ec_converter.f90 $
+!  $Id: ec_converter.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_lgpl/ec_module/packages/ec_module/src/ec_converter.f90 $
 
 !> This module contains all the methods for the datatype tEcConverter.
 !! @author adri.mourits@deltares.nl
@@ -1048,6 +1048,9 @@ module m_ec_converter
             case default
                call setECMessage("ERROR: ec_converter::ecConverterPerformConversions: Unknown Converter type requested.")
          end select
+         if (success) then
+             success = ecConverterUpdateScalar(connection)
+         endif
       end function ecConverterPerformConversions
 
       ! =======================================================================
@@ -1139,22 +1142,22 @@ module m_ec_converter
          valuesT1 => null()
          targetField => null()
 
-         if(connection%converterPtr%interpolationType == interpolate_passthrough)then
+         t0 = connection%sourceItemsPtr(1)%ptr%sourceT0FieldPtr%timesteps
+         t1 = connection%sourceItemsPtr(1)%ptr%sourceT1FieldPtr%timesteps
+         valuesT0 => connection%sourceItemsPtr(1)%ptr%sourceT0FieldPtr%arr1dPtr
+         valuesT1 => connection%sourceItemsPtr(1)%ptr%sourceT1FieldPtr%arr1dPtr
+         n_data = connection%sourceItemsPtr(1)%ptr%quantityPtr%vectorMax
+         if (associated(connection%targetItemsPtr(1)%ptr%ElementSetPtr%z)) then
+            maxlay = size(connection%targetItemsPtr(1)%ptr%ElementSetPtr%z) / size(connection%targetItemsPtr(1)%ptr%ElementSetPtr%x)
+         else
+            maxlay = 1
+         endif
+         allocate(valuesT(maxlay*n_data), stat=istat)
+         valuesT=ec_undef_hp
+         if (connection%converterPtr%interpolationType == interpolate_passthrough)then
             !
-            ! ===== block function (no interpolation) =====
-            t0 = connection%sourceItemsPtr(1)%ptr%sourceT0FieldPtr%timesteps
-            t1 = connection%sourceItemsPtr(1)%ptr%sourceT1FieldPtr%timesteps
+            ! ===== block function (no interpolation in time) =====
             !
-            valuesT0 => connection%sourceItemsPtr(1)%ptr%sourceT0FieldPtr%arr1dPtr
-            valuesT1 => connection%sourceItemsPtr(1)%ptr%sourceT1FieldPtr%arr1dPtr
-            n_data = connection%sourceItemsPtr(1)%ptr%quantityPtr%vectorMax
-            if (associated(connection%targetItemsPtr(1)%ptr%ElementSetPtr%z)) then
-               maxlay = size(connection%targetItemsPtr(1)%ptr%ElementSetPtr%z) / size(connection%targetItemsPtr(1)%ptr%ElementSetPtr%x)
-            else
-               maxlay = 1
-            endif
-            allocate(valuesT(maxlay*n_data), stat=istat)
-            valuesT=ec_undef_hp
             if(timesteps.lt.t1) then
                ! use valuesT0 when timesteps is less than t1
                do i=1, size(valuesT0,dim=1)
@@ -1169,24 +1172,12 @@ module m_ec_converter
             !
          else
             !
-            ! ===== interpolation =====
-            ! linear interpolation in time, or block(to:from)
-            valuesT0 => connection%sourceItemsPtr(1)%ptr%sourceT0FieldPtr%arr1dPtr
-            valuesT1 => connection%sourceItemsPtr(1)%ptr%sourceT1FieldPtr%arr1dPtr
-            n_data = connection%sourceItemsPtr(1)%ptr%quantityPtr%vectorMax
-            if (associated(connection%targetItemsPtr(1)%ptr%ElementSetPtr%z)) then
-               maxlay = size(connection%targetItemsPtr(1)%ptr%ElementSetPtr%z) / size(connection%targetItemsPtr(1)%ptr%ElementSetPtr%x)
-            else
-               maxlay = 1
-            endif
-            allocate(valuesT(maxlay*n_data), stat=istat)
-            valuesT=ec_undef_hp
+            ! ===== interpolation in time =====
+            !
             if (.not.connection%sourceItemsPtr(1)%ptr%quantityptr%constant) then
                select case(connection%sourceItemsPtr(1)%ptr%quantityptr%timeint)
                case (timeint_lin, timeint_lin_extrapol, timeint_rainfall)
                   ! linear interpolation in time
-                  t0 = connection%sourceItemsPtr(1)%ptr%sourceT0FieldPtr%timesteps
-                  t1 = connection%sourceItemsPtr(1)%ptr%sourceT1FieldPtr%timesteps
                   call time_weight_factors(a0, a1, timesteps, t0, t1,  &
                                            timeint = connection%sourceItemsPtr(1)%ptr%quantityptr%timeint)
                case (timeint_bto)
@@ -1362,6 +1353,9 @@ module m_ec_converter
          success = .true.
       end function ecConverterUniform
 
+      
+      
+
 
 
       ! =======================================================================
@@ -1526,6 +1520,43 @@ module m_ec_converter
 
       ! =======================================================================
 
+      function ecConverterVerticalMean(zpos,val,zmin,zmax,ndxmin,ndxmax) result (integral)
+         real(hp)                           :: integral
+         real(hp), dimension(:), intent(in) :: zpos, val
+         real(hp)              , intent(in) :: zmin, zmax
+         integer               , intent(out):: ndxmin, ndxmax
+
+         real(hp) :: wt, minz, maxz, dz
+         integer  :: ndx
+         ndxmin = size(zpos)
+         ndxmax = 1
+         do ndx=1,size(zpos)
+            if (zpos(ndx)>=zmin .and. zpos(ndx)<=zmax) then
+               ndxmin=min(ndxmin,ndx)
+               ndxmax=max(ndxmax,ndx)
+            end if
+         enddo
+         integral = sum(abs(zpos(ndxmin+1:ndxmax)-zpos(ndxmin:ndxmax-1))  &
+                        *(val(ndxmin+1:ndxmax)+ val(ndxmin:ndxmax-1))*0.5)
+         dz = min(abs(zpos(ndxmin)-zmin),abs(zpos(ndxmin)-zmax))
+         if (ndxmin>1) then
+            wt = dz/abs((zpos(ndxmin-1)-zpos(ndxmin)))*0.5
+            integral = integral + ((1_hp-wt)*val(ndxmin)+wt*val(ndxmin-1))*dz
+         else
+            integral = integral + val(ndxmin)*dz
+         end if
+         dz = min(abs(zpos(ndxmax)-zmin),abs(zpos(ndxmax)-zmax))
+         if (ndxmax<size(zpos)) then
+            wt = dz/abs((zpos(ndxmax-1)-zpos(ndxmax)))*0.5
+            integral = integral + ((1_hp-wt)*val(ndxmax)+wt*val(ndxmax-1))*dz
+         else
+            wt = 0_hp
+            integral = integral + val(ndxmax)*dz
+         end if
+         integral = integral/(zmax-zmin)
+      end function ecConverterVerticalMean
+      ! =======================================================================
+
       !> Execute the Converters in the Connection sequentially.
       !! meteo1 : polyint
       function ecConverterPolytim(connection, timesteps) result (success)
@@ -1535,7 +1566,7 @@ module m_ec_converter
          type(tEcConnection), intent(inout) :: connection !< access to Converter and Items
          real(hp),            intent(in)    :: timesteps  !< convert to this number of timesteps past the kernel's reference date
          !
-         integer  :: i, k             !< loop counters
+         integer  :: i, k, j          !< loop counters
          real(hp) :: wL, wR           !< left and right weights
          integer  :: kL, kR           !<
          integer  :: maxlay_tgt       !< size of ElementSet of the TARGET in third dimension (if relevant), a.k.a kmx
@@ -1543,12 +1574,15 @@ module m_ec_converter
          integer  :: maxlay_srcL      !< number of layers at the LEFT interpolation support point
          integer  :: maxlay_srcR      !< number of layers at the RIGHT interpolation support point
          integer  :: kbegin, kend, kbeginL, kendL, kbeginR, kendR, idxL1, idxR1, idxL2, idxR2 !<
+         integer  :: ndxmin, ndxmax
          logical, save :: alreadyPrinted = .false.
          real(hp) :: wwL, wwR  !<
-         real(hp), dimension(:), allocatable :: valL1, valL2, valR1, valR2, val !<
-         real(hp), dimension(:), allocatable :: sigmaL, sigmaR, sigma !<
+         real(hp), dimension(:), allocatable :: valL, valR, valL1, valL2, valR1, valR2, val !<
+         real(hp), dimension(:), allocatable :: sigmaL, sigmaR, sigma, sigmaLL, sigmaRR 
+         logical,  dimension(:), allocatable :: vmaskL, vmaskR
          real(hp), dimension(:),     pointer :: zmin => null() !< vertical min
          real(hp), dimension(:),     pointer :: zmax => null() !< vertical max
+         real(hp) :: missing
 
          integer  :: idx              !< helper variable
          integer  :: vectormax
@@ -1569,40 +1603,23 @@ module m_ec_converter
                      return
                   end select
             case (interpolate_spacetimeSaveWeightFactors, interpolate_spacetime)
-               !! RL: Deze check kan eruit, is al bij de aanleg van de items vastgesteld
-               !if (connection%targetItemsPtr(1)%ptr%vectorMax /= connection%sourceItemsPtr(1)%ptr%vectorMax) then
-               !   write(errormsg, '(a,i0,a,i0,a,i0,a,i0,a)') &
-               !                   'ERROR: ec_converter::ecConverterPolytim: Vector max size in source item ', connection%sourceItemsPtr(1)%ptr%id, &
-               !                   ' does not match the target item ', connection%targetItemsPtr(1)%ptr%id, &
-               !                   ' (', vectormax, '<>', vectormax_tgt, ').'
-               !   call setECMessage(errormsg)
-               !   return
-               !endif
-
                vectormax = connection%sourceItemsPtr(1)%ptr%quantityPtr%vectorMax
-               if (allocated(valL1)) deallocate(valL1)
+               missing = connection%sourceItemsPtr(1)%ptr%quantityPtr%fillvalue
                allocate(valL1(vectormax))
-               if (allocated(valL2)) deallocate(valL2)
                allocate(valL2(vectormax))
-               if (allocated(valR1)) deallocate(valR1)
                allocate(valR1(vectormax))
-               if (allocated(valR2)) deallocate(valR2)
                allocate(valR2(vectormax))
-               if (allocated(val)) deallocate(val)
                allocate(val(vectormax))
 
+               ! Determine maximum number of layers on the target side
                if (associated(connection%targetItemsPtr(1)%ptr%elementSetPtr%z)) then
                   maxlay_tgt = size(connection%targetItemsPtr(1)%ptr%elementSetPtr%z) /   &
                                size(connection%targetItemsPtr(1)%ptr%elementSetPtr%x)
                else
                   maxlay_tgt = 1
                end if
-               if (associated(connection%targetItemsPtr(1)%ptr%elementSetPtr%z)) then
-                  maxlay_tgt = size(connection%targetItemsPtr(1)%ptr%elementSetPtr%z) /   &
-                               size(connection%targetItemsPtr(1)%ptr%elementSetPtr%x)
-               else
-                  maxlay_tgt = 1
-               end if
+
+               ! Determine maximum number of layers on the source side
                if (associated(connection%sourceItemsPtr(1)%ptr%elementSetPtr%z)) then
                   maxlay_src = size(connection%sourceItemsPtr(1)%ptr%elementSetPtr%z) /   &
                                size(connection%sourceItemsPtr(1)%ptr%elementSetPtr%x)
@@ -1610,15 +1627,21 @@ module m_ec_converter
                   maxlay_src = 1
                end if
 
+               if (allocated(valL)) deallocate(valL)
+               allocate(valL(vectormax*maxlay_src))
+               if (allocated(valR)) deallocate(valR)
+               allocate(valR(vectormax*maxlay_src))
+
                if (associated(connection%sourceItemsPtr(1)%ptr%elementSetPtr%z) .and. &     ! source has sigma
                          associated(connection%targetItemsPtr(1)%ptr%elementSetPtr%z)) then    ! target has sigma
-                  if (allocated(sigma)) deallocate(sigma)
                   allocate(sigma(maxlay_tgt*connection%targetItemsPtr(1)%ptr%elementSetPtr%nCoordinates))
                   sigma = connection%targetItemsPtr(1)%ptr%elementSetPtr%z
-                  if (allocated(sigmaL)) deallocate(sigmaL)
                   allocate(sigmaL(maxlay_src))
-                  if (allocated(sigmaR)) deallocate(sigmaR)
                   allocate(sigmaR(maxlay_src))
+                  allocate(sigmaLL(maxlay_src))
+                  allocate(sigmaRR(maxlay_src))
+                  allocate(vmaskL(maxlay_src))
+                  allocate(vmaskR(maxlay_src))
                end if
 
                ! zmax and zmin are absolute top and bottom at target point coordinates
@@ -1634,8 +1657,8 @@ module m_ec_converter
                   select case(connection%converterPtr%operandType)
                      case(operand_replace_element, operand_replace, operand_add)
                         ! Are the subproviders 3D or 2D?
-                        if (associated(connection%sourceItemsPtr(1)%ptr%elementSetPtr%z) .and. &     ! source has sigma
-                               associated(connection%targetItemsPtr(1)%ptr%elementSetPtr%z)) then    ! target has sigma
+                        if (associated(connection%sourceItemsPtr(1)%ptr%elementSetPtr%z) .and. &     ! source has a vertical coordinate
+                               associated(connection%targetItemsPtr(1)%ptr%elementSetPtr%z)) then    ! target has a vertical coordinate
                            ! deal with one-sided interpolation
                            if ( kL == 0 .and. kR /= 0 ) then
                               kL = kR
@@ -1674,66 +1697,118 @@ module m_ec_converter
                                  if (.not.ecElementSetGetAbsZ (connection%sourceItemsPtr(1)%ptr%ElementSetPtr,   &
                                                                                                   kbeginL,kendL, &
                                                                                        zmin(i),zmax(i),sigmaL))  return
-                                 do maxlay_srcL=maxlay_src,1,-1
-                                    if (sigmaL(maxlay_srcL)>0.5*ec_undef_hp) exit
-                                 enddo
-                                 if (maxlay_srcL<1) then
-                                    write(errormsg,'(a,i0,a,i5.5)') "ERROR: ec_converter::ecConverterPolytim: No valid sigma (layer) associated with point ", &
-                                                                      kL," of polytim item ", connection%sourceItemsPtr(1)%ptr%id
-                                    call setECMessage(errormsg)
-                                    return
-                                 endif
-                                 do maxlay_srcR=maxlay_src,1,-1
-                                    if (sigmaR(maxlay_srcR)>0.5*ec_undef_hp) exit
-                                 enddo
+                                 ! Prepare sigmaR and valR
+                                 maxlay_srcR = 0
+                                 sigmaRR = ec_undef_hp
+                                 vmaskR = .False.
+                                 valR = ec_undef_hp
+                                 do k=1,maxlay_src
+                                    from = vectormax*maxlay_src*(kR-1)+vectormax*(k-1)+1
+                                    thru = vectormax*maxlay_src*(kR-1)+vectormax*(k)
+                                    ! check if all vector components are unequal missing for this layer
+                                    if (all(connection%sourceItemsPtr(1)%ptr%targetFieldPtr%arr1Dptr(from:thru)/=missing) .and. (sigmaR(k)>0.5*ec_undef_hp)) then 
+                                       maxlay_srcR = maxlay_srcR + 1
+                                       valR((maxlay_srcR-1)*vectormax+1:maxlay_srcR*vectormax) = connection%sourceItemsPtr(1)%ptr%targetFieldPtr%arr1Dptr(from:thru)
+                                       sigmaRR(maxlay_srcR) = sigmaR(k)
+                                    end if
+                                 end do
                                  if (maxlay_srcR<1) then
                                     write(errormsg,'(a,i0,a,i5.5)') "ERROR: ec_converter::ecConverterPolytim: No valid sigma (layer) associated with point ", &
                                                                       kR," of polytim item ", connection%sourceItemsPtr(1)%ptr%id
                                     call setECMessage(errormsg)
                                     return
-                                 endif
-                                 !
-                                 do k=kbegin,kend
-                                    ! RL: BUG!!! z(k) not initialised if the model is not 3D !!! TO BE FIXED !!!!!!!!!!!!!!
-                                    if ( sigma(k) < 0.5*ec_undef_hp ) cycle
+                                 end if
 
-                                    ! find vertical indices and weights for the LEFT point
-                                    call findVerticalIndexWeight(sigma(k), sigmaL, maxlay_src, maxlay_srcL, kL, wwL, idxL1, idxL2)
-                                    ! find vertical indices and weights for the RIGHT point
-                                    call findVerticalIndexWeight(sigma(k), sigmaR, maxlay_src, maxlay_srcR, kR, wwR, idxR1, idxR2)
-
-                                    ! idx are in terms of vector for a specific pli-point and layer
-                                    valL1(1:vectormax) = connection%sourceItemsPtr(1)%ptr%targetFieldPtr%arr1Dptr((idxL1-1)*vectormax+1:(idxL1)*vectormax)
-                                    valL2(1:vectormax) = connection%sourceItemsPtr(1)%ptr%targetFieldPtr%arr1Dptr((idxL2-1)*vectormax+1:(idxL2)*vectormax)
-                                    valR1(1:vectormax) = connection%sourceItemsPtr(1)%ptr%targetFieldPtr%arr1Dptr((idxR1-1)*vectormax+1:(idxR1)*vectormax)
-                                    valR2(1:vectormax) = connection%sourceItemsPtr(1)%ptr%targetFieldPtr%arr1Dptr((idxR2-1)*vectormax+1:(idxR2)*vectormax)
-                                    !
-                                    select case(connection%sourceItemsPtr(1)%ptr%quantityPtr%zInterpolationType)
-                                       case(zinterpolate_unknown)
-                                          if ( .not. alreadyPrinted) then
-                                             call setECMessage("WARNING: ec_converter::ecConverterPolytim: Unknown vertical interpolation type given, will proceed with linear method.")
-                                             alreadyPrinted = .true.
-                                          endif
-                                          val = wL*(wwL*valL1 + (1.0_hp-wwL)*valL2) + wR*(wwR*valR1 + (1.0_hp-wwR)*valR2)
-                                       case(zinterpolate_linear)
-                                          val = wL*(wwL*valL1 + (1.0_hp-wwL)*valL2) + wR*(wwR*valR1 + (1.0_hp-wwR)*valR2)
-                                       case(zinterpolate_block)
-                                          val = wL*valL1  + wR*valR1
-                                       case(zinterpolate_log)
-                                          val = wL*(valL1**wwL)*(valL2**(1.0_hp-wwL)) + wR*(valR1**wwR)*(valR2**(1.0_hp-wwR))
-                                       case default
-                                          call setECMessage("ERROR: ec_converter::ecConverterPolytim: Unsupported vertical interpolation type requested.")
-                                          return
-                                       end select
-                                    !
-                                    if ((connection%converterPtr%operandType == operand_replace) .or. (connection%converterPtr%operandType == operand_replace_element)) then
-                                       connection%targetItemsPtr(1)%ptr%targetFieldPtr%arr1dPtr((k-1)*vectormax+1:k*vectormax) = val(1:vectormax)
-                                    else if (connection%converterPtr%operandType == operand_add) then
-                                       connection%targetItemsPtr(1)%ptr%targetFieldPtr%arr1dPtr((k-1)*vectormax+1:k*vectormax)   &
-                                             = connection%targetItemsPtr(1)%ptr%targetFieldPtr%arr1dPtr((k-1)*vectormax+1:k*vectormax) + val(1:vectormax)
+                                 ! Prepare sigmaL and valL
+                                 maxlay_srcL = 0
+                                 sigmaLL = ec_undef_hp
+                                 vmaskL = .False.
+                                 valL = ec_undef_hp
+                                 do k=1,maxlay_src
+                                    from = vectormax*maxlay_src*(kL-1)+vectormax*(k-1)+1
+                                    thru = vectormax*maxlay_src*(kL-1)+vectormax*(k)
+                                    ! check if all vector components are unequal missing for this layer
+                                    if (all(connection%sourceItemsPtr(1)%ptr%targetFieldPtr%arr1Dptr(from:thru)/=missing) .and. (sigmaL(k)>0.5*ec_undef_hp)) then
+                                       maxlay_srcL = maxlay_srcL + 1
+                                       valL((maxlay_srcL-1)*vectormax+1:maxlay_srcL*vectormax) = connection%sourceItemsPtr(1)%ptr%targetFieldPtr%arr1Dptr(from:thru)
+                                       sigmaLL(maxlay_srcL) = sigmaL(k)
                                     end if
-                                    !
-                                 end do            ! target layers
+                                 end do
+                                 if (maxlay_srcL<1) then
+                                    write(errormsg,'(a,i0,a,i5.5)') "ERROR: ec_converter::ecConverterPolytim: No valid sigma (layer) associated with point ", &
+                                                                      kL," of polytim item ", connection%sourceItemsPtr(1)%ptr%id
+                                    call setECMessage(errormsg)
+                                    return
+                                 end if
+
+                                 
+                                 if (connection%sourceItemsPtr(1)%ptr%quantityPtr%zInterpolationType == zinterpolate_mean) then
+                                    valL1 = ecConverterVerticalMean(sigmaLL,valL,zmin(i),zmax(i),ndxmin,ndxmax)
+                                    if (ndxmax-ndxmin<1) then
+                                       write(errormsg,'(a,i0,a,i5.5)') "ERROR: ec_converter::ecConverterPolytim: No valid layer for averaging for point ", &
+                                                                         kL," of polytim item ", connection%sourceItemsPtr(1)%ptr%id
+                                       call setECMessage(errormsg)
+                                       return
+                                    end if
+                                    valR1 = ecConverterVerticalMean(sigmaRR,valR,zmin(i),zmax(i),ndxmin,ndxmax)
+                                    if (ndxmax-ndxmin<1) then
+                                       write(errormsg,'(a,i0,a,i5.5)') "ERROR: ec_converter::ecConverterPolytim: No valid layer for averaging for point ", &
+                                                                         kR," of polytim item ", connection%sourceItemsPtr(1)%ptr%id
+                                       call setECMessage(errormsg)
+                                       return
+                                    end if
+                                    val = wL*valL1  + wR*valR1
+                                    do k=kbegin,kend         ! Set the average value for all vertical positions
+                                       if ((connection%converterPtr%operandType == operand_replace) .or. (connection%converterPtr%operandType == operand_replace_element)) then
+                                          connection%targetItemsPtr(1)%ptr%targetFieldPtr%arr1dPtr((k-1)*vectormax+1:k*vectormax) = val(1:vectormax)
+                                       else if (connection%converterPtr%operandType == operand_add) then
+                                          connection%targetItemsPtr(1)%ptr%targetFieldPtr%arr1dPtr((k-1)*vectormax+1:k*vectormax)   &
+                                                = connection%targetItemsPtr(1)%ptr%targetFieldPtr%arr1dPtr((k-1)*vectormax+1:k*vectormax) + val(1:vectormax)
+                                       end if
+                                    end do         ! target layers
+                                 else
+                                    do k=kbegin,kend
+                                       ! RL: BUG!!! z(k) not initialised if the target side is not 3D !!! TO BE FIXED !!!!!!!!!!!!!!
+                                       if ( sigma(k) < 0.5*ec_undef_hp ) cycle
+
+                                       ! find vertical indices and weights for the LEFT point
+                                       call findVerticalIndexWeight(sigma(k), sigmaLL, maxlay_srcL, kL, wwL, idxL1, idxL2)
+                                       ! find vertical indices and weights for the RIGHT point
+                                       call findVerticalIndexWeight(sigma(k), sigmaRR, maxlay_srcR, kR, wwR, idxR1, idxR2)
+
+                                       ! idx are in terms of vector for a specific pli-point and layer
+                                       valL1(1:vectormax) = valL((idxL1-1)*vectormax+1:(idxL1)*vectormax)
+                                       valL2(1:vectormax) = valL((idxL2-1)*vectormax+1:(idxL2)*vectormax)
+                                       valR1(1:vectormax) = valR((idxR1-1)*vectormax+1:(idxR1)*vectormax)
+                                       valR2(1:vectormax) = valR((idxR2-1)*vectormax+1:(idxR2)*vectormax)
+                                       !
+                                       select case(connection%sourceItemsPtr(1)%ptr%quantityPtr%zInterpolationType)
+                                          case(zinterpolate_unknown)
+                                             if ( .not. alreadyPrinted) then
+                                                call setECMessage("WARNING: ec_converter::ecConverterPolytim: Unknown vertical interpolation type given, will proceed with linear method.")
+                                                alreadyPrinted = .true.
+                                             endif
+                                             val = wL*(wwL*valL1 + (1.0_hp-wwL)*valL2) + wR*(wwR*valR1 + (1.0_hp-wwR)*valR2)
+                                          case(zinterpolate_linear)
+                                             val = wL*(wwL*valL1 + (1.0_hp-wwL)*valL2) + wR*(wwR*valR1 + (1.0_hp-wwR)*valR2)
+                                          case(zinterpolate_block)
+                                             val = wL*valL1  + wR*valR1
+                                          case(zinterpolate_log)
+                                             val = wL*(valL1**wwL)*(valL2**(1.0_hp-wwL)) + wR*(valR1**wwR)*(valR2**(1.0_hp-wwR))
+                                          case default
+                                             call setECMessage("ERROR: ec_converter::ecConverterPolytim: Unsupported vertical interpolation type requested.")
+                                             return
+                                          end select
+                                       !
+                                       if ((connection%converterPtr%operandType == operand_replace) .or. (connection%converterPtr%operandType == operand_replace_element)) then
+                                          connection%targetItemsPtr(1)%ptr%targetFieldPtr%arr1dPtr((k-1)*vectormax+1:k*vectormax) = val(1:vectormax)
+                                       else if (connection%converterPtr%operandType == operand_add) then
+                                          connection%targetItemsPtr(1)%ptr%targetFieldPtr%arr1dPtr((k-1)*vectormax+1:k*vectormax)   &
+                                                = connection%targetItemsPtr(1)%ptr%targetFieldPtr%arr1dPtr((k-1)*vectormax+1:k*vectormax) + val(1:vectormax)
+                                       end if
+                                       !
+                                    end do         ! target layers
+                                 end if            ! are we averaging the source in the vertical direction ?
                               end if               ! kR > 0: right support point exists
                            end if                  ! kL > 0: left support point exists
                         else                       ! no vertical coordinate assigned to this source item, i.e. 3D source
@@ -1771,6 +1846,7 @@ module m_ec_converter
                        return
                   end select
                end do
+
             case default
                call setECMessage("ERROR: ec_converter::ecConverterPolytim: Unsupported interpolation type requested.")
                return
@@ -1780,33 +1856,33 @@ module m_ec_converter
          if (allocated(sigmaR)) deallocate(sigmaR)
          success = .true.
       end function ecConverterPolytim
-!     maxlaysource
 
-      subroutine findVerticalIndexWeight(sigmak, sigma, maxdimlay_src, maxlay_src, kLR, ww, idx1, idx2)
+      subroutine findVerticalIndexWeight(sigmak, sigma, maxlay_src, kLR, ww, idx1, idx2)
          real(kind=hp), intent(in) :: sigmak, sigma(:)
-         integer, intent(in) :: maxdimlay_src, maxlay_src, kLR
+         integer, intent(in) :: maxlay_src, kLR
          real(kind=hp), intent(out) :: ww
          integer, intent(out) :: idx1, idx2
 
          integer :: kkl
 
-         do kkL = 0, maxlay_src-1                      ! find vertical indices
-            if (sigmak <= sigma(kkL+1)) exit
-         enddo
-
-         if (kkL==0) then                              ! only use upper of idxL1 and idxL2
-            ww = 0.5d0
-            idx2 = maxdimlay_src*(kLR-1) + kkL + 1
-            idx1 = idx2
-         elseif (kkL==maxlay_src) then                 ! only use lower of idxL1 and idxL2
-            ww = 0.5d0
-            idx1 = maxdimlay_src*(kLR-1) + kkL
-            idx2 = idx1
-         else                                          ! save to use both idxL1 AND idxL2
-            ww = (sigma(kkL+1)-sigmak) / (sigma(kkL+1)-sigma(kkL))
-            idx1 = maxdimlay_src*(kLR-1) + kkL
-!           idx2 = maxlay_src*(kLR-1) + kkL + 1
-            idx2 = idx1 + 1
+         if ((sigmak - sigma(1)) * (sigmak - sigma(maxlay_src)) >= 0) then      ! beyond the range of source levels
+            if (abs(sigmak - sigma(1)) < abs(sigmak - sigma(maxlay_src))) then  ! closer to sigma(1) (avoiding the assumption sigma(1) is the lowest)
+               idx1 = 1
+               idx2 = 1
+               ww = 0.5d0
+            else                                                                ! closer to sigma(maxlay_src)
+               idx1 = maxlay_src
+               idx2 = maxlay_src
+               ww = 0.5d0
+            endif
+         else                                                                   ! within the range of source levels
+            do idx1 = 1, maxlay_src-1                                           ! find vertical indices
+               if ((sigmak - sigma(idx1)) * (sigmak - sigma(idx1+1)) <= 0) then ! between level idx1 and idx+1
+                  idx2 = idx1 + 1
+                  ww = (sigma(idx2)-sigmak) / (sigma(idx2)-sigma(idx1))
+                  exit
+               endif
+            enddo
          endif
       end subroutine findVerticalIndexWeight
       ! =======================================================================
@@ -3031,6 +3107,29 @@ module m_ec_converter
          end select
          success = .true.
       end function ecConverterNetcdf
+
+      ! =======================================================================
+
+      !> For every connected target item, 
+      !> if the target field has an associated scalar pointer, fill it with the first element of the arr1DPtr array.
+      !> This scalar pointer is connected with a scalar in a kernel, such as a single field in a derived type
+      function ecConverterUpdateScalar(connection) result (success)
+         logical                            :: success    !< function status
+         type(tEcConnection), intent(inout) :: connection !< access to Converter and Items
+         type(tEcField), pointer :: fieldPtr
+         integer :: itgt
+         !
+         success = .false.
+         do itgt = 1, connection%nTargetItems
+            fieldPtr => connection%targetItemsPtr(itgt)%ptr%targetFieldPtr
+            if (associated(fieldPtr)) then
+               if (associated(fieldPtr%scalarPtr)) then
+                  fieldPtr%scalarPtr = fieldPtr%arr1DPtr(1)
+               endif
+            endif
+         enddo
+         success = .true.
+      end function ecConverterUpdateScalar
 
       ! =======================================================================
 

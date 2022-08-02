@@ -23,7 +23,7 @@ function Info=bct_io(cmd,varargin)
 
 %----- LGPL --------------------------------------------------------------------
 %
-%   Copyright (C) 2011-2020 Stichting Deltares.
+%   Copyright (C) 2011-2022 Stichting Deltares.
 %
 %   This library is free software; you can redistribute it and/or
 %   modify it under the terms of the GNU Lesser General Public
@@ -48,8 +48,8 @@ function Info=bct_io(cmd,varargin)
 %
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/bct_io.m $
-%   $Id: bct_io.m 65778 2020-01-14 14:07:42Z mourits $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/tools_lgpl/matlab/quickplot/progsrc/bct_io.m $
+%   $Id: bct_io.m 140708 2022-02-07 08:07:25Z chavarri $
 
 switch lower(cmd)
     case 'clip'
@@ -129,16 +129,31 @@ end
 T=T0+Tab.Data(t,1)/f;
 
 function Info = Local_read_bct(filename)
-fid=fopen(filename,'r');
+
+if exist(filename,'file')~=2
+    error('File does not exist: %s',filename)
+end
+fid=fopen(filename,'r','n','US-ASCII');
 Info.Check='NotOK';
 Info.FileName=filename;
 Info.NTables=0;
 
 floc=ftell(fid);
 Line=fgetl(fid);
-if strcmp(Line,'[forcing]')
-    Info = Local_read_bc(Info,fid);
-    return
+line=lower(Line);
+switch deblank(line)
+    case '[forcing]'
+        Info = Local_read_bc(Info,fid);
+        return
+    case '[general]' %SOBEK-3 header, we cycle until we get to [boundary]; In FM-1D input there is [forcing]
+        while ~strcmp(line,'[boundary]') && ~strcmp(line,'[forcing]')
+            line=lower(fgetl(fid));
+            if feof(fid)
+                error('The file seems to be from SOBEK-3 or Delft3D FM 1D. I could not find the [boundary] or [forcing] block')
+            end
+        end
+        Info = Local_read_bc(Info,fid);
+        return
 end
 %
 while ischar(Line) && ~isempty(Line) && Line(1)=='#'
@@ -219,7 +234,10 @@ while ~feof(fid)
     [key,remainder] = strtok(Line);
     [eq,remainder] = strtok(remainder);
     remainder = strtrim(remainder);
-    if ~strcmp(eq,'=')
+    if any(strcmpi(key,{'[boundary]','[lateraldischarge]','[forcing]'}))
+        continue
+    end
+    if ~strcmp(eq,'=') 
         Data = sscanf(Line,'%f',inf);
         if length(Data)==NPar
             % data
@@ -227,7 +245,14 @@ while ~feof(fid)
             Data = fscanf(fid,'%f',[NPar inf]);
             Info.Table(i).Data = Data';
             Info.NTables=Info.NTables+1;
-            %
+            
+            %display
+            %fprintf('Table for bc read: %s \n',Info.Table(i).Location)
+            
+            %update
+            if isempty(Info.Table(i).Data)
+                warning('Empty data. Probably an error in reading.')
+            end
             i=i+1;
             NPar=0;
         else
@@ -265,9 +290,14 @@ while ~feof(fid)
             Info.Table(i).Parameter(NPar).Unit=remainder;
             %
             if strcmp(Info.Table(i).Parameter(NPar).Name,'time')
-                Time = sscanf(remainder,'%s since %d-%d-%d %d:%d:%d');
-                Info.Table(i).ReferenceTime = [[10000 100 1]*Time(end-5:end-3) [10000 100 1]*Time(end-2:end)];
-                Info.Table(i).TimeUnit = char(Time(1:end-6))';
+                [Info.Table(i).TimeUnit, remainder] = strtok(remainder);
+                Time = sscanf(remainder,' since %d-%d-%d %d:%d:%d');
+                if length(Time) >= 3
+                    Time(7) = 0;
+                    Info.Table(i).ReferenceTime = [[10000 100 1]*Time(1:3) [10000 100 1]*Time(4:6)];
+                else
+                    error(['Unable to determine reference time from ' Info.Table(i).Parameter(NPar).Unit])
+                end
             end
     end
 end
@@ -318,7 +348,7 @@ if ~ischar(filename) && nargin==1
     Info = filename;
     filename = Info.FileName;
 end
-fid=fopen(filename,'w');
+fid=fopen(filename,'w','n','US-ASCII');
 % When the file is written using a fixed line/record length this is
 % shown in the first line
 %fprintf(fid,'# %i\n',linelength);

@@ -1,6 +1,6 @@
 !----- AGPL --------------------------------------------------------------------
 !
-!  Copyright (C)  Stichting Deltares, 2017-2020.
+!  Copyright (C)  Stichting Deltares, 2017-2022.
 !
 !  This file is part of Delft3D (D-Flow Flexible Mesh component).
 !
@@ -27,8 +27,8 @@
 !
 !-------------------------------------------------------------------------------
 
-! $Id: dfm_max25_getdata.f90 65778 2020-01-14 14:07:42Z mourits $
-! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_gpl/dfmoutput/src/dfm_max25_getdata.f90 $
+! $Id: dfm_max25_getdata.f90 140618 2022-01-12 13:12:04Z klapwijk $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/tools_gpl/dfmoutput/src/dfm_max25_getdata.f90 $
 
 !> DFM_MAX25_GETDATA - Subroutine to provide max25 filters to dfmoutput.
 !!
@@ -36,11 +36,85 @@ module dfm_max25_getdata
    use netcdf
    use write_extremes_his
    use read_nc_histories
+   use runsum
    implicit none
    private
-   public :: fmgetdata
+   public :: fmgetdata, fmgetdata_running_mean
 
    contains
+
+!> main routine to write max_running_mean output to file
+subroutine fmgetdata_running_mean(filename, filename_out, field_name, minmaxlst)
+   implicit none
+   character(len=*) , intent(in) :: filename      !< input filename (NetCDF)
+   character(len=*) , intent(in) :: field_name    !< input field name (e.g. 'waterlevel')
+   character(len=*) , intent(in) :: filename_out  !< output filename (ascii)
+   character(len=*),  intent(in) :: minmaxlst     !< list with filter lengths (e.g. '13,25')
+
+   type(TRunSum) :: runsum
+
+   integer :: ierr, i, j, k, nStations, nd, ntimes, iunit
+   real, allocatable :: hisdata(:,:), maxvalues(:), minvalues(:)
+   real(kind=8), allocatable :: onetime(:)
+   character(len=:), allocatable :: stations(:)
+   integer, allocatable :: list(:)
+   character(len=32) :: stations_var
+   character(len=12) :: cnum1, cnum2
+
+                           ierr = read_meta_data(filename, nStations)
+   if (ierr == nf90_noerr) call find_stations_var(field_name, stations_var, nStations)
+   if (ierr == nf90_noerr) ierr = read_station_names(stations, stations_var)
+   if (ierr == nf90_noerr) ierr = read_data(hisdata, field_name)
+   if (ierr == nf90_noerr) ierr = close_nc_his_file()
+
+   if (ierr /= nf90_noerr) then
+      write(*,*) trim(nf90_strerror(ierr))
+   else
+      open(newunit=iunit, file=filename_out)
+      call parse_min_max_list(minmaxlst, list)
+      allocate(maxvalues(nStations), minvalues(nStations), onetime(nStations))
+      write(iunit,'(2a)') 'quantity = ', field_name
+      do k = 1, size(list)
+
+         nd = list(k)
+         ntimes = size(hisdata,1)
+         call runsum%init(nStations, nd)
+         if (nd > ntimes) then
+            write(iunit,'(a,i4)') 'Not enough times for filter width =', nd
+            cycle
+         end if
+         do i = 1, ntimes
+            onetime = hisdata(i,:)
+            call runsum%update(onetime)
+            if (i == nd) then
+               maxvalues = runsum%state
+               minvalues = runsum%state
+            else if (i > nd) then
+               do j = 1, nStations
+                  maxvalues(j) = max(maxvalues(j), runsum%state(j))
+                  minvalues(j) = min(minvalues(j), runsum%state(j))
+               end do
+            end if
+         end do
+
+         ! sum -> mean
+         maxvalues = maxvalues / real(nd)
+         minvalues = minvalues / real(nd)
+
+         ! print values
+         write(iunit,*)
+         write(iunit,'(a,i4)') 'width =', nd
+         write(iunit,'(a)') '   max value    min value   station name'
+         do j = 1, nStations
+            call write_val2string(maxvalues(j), cnum1, 1)
+            call write_val2string(minvalues(j), cnum2, 1)
+            write(iunit,'(2(a12,x),2x,a)') cnum1, cnum2, trim(stations(j))
+         end do
+      end do
+      close(iunit)
+   endif
+
+end subroutine fmgetdata_running_mean
 
 !> main routine to write max25 output to file
 subroutine fmgetdata(filename, filename_out, field_name, minmaxlst)
@@ -52,11 +126,13 @@ subroutine fmgetdata(filename, filename_out, field_name, minmaxlst)
 
    integer :: ierr, i, nStations
    real, allocatable :: hisdata(:,:)
-   character(len=64), allocatable :: stations(:)
+   character(len=:), allocatable :: stations(:)
    integer, allocatable :: stats_index(:), list(:)
+   character(len=32) :: stations_var
 
                            ierr = read_meta_data(filename, nStations)
-   if (ierr == nf90_noerr) ierr = read_station_names(stations, 'station_name')
+   if (ierr == nf90_noerr) call find_stations_var(field_name, stations_var, nStations)
+   if (ierr == nf90_noerr) ierr = read_station_names(stations, stations_var)
    if (ierr == nf90_noerr) ierr = read_data(hisdata, field_name)
    if (ierr == nf90_noerr) ierr = close_nc_his_file()
 

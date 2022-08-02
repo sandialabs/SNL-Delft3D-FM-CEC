@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -41,6 +41,8 @@
 !     COMMON BLOCKS       : -
 !
       SUBROUTINE CHINP2 (RUNNAM, LUIC  , LUOC  )
+      
+      use m_charon
 !
 !     NAME    KIND     LENGTH     FUNCT.  DESCRIPTION
 !     ----    -----    ------     ------- -----------
@@ -54,10 +56,6 @@
       CHARACTER*12    RUNNAM
       INTEGER         LUIC  , LUOC  , I1 , I2 , I , i3(1)
       REAL            R1(1,12)
-!
-!     Commons CHARON
-
-      INCLUDE 'charon.inc'
 
 !     Initialization of CHARON
 
@@ -89,7 +87,7 @@
 
 !     Read input file (N.B. Fixed order of input blocks!!!)
 
-      CALL START
+      CALL STARTCH
       READ (NIT,*)
       CALL ROWS (0)
       READ (NIT,*)

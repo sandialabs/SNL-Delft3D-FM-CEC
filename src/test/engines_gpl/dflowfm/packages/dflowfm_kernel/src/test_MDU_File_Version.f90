@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -32,13 +32,13 @@ contains
 !
 !==============================================================================
 subroutine tests_MDU_fileversion
-    call test( test_MDU_fielversion_model, 'Tests checking MDU file version (old [model] block).' )
-    call test( test_MDU_fielversion_general, 'Tests checking MDU file version (new [General] block).' )
+    call test( test_MDU_fileversion_model, 'Tests checking MDU file version (old ~model~ block).' )
+    call test( test_MDU_fileversion_general, 'Tests checking MDU file version (new ~General~ block).' )
 end subroutine tests_MDU_fileversion
 !
 !
 !==============================================================================
-subroutine test_MDU_fielversion_model
+subroutine test_MDU_fileversion_model
     use unstruc_model
     use dfm_error
     use m_partitioninfo, only: jampi
@@ -59,9 +59,9 @@ subroutine test_MDU_fielversion_model
     call assert_equal(ierr, DFM_NOERR, 'Error when reading old MDU file version with [model] block.' ) 
  
 
-end subroutine test_MDU_fielversion_model
+end subroutine test_MDU_fileversion_model
 
-subroutine test_MDU_fielversion_general
+subroutine test_MDU_fileversion_general
     use unstruc_model
     use dfm_error
     use m_partitioninfo, only: jampi
@@ -82,6 +82,6 @@ subroutine test_MDU_fielversion_general
     call assert_equal(ierr, DFM_NOERR, 'Error when reading new MDU file version with [General] block.' ) 
  
 
-end subroutine test_MDU_fielversion_general
+end subroutine test_MDU_fileversion_general
 
 end module test_MDU_File_Version

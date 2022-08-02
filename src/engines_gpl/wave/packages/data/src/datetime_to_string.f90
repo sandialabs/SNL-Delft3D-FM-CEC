@@ -1,7 +1,7 @@
 function datetime_to_string(date, time) result (dtstring)
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -25,8 +25,8 @@ function datetime_to_string(date, time) result (dtstring)
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: datetime_to_string.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/wave/packages/data/src/datetime_to_string.f90 $
+!  $Id: datetime_to_string.f90 141401 2022-06-24 13:08:33Z saggiora $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/wave/packages/data/src/datetime_to_string.f90 $
 !!--description-----------------------------------------------------------------
 !
 !
@@ -35,13 +35,14 @@ function datetime_to_string(date, time) result (dtstring)
 !!--declarations----------------------------------------------------------------
 !
 use time_module, only : ymd2jul
+use precision_basics
 implicit none
 !
 ! Global variables
 !
 character(15)             :: dtstring ! [yyyymmdd.hhmmss] julian date
 integer      , intent(in) :: date     ! [yyyymmdd]
-real         , intent(in) :: time     ! [sec]      seconds since date, 0:00:00 h
+real(hp)     , intent(in) :: time     ! [sec]      seconds since date, 0:00:00 h
 !
 ! Local variables
 !

@@ -14,7 +14,7 @@ function S = adcircmesh(cmd,FileName)
 
 %----- LGPL --------------------------------------------------------------------
 %                                                                               
-%   Copyright (C) 2011-2020 Stichting Deltares.                                     
+%   Copyright (C) 2011-2022 Stichting Deltares.                                     
 %                                                                               
 %   This library is free software; you can redistribute it and/or                
 %   modify it under the terms of the GNU Lesser General Public                   
@@ -39,8 +39,8 @@ function S = adcircmesh(cmd,FileName)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/private/adcircmesh.m $
-%   $Id: adcircmesh.m 65778 2020-01-14 14:07:42Z mourits $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/tools_lgpl/matlab/quickplot/progsrc/private/adcircmesh.m $
+%   $Id: adcircmesh.m 140618 2022-01-12 13:12:04Z klapwijk $
 
 switch cmd
     case {'open','read'}
@@ -98,7 +98,7 @@ end
 function S = local_open(FileName)
 S.FileName = FileName;
 S.FileType = 'Adcirc 14 mesh';
-[fid,msg] = fopen(FileName,'r');
+[fid,msg] = fopen(FileName,'r','n','US-ASCII');
 if fid<0
     error('%s: %s',FileName,msg)
 end

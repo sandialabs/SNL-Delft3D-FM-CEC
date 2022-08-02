@@ -3,7 +3,7 @@ function [hNew,Thresholds,Param,Parent]=qp_plot_pnt(hNew,Parent,Param,data,Ops,P
 
 %----- LGPL --------------------------------------------------------------------
 %                                                                               
-%   Copyright (C) 2011-2020 Stichting Deltares.                                     
+%   Copyright (C) 2011-2022 Stichting Deltares.                                     
 %                                                                               
 %   This library is free software; you can redistribute it and/or                
 %   modify it under the terms of the GNU Lesser General Public                   
@@ -28,8 +28,8 @@ function [hNew,Thresholds,Param,Parent]=qp_plot_pnt(hNew,Parent,Param,data,Ops,P
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/private/qp_plot_pnt.m $
-%   $Id: qp_plot_pnt.m 65778 2020-01-14 14:07:42Z mourits $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/tools_lgpl/matlab/quickplot/progsrc/private/qp_plot_pnt.m $
+%   $Id: qp_plot_pnt.m 140618 2022-01-12 13:12:04Z klapwijk $
 
 T_=1; ST_=2; M_=3; N_=4; K_=5;
 
@@ -83,11 +83,17 @@ end
 switch NVal
     case 0
         if strcmp(Ops.facecolour,'none')
-            if ishandle(hNew)
-                set(hNew,'xdata',X, ...
-                    'ydata',Y);
+            if strcmp(Ops.basicaxestype,'X-Y-Z')
+                xyz = {'xdata',X,'ydata',Y,'zdata',Z};
+            elseif strcmp(Ops.basicaxestype,'X-Z')
+                xyz = {'xdata',X,'ydata',Z};
             else
-                hNew=line(X,Y, ...
+                xyz = {'xdata',X,'ydata',Y};
+            end
+            if ishandle(hNew)
+                set(hNew,xyz{:});
+            else
+                hNew=line(xyz{2:2:end}, ...
                     'parent',Parent, ...
                     Ops.LineParams{:});
                 set(Parent,'layer','top')
@@ -175,48 +181,69 @@ switch NVal
                     if ~FirstFrame
                         delete(hNew)
                     end
-                    vNaN=isnan(data.Val);
-                    if any(vNaN)
-                        bs=findseries(~vNaN);
-                    else
-                        bs=[1 length(vNaN)];
-                    end
-                    fill = ~strcmp(Ops.facecolour,'none');
-                    for i=1:size(bs,1)
-                        from=bs(i,1);
-                        to=bs(i,2);
-                        ecol='flat';
-                        fcol='none';
-                        if fill && X(from)==X(to) && ...
-                                Y(from)==Y(to)
-                            ecol='none';
-                            fcol='flat';
-                            vl=from;
-                        elseif from>1
-                            from=from-1;
-                            X(from)=NaN;
-                            Y(from)=NaN;
-                            data.Val(from)=NaN;
-                            vl=from:to;
+                    o = 0;
+                    for c=1:size(data.Val,2)
+                        vNaN=isnan(data.Val(:,c));
+                        if any(vNaN)
+                            bs=findseries(~vNaN);
                         else
-                            to=to+1;
-                            X(to)=NaN;
-                            Y(to)=NaN;
-                            data.Val(to)=NaN;
-                            vl=from:to;
+                            bs=[1 length(vNaN)];
                         end
-                        hNew(i)=patch(X(from:to), ...
-                            Y(from:to), ...
-                            data.Val(vl), ...
-                            'edgecolor',ecol, ...
-                            'facecolor',fcol, ...
-                            'linestyle',Ops.linestyle, ...
-                            'linewidth',Ops.linewidth, ...
-                            'marker',Ops.marker, ...
-                            'markersize',Ops.markersize, ...
-                            'markeredgecolor',Ops.markercolour, ...
-                            'markerfacecolor',Ops.markerfillcolour, ...
-                            'parent',Parent);
+                        fill = ~strcmp(Ops.facecolour,'none');
+                        for i=1:size(bs,1)
+                            from=bs(i,1);
+                            to=bs(i,2);
+                            ecol='interp';
+                            fcol='none';
+                            if fill && X(from,c)==X(to,c) && ...
+                                    Y(from,c)==Y(to,c)
+                                ecol='none';
+                                fcol='flat';
+                                vl=from;
+                            elseif from>1
+                                from=from-1;
+                                X(from,c)=NaN;
+                                if ~isempty(Y)
+                                    Y(from,c)=NaN;
+                                end
+                                if ~isempty(Z)
+                                    Z(from,c)=NaN;
+                                end
+                                data.Val(from,c)=NaN;
+                                vl=from:to;
+                            else
+                                to=to+1;
+                                X(to,c)=NaN;
+                                if ~isempty(Y)
+                                    Y(to,c)=NaN;
+                                end
+                                if ~isempty(Z)
+                                    Z(to,c)=NaN;
+                                end
+                                data.Val(to,c)=NaN;
+                                vl=from:to;
+                            end
+                            switch Ops.basicaxestype
+                                case 'X-Z'
+                                    xy = {X(from:to,c), Z(from:to,c)};
+                                case 'X-Y-Z'
+                                    xy = {X(from:to,c), Y(from:to,c), Z(from:to,c)};
+                                otherwise
+                                    xy = {X(from:to,c), Y(from:to,c)};
+                            end
+                            hNew(o+i)=patch(xy{:}, ...
+                                data.Val(vl,c), ...
+                                'edgecolor',ecol, ...
+                                'facecolor',fcol, ...
+                                'linestyle',Ops.linestyle, ...
+                                'linewidth',Ops.linewidth, ...
+                                'marker',Ops.marker, ...
+                                'markersize',Ops.markersize, ...
+                                'markeredgecolor',Ops.markercolour, ...
+                                'markerfacecolor',Ops.markerfillcolour, ...
+                                'parent',Parent);
+                        end
+                        o = o+size(bs,1);
                     end
             end
             set(Parent,'layer','top')

@@ -1,7 +1,7 @@
 module m_readStorageNodes
 !----- AGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2017-2020.                                
+!  Copyright (C)  Stichting Deltares, 2017-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify              
 !  it under the terms of the GNU Affero General Public License as               
@@ -25,8 +25,8 @@ module m_readStorageNodes
 !  Stichting Deltares. All rights reserved.
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: readStorageNodes.f90 65913 2020-01-30 12:20:14Z dam_ar $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_gpl/flow1d/packages/flow1d_io/src/readStorageNodes.f90 $
+!  $Id: readStorageNodes.f90 141249 2022-05-18 06:51:25Z dam_ar $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_gpl/flow1d/packages/flow1d_io/src/readStorageNodes.f90 $
 !-------------------------------------------------------------------------------
 
    use MessageHandling
@@ -45,12 +45,13 @@ module m_readStorageNodes
 
    public readStorageNodes
    
-   ! Storage nodes file current version: 2.00
+   ! Storage nodes file current version: 2.01
    integer, parameter :: storgNodesFileMajorVersion = 2
-   integer, parameter :: storgNodesFileMinorVersion = 0
+   integer, parameter :: storgNodesFileMinorVersion = 1
    
    ! History storage nodes file versions:
 
+   ! 2.01 (2022-05-11): added branchId+chainage as possible location.
    ! 2.00 (2019-08-27): renamed to storage nodes, added x/y as possible location, added storage table option.
    ! 1.00 (2018-08-13): initial "urban" version of storage nodes ('retentions').
 
@@ -65,7 +66,7 @@ module m_readStorageNodes
       character*(*),   intent(in   )                :: storgNodesFile
 
       logical                                       :: success
-      logical                                       :: success1
+      logical                                       :: success1, success2
       type(tree_data), pointer                      :: md_ptr
       type(tree_data), pointer                      :: node_ptr
       integer                                       :: istat
@@ -76,12 +77,13 @@ module m_readStorageNodes
       character(len=IdLen)                          :: fileType
       character(len=IdLen)                          :: storgNodeId
       character(len=IdLen)                          :: storgNodeName
-      character(len=IdLen)                          :: nodeId
+      character(len=IdLen)                          :: nodeId, branchId
       character(len=IdLen)                          :: sStorageType
       integer                                       :: storageType
       logical                                       :: useTable1
       
       double precision                              :: x, y
+      double precision                              :: chainage
       double precision, allocatable, dimension(:)   :: x_tmp, y_tmp
       integer                                       :: branchIdx
       integer                                       :: nodeIdx
@@ -105,6 +107,9 @@ module m_readStorageNodes
 
       call tree_create(trim(storgNodesFile), md_ptr, maxlenpar)
       call prop_file('ini',trim(storgNodesFile),md_ptr, istat)
+
+      msgbuf = 'Reading '//trim(storgNodesFile)//'.'
+      call msg_flush()
       
       ! check FileVersion
       major = 0
@@ -140,7 +145,7 @@ module m_readStorageNodes
             if ((.not. success) .or. (.not. strcmpi(fileType,'storagenodes'))) then
                write(msgbuf, '(5a)') 'Wrong block in file ''', trim(storgNodesFile), ''': [', trim(blockname), ']. Field ''fileType'' is missing or not correct. Support fileType = storagenodes. Ignoring this file'
                call warn_flush()
-               goto 999
+               cycle
             endif
             
             ! read useStreetStorage
@@ -153,6 +158,9 @@ module m_readStorageNodes
             jageneral = 1
             cycle
          else if (strcmpi(blockname,'StorageNode')) then   ! Read [StorageNode] block
+
+            nodeIdx = -1
+            branchIdx = -1
             success = .true.
             jaxy    = 0
             ! read id
@@ -160,34 +168,56 @@ module m_readStorageNodes
             if (.not. success1) then
                write (msgbuf, '(a,i0,a)') 'Error Reading storage node #', network%storS%Count + 1, ', id is missing.'
                call err_flush()
-               success = .false.
+               cycle
             end if
             
             ! read name
             call prop_get_string(node_ptr, '', 'name', storgNodeName, success1)
             success = success .and. check_input(success1, storgNodeId, 'name')
             
-            ! read nodeId
+            ! read location
             call prop_get_string(node_ptr, '', 'nodeId', nodeId, success1)
-            if (.not. success1) then
+            call prop_get_string(node_ptr, '', 'branchId', branchId, success2)
+            if (success1 .and. success2) then
+               ! The input can contain only a nodeId or a branchId, chainage specification.
+               write(msgbuf, '(3a)') 'Inconsistent block in: [', trim(storgNodeId),  &
+                              ']. Either "nodeId" or "branchId, chainage" must be specified (and not both).'
+               call err_flush
+               cycle
+            else if (success1) then
+               ! Location specification by nodeId.
+               nodeIdx = hashsearch(network%nds%hashlist, nodeId)
+               if (nodeIdx <= 0) Then
+                  call SetMessage(LEVEL_ERROR, 'Error Reading Storage Node '''//trim(storgNodeID)//''': node: '''//trim(nodeID)//''' not Found in network.')
+                  cycle
+               endif
+            else if (success2) then
+               ! Location specification by branchId, chainage.
+               branchIdx = hashsearch(network%brs%hashlist, branchId)
+               if (branchIdx <= 0) Then
+                  call SetMessage(LEVEL_ERROR, 'Error Reading Storage Node '''//trim(storgNodeID)//''': branch: '''//trim(branchId)//''' not Found in network.')
+                  cycle
+               endif
+               
+               call prop_get_double(node_ptr, '', 'chainage', chainage, success1)
+               success = check_input(success1, trim(storgNodeId), 'chainage')
+               if (.not. success) then 
+                  cycle
+               endif
+
+            else
                ! read x-, y-coordinates
                call prop_get_double(node_ptr, '', 'x', x, success1)
                success = success .and. success1
                call prop_get_double(node_ptr, '', 'y', y, success1)
                success = success .and. success1
                if (.not. success) then
-                  write(msgbuf, '(5a)') 'Incomplete block in file ''', trim(storgNodesFile), ''': [', trim(blockname), ']. Either "nodeId" or "x, y" must be specified.'
+                  write(msgbuf, '(5a)') 'Incomplete block in file ''', trim(storgNodesFile), ''': [', trim(blockname), ']. Either "nodeId", "branchId, chainage" or "x, y" must be specified.'
                   call err_flush()
+                  cycle
                else
                   jaxy      = 1
-                  gridPoint = -1
                end if
-            else
-               nodeIdx = hashsearch(network%nds%hashlist, nodeId)
-               if (nodeIdx <= 0) Then
-                  call SetMessage(LEVEL_ERROR, 'Error Reading Storage Node '''//trim(storgNodeID)//''': node: '''//trim(nodeID)//''' not Found.')
-                  exit
-               endif
             end if
             
             ! read useTable
@@ -223,7 +253,7 @@ module m_readStorageNodes
                call interpolateStringToInteger(sInterpolate, interpol)
                ! read bedLevel
                call prop_get_double(node_ptr, '', 'bedLevel', storageLevels(1), success1)
-               success = success .and. check_input(success1, storgNodeId, 'bedLevel')
+               success = success .and. check_input(success1, storgNodeId, 'bedLevel', storageLevels(1))
                
                ! read area
                call prop_get_double(node_ptr, '', 'area', storageAreas(1), success1)
@@ -279,6 +309,9 @@ module m_readStorageNodes
                call interpolateStringToInteger(sInterpolate, interpol)
             end if
             
+            if (storageLevels(1) == -999d0) then
+               call SetMessage(LEVEL_ERROR, 'Bed Level for storage node ' // trim(storgNodeId) // ' was set to missing value -999.0, which is not supported for storage nodes. Please enter an actual value.')
+            endif
             if (storageAreas(1) <= 0d0) then
                call setMessage(LEVEL_ERROR, 'Area at Bed Level for storage node ' // trim(storgNodeId) // ' <= 0.0. Please enter a positive value')
             endif
@@ -294,18 +327,21 @@ module m_readStorageNodes
             nullify(pSto%storageArea)
             nullify(pSto%streetArea)
 
-            ! Bcause of the complicated data structure of SOBEK storage in 'connection nodes'
-            ! must be separated from the ordinary gridpoints
             pSto%id        = storgNodeId
             pSto%name      = storgNodeName
-            if (jaxy == 0) then
+            pSto%node_index = -1
+            pSto%branch_index = -1
+            if (nodeIdx > 0) then
                pSto%nodeId    = nodeId
                pSto%node_index= nodeIdx
+            else if (branchIdx > 0) then
+               psto%branch_index = branchIdx
+               pSto%chainage = chainage
             else
                network%storS%Count_xy = network%storS%Count_xy + 1
                pSto%x         = x
                pSto%y         = y
-               pSto%node_index = -1 ! node_index will be computed later when calling subroutine set_node_numbers_for_xy_storage_nodes 
+               pSto%node_index = -1 ! node_index will be computed later when calling subroutine set_node_numbers_for_storage_nodes 
             end if
             pSto%useStreetStorage = useStreetStorage
             pSto%useTable         = useTable1
@@ -335,7 +371,7 @@ module m_readStorageNodes
          call SetMessage(LEVEL_ERROR, 'Reading storage nodes file: Error Deallocating Arrays')
       endif
       
-      write(msgbuf,'(a,a,i10,a)') 'Done reading storage nodes file,', trim(storgNodesFile), network%storS%Count, ' storage nodes have been read.'
+      write(msgbuf,'(a,a,a,i0,a)') 'Done reading storage nodes file ''', trim(storgNodesFile), ''', ', network%storS%Count, ' storage nodes have been read.'
       call msg_flush()
 
       call fill_hashtable(network%storS)
@@ -387,18 +423,31 @@ module m_readStorageNodes
    !> Helper routine to check the result status of a read/prop_get action.
    !! Checks if success is true or false, when false generate an error message.
    !! Result value is the original success value.
-   function check_input(success, st_id, key) result (res)
-      logical         , intent(in   )    :: success   !< Result value of the prop_get subroutine.
-      character(len=*), intent(in   )    :: st_id     !< Id of the current storage node.
-      character(len=*), intent(in   )    :: key       !< Key of the input value.
-      logical                            :: res       !< Result status, is equal to the original success value.
-                                                      !< Recommended use: successall = successall .and. check_input_result(success, ..)
+   !! Moreover, as an optional choice, it checks if the input value (double precision) equals to dmiss(-999). If yes,
+   !! then a warning message will be written.
+   function check_input(success, st_id, key, val) result (res)
+      use m_missing, only: dmiss
+      implicit none
+      logical         ,           intent(in   ) :: success !< Result value of the prop_get subroutine.
+      character(len=*),           intent(in   ) :: st_id   !< Id of the current storage node.
+      character(len=*),           intent(in   ) :: key     !< Key of the input value.
+      logical                                   :: res     !< Result status, is equal to the original success value.
+                                                           !< Recommended use: successall = successall .and. check_input_result(success, ..)
+      double precision, optional, intent(in   ) :: val     !< The input value to be checked
 
       if (.not. success) then
          write (msgbuf, '(a,a,a,a,a)') 'Error Reading storage Node ''', trim(st_id), ''', ''', trim(key), ''' is missing.'
          call err_flush()
       endif
       res = success
+
+      if (present(val)) then
+         if (abs(val-dmiss)<1d-8) then
+            write(msgbuf, '(a,a,a,a,a)') 'Reading storage Node ''', trim(st_id), ''', the input value for ', trim(key), ' is -999, which can cause problems in computation.'
+            call warn_flush()
+         endif
+      end if
+
       return 
    end function check_input
 end module m_readStorageNodes

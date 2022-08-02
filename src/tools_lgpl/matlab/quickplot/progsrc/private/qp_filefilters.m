@@ -11,7 +11,7 @@ function filtertbl = qp_filefilters(filters)
 
 %----- LGPL --------------------------------------------------------------------
 %
-%   Copyright (C) 2011-2020 Stichting Deltares.
+%   Copyright (C) 2011-2022 Stichting Deltares.
 %
 %   This library is free software; you can redistribute it and/or
 %   modify it under the terms of the GNU Lesser General Public
@@ -36,8 +36,8 @@ function filtertbl = qp_filefilters(filters)
 %
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/private/qp_filefilters.m $
-%   $Id: qp_filefilters.m 65778 2020-01-14 14:07:42Z mourits $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/tools_lgpl/matlab/quickplot/progsrc/private/qp_filefilters.m $
+%   $Id: qp_filefilters.m 140618 2022-01-12 13:12:04Z klapwijk $
 
 filtertbl={...
     '*.dat;*.ada;*.hda'                                    'Delft3D Output Files'              'nefis'              0
@@ -58,7 +58,8 @@ filtertbl={...
     '*.nc'                                                 'NetCDF Files'                      'NetCDF'             0
     '*.hdf;*.hdf5'                                         'HDF5 Files'                        'HDF5'               0
     '*.grib;*.grib1;*.grib2'                               'GRIB Files'                        'grib'               0
-    'sds-*'                                                'Simona SDS Files'                  'waquasds'           0
+    'sds-*'                                                'SIMONA SDS Files'                  'waquasds'           0
+    '*.*'                                                  'SIMONA Box Files'                  'boxfile'            0
     '*.his;*.map;*.plo;*.psf;*.lga'                        'Delwaq Binary Files'               'delwaqbin'          0
     '*.tim'                                                'Delwaq Time Series Input Files'    'DelwaqTimFile'      0
     '*.arc;*.am?;*.asc'                                    'ARC/INFO Ascii Grid Files'         'arcgrid'            0
@@ -68,6 +69,7 @@ filtertbl={...
     '*.ldb;*.pol'                                          'Land Boundary and Polygon Files'   '>tekal'             1
     '*.tek;*.ann;*.ldb;*.pol;*.spl;*.tka;*.tkp;*.tkf'      'Tekal Data Files'                  'tekal'              0
     '*.dxf'                                                'AutoCAD DXF Files'                 'AutoCAD DXF'        1
+    '*.geojson'                                            'GeoJSON Files'                     'GeoJSON'            1
     '*.shp'                                                'Shape Files'                       'shape'              1
     '*.gen'                                                'ArcInfo Ungenerate Files'          'ArcInfoUngenerate'  1
     '*.bna'                                                'BNA Files'                         'BNA File'           1
@@ -125,5 +127,5 @@ switch filters
         iFull = strncmp(lasttp,filtertbl(:,3),length(lasttp));
         filtertbl = filtertbl(iFull,:);
 end
-[dum,Reorder] = sort(filtertbl(:,2));
+[dum,Reorder] = sort(lower(filtertbl(:,2)));
 filtertbl = filtertbl(Reorder,1:3);

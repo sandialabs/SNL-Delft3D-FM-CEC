@@ -1,6 +1,6 @@
 !----- LGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This library is free software; you can redistribute it and/or                
 !  modify it under the terms of the GNU Lesser General Public                   
@@ -24,8 +24,8 @@
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: util.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/deltares_common/packages/deltares_common/src/util.f90 $
+!  $Id: util.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_lgpl/deltares_common/packages/deltares_common/src/util.f90 $
 !-------------------------------------------------------------------------------
 !   Delft3D - Stubs for legacy C routines
 !
@@ -35,14 +35,6 @@
 !
 !-------------------------------------------------------------------------------
 !
-
-subroutine get_versionstring (versionstring)
-    use deltares_common_version_module
-    implicit none
-    character(*) :: versionstring
-    call getfullversionstring_deltares_common(versionstring)
-end subroutine get_versionstring
-
 
 subroutine cgetcp (cpu)
     implicit none

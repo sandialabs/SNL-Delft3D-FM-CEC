@@ -1,6 +1,6 @@
 !----- AGPL --------------------------------------------------------------------
 !
-!  Copyright (C)  Stichting Deltares, 2017-2020.
+!  Copyright (C)  Stichting Deltares, 2017-2022.
 !
 !  This file is part of Delft3D (D-Flow Flexible Mesh component).
 !
@@ -27,8 +27,8 @@
 !
 !-------------------------------------------------------------------------------
 
-! $Id: network_data.f90 65778 2020-01-14 14:07:42Z mourits $
-! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/gridgeom/packages/gridgeom/src/network_data.f90 $
+! $Id: network_data.f90 141166 2022-05-05 07:37:43Z dam_ar $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_lgpl/gridgeom/packages/gridgeom/src/network_data.f90 $
 
 !> Global network data (==unstructured grid).
 !! \see network
@@ -90,7 +90,6 @@ module network_data
   double precision, allocatable, target :: yzw(:)      !< [m] centre of gravity {"shape": ["nump"]}
   double precision, allocatable         :: yzw0(:)     ! Backup of yzw
 
-
   ! Net node related
   double precision, allocatable, target :: xk(:) !< [-] Net node x coordinate {"shape": ["numk"]}
   double precision, allocatable, target :: yk(:) !< [-] Net node y coordinate {"shape": ["numk"]}
@@ -148,6 +147,7 @@ module network_data
   integer                          :: nlinkbadortho = 0 !< Nr. of net links with bad orthogonality detected.
   integer                          :: nlinktoosmall = 0 !< Nr. of net links with too small flow links across them.
 
+  integer                          :: nlinkremoved      !< Number of removed net links
   integer                          :: netflow = 2   ! 1=net, 2=flow
 
   integer                          :: JOCHECKNET = 0
@@ -162,7 +162,7 @@ module network_data
 
   integer                          :: maxfaceallow = 4                  !< Nr. of faces allowed in removesmallflowlinks
 
-  INTEGER                          :: NUMITCOURANT = 0                  !< Nr. of smooth. iter. in Courant network (need samples).
+  INTEGER                          :: NUMITCOURANT = 5                  !< Nr. of smooth. iter. in Courant network (need samples).
 
   double precision                 :: SMALLESTSIZEINCOURANT = 100d0     !< Smallest cellsize generated in Courant network.
 
@@ -197,6 +197,7 @@ module network_data
  
   double precision                 :: xkmin, xkmax , ykmin, ykmax
 
+ 
 ! 1d NET BRANCHES
   type tNETbr                                        !< this is a NET branch type
    integer                         :: nx             !< with nx links and nx + 1 nodes in it
@@ -225,9 +226,14 @@ module network_data
   integer                          :: keepcircumcenters = 0    !< keep circumcenter (1) or not (0)
 
 !  netlink permutation by setnodadm
-   integer, dimension(:), allocatable :: Lperm  !< permuation of netlinks by setnodadm, dim(numL)
+   integer, dimension(:), allocatable :: Lperm    !< permuation of netlinks by setnodadm, dim(numL): from current to old link numbers
+   integer, dimension(:), allocatable :: Lperminv !< Inverse permutation of netlinks by setnodadm, dim(numl): from old to current link numbers
 !  netnode permutation by setnodadm
    integer, dimension(:), allocatable :: nodePermutation   !< permutation of netnodes by setnodadm, dim(numk)
+
+   double precision                 :: TRIANGLEMINANGLE =  5d0 ! MINIMUM ANGLE IN CREATED TRIANGLES  IF MINANGLE > MAXANGLE: NO CHECK
+   double precision                 :: TRIANGLEMAXANGLE =  150 ! MAXIMUM ANGLE IN CREATED TRIANGLES
+   double precision                 :: TRIANGLESIZEFAC  =  1.0 ! TRIANGLE SIZEFACTOR, SIZE INSIDE VS AVERAGE SIZE ON POLYGON BORDER
 
    contains
    
@@ -255,7 +261,7 @@ module network_data
    if(allocated(xzw0))     deallocate(xzw0)
    if(allocated(yzw))      deallocate(yzw)
    if(allocated(yzw0))     deallocate(yzw0)
-   
+
    if(allocated(xk)) deallocate(xk)
    if(allocated(yk)) deallocate(yk)
    if(allocated(zk)) deallocate(zk)
@@ -328,6 +334,7 @@ module network_data
    nlinkcross = 0
    nlinkbadortho = 0 
    nlinktoosmall = 0
+   nlinkremoved  = 0
    netflow = 2  
    JOCHECKNET = 0
    zkUNI    = -5d0                   

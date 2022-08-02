@@ -1,6 +1,6 @@
 !----- GPL ---------------------------------------------------------------------
 !
-!  Copyright (C)  Stichting Deltares, 2011-2020.
+!  Copyright (C)  Stichting Deltares, 2011-2022.
 !
 !  This program is free software: you can redistribute it and/or modify
 !  it under the terms of the GNU General Public License as published by
@@ -24,8 +24,8 @@
 !  Stichting Deltares. All rights reserved.
 !
 !-------------------------------------------------------------------------------
-!  $Id: pdfnef.f 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_gpl/waqpb/packages/waqpb_lib/src/pdfnef.f $
+!  $Id: pdfnef.f 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/tools_gpl/waqpb/packages/waqpb_lib/src/pdfnef.f $
 
       SUBROUTINE PDFNEF ( LUNREP, SERIAL, VERSIO, IERROR)
 C
@@ -53,7 +53,7 @@ C
 C     Declaration of arguments
 C
       INTEGER       LUNREP      , SERIAL     ,
-     +              IERROR
+     +              IERROR      , lunfil
       REAL          VERSIO
 C
 C     Common declarations
@@ -355,21 +355,21 @@ C
      +                VERSIO, SERIAL, RUNDAT, SOURCE, REMARK,
      +                LUNREP, IERROR)
 
-      open(88, file='filid.pptex')
-      write(88,'(a30,'' colsep '', a20, '' \\'')')
+      open(newunit=lunfil, file='filid.pptex')
+      write(lunfil,'(a30,'' colsep '', a20, '' \\'')')
      *         'Creation date', rundat
-      write(88,'(a30,'' colsep '', i10, '' \\'')')
+      write(lunfil,'(a30,'' colsep '', i10, '' \\'')')
      *         'File serial number', serial
-      write(88,'(a30,'' colsep '', f12.3, '' \\'')')
+      write(lunfil,'(a30,'' colsep '', f12.3, '' \\'')')
      *         'Version processes library', versio
-      close(88)
+      close(lunfil)
 
-      open(88, file='conf_name.pptex')
+      open(newunit=lunfil, file='conf_name.pptex')
       do ic = 1, nconf
-          write(88,'(a10,'' colsep '', a50, '' \\'')')
+          write(lunfil,'(a10,'' colsep '', a50, '' \\'')')
      *              confid(ic), confnm(ic)
       enddo
-      close(88)
+      close(lunfil)
 
       IF ( IERROR .NE. 0 ) THEN
          WRITE(LUNREP,*) 'ERROR writing file identification group'

@@ -11,7 +11,7 @@
      &                      ztop )
 !----- GPL ---------------------------------------------------------------------
 !
-!  Copyright (C)  Stichting Deltares, 2011-2020.
+!  Copyright (C)  Stichting Deltares, 2011-2022.
 !
 !  This program is free software: you can redistribute it and/or modify
 !  it under the terms of the GNU General Public License as published by
@@ -35,8 +35,8 @@
 !  Stichting Deltares. All rights reserved.
 !
 !-------------------------------------------------------------------------------
-!  $Id: wrwaqhyd.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/io/src/output/wrwaqhyd.f90 $
+!  $Id: wrwaqhyd.f90 141352 2022-06-10 10:07:28Z jeuke_ml $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/flow2d3d/packages/io/src/output/wrwaqhyd.f90 $
 !!--description-----------------------------------------------------------------
 ! NONE
 !!--pseudo code and references--------------------------------------------------
@@ -105,7 +105,6 @@
       character(21)  datetime          !! Date/time to be filled in the header
       character(256) filstring, file1, file2
       character(6) sf                  !! character variable for s(ediment)f(iles)
-      integer, external :: newunit
       integer(4)    lunout1 !! write hyd file for structured grid needed for delpar
       integer(4)    lunout2 !! write hyd-file for DeltaShell (unstructured format)
 !
@@ -316,7 +315,9 @@
       write ( lunout2 , '(a,a    )' ) 'attributes-file          ',trim(filstring)
 
       if (zmodel) then
+         write ( lunout1 , '(a, f15.6 )' ) 'z-layers-ztop ', ztop
          write ( lunout2 , '(a, f15.6 )' ) 'z-layers-ztop ', ztop
+         write ( lunout1 , '(a, f15.6 )' ) 'z-layers-zbot ', zbot
          write ( lunout2 , '(a, f15.6 )' ) 'z-layers-zbot ', zbot
       endif
 
@@ -344,10 +345,17 @@
       write ( lunout2 , '(a      )' ) 'end-constant-dispersion'
       write ( lunout1 , '(a      )' ) 'hydrodynamic-layers'
       write ( lunout2 , '(a      )' ) 'hydrodynamic-layers'
-      do i = 1,kmax
-         write ( lunout1 , '(f15.8  )' ) thick(i)
-         write ( lunout2 , '(f15.8  )' ) thick(i)
-      enddo
+      if (zmodel) then
+         do i = kmax, 1, -1
+            write ( lunout1 , '(f15.8  )' ) thick(i)
+            write ( lunout2 , '(f15.8  )' ) thick(i)
+         enddo
+      else
+         do i = 1,kmax
+            write ( lunout1 , '(f15.8  )' ) thick(i)
+            write ( lunout2 , '(f15.8  )' ) thick(i)
+         enddo
+      endif
       write ( lunout1 , '(a      )' ) 'end-hydrodynamic-layers'
       write ( lunout2 , '(a      )' ) 'end-hydrodynamic-layers'
       write ( lunout1 , '(a      )' ) 'water-quality-layers   '
@@ -372,6 +380,7 @@
       il     = 1
       do i = 1,nsrc
          if (mnksrc(3,i) == -1) cycle ! awkward disabling of discharges outside partition when running parallel
+         if (mnksrc(7,i) == 4 .or. mnksrc(7,i) == 5 .or. mnksrc(7,i) == 8) cycle ! skip e,d and f culverts, output is not correct
          m = mnksrc(1,i)
          n = mnksrc(2,i)
          filstring = ''''//trim(namsrc(i))//''''//' normal'
@@ -421,8 +430,9 @@
       enddo
       il = 1
       do i = 1,nsrc
-         if ( mnksrc(3,i) ==  -1 ) cycle ! awkward disabling of discharges outside partition when running parallel
-         if ( mnksrc(7,i) .le. 1 ) cycle
+         if (mnksrc(3,i) ==  -1) cycle ! awkward disabling of discharges outside partition when running parallel
+         if (mnksrc(7,i) == 4 .or. mnksrc(7,i) == 5 .or. mnksrc(7,i) == 8) cycle ! skip e,d and f culverts, output is not correct
+         if (mnksrc(7,i) .le. 1) cycle
          m = mnksrc(4,i)
          n = mnksrc(5,i)
          if ( mnksrc(7,i) .eq. 2 ) then

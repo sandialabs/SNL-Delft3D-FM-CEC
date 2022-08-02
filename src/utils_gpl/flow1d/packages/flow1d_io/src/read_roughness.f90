@@ -1,7 +1,7 @@
 module m_read_roughness
 !----- AGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2017-2020.                                
+!  Copyright (C)  Stichting Deltares, 2017-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify              
 !  it under the terms of the GNU Affero General Public License as               
@@ -25,15 +25,13 @@ module m_read_roughness
 !  Stichting Deltares. All rights reserved.
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: read_roughness.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_gpl/flow1d/packages/flow1d_io/src/read_roughness.f90 $
+!  $Id: read_roughness.f90 141245 2022-05-17 11:03:53Z noort $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_gpl/flow1d/packages/flow1d_io/src/read_roughness.f90 $
 !-------------------------------------------------------------------------------
    
    use m_Branch
    use m_GlobalParameters
-   use m_read_table
    use m_hash_search
-   use m_hash_list
    use m_network
    use m_readSpatialData
    use m_Roughness
@@ -47,8 +45,6 @@ module m_read_roughness
    private
 
    public roughness_reader
-   public read_roughness_cache
-   public write_roughness_cache
    public frictionTypeStringToInteger
 
    !> The file version number of the roughness file format: d.dd, [config_major].[config_minor], e.g., 1.03
@@ -77,9 +73,8 @@ module m_read_roughness
 contains
 
    !> Read all roughness ini-files
-   subroutine roughness_reader(network, roughnessfiles, mapdir, md_ptr)
+   subroutine roughness_reader(network, roughnessfiles, md_ptr)
       type(t_network), intent(inout), target :: network                !< Network structure
-      character(len=*), intent(in)           :: mapdir                 !< Location of roughness files
       character(len=*), intent(in)           :: roughnessfiles         !< separated list of roughness files
       type(tree_data), pointer, intent(in), optional   :: md_ptr       !< treedata pointer to model definition file
 
@@ -94,11 +89,11 @@ contains
       integer                                :: count
       integer                                :: def_type
       logical                                :: success
-      character(len=charLn)                  :: file
+      character(len=IdLen)                  :: file
       double precision                       :: default
 
       integer                                :: ibin = 0
-      character(len=Charln)                  :: binfile
+      character(len=IdLen)                  :: binfile
       logical                                :: file_exist
       integer                                :: istat
       
@@ -106,7 +101,7 @@ contains
       default = 60d0
       def_type = 1
       def_type = 1
-      
+      network%rgs%roughnessFileMajorVersion = RoughFileMajorVersion
       !> Check if the model definition file contains global values for roughness
       if (present(md_ptr)) then
          call prop_get_double(md_ptr, 'GlobalValues', 'roughness', default, success)
@@ -119,20 +114,6 @@ contains
          endif
       endif
       
-      binfile = 'Roughness.cache'
-      inquire(file=binfile, exist=file_exist)
-      if (doReadCache .and. file_exist) then
-         open(newunit=ibin, file=binfile, status='old', form='unformatted', access='stream', action='read', iostat=istat)
-         if (istat /= 0) then
-            call setmessage(LEVEL_ERROR, 'Error opening Roughness Cache file')
-            ibin = 0
-            return
-         endif
-         call read_roughness_cache(ibin, network)
-         close(ibin)
-         return
-      endif
-   
       rgs    => network%rgs
       brs    => network%brs
       spdata => network%spdata
@@ -189,9 +170,6 @@ contains
          
          file = inputfiles(1:isemi-1)
          inputfiles = inputfiles(isemi+1:)
-         if (len_trim(mapdir) > 0) then
-            file = trim(mapdir)//file
-         endif
             
          call remove_leading_spaces(trim(file))
          call read_roughnessfile(rgs, brs, spdata, file, default, def_type)
@@ -208,7 +186,57 @@ contains
          endif
       end if
 
+      call add_timeseries_to_forcinglist(rgs, network%forcinglist)
    end subroutine roughness_reader
+
+   !> scan all roughness sections for timeseries and subsequently register them in the forcinglist
+   subroutine add_timeseries_to_forcinglist(rgs, forcinglist)
+      use m_roughness
+      
+      type (t_RoughnessSet), intent(inout) :: rgs            !< Roughness set
+      type (t_forcinglist), intent(inout)  :: forcinglist    !< Forcing list
+
+      type(t_roughness), pointer          :: prgh
+      integer                             :: i, j, count
+      integer                             :: ibr
+      
+      do i = 1, rgs%count
+         prgh => rgs%rough(i)
+         if (prgh%timeSeriesIds%id_count > 0) then
+            count = prgh%timeSeriesIds%id_count 
+            rgs%timeseries_defined = .true.
+            call realloc(prgh%currentValues, count)
+            call realloc(prgh%timeDepValues, (/ count, 2 /))
+            prgh%timeDepValues = -10d0
+
+            do j = 1, count
+
+               ! Extend forcinglist by one and reallocate in case of insufficient space
+               forcinglist%Count = forcinglist%Count+1
+               if (forcinglist%Count > forcinglist%Size) then
+                  call realloc(forcinglist)
+               end if
+
+               ! For correct roughness type we need a branch index:
+               do ibr = 1, size(prgh%timeSeriesIndexes)
+                  if (prgh%timeSeriesIndexes(ibr) == j) then
+                     exit
+                  endif
+               enddo
+               forcinglist%forcing(forcinglist%Count)%object_id   = prgh%timeSeriesIds%id_list(j)
+               forcinglist%forcing(forcinglist%Count)%quantity_id = 'friction_coefficient_'//         &
+                                             trim(frictionTypeIntegerToString(prgh%rgh_type_pos(ibr)))
+               forcinglist%forcing(forcinglist%Count)%param_name  = frictionTypeIntegerToString(prgh%rgh_type_pos(ibr))
+               forcinglist%forcing(forcinglist%Count)%targetptr  => prgh%timeDepValues(j,2)
+               forcinglist%forcing(forcinglist%Count)%filename    = prgh%frictionValuesFile
+               forcinglist%forcing(forcinglist%Count)%object_type = 'friction_coefficient'
+   
+            enddo
+         endif
+
+      enddo
+
+   end subroutine add_timeseries_to_forcinglist
 
    !> Read a specific roughness file, taking the file version into account.
    subroutine read_roughnessfile(rgs, brs, spdata, inputfile, default, def_type)
@@ -216,7 +244,7 @@ contains
       type(t_roughnessSet), intent(inout)    :: rgs        !< Roughness set
       type(t_branchSet), intent(in)          :: brs        !< Branches
       type(t_spatial_dataSet), intent(inout) :: spdata     !< Spatial data set
-      character(len=charLn), intent(in)      :: inputfile  !< Name of the input file
+      character(len=IdLen), intent(in)      :: inputfile  !< Name of the input file
       double precision, intent(inout)        :: default    !< Default friction parameter
       integer, intent(inout)                 :: def_type   !< Default friction type
    
@@ -229,7 +257,10 @@ contains
       ! create and fill tree
       call tree_create(trim(inputfile), tree_ptr, maxlenpar)
       call prop_file('ini',trim(inputfile),tree_ptr,istat)
-   
+
+      msgbuf = 'Reading '//trim(inputfile)//'.'
+      call msg_flush()
+
       if (istat /= 0) then
          call setmessage(LEVEL_ERROR, 'Roughness file '''//trim(inputfile)//''' could not be opened.')
          return
@@ -270,7 +301,7 @@ contains
       type(t_roughnessSet), intent(inout)    :: rgs        !< Roughness set
       type(t_branchSet), intent(in)          :: brs        !< Branches
       type(t_spatial_dataSet), intent(inout) :: spdata     !< Spatial data set
-      character(len=charLn), intent(in)      :: inputfile  !< Name of the input file
+      character(len=IdLen), intent(in)      :: inputfile  !< Name of the input file
       double precision, intent(inout)        :: default    !< Default friction parameter
       integer, intent(inout)                 :: def_type   !< Default friction type
       
@@ -293,6 +324,7 @@ contains
       type(t_roughness), pointer             :: rgh
       character(len=Idlen)                   :: frictionId
       character(len=Idlen)                   :: branchid
+      character(len=Idlen)                   :: timeseriesId
       double precision, allocatable          :: levels(:)
       double precision, allocatable          :: locations(:)
       double precision, allocatable          :: values(:)
@@ -302,6 +334,7 @@ contains
       
       character(len=Idlen)                   :: fricType
       character(len=Idlen)                   :: funcType
+      character(len=IdLen)                  :: frictionValuesFileName
      
       count = 0
       if (associated(tree_ptr%child_nodes)) then
@@ -333,6 +366,10 @@ contains
             call setmessage(LEVEL_ERROR, 'frictionId not found in roughness definition file: '//trim(inputfile))
             return
          endif
+
+         frictionValuesFileName = ' '
+         call prop_get_string(tree_ptr, 'General', 'frictionValuesFile', frictionValuesFileName, success)
+
          irgh = hashsearch_or_add(rgs%hashlist, frictionId)
          if (irgh > rgs%size) then
             call realloc(rgs)
@@ -351,6 +388,12 @@ contains
             if (.not. associated(rgh%fun_type_pos))   allocate(rgh%fun_type_pos(brs%Count))
             if (.not. associated(rgh%table))          allocate(rgh%table(brs%Count))
          endif         
+   
+         if (.not. associated(rgh%timeSeriesIndexes)) then
+            allocate(rgh%timeSeriesIndexes(brs%Count))
+            rgh%timeSeriesIndexes = -1
+         endif
+
          rgh%rgh_type_pos = -1
          rgh%fun_type_pos = -1
          do i = 1, brs%count
@@ -378,7 +421,7 @@ contains
             endif
             
             rgs%rough(irgh)%useGlobalFriction = .not. branchdef
-            
+            rgs%rough(irgh)%frictionValuesFile = frictionValuesFileName
             fricType = ''
             call prop_get_string(tree_ptr%child_nodes(i)%node_ptr, '', 'frictionType', fricType, success)
             if (.not. success) then
@@ -408,12 +451,12 @@ contains
             fricType = ''
             call prop_get_string(tree_ptr%child_nodes(i)%node_ptr, '', 'frictionType', fricType, success)
             if (.not. success) then
-               call setmessage(LEVEL_ERROR, 'Missing frictionType for branchId '//trim(branchid)//' see input file: '//trim(inputfile))
+               call setmessage(LEVEL_ERROR, 'Missing frictionType for branchId '//trim(branchid)//', see input file: '//trim(inputfile))
                cycle
             end if
             call frictionTypeStringToInteger(fricType, rgh%rgh_type_pos(ibr))
             if (rgh%rgh_type_pos(ibr) < 0) then
-               call setmessage(LEVEL_ERROR, 'frictionType '''//trim(fricType)//''' invalid for branchId '//trim(branchid)//' see input file: '//trim(inputfile))
+               call setmessage(LEVEL_ERROR, 'frictionType '''//trim(fricType)//''' invalid for branchId '//trim(branchid)//', see input file: '//trim(inputfile))
                cycle
             endif
 
@@ -421,18 +464,31 @@ contains
             call prop_get_string(tree_ptr%child_nodes(i)%node_ptr, '', 'functionType', funcType, success)
             call functionTypeStringToInteger(funcType, rgh%fun_type_pos(ibr))
             if (rgh%fun_type_pos(ibr) < 0) then
-               call setmessage(LEVEL_ERROR, 'functionType '''//trim(funcType)//''' invalid for branchId '//trim(branchid)//' see input file: '//trim(inputfile))
+               call setmessage(LEVEL_ERROR, 'functionType '''//trim(funcType)//''' invalid for branchId '//trim(branchid)//', see input file: '//trim(inputfile))
                cycle
             endif
             
-            numlevels = 0
-            call prop_get(tree_ptr%child_nodes(i)%node_ptr, '', 'numLevels', numlevels, success)
-            numlocations = 0
-            call prop_get(tree_ptr%child_nodes(i)%node_ptr, '', 'numLocations', numlocations, success)
-            success = .true.
+            if (rgh%fun_type_pos(ibr) == R_FunctionTimeseries) then
+               call prop_get_string(tree_ptr%child_nodes(i)%node_ptr, '', 'timeSeriesId', timeseriesId, success)   
+               if (.not. success) then
+                  call setmessage(LEVEL_ERROR, 'timeSeriesId is required for functionType='//trim(funcType)//', but was not found in the input for branchId '//trim(branchid)//', see input file: '//trim(inputfile))
+                  cycle
+               endif
+               rgh%timeSeriesIndexes(ibr) = hashsearch_or_add(rgh%timeSeriesIds, timeseriesId)
+               numlevels = 0
+               maxlevels = 1
+               numlocations = 0
+               maxlocations = 1
+            else
+               numlevels = 0
+               call prop_get(tree_ptr%child_nodes(i)%node_ptr, '', 'numLevels', numlevels, success)
+               numlocations = 0
+               call prop_get(tree_ptr%child_nodes(i)%node_ptr, '', 'numLocations', numlocations, success)
+               success = .true.
 
-            maxlevels    = max(1, maxlevels,    numlevels)
-            maxlocations = max(1, maxlocations, numlocations)
+               maxlevels    = max(1, maxlevels,    numlevels)
+               maxlocations = max(1, maxlocations, numlocations)
+            endif
 
             call realloc(levels,    maxlevels,              keepExisting=.false.)
             call realloc(locations, maxlocations,           keepExisting=.false.)
@@ -453,7 +509,12 @@ contains
             endif
             
             if (success) then
-               call prop_get(tree_ptr%child_nodes(i)%node_ptr, '', 'frictionValues', values, numlevels*numlocations, success)
+               if (rgh%fun_type_pos(ibr) == R_FunctionTimeseries) then
+                  call prop_get(tree_ptr%child_nodes(i)%node_ptr, '', 'frictionValue', values, numlevels*numlocations, success)
+               else
+                  call prop_get(tree_ptr%child_nodes(i)%node_ptr, '', 'frictionValues', values, numlevels*numlocations, success)
+               endif
+               
             endif
             
             if (.not. success) then
@@ -462,7 +523,6 @@ contains
             endif
 
             call setTableMatrix(rgh%table(ibr), locations, levels, (/numlocations, numlevels/), linear=values)
-            
          endif
       enddo   
   
@@ -474,7 +534,7 @@ contains
       type(t_roughnessSet), intent(inout)    :: rgs        !< Roughness set
       type(t_branchSet), intent(in)          :: brs        !< Branches
       type(t_spatial_dataSet), intent(inout) :: spdata     !< Spatial data set
-      character(len=charLn), intent(in)      :: inputfile  !< Name of the input file
+      character(len=IdLen), intent(in)      :: inputfile  !< Name of the input file
       double precision, intent(inout)        :: default    !< Default friction parameter
       integer, intent(inout)                 :: def_type   !< Default friction type
       
@@ -613,138 +673,5 @@ contains
       enddo
    
    end subroutine init_at_branches
- 
-   !> Read the binary cache file for roughness values
-   subroutine read_roughness_cache(ibin, network)
-   
-      type(t_network), intent(inout)  :: network   !< Network structure
-      integer, intent(in)             :: ibin      !< Unit number for binary file
-      
-      integer                         :: i
-      integer                         :: j
-      integer                         :: tblCount
-
-      type(t_Roughness), pointer      :: pRough
-      integer                         :: nbrs
-      logical                         :: hasPos
-      logical                         :: hasNeg
-      
-      nbrs = network%brs%Count
-
-      read(ibin) network%rgs%count
-      network%rgs%growsby = network%rgs%count + 2
-      call realloc(network%rgs)
-
-      do i = 1, network%rgs%Count
-      
-         pRough => network%rgs%rough(i)
-       
-         read(ibin) pRough%id
-         
-         read(ibin) pRough%iSection
-         
-         read(ibin) hasPos
-         if (hasPos) then
-         
-            allocate(pRough%rgh_type_pos(nbrs))
-            allocate(pRough%fun_type_pos(nbrs))
-         
-            read(ibin) (pRough%rgh_type_pos(j), j = 1, nbrs)
-            read(ibin) (pRough%fun_type_pos(j), j = 1, nbrs)
-
-         endif
-         
-         read(ibin) hasNeg
-         if (hasNeg) then
-         
-            allocate(pRough%rgh_type_neg(nbrs))
-            allocate(pRough%fun_type_neg(nbrs))
-         
-            read(ibin) (pRough%rgh_type_neg(j), j = 1, nbrs)
-            read(ibin) (pRough%fun_type_neg(j), j = 1, nbrs)
-
-         endif
-
-         read(ibin) pRough%spd_pos_idx
-         read(ibin) pRough%spd_neg_idx
-         
-      enddo
-      
-      read(ibin) tblCount
-
-      do i = 1, tblCount
-         network%rgs%tables%Count = network%rgs%tables%Count + 1
-         if (network%rgs%tables%Count > network%rgs%tables%Size) Then
-            call realloc(network%rgs%tables)
-         endif
-         allocate(network%rgs%tables%tb(i)%table)
-         call read_table_cache(ibin, network%rgs%tables%tb(i)%table)
-      enddo
-
-      call read_hash_list_cache(ibin, network%rgs%hashlist)
-      
-   end subroutine read_roughness_cache
-   
-   !> Write the binary cace file for roughness values
-   subroutine write_roughness_cache(ibin, network)
-
-      type(t_network), intent(in)     :: network  !< Network structure
-      integer, intent(in)             :: ibin     !< unit number of binary cache file
-      
-      type(t_RoughnessSet)            :: rgs
-      type(t_Roughness), pointer      :: pRough
-      integer                         :: i
-      integer                         :: j
-      integer                         :: nbrs
-      logical                         :: hasPos
-      logical                         :: hasNeg
-      
-      rgs  = network%rgs
-      nbrs = network%brs%Count
-      
-      write(ibin) rgs%Count
-
-      do i = 1, rgs%Count
-      
-         pRough => rgs%rough(i)
-       
-         write(ibin) pRough%id
-         
-         write(ibin) pRough%iSection
-         
-         if (associated(pRough%rgh_type_pos)) then
-            hasPos = .true.
-            write(ibin) hasPos
-            write(ibin) (pRough%rgh_type_pos(j), j = 1, nbrs)
-            write(ibin) (pRough%fun_type_pos(j), j = 1, nbrs)
-         else
-            hasPos = .false.
-            write(ibin) hasPos
-         endif
-         
-         
-         if (associated(pRough%rgh_type_neg)) then
-            hasNeg = .true.
-            write(ibin) hasNeg
-            write(ibin) (pRough%rgh_type_neg(j), j = 1, nbrs)
-            write(ibin) (pRough%fun_type_neg(j), j = 1, nbrs)
-         else
-            hasNeg = .false.
-            write(ibin) hasNeg
-         endif
-         
-         write(ibin) pRough%spd_pos_idx
-         write(ibin) pRough%spd_neg_idx
-
-      enddo
-
-      write(ibin) rgs%tables%Count
-      do i = 1, rgs%tables%Count
-         call write_table_cache(ibin, rgs%tables%tb(i)%table)
-      enddo
-      
-      call write_hash_list_cache(ibin, rgs%hashlist)
-
-   end subroutine write_roughness_cache
 
     end module m_read_roughness

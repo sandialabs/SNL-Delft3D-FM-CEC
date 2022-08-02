@@ -26,6 +26,7 @@ FMODULES += \
 #Sources
 libMorphologyKernel_la_SOURCES = \
          bedcomposition_module.f90 \
+         sed_support_routines.f90 \
          bailtr.f90 \
          bedbc1993.f90 \
          bedbc2004.f90 \
@@ -37,6 +38,8 @@ libMorphologyKernel_la_SOURCES = \
          comphidexp.f90 \
          compbsskin.f90 \
          compsandfrac.f90 \
+         dredge_initialize.f90 \
+         dredge.f90 \
          eqsettle.f90 \
          eqtran.f90 \
          erosilt.f90 \
@@ -44,10 +47,21 @@ libMorphologyKernel_la_SOURCES = \
          fgyint.f90 \
          fluff_burial.f90 \
          getfixfac.f90 \
+         initmerge.f90 \
          initsedtra.f90 \
          osmom.f90 \
          sand_mud.f90 \
-         shld.f90 \
+         santoss.f90 \
+         santoss_abreu.f90 \
+         santoss_bss1.f90 \
+         santoss_bss2.f90 \
+         santoss_bsscurrent.f90 \
+         santoss_core.f90 \
+         santoss_orb.f90 \
+         santoss_ripple.f90 \
+         santoss_rrr12.f90 \
+         santoss_sfltd99.f90 \
+         sortindices.f90 \
          soursin_2d.f90 \
          soursin_3d.f90 \
          termfy.f90 \
@@ -67,10 +81,10 @@ libMorphologyKernel_la_SOURCES = \
          tranb4.f90 \
          tranb5.f90 \
          tranb7.f90 \
-		 trab19.f90 \
-		 trab20.f90 \
-		 ua_rvr.f90 \
-		 ua_vt.f90 \
+         trab19.f90 \
+         trab20.f90 \
+         ua_rvr.f90 \
+         ua_vt.f90 \
          updmorfac.f90 \
          wave.f90
 

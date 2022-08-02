@@ -52,7 +52,7 @@ function [Out,Out2]=arcgrid(cmd,varargin)
 
 %----- LGPL --------------------------------------------------------------------
 %                                                                               
-%   Copyright (C) 2011-2020 Stichting Deltares.                                     
+%   Copyright (C) 2011-2022 Stichting Deltares.                                     
 %                                                                               
 %   This library is free software; you can redistribute it and/or                
 %   modify it under the terms of the GNU Lesser General Public                   
@@ -77,8 +77,8 @@ function [Out,Out2]=arcgrid(cmd,varargin)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/arcgrid.m $
-%   $Id: arcgrid.m 65778 2020-01-14 14:07:42Z mourits $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/tools_lgpl/matlab/quickplot/progsrc/arcgrid.m $
+%   $Id: arcgrid.m 140618 2022-01-12 13:12:04Z klapwijk $
 
 if nargin==0
     if nargout>0
@@ -134,7 +134,7 @@ if (nargin==0) || strcmp(filename,'?')
     end
     filename=[fp fn];
 end
-fid=fopen(filename,'r');
+fid=fopen(filename,'r','n','US-ASCII');
 Structure.FileName=filename;
 if fid<0
     return
@@ -334,7 +334,7 @@ if vector
             Times=getfiletimes(Structure.FileBase(1:end-1),am2,Structure.Extension,time_in_file);
         end
     else
-        fid=fopen([Structure.FileBase '.' am2],'r');
+        fid=fopen([Structure.FileBase '.' am2],'r','n','US-ASCII');
         if fid>0
             Times=Structure.Times;
             fclose(fid);
@@ -368,7 +368,7 @@ elseif time_in_file
     for i=1:ntimes
         FileNr{i}=Files(i).name(last_char+1:end-len_ext);
         %
-        fl=fopen(fullfile(FilePath,Files(i).name),'r');
+        fl=fopen(fullfile(FilePath,Files(i).name),'r','n','US-ASCII');
         if fl>0
             Line=fgetl(fl);
             n = strfind(Line,'time=');
@@ -451,7 +451,7 @@ for comp = 1:ncomp
         subnr=nr;
         fil=[Structure.FileBase FileBaseExtension '.' Extension];
     end
-    fid=fopen(fil,'r');
+    fid=fopen(fil,'r','n','US-ASCII');
     fseek(fid,Structure.DataStart(subnr),-1);
 
     Structure.Check='NotOK';
@@ -594,7 +594,7 @@ if nargin==1
     end
     filename=[fp fn];
 end
-fid=fopen(filename,'wt');
+fid=fopen(filename,'wt','n','US-ASCII');
 if fid<0
     error('Could not create or open: %s',filename)
 end

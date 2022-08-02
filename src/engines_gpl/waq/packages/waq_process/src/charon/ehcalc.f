@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -30,7 +30,7 @@
       subroutine ehcalc
 !        ehcalc computes eh from pie of the electron
 !        procedure equivalent to phcalc
-      include  'char1.inc'
+      use m_char1
       character*6 el,oh,o2
       DATA EL/'EL-   '/
       DATA oh/'OH-   '/

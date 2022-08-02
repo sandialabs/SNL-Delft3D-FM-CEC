@@ -34,11 +34,12 @@ libKernelComputeSediment_la_SOURCES = \
          morstatistics.f90 \
          adjust_bedload.f90 \
          avalan.f90 \
-         dredge.f90 \
+         dredge_comm.f90 \
+         dredge_d3d4.f90 \
+         dredge_initialize_d3d4.f90 \
          bndmorlyr.f90 \
          bott3d.f90 \
          compthick.f90 \
-         dredgedump.f90 \
          dwnvel.f90 \
          erosed.f90 \
          red_soursin.f90 \

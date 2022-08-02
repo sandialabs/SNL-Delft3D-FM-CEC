@@ -1,6 +1,6 @@
 !----- LGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This library is free software; you can redistribute it and/or                
 !  modify it under the terms of the GNU Lesser General Public                   
@@ -23,8 +23,8 @@
 !  are registered trademarks of Stichting Deltares, and remain the property of  
 !  Stichting Deltares. All rights reserved.                                     
 
-!  $Id: ec_typedefs.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/ec_module/packages/ec_module/src/ec_typedefs.f90 $
+!  $Id: ec_typedefs.f90 140722 2022-02-08 17:11:32Z saggiora $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_lgpl/ec_module/packages/ec_module/src/ec_typedefs.f90 $
 
 !> This module contains all the user defined datatypes.
 !! @author edwin.spee@deltares.nl
@@ -79,6 +79,7 @@ module m_ec_typedefs
         character(len=25)       ::  unit        !< unit specification 
         real(hp)                ::  offset = 0.d0  !< to be added to all data for this quantity
         real(hp)                ::  factor = 1.d0  !< to be multiplied with all data for this quantity
+        real(hp)                ::  missing = ec_undef_hp !< Missing value or fillValue
 !       integer, allocatable    ::  vertndx(:)  !< vertical position nr (indices into the global vertical position array)
         integer                 ::  vertndx     !< vertical position nr (indices into the global vertical position array)
         integer                 ::  vectormax   = 1   !< number of vector elements, default scalar 
@@ -107,7 +108,6 @@ module m_ec_typedefs
         real(hp), pointer                          ::  vp(:) => null()     !< vertical positions  
         integer                                    ::  numlay = 1          !< number of vertical layers 
         integer                                    ::  zInterpolationType  !< Type of vertical interpolation 
-        real(hp)                                   ::  missing             !< Missing value 
         character(len=maxFileNameLen)              ::  bcname  = ''        !< Name (identifier) for this BC block (assumed to be uniq)
         character(len=maxFileNameLen)              ::  qname   = ''        !< Quantity name with which all found quantities must identify 
         character(len=maxFileNameLen)              ::  fname   = ''        !< Filename the data originates from 
@@ -178,6 +178,9 @@ module m_ec_typedefs
         character(len=maxFileNameLen), allocatable, dimension(:)  ::  standard_names   !< list of standard names
         character(len=maxFileNameLen), allocatable, dimension(:)  ::  long_names       !< list of long names
         character(len=maxFileNameLen), allocatable, dimension(:)  ::  variable_names   !< list of variable names
+        real(hp), allocatable, dimension(:)  ::  fillvalues              !< missing/fillvalue for each variable
+        real(hp), allocatable, dimension(:)  ::  scales                  !< multiplication scale factor for each variable
+        real(hp), allocatable, dimension(:)  ::  offsets                 !< list of variable names
         integer                                      ::  nDims = 0       !< Number of dimensions 
         integer                                      ::  nTims = 0       !< Number of timeseries 
         integer                                      ::  nLayer = -1     !< Number of vertical layers, default single layer
@@ -311,7 +314,8 @@ module m_ec_typedefs
       real(hp)                                :: timesteps          !< Numer of seconds since tEcTimeFrame%k_refdate.
       integer                                 :: timesndx = -1      !< index into file: used in general for random access files (nc) to keep track of position
       real(hp)                                :: missingValue       !< value to use for missing data in the data arrays
-      real(hp), dimension(:),     pointer     :: arr1dPtr => null() !< points to a 1-dim array field, stored in arr1d OR in a kernel
+      real(hp),                   pointer     :: scalarPtr=> null() !< points to a single scalar stored in arr1d OR in a kernel
+      real(hp), dimension(:),     pointer     :: arr1dPtr => null() !< points to an array field, stored in arr1d OR in a kernel
       real(hp), dimension(:),     allocatable :: arr1d              !< 1-dim array field
       real(hp)                                :: x_spw_eye          !< x-coordinate of spiderweb eye
       real(hp)                                :: y_spw_eye          !< y-coordinate of spiderweb eye
@@ -344,13 +348,16 @@ module m_ec_typedefs
       integer                                             :: vectormax = 1           !< number of vector elements (from the demand side) 
                                                                                      !  This field is used to pass the dimensionality from the 
                                                                                      !            highest to the lowest level upon creation
-      logical                                             :: end_of_data             !< End of data reached?
-      character(len=100), dimension(:), allocatable :: standard_names                ! Standard names by varid in a netcdf-file 
-      character(len=100), dimension(:), allocatable :: variable_names                ! Variable names by varid in a netcdf file 
-!     integer, dimension(:), allocatable            :: dim_varids                    ! For each dimension in NetCDF: id of the associated variable                               
-!     integer, dimension(:), allocatable            :: dim_length                    ! For each dimension in NetCDF: length
-      integer, dimension(:), pointer                :: dim_varids => null()          ! For each dimension in NetCDF: id of the associated variable                               
-      integer, dimension(:), pointer                :: dim_length => null()          ! For each dimension in NetCDF: length
+      logical                                       :: end_of_data                   !< End of data reached?      
+      character(len=100), dimension(:), allocatable :: standard_names                !<Standard names by varid in a netcdf-file 
+      character(len=100), dimension(:), allocatable :: variable_names                !<Variable names by varid in a netcdf file 
+!     integer, dimension(:), allocatable            :: dim_varids                    !<For each dimension in NetCDF: id of the associated variable                               
+!     integer, dimension(:), allocatable            :: dim_length                    !<For each dimension in NetCDF: length
+      integer                                       :: relndx = 0                    !<Index of realization in an ensemble, for the reader
+                                                                                     ! ignored if below zero or file is not an ensemble
+      integer, dimension(:), pointer                :: dim_varids => null()          !<For each dimension in NetCDF: id of the associated variable                               
+      integer, dimension(:), pointer                :: dim_length => null()          !<For each dimension in NetCDF: length
+      logical                                       :: one_time_field = .false.      !< TRUE: input file contains single time field
    end type tEcFileReader
 
    type tEcFileReaderPtr
@@ -370,7 +377,7 @@ module m_ec_typedefs
       type(tEcField),                       pointer :: sourceT0FieldPtr   => null() !< Field containing source data of second to last read data block.
       type(tEcField),                       pointer :: sourceT1FieldPtr   => null() !< Field containing source data of last read data block.
       type(tEcField),                       pointer :: targetFieldPtr     => null() !< Field containing target data at current time.
-      type(tEcTimeseries),      allocatable :: timeseries                   !< Information supporting rewinding of a read timeseries 
+      type(tEcTimeseries),              allocatable :: timeseries                   !< Information supporting rewinding of a read timeseries 
       type(tEcConnectionPtr), dimension(:), pointer :: connectionsPtr     => null() !< Connections in which this Item is a target Item
       type(tEcTimeFrame),                   pointer :: tframe => null()             !< TimeFrame at which data is available
       integer                                       :: nConnections                 !< Number of Connections <= size(connectionsPtr)
@@ -395,7 +402,7 @@ module m_ec_typedefs
       logical                   :: periodic = .false.       !< Use timeseries periodically if True
       logical                   :: constant = .false.       !< Provide constant value if True
                                                             !< Intended for quantities from NetCDF:
-      real(hp)                  :: fillvalue = 0.d0         !<    default if NaN, missing value
+      real(hp)                  :: fillvalue = ec_undef_hp  !<    default if NaN, missing value
       real(hp)                  :: factor = 1.d0            !<    multiplication (scale) factor
       real(hp)                  :: offset = 0.d0            !<    offset (new = raw*factor + offset)
       integer                   :: ncid = -1                !<    NetCDF variable ID, only used in case of NetCDF format

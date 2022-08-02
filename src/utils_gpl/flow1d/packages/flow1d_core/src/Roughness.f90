@@ -1,7 +1,7 @@
 module M_friction                                 !< friction parameters, (more to follow)
 !----- AGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2017-2020.                                
+!  Copyright (C)  Stichting Deltares, 2017-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify              
 !  it under the terms of the GNU Affero General Public License as               
@@ -25,8 +25,8 @@ module M_friction                                 !< friction parameters, (more 
 !  Stichting Deltares. All rights reserved.
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: Roughness.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_gpl/flow1d/packages/flow1d_core/src/Roughness.f90 $
+!  $Id: Roughness.f90 140847 2022-03-01 08:17:35Z noort $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_gpl/flow1d/packages/flow1d_core/src/Roughness.f90 $
 !-------------------------------------------------------------------------------
 
  integer                         :: mxengpar      !< dimension of engpar
@@ -60,6 +60,7 @@ module m_Roughness
    public getFrictionParameters
    public frictionTypeStringToInteger
    public functionTypeStringToInteger
+   public frictionTypeIntegerToString
 
    
    double precision :: vonkar      = 0.41        !< von Karman constant ()
@@ -96,16 +97,22 @@ module m_Roughness
                                                          !! 3 = Floodplan2
                                                          !! Any other = Other section (Default 0)
       integer                           :: iSection = 0
-      type(t_tablematrix), pointer      :: table(:)          !< table for space and parameter dependent roughness
-      logical                           :: useGlobalFriction !< Flag indicates to use frictionValue and frictionType or to use the table
-      double precision                  :: frictionValue     !< Global friction Value
-      integer                           :: frictionType      !< Global friction Type
-      integer, pointer                  :: rgh_type_pos(:)   !< Roughness type for positive flow direction at a branch
-      integer, pointer                  :: fun_type_pos(:)   !< Roughness parameter value for positive flow direction at a branch     
+      type(t_tablematrix), pointer      :: table(:) => null()              !< table for space and parameter dependent roughness
+      logical                           :: useGlobalFriction               !< Flag indicates to use frictionValue and frictionType or to use the table
+      double precision                  :: frictionValue                   !< Global friction Value
+      integer                           :: frictionType                    !< Global friction Type
+      integer, pointer                  :: rgh_type_pos(:) => null()       !< Roughness type for positive flow direction at a branch
+      integer, pointer                  :: fun_type_pos(:) => null()       !< Roughness parameter value for positive flow direction at a branch     
+      character(len=IdLen)             :: frictionValuesFile              !< *.bc file containing the timeseries with friction values
+      type(t_hashlist)                  :: timeSeriesIds                   !< Hashlist containing ids of the timeseries
+      integer, pointer                  :: timeSeriesIndexes(:) => null()  !< Get index in timeSeriesIds and/or frictionvalues based on branch index 
+      double precision, allocatable     :: currentValues(:)                !< Time Interpolated Friction values of time dependent items (same index as timeSeriesIds).
+      double precision, allocatable     :: timeDepValues(:,:)                 !< Friction values of time dependent items (same index as timeSeriesIds).
+
 
       ! All fields below: branch oriented data (roughness v1, obsolete for v2)
-      integer, pointer                  :: rgh_type_neg(:)   !< Roughness type for negative flow direction at a branch
-      integer, pointer                  :: fun_type_neg(:)   !< Roughness parameter value for negative flow direction at a branch
+      integer, pointer                  :: rgh_type_neg(:) => null() !< Roughness type for negative flow direction at a branch
+      integer, pointer                  :: fun_type_neg(:) => null() !< Roughness parameter value for negative flow direction at a branch
 
       integer                           :: spd_pos_idx       !< Index to Spatial Data for positive flow direction parameter values
       integer                           :: spd_neg_idx       !< Index to Spatial Data for negative flow direction parameter values
@@ -117,14 +124,17 @@ module m_Roughness
       integer                                           :: Size = 0         !< Current size
       integer                                           :: growsBy = 2000   !< Increment for growing array
       integer                                           :: Count= 0         !< Number of elements in array
-      type(t_Roughness), pointer, dimension(:)          :: rough            !< Array containing roughness sections
+      type(t_Roughness), pointer, dimension(:)          :: rough => null()  !< Array containing roughness sections
       type(t_tableSet)                                  :: tables           !< Array with tables for flow or water level dependend parameter values
       type(t_hashlist)                                  :: hashlist         !< hashlist for fast searching.
+      logical                                           :: timeseries_defined = .false.   !< Indicates whether time dependent roughnesses are defined
+      integer                                           :: roughnessFileMajorVersion      !< current major version number of the roughness ini files
    end type t_RoughnessSet
 
    integer, parameter, public                           :: R_FunctionConstant = 0      !< Constant type roughness function
-   integer, parameter, public                           :: R_FunctionDischarge = 1     !< Discharge dependend roughness 
-   integer, parameter, public                           :: R_FunctionLevel = 2         !< Water level dependend roughness
+   integer, parameter, public                           :: R_FunctionDischarge = 1     !< Discharge dependent roughness 
+   integer, parameter, public                           :: R_FunctionLevel = 2         !< Water level dependent roughness
+   integer, parameter, public                           :: R_FunctionTimeSeries = 3    !< Time dependent roughness
    integer, parameter, public                           :: R_Chezy = 0                 !< Chezy type roughness
    integer, parameter, public                           :: R_Manning = 1               !< Manning  roughness formula
    integer, parameter, public                           :: R_Nikuradse = 7             !< Nikuradse roughness formula
@@ -287,6 +297,36 @@ end function frictiontype_v1_to_new
    
    end subroutine frictionTypeStringToInteger
    
+   !> Converts a friction integer type to a text string 
+   !! E.g. 'Manning' -> R_Manning, etc. 
+   function frictionTypeIntegerToString(ifricType)
+      use string_module, only:str_lower
+      implicit none
+      integer,          intent(in   ) :: ifricType !< Friction type integer. When string is invalid, 'unknown' is returned.
+      character(:), allocatable :: frictionTypeIntegerToString
+      
+      select case (ifricType)
+         case(R_Chezy)
+            frictionTypeIntegerToString = 'Chezy'
+         case(R_Manning)
+            frictionTypeIntegerToString = 'Manning'
+         case(2)
+            frictionTypeIntegerToString = 'WallLawNikuradse'
+         case(R_WhiteColebrook)
+            frictionTypeIntegerToString = 'WhiteColebrook'
+         case(R_Nikuradse)
+            frictionTypeIntegerToString = 'StricklerNikuradse'
+         case(R_Strickler)
+            frictionTypeIntegerToString = 'Strickler'
+         case(R_BosBijkerk)
+            frictionTypeIntegerToString = 'deBosBijkerk'
+         case default
+            frictionTypeIntegerToString = 'unknown'
+      end select
+      return
+   
+   end function frictionTypeIntegerToString
+   
    !> Converts a (friction) function type as text string into the integer parameter constant.
    !! E.g. R_FunctionConstant, etc. If input string is invalid, -1 is returned.
    subroutine functionTypeStringToInteger(sfuncType, ifuncType)
@@ -303,6 +343,8 @@ end function frictiontype_v1_to_new
             ifuncType = R_FunctionDischarge
          case ('waterlevel')
             ifuncType = R_FunctionLevel
+         case ('timeseries')
+            ifuncType = R_FunctionTimeseries
          case default
             ifuncType = -1
       end select
@@ -552,80 +594,44 @@ subroutine flengrprReal(d90, u, hrad, chezy)
    chezy = C
 end subroutine flengrprReal
 
-subroutine getFrictionParameters(rgh, direction, ibranch, chainage, c_type, c_par)
+!> Retrieve the friction parameter for given branchIndex/chainage
+subroutine getFrictionParameters(rgh, ibranch, chainage, c_type, c_par)
 
-use m_tables
-use m_tablematrices
-!!--description-----------------------------------------------------------------
-! NONE
-!!--pseudo code and references--------------------------------------------------
-! NONE
-!!--declarations----------------------------------------------------------------
-    !=======================================================================
-    !                       Deltares
-    !                One-Two Dimensional Modelling System
-    !                           S O B E K
-    !
-    ! Subsystem:          Flow Module
-    !
-    ! Programmer:
-    !
-    ! Function:           getFrictionValue, replacement of old FLCHZT (FLow CHeZy Friction coeff)
-    !
-    ! Module description: Chezy coefficient is computed for a certain gridpoint
-    !
-    !
-    !
-    !     update information
-    !     person                    date
-    !     Kuipers                   5-9-2001
-    !     Van Putten                11-8-2011
-    !
-    !     Use stored table counters
-    !
-    !
-    !
-    !
-    !     Declaration of Parameters:
-    !
+   use m_tables
+   use m_tablematrices
 
-    implicit none
-!
-! Global variables
-!
-    type(t_Roughness), intent(in   )   :: rgh         !< Roughness data
-    integer,           intent(in   )   :: ibranch     !< branch index
-    double precision,  intent(in   )   :: chainage    !< chainage (location on branch)
-    double precision,  intent(in   )   :: direction   !< flow direction > 0 positive direction, < 0 negative direction
-    integer,           intent(  out)   :: c_type      !< friction type
-    double precision,  intent(  out)   :: c_par       !< friction parameter value
+   implicit none
+   !
+   ! Global variables
+   !
+   type(t_Roughness), intent(in   )   :: rgh         !< Roughness data
+   integer,           intent(in   )   :: ibranch     !< branch index
+   double precision,  intent(in   )   :: chainage    !< chainage (location on branch)
+   integer,           intent(  out)   :: c_type      !< friction type
+   double precision,  intent(  out)   :: c_par       !< friction parameter value
     
-!
-!
-! Local variables
-!
-    integer                         :: isec, i
-    double precision                :: dep
-    double precision                :: ys
-    double precision                :: rad
-    type(t_spatial_data), pointer   :: values
-    integer, dimension(:), pointer  :: rgh_type
-    integer, dimension(:), pointer  :: fun_type
-
-    !     Explanation:
-    !     -----------
-    !
-    !     1. Each Chezy formula, apart from Engelund bed friction, is defined
-    !        by 1 constant parameter. This constant is stored in bfricp.
-    !        An exception is the Engelund bed friction defined by 10 parameters.
-    !     2. For the Engelund bed friction the specific parameters are stored
-    !        in the array engpar.
-    !
-    !
-    !     Prevention against zero hydraulic radius and depth
-    !
-    
-   if (rgh%useGlobalFriction)then
+   !
+   !
+   ! Local variables
+   !
+   integer                         :: timeseries_index
+   double precision                :: ys
+   integer, dimension(:), pointer  :: rgh_type
+   integer, dimension(:), pointer  :: fun_type
+   !     Explanation:
+   !     -----------
+   !
+   !     1. Each Chezy formula, apart from Engelund bed friction, is defined
+   !        by 1 constant parameter. This constant is stored in bfricp.
+   !        An exception is the Engelund bed friction defined by 10 parameters.
+   !     2. For the Engelund bed friction the specific parameters are stored
+   !        in the array engpar.
+   !
+   !
+   !     Prevention against zero hydraulic radius and depth
+   !
+   
+   if (rgh%useGlobalFriction)  then
       c_par = rgh%frictionValue
       c_type = rgh%frictionType
    else
@@ -636,9 +642,20 @@ use m_tablematrices
          c_type = rgh%frictionType
       else
          ys = 0d0
-             
          c_par = interpolate(rgh%table(ibranch), chainage, ys)
          c_type = rgh_type(ibranch)
+      endif
+
+      ! In case of a time dependent roughness, overwrite the friction parameter
+      if (fun_type(ibranch) ==R_FunctionTimeSeries) then
+         ! There is a time dependency
+         timeseries_index = rgh%timeSeriesIndexes(ibranch) 
+         if (rgh%timeDepValues(timeseries_index,2) > 0d0) then
+            ! The values are set 
+            ! This subroutine is used for filling the YZ-cross section with new friction parameters
+            ! As a result the value at the latest time instance is required
+            c_par = rgh%timeDepValues(timeseries_index,2)
+         endif
       endif
    endif
 

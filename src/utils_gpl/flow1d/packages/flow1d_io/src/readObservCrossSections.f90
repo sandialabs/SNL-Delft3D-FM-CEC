@@ -1,7 +1,7 @@
 module m_readObservCrossSections
 !----- AGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2017-2020.                                
+!  Copyright (C)  Stichting Deltares, 2017-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify              
 !  it under the terms of the GNU Affero General Public License as               
@@ -25,8 +25,8 @@ module m_readObservCrossSections
 !  Stichting Deltares. All rights reserved.
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: readObservCrossSections.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_gpl/flow1d/packages/flow1d_io/src/readObservCrossSections.f90 $
+!  $Id: readObservCrossSections.f90 140847 2022-03-01 08:17:35Z noort $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_gpl/flow1d/packages/flow1d_io/src/readObservCrossSections.f90 $
 !-------------------------------------------------------------------------------
 
    use m_CrossSections
@@ -35,14 +35,12 @@ module m_readObservCrossSections
    use m_network
    use m_GlobalParameters
    use m_hash_search
-   use m_hash_list
    
    
    implicit none
    private
    
    public readObservCrossSections
-   public read_observ_cross_section_cache
 
    !> The file version number of the observation cross section file format: d.dd, [config_major].[config_minor], e.g., 1.03
    !!
@@ -90,7 +88,7 @@ module m_readObservCrossSections
       type(t_ObservCrossSection), pointer   :: pobservcrs
       integer                               :: pos
       integer                               :: ibin = 0
-      character(len=Charln)                 :: binfile
+      character(len=IdLen)                 :: binfile
       logical                               :: file_exist
       integer                               :: formatbr       ! =1: use branchid and chainage, =0: use xy coordinate and numCoordinates
       integer                               :: major, minor, ierr
@@ -102,20 +100,6 @@ module m_readObservCrossSections
       branchID   = ''
       observcrsName = ''
 
-      pos = index(CrossSectionFile, '.', back = .true.)
-      binfile = CrossSectionFile(1:pos)//'cache'
-      inquire(file=binfile, exist=file_exist)
-      if (doReadCache .and. file_exist) then
-         open(newunit=ibin, file=binfile, status='old', form='unformatted', access='stream', action='read', iostat=istat)
-         if (istat /= 0) then
-            call setmessage(LEVEL_FATAL, 'Error opening Cross-Section file')
-            ibin = 0
-         endif
-         call read_observ_cross_section_cache(ibin, network)
-         close(ibin)
-         return
-      endif
-      
       call tree_create(trim(CrossSectionfile), md_ptr, maxlenpar)
       call prop_file('ini',trim(CrossSectionfile),md_ptr,istat)
 
@@ -215,38 +199,7 @@ module m_readObservCrossSections
       if (allocated(yy)) deallocate(yy)
          
    end subroutine readObservCrossSections
-   
-   
-   subroutine read_observ_cross_section_cache(ibin, network)
-   implicit none
-   type(t_network), intent(inout)     :: network
-   integer        , intent(in   )     :: ibin
-   
-   integer                            :: i
-   type(t_ObservCrossSection), pointer:: pobservcrs
-   
-   read(ibin) network%observcrs%count
-   network%observcrs%growsby = network%observcrs%count + 2
-   call realloc(network%observcrs)
-   
-   do i = 1, network%observcrs%count
-      
-      pobservcrs => network%observcrs%Observcross(i)
-      
-      read(ibin) pobservcrs%name
-      read(ibin) pobservcrs%branchid 
-      read(ibin) pobservcrs%chainage
-      read(ibin) pobservcrs%branchIdx
-      read(ibin) pobservcrs%numValues          
-      read(ibin) pobservcrs%x
-      read(ibin) pobservcrs%y
-      
-   enddo
-   
-   call read_hash_list_cache(ibin, network%observcrs%hashlist)
-   
-   end subroutine read_observ_cross_section_cache
-   
+ 
    end module m_readObservCrossSections
 
    

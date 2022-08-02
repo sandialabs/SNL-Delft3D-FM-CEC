@@ -1,7 +1,7 @@
 module m_readCrossSections
 !----- AGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2017-2020.                                
+!  Copyright (C)  Stichting Deltares, 2017-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify              
 !  it under the terms of the GNU Affero General Public License as               
@@ -25,8 +25,8 @@ module m_readCrossSections
 !  Stichting Deltares. All rights reserved.
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: readCrossSections.f90 65972 2020-02-12 07:36:41Z chavarri $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_gpl/flow1d/packages/flow1d_io/src/readCrossSections.f90 $
+!  $Id: readCrossSections.f90 141245 2022-05-17 11:03:53Z noort $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_gpl/flow1d/packages/flow1d_io/src/readCrossSections.f90 $
 !-------------------------------------------------------------------------------
 
    use M_newcross
@@ -46,10 +46,11 @@ module m_readCrossSections
    
    public readCrossSectionDefinitions
    public readCrossSectionLocationFile
-   public write_cross_section_definition_cache
-   public write_cross_section_cache
-   public write_convtab
-   public read_convtab
+   public finalizeCrs
+   !public write_cross_section_definition_cache
+   !public write_cross_section_cache
+   !public write_convtab
+   !public read_convtab
 
    !> The file version number of the cross section definition file format: d.dd, [config_major].[config_minor], e.g., 1.03
    !!
@@ -77,6 +78,8 @@ module m_readCrossSections
    !> Read the cross section location file
    subroutine readCrossSectionLocationFile(network, CrossSectionfile)
       use m_CrossSections
+      use m_network
+      use ModelParameters
       type(t_network), intent(inout) :: network                 !< Network structure
       character(len=*), intent(in)   :: CrossSectionFile        !< name of the crossection location input file 
 
@@ -92,29 +95,20 @@ module m_readCrossSections
       logical                        :: success
       type(t_CrossSection), pointer  :: pCrs
       type(t_CSType), pointer        :: pCrsDef
-      character(len=Charln)          :: binfile
+      character(len=IdLen)          :: binfile
       logical                        :: file_exist
       integer                        :: pos, ibin
       integer                        :: numcrs
+      integer                        :: maxErrorLevel
 
 
-      pos = index(CrossSectionFile, '.', back = .true.)
-      binfile = CrossSectionFile(1:pos)//'cache'
-      inquire(file=binfile, exist=file_exist)
-      if (doReadCache .and. file_exist) then
-         open(newunit=ibin, file=binfile, status='old', form='unformatted', access='stream', action='read', iostat=istat)
-         if (istat /= 0) then
-            call setmessage(LEVEL_FATAL, 'Error opening Cross-Section Location Cache file')
-            ibin = 0
-         endif
-         call read_cross_section_cache(ibin, network%crs, network%CSDefinitions)
-         close(ibin)
-         !call dumpCross(network%crs, 'dumpCrossCacheRead')
-         return
-      endif
       
       call tree_create(trim(CrossSectionfile), md_ptr, maxlenpar)
       call prop_file('ini',trim(CrossSectionfile),md_ptr,istat)
+
+      msgbuf = 'Reading '//trim(CrossSectionfile)//'.'
+      call msg_flush()
+
       numstr = 0
       if (associated(md_ptr%child_nodes)) then
          numstr = size(md_ptr%child_nodes)
@@ -176,22 +170,48 @@ module m_readCrossSections
          pCrs%bedLevel = 0.0d0
          call prop_get_double(md_ptr%child_nodes(i)%node_ptr, '', 'shift', pCrs%shift, success)
          if (.not. success) pCrs%shift = 0.0d0
+
+         ! Stop in case of errors
+         maxErrorLevel = getMaxErrorLevel()
+         if (maxErrorLevel >= LEVEL_ERROR) then
+            call LogAllParameters()
+            call SetMessage(LEVEL_FATAL, 'Error(s) during reading model data from files')
+         endif
+        call finalizeCrs(network,pCrs,iref,inext)
          
+      end do
+
+      call tree_destroy(md_ptr)
+      
+   end subroutine readCrossSectionLocationFile
+   
+    
+   subroutine finalizeCrs(network,pCrs,iref,inext)
+   
+      use m_CrossSections
+      use m_network
+      use m_hash_search
+      type(t_network), intent(inout) :: network                 !< Network structure
+      type(t_CrossSection), pointer, intent(inout)  :: pCrs
+      integer, intent(in)            :: iref
+      integer, intent(in)            :: inext
+      
          pCrs%itabDef             = iref
          pCrs%tabDef              => network%CSDefinitions%CS(iref)
          
+         pCrs%shift = pCrs%shift + pCrs%tabDef%bedLevel
          call SetParsCross(network%CSDefinitions%CS(iref), network%crs%cross(inext))
          pCrs => network%crs%cross(inext)
          
+         allocate(pCrs%frictionTypePos(pCrs%tabDef%frictionSectionsCount))        !< Friction type for positive flow direction
+         allocate(pCrs%frictionTypeNeg(pCrs%tabDef%frictionSectionsCount))        !< Friction type for negative flow direction
+         call realloc(pCrs%frictionValuePos, pCrs%tabDef%frictionSectionsCount, fill=-999d0) !< Friction value for positive flow direction
+         call realloc(pCrs%frictionValueNeg, pCrs%tabDef%frictionSectionsCount, fill=-999d0) !< Friction value for negative flow direction
          ! Allocate and Copy Section Data form Definition
-         if (pCrs%tabDef%frictionSectionsCount > 0) then
+         if (.not. pCrs%tabDef%frictionSectionID(pCrs%tabDef%frictionSectionsCount) == '') then
             allocate(pCrs%frictionSectionID(pCrs%tabDef%frictionSectionsCount))      !< Friction Section Identification
             allocate(pCrs%frictionSectionFrom(pCrs%tabDef%frictionSectionsCount))    !<
             allocate(pCrs%frictionSectionTo(pCrs%tabDef%frictionSectionsCount))      !<
-            allocate(pCrs%frictionTypePos(pCrs%tabDef%frictionSectionsCount))        !< Friction type for positive flow direction
-            allocate(pCrs%frictionValuePos(pCrs%tabDef%frictionSectionsCount))       !< Friction value for positive flow direction
-            allocate(pCrs%frictionTypeNeg(pCrs%tabDef%frictionSectionsCount))        !< Friction type for negative flow direction
-            allocate(pCrs%frictionValueNeg(pCrs%tabDef%frictionSectionsCount))       !< Friction value for negative flow direction
             call realloc(pCrs%tabdef%frictionSectionFrom, pCrs%tabDef%frictionSectionsCount)
             call realloc(pCrs%tabdef%frictionSectionto, pCrs%tabDef%frictionSectionsCount)
 
@@ -199,25 +219,30 @@ module m_readCrossSections
             pCrs%frictionSectionID     = pCrs%tabDef%frictionSectionID
             pCrs%frictionSectionFrom   = pCrs%tabDef%frictionSectionFrom
             pCrs%frictionSectionTo     = pCrs%tabDef%frictionSectionTo
-
+            
+                     ! Retrieve Roughness for Profile from Spatial Data
+         call GetRoughnessForProfile(network, network%crs%cross(inext))
+         else 
+           pCrs%frictiontypepos(1) = network%csdefinitions%cs(iref)%frictiontype(1)
+           pCrs%frictiontypeneg(1) = network%csdefinitions%cs(iref)%frictiontype(1)
+           pCrs%frictionvaluepos(1) = network%csdefinitions%cs(iref)%frictionvalue(1)
+           pCrs%frictionvalueneg(1) = network%csdefinitions%cs(iref)%frictionvalue(1) 
          endif
          
          network%crs%count = inext
          
-         ! Retrieve Roughness for Profile from Spatial Data
-         call GetRougnessForProfile(network, network%crs%cross(inext))
+         !check of fricion section count > 0, zo ja getrougness, zo nee vul frictionype frictionvalue uit def
+
          if (network%CSDefinitions%CS(iref)%crossType == cs_YZ_Prof) then
             ! Prematurely to facilitate Conveyance Data to Delta Shell
+
+            pCrs%convtab1 => null()
+            pCrs%hasTimeDependentConveyance = .false. ! until proven otherwise
             call CalcConveyance(network%crs%cross(inext))
-            
          endif
          
-      end do
-
-      call tree_destroy(md_ptr)
-      
-   end subroutine readCrossSectionLocationFile
-
+   end subroutine finalizeCrs
+   
    !> Read the cross section definitions file, taking the file version into account.
    subroutine readCrossSectionDefinitions(network, CrossSectionDefinitionFile)
 
@@ -228,30 +253,16 @@ module m_readCrossSections
       logical :: success
       integer                       :: pos
       integer                       :: ibin = 0
-      character(len=Charln)         :: binfile
+      character(len=IdLen)         :: binfile
       logical                       :: file_exist
       character(len=Idlen)          :: fileVersion
       integer                       :: major 
       integer                       :: minor
       
-      pos = index(CrossSectionDefinitionFile, '.', back = .true.)
-      binfile = CrossSectionDefinitionFile(1:pos)//'cache'
-      inquire(file=binfile, exist=file_exist)
-      if (doReadCache .and. file_exist) then
-         open(newunit=ibin, file=binfile, status='old', form='unformatted', access='stream', action='read', iostat=istat)
-         if (istat /= 0) then
-            call setmessage(LEVEL_FATAL, 'Error opening Cross-Section Definition Cache file')
-            ibin = 0
-         endif
-         call read_cross_section_definition_cache(ibin, network%CSDefinitions)
-         close(ibin)
-         ibin = 0
-         !call dumpCrossDefs(network%CSDefinitions, 'dumpCrossDefCacheRead')
-         return
-      endif
-
       call tree_create(trim(CrossSectionDefinitionFile), md_ptr, maxlenpar)
       call prop_file('ini',trim(CrossSectionDefinitionFile),md_ptr,istat)
+      msgbuf = 'Reading '//trim(CrossSectionDefinitionFile)//'.'
+      call msg_flush()
 
       call prop_get_version_number(md_ptr, major = major, minor = minor, success = success)
       if (.not. success) then
@@ -287,11 +298,12 @@ module m_readCrossSections
    
       !integer :: istat
       integer :: numstr
-      integer :: i, j
+      integer :: i, j, k
       integer :: crosstype
       logical :: success
       character(len=IdLen) :: id
       character(len=IdLen) :: typestr
+      character(len=10) :: msgstr = ''
       double precision :: diameter
       integer :: numLevels
       double precision, allocatable :: level(:)
@@ -312,7 +324,7 @@ module m_readCrossSections
       type(t_CSType), pointer       :: pCS
       character(len=IdLen), allocatable :: fricTypes(:)
       integer                       :: maxnumsections ! Max number of friction sections, to realloc some arrays
-      
+      integer                       :: jaFricId
       numstr = 0
       if (associated(md_ptr%child_nodes)) then
          numstr = size(md_ptr%child_nodes)
@@ -325,8 +337,6 @@ module m_readCrossSections
          ! block [Global]
          if (strcmpi(tree_get_name(md_ptr%child_nodes(i)%node_ptr), 'Global')) then
              call prop_get_double(md_ptr%child_nodes(i)%node_ptr, '', 'leveeTransitionHeight',summerDikeTransitionHeight, success)
-             write(msgbuf,'(a,F6.3,a)') 'Levee transition height (summerdike) = ', summerDikeTransitionHeight, ' m'
-             call msg_flush()
              
          ! block [Definition]   
          elseif (strcmpi(tree_get_name(md_ptr%child_nodes(i)%node_ptr), 'Definition')) then
@@ -355,11 +365,12 @@ module m_readCrossSections
          pCS => network%CSDefinitions%CS(inext)
          pCS%id = id
          pCS%crossType = crosstype
+         pCS%bedLevel = 0d0
          
          select case (crossType)
          case(CS_TABULATED)
             
-            if (trim(typestr) == 'zwRiver') then
+            if (strcmpi(typestr, 'zwRiver')) then
                plural = .true.
             endif
             success = readTabulatedCS(pCS, md_ptr%child_nodes(i)%node_ptr) 
@@ -375,9 +386,13 @@ module m_readCrossSections
                 call SetMessage(LEVEL_ERROR, 'Incorrect CrossSection input for CrossSection Definition with type '//trim(typestr)//' and id: '//trim(id)// &
                '. No width was given.')
             endif
-            
+            if (width(1) == 0d0) then
+               ! THe width of a rectangular cross section must be > 0
+               call SetMessage(LEVEL_ERROR, 'Incorrect CrossSection input for CrossSection Definition with type '//trim(typestr)//' and id: '//trim(id)// &
+               '. width = 0.00 was found in the input.')
+            endif
             call prop_get_logical(md_ptr%child_nodes(i)%node_ptr, '', 'closed', closed, success)
-            if (.not. success) closed = .false. ! Default
+            if (.not. success) closed = .true. ! Default
             
             if (closed) then
                call prop_get_double(md_ptr%child_nodes(i)%node_ptr, '', 'height', height, success)
@@ -385,6 +400,10 @@ module m_readCrossSections
                   call SetMessage(LEVEL_ERROR, 'Incorrect CrossSection input for CrossSection Definition with type '//trim(typestr)//' and id: '//trim(id)// &
                   '. No height was given.')
                   cycle
+               elseif (height == 0d0) then
+                  ! THe height of a rectangular cross section must be > 0
+                  call SetMessage(LEVEL_ERROR, 'Incorrect CrossSection input for CrossSection Definition with type '//trim(typestr)//' and id: '//trim(id)// &
+                  '. height = 0.00 was found in the input.')
                endif
                numlevels = numlevels + 1
                level(numLevels) = height
@@ -403,6 +422,7 @@ module m_readCrossSections
             inext = AddCrossSectionDefinition(network%CSDefinitions, id, numLevels, level, width,               &
                                               width, plains, crestLevel, baseLevel, flowArea, totalArea,        &
                                               closed, groundlayerUsed, groundlayer)
+           
             deallocate(level, width)            
          
          case(CS_CIRCLE, CS_EGG)
@@ -412,8 +432,12 @@ module m_readCrossSections
             if (.not. success) then
                call SetMessage(LEVEL_ERROR, 'Incorrect CrossSection input for CrossSection Definition with type '//trim(typestr)//' and id: '//trim(id)// &
                '. No diameter was given.')
+            elseif (diameter == 0d0) then
+               ! The diameter of a circular cross sections must be > 0
+               call SetMessage(LEVEL_ERROR, 'Incorrect CrossSection input for CrossSection Definition with type '//trim(typestr)//' and id: '//trim(id)// &
+               '. diameter = 0.00 was found in the input.')
             endif
-
+   
             pCs%frictionSectionsCount = 1
             inext = AddCrossSectionDefinition(network%CSDefinitions, id, diameter, crossType, groundlayerUsed, groundlayer)
             
@@ -478,7 +502,19 @@ module m_readCrossSections
                   pCS%frictionSectionID(j) = ''
                enddo
             endif
-               
+         else
+            jaFricId = 0
+            do j = 1, pCs%frictionSectionsCount
+               if (len_trim(pCS%frictionSectionID(j)) > 1) then
+                  jaFricId = 1
+                  exit
+               end if
+            end do
+            if (jaFricId == 0) then
+               write(msgbuf, '(a,i0,a)') 'Incorrect CrossSection input for CrossSection Definition with type '//trim(typestr)//' and id: '//trim(id)// &
+                                               '. frictionId (or frictionIds)is not specified in section #', j, '.'
+               call err_flush()
+            end if
          endif
          success = .true.
          
@@ -493,6 +529,14 @@ module m_readCrossSections
          endif !block test
          
       enddo crs
+
+      if (anySummerDike) then 
+          if (summerDikeTransitionHeight == 0.5) then 
+              msgstr = '(default)'
+          endif 
+          write(msgbuf,'(a,F6.3,a,a)') 'Levee transition height (summerdike) = ', summerDikeTransitionHeight, ' m ', msgstr 
+          call msg_flush()
+      endif 
 
    end subroutine parseCrossSectionDefinitionFile
 
@@ -560,6 +604,9 @@ module m_readCrossSections
       if (success) call prop_get_double(node_ptr, '', 'leveeBaseLevel', baseLevel, success)
       if (success) call prop_get_double(node_ptr, '', 'leveeFlowArea',  flowArea,  success)
       if (success) call prop_get_double(node_ptr, '', 'leveeTotalArea', totalArea, success)
+      if (success .and. flowArea > totalArea) then
+            call SetMessage(LEVEL_WARN, 'Total area behind levee should be larger then flow area behind levee. Cross-Section Definition id: '//trim(pCS%id)//'.')
+      endif      
       if (success) then
          if (flowArea > 1.0d-5 .or. totalArea > 1.0d-5) then
             allocate(pCS%summerdike)
@@ -672,6 +719,16 @@ module m_readCrossSections
       pCs%levelsCount = numlevels
       pCS%height      = height(1:numlevels)
       pCS%flowWidth   = width(1:numlevels)
+
+      ! Add Preisman slot to totalwidth for closed cross sections.
+      ! The flow width remains unchanged.
+      if (totalwidth(numlevels) <= sl) then
+         pcs%closed = .true.
+         do i = 2, numlevels
+            totalwidth(i) = max(totalwidth(i), sl)
+         enddo
+      endif
+      
       pCS%totalWidth  = totalwidth(1:numlevels)
       
       if (pCs%plains(3) > 0.0d0) then
@@ -757,6 +814,9 @@ module m_readCrossSections
       if (success) call prop_get_double(node_ptr, '', 'sd_baseLevel', baseLevel, success)
       if (success) call prop_get_double(node_ptr, '', 'sd_flowArea',  flowArea,  success)
       if (success) call prop_get_double(node_ptr, '', 'sd_totalArea', totalArea, success)
+      if (success .and. flowArea > totalArea) then
+         call SetMessage(LEVEL_WARN, 'Total area behind summerdike should be larger then flow area behind summerdike. Cross-Section Definition id: '//trim(pCS%id)//'.')
+      endif      
       if (success) then
          if (flowArea > 1.0d-5 .or. totalArea > 1.0d-5) then
             allocate(pCS%summerdike)
@@ -925,7 +985,8 @@ module m_readCrossSections
       integer :: frictionCount
       logical :: success, sferic_local
       double precision, allocatable, dimension(:) :: positions
-      double precision, allocatable, dimension(:) :: xcoordinates, ycoordinates
+      double precision, allocatable, dimension(:) :: xcoordinates, ycoordinates, ycoordinates_help, zcoordinates
+      integer,          allocatable, dimension(:) :: segmentToSectionIndex
       integer          :: i
       double precision :: locShift
       logical          :: xyz_cross_section 
@@ -966,14 +1027,14 @@ module m_readCrossSections
          call err_flush()
       endif
       
-      pCS%levelsCount           = numLevels
       pCS%frictionSectionsCount = frictionCount
       pCS%storLevelsCount       = 0
       
-      call realloc(xcoordinates, numlevels)
-      call realloc(ycoordinates, numlevels)
-      call realloc(pCS%y, numlevels)
-      call realloc(pCS%z, numlevels)
+      call realloc(xcoordinates, numlevels+frictionCount)
+      call realloc(ycoordinates, numlevels+frictionCount)
+      call realloc(ycoordinates_help, numlevels+frictionCount)
+      call realloc(zcoordinates, numlevels+frictionCount)
+      call realloc(segmentToSectionIndex, numlevels+frictionCount)
       call realloc(pCS%storLevels, 2)
       call realloc(pCS%YZstorage, 2)
       call realloc(pCS%frictionSectionFrom, frictionCount)
@@ -983,19 +1044,18 @@ module m_readCrossSections
       xcoordinates = 0d0
       call prop_get_doubles(node_ptr, '', 'xCoordinates', xcoordinates, numlevels, success)
       call prop_get_doubles(node_ptr, '', 'yCoordinates', ycoordinates, numlevels, success)
-      if (success) call prop_get_doubles(node_ptr, '', 'zCoordinates', pCS%z, numlevels, success)
+      if (success) call prop_get_doubles(node_ptr, '', 'zCoordinates', zcoordinates, numlevels, success)
       if (.not. success) then
           call SetMessage(LEVEL_ERROR, 'Error while reading number of yz-levels for YZ-Cross-Section Definition ID: '//trim(pCS%id))
       endif
       
+      ycoordinates_help = ycoordinates
       if (xyz_cross_section) then
-         pCS%y(1) = 0d0
+         ycoordinates(1) = 0d0
          do i = 2, numlevels
-            call distance(sferic_local, xcoordinates(i-1), ycoordinates(i-1), xcoordinates(i), ycoordinates(i), pCS%y(i), earth_radius)
-            pCS%y(i) = pCS%y(i-1) + pCS%y(i) 
+            call distance(sferic_local, xcoordinates(i-1), ycoordinates_help(i-1), xcoordinates(i), ycoordinates_help(i), ycoordinates(i), earth_radius)
+            ycoordinates(i) = ycoordinates(i-1) + ycoordinates(i) 
          enddo
-      else
-         pcs%y = ycoordinates
       endif
       
       pCS%storLevels = 0
@@ -1005,24 +1065,28 @@ module m_readCrossSections
       if (success) then
          
          ! Check Consistency of Rougness Positions
-         if (positions(1) .ne. pCS%y(1) .or. positions(frictionCount + 1) .ne. pCS%y(numLevels)) then
+         if (positions(1) .ne. ycoordinates(1) .or. positions(frictionCount + 1) .ne. ycoordinates(numLevels)) then
             
-            if (positions(1) == 0.0d0  .and. positions(frictionCount+1) == (pCS%y(numLevels) - pCS%y(1))) then
+            if (positions(1) == 0.0d0  .and. comparereal(positions(frictionCount+1), ycoordinates(numLevels) - ycoordinates(1), 1d-6) == 0) then
                ! Probably lined out wrong because of import from SOBEK2
-               locShift = positions(frictionCount + 1) - pCS%y(numLevels)
-               do i = 1, frictionCount + 1
+               locShift = positions(frictionCount + 1) - ycoordinates(numLevels)
+               !do i = 1, frictionCount + 1
+                  i = frictionCount + 1
                   positions(i) = positions(i) - locShift
-               enddo
+               !enddo
                call SetMessage(LEVEL_WARN, 'Friction sections corrected for YZ-Cross-Section Definition ID: '//trim(pCS%id))
             else
-               call SetMessage(LEVEL_ERROR, 'Section data not consistent for YZ-Cross-Section Definition ID: '//trim(pCS%id))
+               write (msgbuf, '(a,f16.10,a,f16.10,a)') 'Section data not consistent for (X)YZ-Cross-Section Definition ID: '//trim(pCS%id)// &
+                  ', friction section width (', (positions(frictionCount+1)-positions(1)), &
+                  ') differs from cross section width (', (ycoordinates(numLevels) - ycoordinates(1)), ').'
+               call err_flush()
             endif
          
          endif
          
       elseif (.not.success .and. frictionCount==1) then
-         positions(1) = pCS%y(1)
-         positions(2) = pCS%y(numLevels)
+         positions(1) = ycoordinates(1)
+         positions(2) = ycoordinates(numLevels)
          success = .true.
       endif
       
@@ -1033,6 +1097,23 @@ module m_readCrossSections
       allocate(pCS%groundlayer)
       pCS%groundlayer%used      = .false.
       pCS%groundlayer%thickness = 0.0d0
+
+      ! Actions: 
+      ! * remove double points
+      ! * prevent horizontal segments
+      ! * add extra points (if necessary) at frictionsection transitions
+      ! * generate segmentToSectionIndex
+      call regulate_yz_coordinates(ycoordinates, zcoordinates, pcs%bedlevel, segmentToSectionIndex, numlevels, pCS%frictionSectionFrom, &
+                                   pCs%frictionSectionTo, frictionCount)
+
+      call realloc(pCS%y, numlevels)
+      call realloc(pCS%z, numlevels)
+      call realloc(pCS%segmentToSectionIndex, numlevels)
+
+      pCS%levelsCount           = numLevels
+      pCS%y(1:numlevels) = ycoordinates(1:numlevels)
+      pCS%z(1:numlevels) = zcoordinates(1:numlevels)
+      pCS%segmentToSectionIndex(1:numlevels) = segmentToSectionIndex(1:numlevels)
       
       deallocate(positions)
       readYZCS = success
@@ -1128,666 +1209,7 @@ module m_readCrossSections
       readYZCS_v100 = success
    end function readYZCS_v100
    
-   !> write cross section definitions to cache file
-   subroutine write_cross_section_definition_cache(ibin, defs)
-   
-      type(t_CSDefinitionSet), intent(inout) :: defs      !< cross section sdefinition
-      integer, intent(in) :: ibin                         !< binary cache file
-      
-      integer :: i, j, k
-      type(t_CSType), pointer :: pdef
-
-      write(ibin) defs%count
-      do i = 1, defs%count
-      
-         pdef => defs%CS(i)
-         
-         write(ibin) pdef%id
-         write(ibin) pdef%crossType
-         write(ibin) pdef%levelsCount
-         write(ibin) pdef%closed
-         write(ibin) pdef%diameter
-         
-         select case(pdef%crossType)
-            case (CS_TABULATED) 
-               write(ibin) (pdef%height(j), j = 1, pdef%levelscount)
-               write(ibin) (pdef%flowWidth(j), j = 1, pdef%levelscount)
-               write(ibin) (pdef%totalWidth(j), j = 1, pdef%levelscount)
-               write(ibin) ((pdef%af_sub(j, k), j = 1, 3), k = 1, pdef%levelscount)
-               write(ibin) ((pdef%width_sub(j, k), j = 1, 3), k = 1, pdef%levelscount)
-               write(ibin) ((pdef%perim_sub(j, k), j = 1, 3), k = 1, pdef%levelscount)
-               write(ibin) (pdef%flowArea(j), j = 1, pdef%levelscount)
-               write(ibin) (pdef%wetPerimeter(j), j = 1, pdef%levelscount)
-               write(ibin) (pdef%totalArea(j), j = 1, pdef%levelscount)
-               write(ibin) (pdef%area_min(j), j = 1, pdef%levelscount)
-               write(ibin) (pdef%width_min(j), j = 1, pdef%levelscount)
-               write(ibin) (pdef%plains(j), j = 1, 3)
-               write(ibin) (pdef%plainsLocation(j), j = 1, 3)
-            
-               write(ibin) associated(pdef%summerdike)
-               if (associated(pdef%summerdike)) then
-                  write(ibin) pdef%summerdike%crestLevel
-                  write(ibin) pdef%summerdike%baseLevel
-                  write(ibin) pdef%summerdike%flowArea
-                  write(ibin) pdef%summerdike%totalArea
-               endif
-            case (CS_YZ_PROF)
-               write(ibin) (pdef%y(j), j = 1, pdef%levelscount)
-               write(ibin) (pdef%z(j), j = 1, pdef%levelscount)
-            
-               write(ibin) pdef%storageType
-               write(ibin) pdef%storLevelsCount
-
-               write(ibin) (pdef%storLevels(j), j = 1, 2)
-               write(ibin) (pdef%YZstorage(j), j = 1, 2)
-         end select
-         
-         ! Groundlayer
-         write(ibin) associated(pdef%groundlayer)
-         if (associated(pdef%groundlayer)) then
-            write(ibin) pdef%groundlayer%used  
-            write(ibin) pdef%groundlayer%thickness    
-            write(ibin) pdef%groundlayer%area     
-            write(ibin) pdef%groundlayer%perimeter 
-            write(ibin) pdef%groundlayer%width    
-         endif
-         
-      enddo
-      
-   end subroutine write_cross_section_definition_cache
-   
-   !> read cross section definitions from cache
-   subroutine read_cross_section_definition_cache(ibin, defs)
-      type(t_CSDefinitionSet), intent(inout) :: defs         !< cross section definitions
-      integer, intent(in)                    :: ibin         !< binary file
-      
-      integer                 :: i, j, k
-      logical                 :: isAssociated
-      type(t_CSType), pointer :: pdef
-
-      read(ibin) defs%count
-      defs%growsBy = defs%count + 2
-      call realloc(defs)
-      
-      do i = 1, defs%count
-
-         pdef => defs%CS(i)
-         
-         read(ibin) pdef%id
-         read(ibin) pdef%crossType
-         read(ibin) pdef%levelsCount
-         read(ibin) pdef%closed
-         read(ibin) pdef%diameter
-         
-         select case(pdef%crossType)
-            case (CS_TABULATED) 
-               allocate(pdef%height(pdef%levelscount))
-               allocate(pdef%flowWidth(pdef%levelscount))
-               allocate(pdef%totalWidth(pdef%levelscount))
-               allocate(pdef%af_sub(3, pdef%levelscount))
-               allocate(pdef%width_sub(3, pdef%levelscount))
-               allocate(pdef%perim_sub(3, pdef%levelscount))
-               allocate(pdef%flowArea(pdef%levelscount))
-               allocate(pdef%wetPerimeter(pdef%levelscount))
-               allocate(pdef%totalArea(pdef%levelscount))
-               allocate(pdef%area_min(pdef%levelscount))
-               allocate(pdef%width_min(pdef%levelscount))
-               read(ibin) (pdef%height(j), j = 1, pdef%levelscount)
-               read(ibin) (pdef%flowWidth(j), j = 1, pdef%levelscount)
-               read(ibin) (pdef%totalWidth(j), j = 1, pdef%levelscount)
-               read(ibin) ((pdef%af_sub(j, k), j = 1, 3), k = 1, pdef%levelscount)
-               read(ibin) ((pdef%width_sub(j, k), j = 1, 3), k = 1, pdef%levelscount)
-               read(ibin) ((pdef%perim_sub(j, k), j = 1, 3), k = 1, pdef%levelscount)
-               read(ibin) (pdef%flowArea(j), j = 1, pdef%levelscount)
-               read(ibin) (pdef%wetPerimeter(j), j = 1, pdef%levelscount)
-               read(ibin) (pdef%totalArea(j), j = 1, pdef%levelscount)
-               read(ibin) (pdef%area_min(j), j = 1, pdef%levelscount)
-               read(ibin) (pdef%width_min(j), j = 1, pdef%levelscount)
-               read(ibin) (pdef%plains(j), j = 1, 3)
-               read(ibin) (pdef%plainsLocation(j), j = 1, 3)
-               
-               ! Summer Dike
-               read(ibin) isAssociated
-               if (isAssociated) then
-                  anySummerDike = .true.
-                  allocate(pdef%summerdike)
-                  read(ibin) pdef%summerdike%crestLevel
-                  read(ibin) pdef%summerdike%baseLevel
-                  read(ibin) pdef%summerdike%flowArea
-                  read(ibin) pdef%summerdike%totalArea
-               endif
-            case (CS_YZ_PROF)
-               allocate(pdef%y(pdef%levelscount))
-               allocate(pdef%z(pdef%levelscount))
-               read(ibin) (pdef%y(j), j = 1, pdef%levelscount)
-               read(ibin) (pdef%z(j), j = 1, pdef%levelscount)
-
-               read(ibin) pdef%storageType
-               read(ibin) pdef%storLevelsCount
-
-               allocate(pdef%storLevels(2))
-               allocate(pdef%YZstorage(2))
-               read(ibin) (pdef%storLevels(j), j = 1, 2)
-               read(ibin) (pdef%YZstorage(j), j = 1, 2)
-               
-         end select
-         
-         ! Groundlayer
-         read(ibin) isAssociated
-         if (isAssociated) then
-            allocate(pdef%groundlayer)
-            read(ibin) pdef%groundlayer%used   
-            read(ibin) pdef%groundlayer%thickness   
-            read(ibin) pdef%groundlayer%area     
-            read(ibin) pdef%groundlayer%perimeter 
-            read(ibin) pdef%groundlayer%width
-            
-            if (pdef%groundlayer%used) anyGroundLayer = .true.
-         endif
-         
-      enddo
-      
-      call fill_hashtable(defs)
-
-   end subroutine read_cross_section_definition_cache
-   !
-   !> write cross section data from binary file
-   subroutine write_cross_section_cache(ibin, crs)
-   
-      type(t_CrossSectionSet), intent(inout) :: crs      !< cross sections 
-      integer, intent(in)                    :: ibin     !< binary file
-      
-      integer                       :: i
-      integer                       :: j
-      type(t_CrossSection), pointer :: pcross
-
-      write(ibin) crs%count
-      
-      do i = 1, crs%count
-      
-         pcross => crs%cross(i)
-         
-         write(ibin) pcross%csid
-         write(ibin) pcross%crossIndx
-         write(ibin) pcross%crossType
-         write(ibin) pcross%IsCopy
-         write(ibin) pcross%closed
-         
-         write(ibin) pcross%branchid
-         write(ibin) pcross%chainage
-         
-         write(ibin) pcross%surfaceLevel
-         write(ibin) pcross%bedLevel
-         write(ibin) pcross%charHeight
-         write(ibin) pcross%charWidth
-         write(ibin) pcross%shift
-         
-         write(ibin) pcross%groundFrictionType
-         write(ibin) pcross%groundFriction
-         
-         write(ibin) pcross%iTabDef
-         
-         write(ibin) pcross%frictionSectionsCount
-         if (pcross%frictionSectionsCount > 0) then
-            write(ibin) (pcross%frictionSectionID(j), j = 1, pcross%frictionSectionsCount)
-            write(ibin) (pcross%frictionSectionFrom(j), j = 1, pcross%frictionSectionsCount)
-            write(ibin) (pcross%frictionSectionTo(j), j = 1, pcross%frictionSectionsCount)
-            write(ibin) (pcross%frictionTypePos(j), j = 1, pcross%frictionSectionsCount)
-            write(ibin) (pcross%frictionValuePos(j), j = 1, pcross%frictionSectionsCount)
-            write(ibin) (pcross%frictionTypeNeg(j), j = 1, pcross%frictionSectionsCount)
-            write(ibin) (pcross%frictionValueNeg(j), j = 1, pcross%frictionSectionsCount)
-         endif
-         
-         write(ibin) associated(pcross%convtab)
-         if (associated(pcross%convtab) ) then
-            call write_convtab(ibin, pcross%convtab)
-         endif
-         
-      enddo
-      
-      write(ibin) associated(crs%crossSectionIndex)
-      if (associated(crs%crossSectionIndex)) then
-         write(ibin) (crs%crossSectionIndex(i), i = 1, crs%count)
-      endif
-      
-   end subroutine write_cross_section_cache
-   !
-   !< read cross section data from binary file
-   subroutine read_cross_section_cache(ibin, crs, defs)
-   
-      type(t_CSDefinitionSet), intent(inout) :: defs      !< cross section definitions
-      type(t_CrossSectionSet), intent(inout) :: crs       !< cross sections 
-      integer, intent(in)                    :: ibin      !< binary file
-      
-      integer                                :: i
-      integer                                :: j
-      type(t_CrossSection), pointer          :: pcross
-      logical                                :: isAssociated
-
-      read(ibin) crs%count
-      crs%growsby = crs%count + 2
-      call realloc(crs)
-      
-      do i = 1, crs%count
-      
-         pcross => crs%cross(i)
-         
-         read(ibin) pcross%csid
-         read(ibin) pcross%crossIndx
-         read(ibin) pcross%crossType
-         read(ibin) pcross%IsCopy
-         read(ibin) pcross%closed
-         
-         read(ibin) pcross%branchid
-         read(ibin) pcross%chainage
-         
-         read(ibin) pcross%surfaceLevel
-         read(ibin) pcross%bedLevel
-         read(ibin) pcross%charHeight
-         read(ibin) pcross%charWidth
-         read(ibin) pcross%shift
-         
-         read(ibin) pcross%groundFrictionType
-         read(ibin) pcross%groundFriction
-         
-         read(ibin) pcross%iTabDef
-
-         pcross%tabDef => defs%CS(pcross%iTabDef)
-         
-         read(ibin) pcross%frictionSectionsCount
-         if (pcross%frictionSectionsCount > 0) then
-            allocate(pcross%frictionSectionID(pcross%frictionSectionsCount))
-            allocate(pcross%frictionSectionFrom(pcross%frictionSectionsCount))
-            allocate(pcross%frictionSectionTo(pcross%frictionSectionsCount))
-            allocate(pcross%frictionTypePos(pcross%frictionSectionsCount))
-            allocate(pcross%frictionValuePos(pcross%frictionSectionsCount))
-            allocate(pcross%frictionTypeNeg(pcross%frictionSectionsCount))
-            allocate(pcross%frictionValueNeg(pcross%frictionSectionsCount))
-            
-            read(ibin) (pcross%frictionSectionID(j), j = 1, pcross%frictionSectionsCount)
-            read(ibin) (pcross%frictionSectionFrom(j), j = 1, pcross%frictionSectionsCount)
-            read(ibin) (pcross%frictionSectionTo(j), j = 1, pcross%frictionSectionsCount)
-            read(ibin) (pcross%frictionTypePos(j), j = 1, pcross%frictionSectionsCount)
-            read(ibin) (pcross%frictionValuePos(j), j = 1, pcross%frictionSectionsCount)
-            read(ibin) (pcross%frictionTypeNeg(j), j = 1, pcross%frictionSectionsCount)
-            read(ibin) (pcross%frictionValueNeg(j), j = 1, pcross%frictionSectionsCount)
-         endif
-
-         read(ibin) isAssociated
-         if (isAssociated) then
-            allocate(pcross%convtab)
-            call read_convtab(ibin, pcross%convtab)
-         endif
-      enddo
-      
-      read(ibin) isAssociated
-      if (isAssociated) then
-         allocate(crs%crossSectionIndex(crs%count))
-         read(ibin) (crs%crossSectionIndex(i), i = 1, crs%count)
-      endif
-      
-   end subroutine read_cross_section_cache
-
-   !> Write conveyance table from cache file
-   subroutine write_convtab(ibin, convtab)
-      integer, intent(in)      :: ibin           !< unit number of binary file
-      type(t_crsu), intent(in) :: convtab        !< conveyance table
-      
-      integer                  :: i, j, nhmax
-      
-      write(ibin) convtab%jopen
-      write(ibin) convtab%msec
-      write(ibin) convtab%nru
-      write(ibin) convtab%iolu
-      write(ibin) convtab%negcon
-      
-      write(ibin) convtab%a_pos_extr
-      write(ibin) convtab%a_neg_extr
-      write(ibin) convtab%b_pos_extr
-      write(ibin) convtab%b_neg_extr
-      
-      write(ibin) convtab%chezy_act
-
-      write(ibin) (convtab%hu (i), i = 1, convtab%nru) 
-      write(ibin) (convtab%af (i), i = 1, convtab%nru) 
-      write(ibin) (convtab%wf (i), i = 1, convtab%nru) 
-      write(ibin) (convtab%pf (i), i = 1, convtab%nru) 
-      write(ibin) (convtab%co1(i), i = 1, convtab%nru) 
-      write(ibin) (convtab%co2(i), i = 1, convtab%nru) 
-      write(ibin) (convtab%cz1(i), i = 1, convtab%nru) 
-      write(ibin) (convtab%cz2(i), i = 1, convtab%nru) 
-      
-      write(ibin) (convtab%nrhh(i), i = 1, 2)
-      write(ibin) (convtab%iolh(i), i = 1, 2)
-      write(ibin) (convtab%bob (i), i = 1, 2)
-      
-      nhmax = max(convtab%nrhh(1), convtab%nrhh(2))
-      write(ibin) ((convtab%hh(i, j), i = 1, nhmax), j = 1, 2) 
-      write(ibin) ((convtab%at(i, j), i = 1, nhmax), j = 1, 2)
-      write(ibin) ((convtab%wt(i, j), i = 1, nhmax), j = 1, 2)
-      
-   end subroutine write_convtab
-   
-   !> Read conveyance table from cache file
-   subroutine read_convtab(ibin, convtab)
-   
-      integer, intent(in)         :: ibin        !< unit number of binary file
-      type(t_crsu), intent(inout) :: convtab     !< conveyance table
-      
-      integer                     :: i, j, nhmax
-      
-      read(ibin) convtab%jopen
-      read(ibin) convtab%msec
-      read(ibin) convtab%nru
-      read(ibin) convtab%iolu
-      read(ibin) convtab%negcon
-      
-      read(ibin) convtab%a_pos_extr
-      read(ibin) convtab%a_neg_extr
-      read(ibin) convtab%b_pos_extr
-      read(ibin) convtab%b_neg_extr
-      
-      read(ibin) convtab%chezy_act
-
-
-      allocate(convtab%hu (convtab%nru))
-      allocate(convtab%af (convtab%nru))
-      allocate(convtab%wf (convtab%nru))
-      allocate(convtab%pf (convtab%nru))
-      allocate(convtab%co1(convtab%nru))
-      allocate(convtab%co2(convtab%nru))
-      allocate(convtab%cz1(convtab%nru))
-      allocate(convtab%cz2(convtab%nru))
-      
-      read(ibin) (convtab%hu (i), i = 1, convtab%nru) 
-      read(ibin) (convtab%af (i), i = 1, convtab%nru) 
-      read(ibin) (convtab%wf (i), i = 1, convtab%nru) 
-      read(ibin) (convtab%pf (i), i = 1, convtab%nru) 
-      read(ibin) (convtab%co1(i), i = 1, convtab%nru) 
-      read(ibin) (convtab%co2(i), i = 1, convtab%nru) 
-      read(ibin) (convtab%cz1(i), i = 1, convtab%nru) 
-      read(ibin) (convtab%cz2(i), i = 1, convtab%nru) 
-      
-      read(ibin) (convtab%nrhh(i), i = 1, 2)
-      read(ibin) (convtab%iolh(i), i = 1, 2)
-      read(ibin) (convtab%bob (i), i = 1, 2)
-      
-      nhmax = max(convtab%nrhh(1), convtab%nrhh(2))
-      allocate(convtab%hh(nhmax, 2))
-      allocate(convtab%at(nhmax, 2))
-      allocate(convtab%wt(nhmax, 2))
-      
-      read(ibin) ((convtab%hh(i, j), i = 1, nhmax), j = 1, 2) 
-      read(ibin) ((convtab%at(i, j), i = 1, nhmax), j = 1, 2)
-      read(ibin) ((convtab%wt(i, j), i = 1, nhmax), j = 1, 2)
-
-   end subroutine read_convtab
-   
-   !> write cross section definitions to file
-   subroutine dumpCrossDefs(CSDEfs, fileName)
-
-      type(t_CSDefinitionSet), intent(inout) :: CSDEfs            !< Set containing cross section definitions
-      character(len=*),        intent(in   ) :: fileName          !< name of the file
-   
-      type(t_CSType), pointer       :: pCSDef
-      integer                       :: iDef
-      integer                       :: dmpUnit = 8744
-      integer                       :: j
-      
-      ! DUMP
-      open(newunit=dmpUnit, file=fileName)
-      do iDef = 1, CSDEfs%count
-      
-         pCSDef => CSDEfs%CS(iDef)
-      
-         write(dmpUnit, *) pCSDef%id
-         write(dmpUnit, *) pCSDef%crossType
-         write(dmpUnit, *) pCSDef%levelsCount
-         write(dmpUnit, *) pCSDef%closed
-         write(dmpUnit, *) pCSDef%diameter
-         
-         select case(pCSDef%crossType)
-            case (CS_TABULATED)
-               write(dmpUnit, *) '#################### TABULATED #######################'
-               write(dmpUnit, *) (pCSDef%height(j), j = 1, pCSDef%levelscount)
-               write(dmpUnit, *) (pCSDef%flowWidth(j), j = 1, pCSDef%levelscount)
-               write(dmpUnit, *) (pCSDef%totalWidth(j), j = 1, pCSDef%levelscount)
-               write(dmpUnit, *) (pCSDef%plains(j), j = 1, 3)
-            
-               write(dmpUnit, *) associated(pCSDef%summerdike)
-               if (associated(pCSDef%summerdike)) then
-                  write(dmpUnit, *) '################# SUMMERDIKE ######################'
-                  write(dmpUnit, *) pCSDef%summerdike%crestLevel
-                  write(dmpUnit, *) pCSDef%summerdike%baseLevel
-                  write(dmpUnit, *) pCSDef%summerdike%flowArea
-                  write(dmpUnit, *) pCSDef%summerdike%totalArea
-               endif
-            case (CS_YZ_PROF)
-               write(dmpUnit, *) '##################### YZ #########################'
-               write(dmpUnit, *) pCSDef%storageType, pCSDef%frictionSectionsCount, pCSDef%storLevelsCount
-               write(dmpUnit, *) (pCSDef%y(j), j = 1, pCSDef%levelscount)
-               write(dmpUnit, *) (pCSDef%z(j), j = 1, pCSDef%levelscount)
-               write(dmpUnit, *) (pCSDef%storLevels(j), j = 1, 2)
-               write(dmpUnit, *) (pCSDef%YZstorage(j), j = 1, 2)
-               write(dmpUnit, *) (pCSDef%frictionSectionID(j), j = 1, pCSDef%frictionSectionsCount)
-               write(dmpUnit, *) (pCSDef%frictionSectionFrom(j), j = 1, pCSDef%frictionSectionsCount)
-               write(dmpUnit, *) (pCSDef%frictionSectionTo(j), j = 1, pCSDef%frictionSectionsCount)
-         end select
-         
-         ! Groundlayer
-         write(dmpUnit, *) associated(pCSDef%groundlayer)
-         if (associated(pCSDef%groundlayer)) then
-            write(dmpUnit, *) '################# GROUNDLAYER #####################'
-            write(dmpUnit, *) pCSDef%groundlayer%used  
-            write(dmpUnit, *) pCSDef%groundlayer%thickness    
-            write(dmpUnit, *) pCSDef%groundlayer%area     
-            write(dmpUnit, *) pCSDef%groundlayer%perimeter 
-            write(dmpUnit, *) pCSDef%groundlayer%width    
-         endif
-
-         write(dmpUnit, *) '################ END CROSS #########################'
-         
-      enddo
-      
-      close(dmpUnit)
-      
-   end subroutine dumpCrossDefs
-   
-   !> Write all cross section information to file (not called in current solution)
-   subroutine dumpCross(crs, fileName)
-   
-      type(t_CrossSectionSet), intent(inout) :: crs              !< Cross section set
-      character(len=*),        intent(in   ) :: fileName         !< filename for writing output
-      
-      integer                       :: i
-      type(t_CrossSection), pointer :: pcross
-
-      integer                       :: dmpUnit = 8744
-
-      open(newunit=dmpUnit, file=fileName)
-      
-      write(dmpUnit, *) crs%count
-      
-      do i = 1, crs%count
-      
-         pcross => crs%cross(i)
-         
-         write(dmpUnit, *) pcross%csid
-         write(dmpUnit, *) pcross%crossIndx
-         write(dmpUnit, *) pcross%crossType
-         write(dmpUnit, *) pcross%IsCopy
-         write(dmpUnit, *) pcross%closed
-         
-         write(dmpUnit, *) '############### chainage ####################'
-         write(dmpUnit, *) pcross%branchid
-         write(dmpUnit, *) pcross%chainage
-                 
-         write(dmpUnit, *) '############### LEVELS AND SIZES ####################'
-         write(dmpUnit, *) pcross%surfaceLevel
-         write(dmpUnit, *) pcross%bedLevel
-         write(dmpUnit, *) pcross%charHeight
-         write(dmpUnit, *) pcross%charWidth
-         write(dmpUnit, *) pcross%shift
-         
-         write(dmpUnit, *) '################### FRICTION ######################'
-         write(dmpUnit, *) pcross%groundFrictionType
-         write(dmpUnit, *) pcross%groundFriction
-         
-         write(dmpUnit, *) pcross%iTabDef
-         
-         write(dmpUnit, *) associated(pcross%convtab)
-         if (associated(pcross%convtab) ) then
-            write(dmpUnit, *) '################### CONVTAB ######################'
-            call dumpConvtab(dmpUnit, pcross%convtab)
-         endif
-         
-         write(dmpUnit, *) '############## END CROSS #####################'
-
-      enddo
-      
-      write(dmpUnit, *) associated(crs%crossSectionIndex)
-      if (associated(crs%crossSectionIndex)) then
-         write(dmpUnit, *) '############## Cross-Section Index #####################'
-         write(dmpUnit, *) (crs%crossSectionIndex(i), i = 1, crs%count)
-      endif
-      
-      close(dmpUnit)
-      
-   end subroutine dumpCross
-   
-   !> Subroutine for writing conveyance table to file (not called in current solution)
-   subroutine dumpConvtab(dmpUnit, convtab)
-   
-      integer, intent(in)      :: dmpUnit        !< unit number of file
-      type(t_crsu), intent(in) :: convtab        !< conveyance table
-      
-      integer                  :: i, j, nhmax
-      
-      write(dmpUnit, *) convtab%jopen
-      write(dmpUnit, *) convtab%msec
-      write(dmpUnit, *) convtab%nru
-      write(dmpUnit, *) convtab%iolu
-      write(dmpUnit, *) convtab%negcon
-      
-      write(dmpUnit, *) convtab%a_pos_extr
-      write(dmpUnit, *) convtab%a_neg_extr
-      write(dmpUnit, *) convtab%b_pos_extr
-      write(dmpUnit, *) convtab%b_neg_extr
-      
-      write(dmpUnit, *) convtab%chezy_act
-
-      write(dmpUnit, *) (convtab%hu (i), i = 1, convtab%nru) 
-      write(dmpUnit, *) (convtab%af (i), i = 1, convtab%nru) 
-      write(dmpUnit, *) (convtab%wf (i), i = 1, convtab%nru) 
-      write(dmpUnit, *) (convtab%pf (i), i = 1, convtab%nru) 
-      write(dmpUnit, *) (convtab%co1(i), i = 1, convtab%nru) 
-      write(dmpUnit, *) (convtab%co2(i), i = 1, convtab%nru) 
-      write(dmpUnit, *) (convtab%cz1(i), i = 1, convtab%nru) 
-      write(dmpUnit, *) (convtab%cz2(i), i = 1, convtab%nru) 
-      
-      write(dmpUnit, *) (convtab%nrhh(i), i = 1, 2)
-      write(dmpUnit, *) (convtab%iolh(i), i = 1, 2)
-      write(dmpUnit, *) (convtab%bob (i), i = 1, 2)
-      
-      nhmax = max(convtab%nrhh(1), convtab%nrhh(2))
-      write(dmpUnit, *) ((convtab%hh(i, j), i = 1, nhmax), j = 1, 2) 
-      write(dmpUnit, *) ((convtab%at(i, j), i = 1, nhmax), j = 1, 2)
-      write(dmpUnit, *) ((convtab%wt(i, j), i = 1, nhmax), j = 1, 2)
-      
-   end subroutine dumpConvtab
-   
    !> Retrieve the roughness for given cross section
-   subroutine getRougnessForProfile(network, crs)
-      use m_read_roughness, only: RoughFileMajorVersion
-   
-      type(t_network), intent(inout)      :: network      !< Network structure
-      type(t_CrossSection), intent(inout) :: crs          !< cross section
-      
-      integer                        :: i
-      integer                        :: iRough
-      type(t_Roughness), pointer     :: pRgs
-      type(t_spatial_data), pointer  :: pSpData
-      double precision               :: frictionValue
-      integer                        :: frictionType
-      integer                        :: iStatus
-      
-      if (crs%frictionSectionsCount <= 0) then
-         call SetMessage(LEVEL_ERROR, 'No Friction Section Data for Cross-Section ID: '//trim(crs%csid))
-         return
-      endif
-           
-      do i = 1, crs%frictionSectionsCount
-           
-         iRough = hashsearch(network%rgs%hashlist, crs%frictionSectionID(i))
-         if (iRough <= 0) then
-            call SetMessage(LEVEL_ERROR, 'No Data found for Section '//trim(crs%frictionSectionID(i))//' of Cross-Section ID: '//trim(crs%csid))
-            cycle
-         endif
-         
-         pRgs => network%rgs%rough(iRough)
-         if (network%rgs%version == RoughFileMajorVersion) then
-            call getFrictionParameters(pRgs,  1d0, crs%branchid, crs%chainage, crs%frictionTypePos(i), crs%frictionValuePos(i))
-            call getFrictionParameters(pRgs, -1d0, crs%branchid, crs%chainage, crs%frictionTypeNeg(i), crs%frictionValueNeg(i))
-            cycle
-         endif
-         
-         if (pRgs%iSection == 0) then
-            ! roughness section does not exist
-            call setMessage(LEVEL_ERROR, 'Roughness section '// trim(crs%frictionSectionID(i)) //', used in '//trim(crs%csid)//' does not exist')
-            cycle
-         endif
-            
-         
-         crs%frictionTypePos(i) = pRgs%rgh_type_pos(crs%branchid)
-         if (associated(pRgs%rgh_type_neg)) then
-            crs%frictionTypeNeg(i) = pRgs%rgh_type_neg(crs%branchid)
-         else
-            crs%frictionTypeNeg(i) = pRgs%rgh_type_pos(crs%branchid)
-         endif
-         
-         if (pRgs%spd_pos_idx <= 0 .and. pRgs%spd_neg_idx <= 0) then
-            call SetMessage(LEVEL_ERROR, 'No Spatial Data specified for Section '//trim(crs%frictionSectionID(i))//' of Cross-Section ID: '//trim(crs%csid))
-            cycle
-         endif
-         
-         ! Positive direction
-         if (pRgs%spd_pos_idx > 0) then
-         
-            pSpData => network%spData%quant(pRgs%spd_pos_idx)
-            
-            iStatus = getValueAtLocation(pSpData, crs%branchid, crs%chainage, frictionValue, frictionType)
-            
-            if (istatus >= 0) crs%frictionValuePos(i) = frictionValue
-            if (istatus > 0)  crs%frictionTypePos(i)  = frictionType
-
-         endif
-           
-         ! Negative direction
-         if (pRgs%spd_neg_idx > 0) then
-         
-            pSpData => network%spData%quant(pRgs%spd_neg_idx)
-            
-            iStatus = getValueAtLocation(pSpData, crs%branchid, crs%chainage, frictionValue, frictionType)
-            
-            if (istatus >= 0) crs%frictionValueNeg(i) = frictionValue
-            if (istatus > 0)  crs%frictionTypeNeg(i)  = frictionType
-
-         endif
-         
-         if (pRgs%spd_pos_idx > 0 .and. pRgs%spd_neg_idx <= 0) then
-            crs%frictionValueNeg(i) = crs%frictionValuePos(i)
-            crs%frictionTypeNeg(i)  = crs%frictionTypePos(i)
-         endif
-         
-         if (pRgs%spd_pos_idx <= 0 .and. pRgs%spd_neg_idx > 0) then
-            crs%frictionValuePos(i) = crs%frictionValueNeg(i)
-            crs%frictionTypePos(i)  = crs%frictionTypeNeg(i)
-         endif
-           
-      enddo
-         
-         
-   end subroutine getRougnessForProfile
    
    !==========================================================================================================
    !

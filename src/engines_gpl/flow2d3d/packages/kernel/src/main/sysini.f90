@@ -2,7 +2,7 @@ subroutine sysini(error     ,runid     ,filmrs    ,prgnm     , &
                 & version_short ,filmd     ,gdp       )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -26,8 +26,8 @@ subroutine sysini(error     ,runid     ,filmrs    ,prgnm     , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: sysini.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/kernel/src/main/sysini.f90 $
+!  $Id: sysini.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/flow2d3d/packages/kernel/src/main/sysini.f90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: - Initialises the FLOW system (EXCEPT for the
@@ -225,8 +225,7 @@ subroutine sysini(error     ,runid     ,filmrs    ,prgnm     , &
        filtmp(1:8 + lrid) = 'td-diag.' // runid
        inquire (file = filtmp(1:8 + lrid), exist = ex)
        if (ex) then
-          lunhlp = newlun(gdp)
-          open (lunhlp, file = filtmp(1:8 + lrid), form = 'formatted')
+          open (newunit=lunhlp, file = filtmp(1:8 + lrid), form = 'formatted')
    50     continue
           read (lunhlp, '(a)', end = 100, err = 100) txthlp
           write (lundia, '(a,a)') '      ',trim(txthlp)

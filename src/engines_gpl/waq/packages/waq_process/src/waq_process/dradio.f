@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -35,6 +35,11 @@
 !!       The half-life and the atomic mass are physical constants. The
 !!       module therefore assumes they are DELWAQ constants, not
 !!       general input parameters. This is slightly more efficient.
+
+!
+!        Conversion of radiation units: https://www.remm.nlm.gov/radmeasurement.htm
+!        Half-life constants: https://en.wikipedia.org/wiki/List_of_radioactive_nuclides_by_half-life
+!
 
 !
 !     Description of the module :
@@ -80,12 +85,12 @@
       HALFLIFE       = PMSA(IP2)
       ATOMMASS       = PMSA(IP3)
       DRADDECAY      = LOG(2.0) / HALFLIFE / 365.0 ! /day
-      RADIATION_CONV = DRADDECAY    ! /day
-                       / 86400.0    ! s/day -> /s
-                       * AVOGADRO   ! number per mol
-                       / ATOMMASS   ! g/mol -> number per g
-                       / 1.0E3      ! g/mg  -> /mg
-                                    ! number / mg / s = Bq/mg
+      RADIATION_CONV = DRADDECAY     ! /day
+     &                  / 86400.0    ! s/day -> /s
+     &                  * AVOGADRO   ! number per mol
+     &                  / ATOMMASS   ! g/mol -> number per g
+     &                  / 1.0E3      ! g/mg  -> /mg
+                                     ! number / mg / s = Bq/mg
 
       DO 9000 ISEG = 1 , NOSEG
 !!    CALL DHKMRK(1,IKNMRK(ISEG),IKMRK1)

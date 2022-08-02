@@ -1,7 +1,7 @@
 module m_temperature
 !----- AGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2017-2020.                                
+!  Copyright (C)  Stichting Deltares, 2017-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify              
 !  it under the terms of the GNU Affero General Public License as               
@@ -25,8 +25,8 @@ module m_temperature
 !  Stichting Deltares. All rights reserved.
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: temperature.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_gpl/flow1d/packages/flow1d_core/src/temperature.f90 $
+!  $Id: temperature.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_gpl/flow1d/packages/flow1d_core/src/temperature.f90 $
 !-------------------------------------------------------------------------------
 
    use messagehandling 
@@ -252,6 +252,7 @@ end function qsun_nominal
 
 
    subroutine default_heatfluxes()
+      use physicalconsts, only : CtoKelvin
       tempPars%rhoair         = 1.205
       tempPars%alfa_albedo    = 0.06d0
       tempPars%S_solar        = 1368d0
@@ -271,7 +272,7 @@ end function qsun_nominal
       tempPars%c_frconv       = 0.14d0
       tempPars%nu_air         = 16.0d-6
       tempPars%sigma_prandtl  = 0.7d0
-      tempPars%tkelvn         = 273.15d0
+      tempPars%tkelvn         = CtoKelvin
    end subroutine default_heatfluxes
    
 

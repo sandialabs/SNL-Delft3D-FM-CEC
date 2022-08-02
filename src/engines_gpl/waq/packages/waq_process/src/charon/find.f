@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -36,7 +36,7 @@
 !           if j has no entries and i not equal zero, set ijloc equal
 !        to current value.
 !           in both cases set iflag equal to one
-      include  'char1.inc'
+      use m_char1
       iflag = 0
       ij = 1
       if (j.lt.jcol(1)) go to 100

@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -24,33 +24,6 @@
 ! @file
 !     Auxiliary routines for handling files
 !
-!> Subroutine to find the next available LU-number
-subroutine get_lunumber( lun )
-    implicit none
-
-    integer   :: lun
-
-    logical       :: opend
-    integer, save :: prevlun = 0
-
-    if ( prevlun /= 0 ) then
-        inquire( unit = prevlun, opened = opend )
-        if ( .not. opend ) then
-            lun = prevlun
-            return
-        endif
-    endif
-
-    do prevlun = 10,99
-        inquire( unit = prevlun, opened = opend )
-        if ( .not. opend ) then
-            lun = prevlun
-            return
-        endif
-    enddo
-
-end subroutine get_lunumber
-
 !> Close all files except the monitoring file
 subroutine close_files( lun )
 

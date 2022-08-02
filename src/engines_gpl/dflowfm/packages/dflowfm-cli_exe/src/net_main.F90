@@ -1,34 +1,34 @@
 !----- AGPL --------------------------------------------------------------------
-!                                                                               
-!  Copyright (C)  Stichting Deltares, 2017-2020.                                
-!                                                                               
-!  This file is part of Delft3D (D-Flow Flexible Mesh component).               
-!                                                                               
-!  Delft3D is free software: you can redistribute it and/or modify              
-!  it under the terms of the GNU Affero General Public License as               
-!  published by the Free Software Foundation version 3.                         
-!                                                                               
-!  Delft3D  is distributed in the hope that it will be useful,                  
-!  but WITHOUT ANY WARRANTY; without even the implied warranty of               
-!  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the                
-!  GNU Affero General Public License for more details.                          
-!                                                                               
-!  You should have received a copy of the GNU Affero General Public License     
-!  along with Delft3D.  If not, see <http://www.gnu.org/licenses/>.             
-!                                                                               
-!  contact: delft3d.support@deltares.nl                                         
-!  Stichting Deltares                                                           
-!  P.O. Box 177                                                                 
-!  2600 MH Delft, The Netherlands                                               
-!                                                                               
-!  All indications and logos of, and references to, "Delft3D",                  
-!  "D-Flow Flexible Mesh" and "Deltares" are registered trademarks of Stichting 
+!
+!  Copyright (C)  Stichting Deltares, 2017-2022.
+!
+!  This file is part of Delft3D (D-Flow Flexible Mesh component).
+!
+!  Delft3D is free software: you can redistribute it and/or modify
+!  it under the terms of the GNU Affero General Public License as
+!  published by the Free Software Foundation version 3.
+!
+!  Delft3D  is distributed in the hope that it will be useful,
+!  but WITHOUT ANY WARRANTY; without even the implied warranty of
+!  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!  GNU Affero General Public License for more details.
+!
+!  You should have received a copy of the GNU Affero General Public License
+!  along with Delft3D.  If not, see <http://www.gnu.org/licenses/>.
+!
+!  contact: delft3d.support@deltares.nl
+!  Stichting Deltares
+!  P.O. Box 177
+!  2600 MH Delft, The Netherlands
+!
+!  All indications and logos of, and references to, "Delft3D",
+!  "D-Flow Flexible Mesh" and "Deltares" are registered trademarks of Stichting
 !  Deltares, and remain the property of Stichting Deltares. All rights reserved.
-!                                                                               
+!
 !-------------------------------------------------------------------------------
 
-! $Id: net_main.F90 65778 2020-01-14 14:07:42Z mourits $
-! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/dflowfm/packages/dflowfm-cli_exe/src/net_main.F90 $
+! $Id: net_main.F90 141416 2022-06-29 08:31:13Z spee $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/dflowfm/packages/dflowfm-cli_exe/src/net_main.F90 $
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
@@ -38,18 +38,25 @@
 !<
 
 !> \mainpage Unstruc API docs
-!! \li \b Main \b program: net.f90
+!! \li \b Main \b program: net_main.f90
 !! \li \b Model \b setup: unstruc_model.f90
 !! \li \b Network \b data: network.f90 + network_data.f90
 !! \li \b Global \b data: modules.f90 (flow, geometry, times, parameters, ...)
-!! \li \b GUI \b and \b network \b algorithms: net.f90
+
+!! \li \b GUI \b and \b network \b algorithms: net.f90 (and utils_lgpl/gridgeom)
 !! \li \b Unstructured \b flow \b solver: unstruc.f90
-!! \li \b Matrix \b solver: solve_guus.f90
+!! \li \b Matrix \b solver: solve_guus.f90, saadf90.F90, solve_petsc.F90
 !! \li \b Stations \b and \b cross-sections: monitoring.f90
+!! \li \b Hydraulic \b structures: unstruc_structures.F90
+!! \li \b 1D \b specifics: utils_gpl/flow1d
 !! \li \b Various \b helpers: REST.F90 unstruc_ini.f90, unstruc_files.f90, unstruc_startup.f90, unstruc_display.f90, rcm.f90
 !! \li \b RGFgrid \b routines: RGFSTUFF.f90
-!! \li \b NetCDF-IO: unstruc_netcdf.f90
+!! \li \b NetCDF-IO: unstruc_netcdf.f90 (and utils_lgpl/io_netcdf)
 !! \li \b WAQ-output: waq.f90, wrwaq.f90
+!! \li \b Sediment \b transport \b and \b morphology: fm_erosed.f90
+!! \li \b Waves: waves.f90
+!! \li \b Hydrology \b (distributed): hydrology.f90
+
 !! \li \b More: see file list
    PROGRAM unstruc
    USE M_GRID
@@ -71,15 +78,17 @@
    use dfm_error
    use gridoperations
    use m_commandline_option
+   use unstruc_channel_flow, only: network
    
    use m_partitioninfo
+   use check_mpi_env
 #ifdef HAVE_MPI
    use mpi
 #endif
-   
+
    !use ifcore  !nanrelease
 
-   
+
 !   use ftnunit
 !   use unstruc_tests
    implicit none
@@ -93,14 +102,12 @@
    COMMON /DEMO/ JDEMO
    integer :: ierr, lastmode, IDUM
    LOGICAL :: JAWEL
-   character*4 domain 
-   
-   integer                   :: i, L, istat, n12
+
+   integer                   :: i, L, n12
    integer                   :: Lrst = 0, Lmap = 0, L_merge = 0, jamergedrst = 0, Lmap1 = 0
    integer, parameter        :: numlen=4        !< number of digits in domain number string/filename
-   integer, parameter        :: maxnamelen=256  !< number of digits in filename 
+   integer, parameter        :: maxnamelen=256  !< number of digits in filename
    character(len=numlen)     :: sdmn_loc        !< domain number string
-   character(len=maxnamelen) :: filename        
    character(len=maxnamelen) :: restartfile     !< storing the name of the restart files
    character(len=maxnamelen) :: md_mapfile_base !< storing the user-defined map file
    character(len=maxnamelen) :: md_flowgeomfile_base !< storing the user-defined flowgeom file
@@ -109,6 +116,13 @@
    integer, external         :: iget_jaopengl
    integer, external         :: read_commandline
    integer, external         :: flow_modelinit
+
+   integer                   :: mklok
+   double precision          :: tstartall , tstopall ! just checking...
+
+   call klok(tstartall)
+
+!  call checkunesco83()
 
 #if HAVE_DISPLAY==0
 ! For dflowfm-cli executable, switch off all GUI calls here at *runtime*,
@@ -119,28 +133,47 @@
     jaGUI = 0          !< GUI (1) or not (0)
 #endif
 
+   jampi             = 0
+   numranks          = 1
+   my_rank           = 0
+   ja_mpi_init_by_fm = 0
 #ifdef HAVE_MPI
-   ! From calling C/C++ side, construct an MPI communicator, and call
-   ! MPI_Fint MPI_Comm_c2f(MPI_Comm comm) to convert the C comm handle
-   ! to a FORTRAN comm handle.
-   call mpi_init(ierr)
-   call mpi_comm_rank(DFM_COMM_DFMWORLD,my_rank,ierr)
-   call mpi_comm_size(DFM_COMM_DFMWORLD,numranks,ierr)
-   ja_mpi_init_by_fm = 1
+
+   ! Preparations for calling mpi_init:
+   ! When using IntelMPI, mpi_init will cause a crash if IntelMPI is not
+   ! installed. Do not call mpi_init in a sequential computation.
+   ! Check this via the possible environment parameters.
+   jampi = merge(1, 0, running_in_mpi_environment())
+
+   if (jampi == 1) then
+       ja_mpi_init_by_fm = 1
+       call mpi_init(ierr)
+       if (ierr /= 0) then
+           jampi = 0
+       end if
+   end if
+
+   if (jampi == 1) then
+      ! From calling C/C++ side, construct an MPI communicator, and call
+      ! MPI_Fint MPI_Comm_c2f(MPI_Comm comm) to convert the C comm handle
+      ! to a FORTRAN comm handle.
+      call mpi_comm_rank(DFM_COMM_DFMWORLD,my_rank,ierr)
+      call mpi_comm_size(DFM_COMM_DFMWORLD,numranks,ierr)
+   end if
 
    if ( numranks.le.1 ) then
       jampi = 0
    end if
-   
+
 !  make domain number string as soon as possible
    write(sdmn, '(I4.4)') my_rank
    !write(6,*) 'my_rank =', my_rank
-   
+
 !   call pressakey()
 #else
    numranks=1
    !write(6,*) 'NO MPI'
-!  call pressakey()
+   !call pressakey()
 #endif
 
 
@@ -148,7 +181,7 @@
    !INTEGER*4 OLD_FPE_FLAGS, NEW_FPE_FLAGS                                ! nanrelease
    !NEW_FPE_FLAGS = FPE_M_TRAP_OVF + FPE_M_TRAP_DIV0 + FPE_M_TRAP_INV     ! nanrelease
    !OLD_FPE_FLAGS = FOR_SET_FPE (NEW_FPE_FLAGS)                           ! nanrelease
- 
+
 
     ! Only run in test mode
 !    call runtests_init
@@ -170,9 +203,9 @@
    MAXLAN = 500
    MAXPOL = MAXLAN
    MAXBOAT = MAXLAN
- 
+
     md_jaopenGL = -1 ! no commandline option read for OpenGL (yet)
-  
+
     ierr = read_commandline()
     select case(ierr)
     case (DFM_NOERR)
@@ -182,43 +215,46 @@
     case default    ! Nonzero error code. Return.
        goto 1234
     end select
-    
+
+#ifdef HAVE_MPI
+    write(*,*) ' my_rank, numranks ', my_rank, numranks
+#endif
+
+    if ( md_pressakey == 1 ) then
+       call pressakey()
+    end if
 
 !   set jaopengl from commandline option (if available)
     call iset_jaopengl(md_jaopengl)
-    CALL START()
+    CALL START_PROGRAM()
     call resetFullFlowModel()
     CALL INIDAT()
     CALL RESETB(0)
-    
+
 
 #ifdef HAVE_PETSC
       call startpetsc()
 #endif
-  
+
     MODE = 1
     lastmode = 1
     NFLD = 1
     KEY  = 3
-    
-    if ( md_pressakey.eq.1 ) then
-       call pressakey()
-    end if
-    
+
     if ( md_jatest.eq.1 ) then
        call initimer()
        do i=1,md_Nruns
      !     call axpy(md_M, md_N)
        end do
-!      output timings  
+!      output timings
        write(6,'(a,E8.2,a,E8.2)') ' WC-time Axpy test [s]: ' , gettimer(1,IAXPY), ' CPU-time Axpy test [s]: ' , gettimer(0,IAXPY)
-       
+
        goto 1234
     end if
-    
+
     if ( md_soltest.eq.1 ) then
        call soltest(md_CFL,md_icgsolver,md_maxmatvecs,md_epsdiff,md_epscg)
-       
+
        goto 1234
     end if
 
@@ -230,6 +266,7 @@
        call unc_write_net(md_netfile, janetcell = 1, janetbnd = 0, jaidomain = 0)
        goto 1234
     end if
+
 
     if ( md_jamake1d2dlinks .eq. 1 ) then
        ! Make 1D2D links for already loaded net file.
@@ -247,15 +284,19 @@
        goto 1234
     end if
 
-    if (jabatch == 1) then 
+    if (jabatch == 1) then
        call dobatch()
-    endif 
-    
+    endif
 
     if ( md_japartition.eq.1 ) then
-        
+       if (network%loaded .and. md_partugrid /= 1) then
+          md_partugrid = 1
+          write (msgbuf, '(a,a,a)') 'Option --partition:ugrid=1 was automatically set, because network file ''', trim(md_netfile), ''' requires it for its 1D parts.'
+          call msg_flush()
+       end if
+
        if ( len_trim(md_ident) > 0 ) then ! partitionmduparse
-          call partition_from_commandline(md_netfile, md_Ndomains, md_jacontiguous, md_icgsolver, md_pmethod, md_dryptsfile, md_encfile, md_genpolygon)
+          call partition_from_commandline(md_netfile, md_Ndomains, md_jacontiguous, md_icgsolver, md_pmethod, md_dryptsfile, md_encfile, md_genpolygon, md_partugrid, md_partseed)
           L    = index(md_netfile, '_net')-1
           md_mdu = md_ident
           if (len_trim(md_restartfile) > 0) then ! If there is a restart file
@@ -277,9 +318,9 @@
              write(sdmn_loc, '(I4.4)') i
              md_netfile = trim(md_netfile(1:L)//'_'//sdmn_loc//'_net.nc')
              if (md_genpolygon .eq. 1) then
-                md_partitionfile = trim(md_netfile(1:L))//'_part.pol' 
+                md_partitionfile = trim(md_netfile(1:L))//'_part.pol'
              endif
-             if (jamergedrst == 0) then ! restart file is not a merged map file, then provide _rst or _map file of each subdomain 
+             if (jamergedrst == 0) then ! restart file is not a merged map file, then provide _rst or _map file of each subdomain
                if (Lrst > 0) then      ! If the restart file is a rst file
                   md_restartfile = trim(restartfile(1:Lrst-16)//sdmn_loc//'_'//restartfile(Lrst-15: Lrst+7))
                else if (Lmap > 0) then ! If the restart file is a map file
@@ -303,7 +344,7 @@
              call generatePartitionMDUFile(trim(md_ident)//'.mdu', trim(md_mdu)//'_'//sdmn_loc//'.mdu')
           enddo
        else
-          call partition_from_commandline(md_netfile,md_ndomains,md_jacontiguous,md_icgsolver, md_pmethod, md_dryptsfile, md_encfile, md_genpolygon)
+          call partition_from_commandline(md_netfile,md_ndomains,md_jacontiguous,md_icgsolver, md_pmethod, md_dryptsfile, md_encfile, md_genpolygon, md_partugrid, md_partseed)
        end if
 
        goto 1234  !      stop
@@ -320,30 +361,39 @@
        call refine_from_commandline()
        goto 1234
     end if
-    
+
     if ( md_cutcells.eq.1 ) then
        n12 = 3
        call findcells(0)
        call cutcell_list(n12, '*.cut',5, 0)
        call unc_write_net('out_net.nc')
     end if
-    
+
     if ( jagui.eq.1 .and. len_trim(md_cfgfile).gt.0 ) then
        call load_displaysettings(md_cfgfile)
     end if
+    if(  md_convertlongculverts == 1) then
+       call findcells(0)
+       call makelongculverts_commandline()
+       goto 1234  !      stop
+    endif
 
-   
     if (len_trim(md_ident) > 0) then
         ! An MDU file was read.
         ierr = flow_modelinit()
         if ( ierr /= DFM_NOERR ) goto 1234  ! error: finalize and stop
-      
+
         if ( jaGUI.eq.1 .and. len_trim(md_cfgfile).eq.0 ) then
            inquire (file = trim(md_ident)//'.cfg', exist = jawel)
-           if (jawel) then 
+           if (jawel) then
               call load_displaysettings(trim(md_ident)//'.cfg')
+           else
+               inquire (file = 'unstruc.cfg', exist = jawel)
+               if (jawel) then
+                   call load_displaysettings('unstruc.cfg')
            endif
-   
+           endif
+
            CALL DRAWNU(KEY) ! Draw model for the first time
         end if
 
@@ -354,9 +404,14 @@
            if (idum == DFM_SIGINT .or. md_jaAutoStart >= MD_AUTOSTARTSTOP) then
               goto 1234   ! finalize and stop
            end if
+        else
+           if (jaGUI == 0) then
+              call mess(LEVEL_INFO, 'Model '''//trim(md_ident)//''' successfully initialized, but no run was started.')
+              call mess(LEVEL_INFO, 'Consider using commandline option --autostartstop.')
+           end if
         end if
     end if
-    
+
    if ( jaGUI.eq.1 ) then
 
    10 CONTINUE
@@ -392,11 +447,16 @@
       end if
       GOTO 10
    end if
-   
+
 1234 continue
 
-!  finalize before exit
+!  finalize before exit in case we did "normal" computation
    call partition_finalize()
+
+   call klok(tstopall)
+
+   !call newfil(mklok, 'wallclock')
+   !write(mklok,*) tstopall - tstartall, ' s'
 
 
    end program unstruc

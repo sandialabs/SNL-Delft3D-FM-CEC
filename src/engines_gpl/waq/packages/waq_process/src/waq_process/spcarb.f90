@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -28,6 +28,7 @@
 !
 !*******************************************************************************
 !
+      use physicalconsts, only: CtoKelvin
       implicit none
 !
 !     Type    Name         I/O Description
@@ -104,7 +105,7 @@
 
             ! speciation
 
-            tabs       = temp + 273.15
+            tabs       = temp + real(CtoKelvin)
             h_ion      = 10.**(-ph)
             kc0        = 650.
             lkc1       = -3404.71/tabs - 0.032786*tabs + 14.7120 + 0.19178*((0.543*salinity)**0.333)

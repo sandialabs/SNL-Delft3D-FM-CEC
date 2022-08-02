@@ -1,6 +1,6 @@
 !----- LGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This library is free software; you can redistribute it and/or                
 !  modify it under the terms of the GNU Lesser General Public                   
@@ -25,8 +25,8 @@
 !                                                                               
 !-------------------------------------------------------------------------------
 
-! $Id: meshdata.F90 65778 2020-01-14 14:07:42Z mourits $
-! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/io_netcdf/packages/io_netcdf/src/meshdata.F90 $
+! $Id: meshdata.F90 140652 2022-01-21 16:05:26Z dam_ar $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_lgpl/io_netcdf/packages/io_netcdf/src/meshdata.F90 $
 
 !> Module for grid operations.
 
@@ -53,6 +53,7 @@ type t_ug_meshgeom
    integer                   :: numface         = -1    !< Number of mesh faces.
    integer                   :: maxnumfacenodes = -1    !< Maximum of number of face nodes.
    integer                   :: numlayer        = -1    !< Number of mesh layers (num interfaces == numlayer + 1), numlayer = 0 means "no layers".
+   integer                   :: numtopsig       = -1    !< Number of top sigma layers in the case of z-sigma coordinates.
    integer                   :: layertype       = -1    !< Type of vertical layer definition (only if numlayer >= 1), one of LAYERTYPE_* parameters.
    integer                   :: nnodes          = -1    !< Number of branches
    integer                   :: nbranches       = -1    !< Number of branches
@@ -105,24 +106,26 @@ type t_ug_meshgeom
    
    double precision, pointer :: layer_zs(:) => null()    !< Vertical coordinates of the mesh layers' center (either z or sigma).
    double precision, pointer :: interface_zs(:)=> null() !< Vertical coordinates of the mesh layers' interface (either z or sigma).
+   
 
 end type t_ug_meshgeom
 
 type, bind(C) :: c_t_ug_meshgeomdim
 
-   character(len=ug_nameLen)  :: meshname           !< Name of this mesh ! TODO: AvD: should this be in this data type?
-   integer(kind=c_int)      :: dim                !< Dimensionality of the mesh (1/2/3)
-   integer(kind=c_int)      :: numnode            !< Number of mesh nodes.
-   integer(kind=c_int)      :: numedge            !< Number of mesh edges.
-   integer(kind=c_int)      :: numface            !< Number of mesh faces.
-   integer(kind=c_int)      :: maxnumfacenodes    !< Maximum of number of face nodes.
-   integer(kind=c_int)      :: numlayer           !< Number of mesh layers (num interfaces == numlayer + 1), numlayer = 0 means "no layers".
-   integer(kind=c_int)      :: layertype          !< Type of vertical layer definition (only if numlayer >= 1), one of LAYERTYPE_* parameters.
+   character(kind=c_char)   :: meshname(ug_nameLen)  !< Name of this mesh ! TODO: AvD: should this be in this data type?
+   integer(kind=c_int)      :: dim                   !< Dimensionality of the mesh (1/2/3)
+   integer(kind=c_int)      :: numnode               !< Number of mesh nodes.
+   integer(kind=c_int)      :: numedge               !< Number of mesh edges.
+   integer(kind=c_int)      :: numface               !< Number of mesh faces.
+   integer(kind=c_int)      :: maxnumfacenodes       !< Maximum of number of face nodes.
+   integer(kind=c_int)      :: numlayer              !< Number of mesh layers (num interfaces == numlayer + 1), numlayer = 0 means "no layers".
+   ! integer(kind=c_int)      :: numtopsig             !< NOTE: UNST-5477: intentionally disabled, to avoid API-change.
+   integer(kind=c_int)      :: layertype             !< Type of vertical layer definition (only if numlayer >= 1), one of LAYERTYPE_* parameters.
    integer(kind=c_int)      :: nnodes
-   integer(kind=c_int)      :: nbranches          !< Number of branches
-   integer(kind=c_int)      :: ngeometry          !< Number of geometry points
-   integer(kind=c_int)      :: epsg               !< epsg code that uniquely identifies the coordinate reference system 
-   integer(kind=c_int)      :: numlinks           !< the number of links
+   integer(kind=c_int)      :: nbranches             !< Number of branches
+   integer(kind=c_int)      :: ngeometry             !< Number of geometry points
+   integer(kind=c_int)      :: epsg                  !< epsg code that uniquely identifies the coordinate reference system 
+   integer(kind=c_int)      :: numlinks              !< the number of links
    
 end type c_t_ug_meshgeomdim
 
@@ -218,6 +221,8 @@ function convert_meshgeom_to_cptr(meshgeom, c_meshgeom, c_meshgeomdim) result(ie
    character(len=ug_idsLen),          pointer :: nnodeids(:)        => null()                
    character(len=ug_idsLongNamesLen), pointer :: nnodelongnames(:)  => null()    
 
+   integer :: i
+
    ierr = 0
    !dimension variables
    c_meshgeomdim%dim = meshgeom%dim                
@@ -232,8 +237,10 @@ function convert_meshgeom_to_cptr(meshgeom, c_meshgeom, c_meshgeomdim) result(ie
    c_meshgeomdim%nbranches = meshgeom%nbranches       
    c_meshgeomdim%ngeometry = meshgeom%ngeometry
    c_meshgeomdim%epsg = meshgeom%epsg
-   c_meshgeomdim%meshname = meshgeom%meshname
-   
+   do i = 1, ug_nameLen
+      c_meshgeomdim%meshname(i) = meshgeom%meshname(i:i)
+   end do
+
    !! array variables
    if (associated(meshgeom%edge_nodes).and.c_associated(c_meshgeom%edge_nodes)) then
       call c_f_pointer(c_meshgeom%edge_nodes, edge_nodes, shape(meshgeom%edge_nodes))
@@ -407,6 +414,7 @@ function convert_cptr_to_meshgeom(c_meshgeom, c_meshgeomdim, meshgeom) result(ie
    type(c_t_ug_meshgeomdim), intent(in)   :: c_meshgeomdim
    type(t_ug_meshgeom), intent(inout)     :: meshgeom
    integer                                :: ierr
+   integer                                :: i
    character(len=ug_nameLen), pointer     :: meshname
    
    ! get the dimensions
@@ -425,7 +433,9 @@ function convert_cptr_to_meshgeom(c_meshgeom, c_meshgeomdim, meshgeom) result(ie
    meshgeom%nbranches = c_meshgeomdim%nbranches       
    meshgeom%ngeometry = c_meshgeomdim%ngeometry
    meshgeom%epsg = c_meshgeomdim%epsg
-   meshgeom%meshname = c_meshgeomdim%meshname
+   do i = 1, ug_nameLen
+      meshgeom%meshname(i:i) = c_meshgeomdim%meshname(i)
+   end do
    
    meshgeom%start_index =  c_meshgeom%start_index
    if(c_associated(c_meshgeom%edge_nodes)) call c_f_pointer(c_meshgeom%edge_nodes, meshgeom%edge_nodes, (/ 2, c_meshgeomdim%numedge /)) 

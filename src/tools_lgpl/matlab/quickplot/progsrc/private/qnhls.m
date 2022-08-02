@@ -12,7 +12,7 @@ function varargout=qnhls(cmd,varargin)
 
 %----- LGPL --------------------------------------------------------------------
 %                                                                               
-%   Copyright (C) 2011-2020 Stichting Deltares.                                     
+%   Copyright (C) 2011-2022 Stichting Deltares.                                     
 %                                                                               
 %   This library is free software; you can redistribute it and/or                
 %   modify it under the terms of the GNU Lesser General Public                   
@@ -37,8 +37,8 @@ function varargout=qnhls(cmd,varargin)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/private/qnhls.m $
-%   $Id: qnhls.m 65778 2020-01-14 14:07:42Z mourits $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/tools_lgpl/matlab/quickplot/progsrc/private/qnhls.m $
+%   $Id: qnhls.m 140618 2022-01-12 13:12:04Z klapwijk $
 
 switch lower(cmd)
     case 'read'
@@ -56,7 +56,7 @@ end
 
 
 function [CMap,Label]=Local_read_hls(filename)
-fid=fopen(filename,'r');
+fid=fopen(filename,'r','n','US-ASCII');
 if fid<0
     error('Unable to open %s',filename)
 end
@@ -106,7 +106,7 @@ if nargin<2
 elseif nargin<3
     Label='';
 end
-fid=fopen(filename,'w');
+fid=fopen(filename,'w','n','US-ASCII');
 if fid<0
     return
 end

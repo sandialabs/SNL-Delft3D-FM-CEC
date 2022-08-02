@@ -3,7 +3,7 @@ subroutine rdmassbal(xz        ,yz        ,kcs       ,gsqs      , &
                    & lsedtot   ,gdp       )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -27,8 +27,8 @@ subroutine rdmassbal(xz        ,yz        ,kcs       ,gsqs      , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: rdmassbal.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/io/src/input/rdmassbal.f90 $
+!  $Id: rdmassbal.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/flow2d3d/packages/io/src/input/rdmassbal.f90 $
 !!--description-----------------------------------------------------------------
 !
 ! Reads mass balance input data.
@@ -159,7 +159,7 @@ subroutine rdmassbal(xz        ,yz        ,kcs       ,gsqs      , &
        nbalpnt = 0
        name = tree_get_name(link_ptr)
        call register_polygon(name  , pol_ptr, nbalpol, nbalpnt, &
-                           & 'balance', .true., gdp)
+                           & 'balance', .true., lundia)
        maxnpnt = max(maxnpnt,nbalpnt)
     enddo
     nbalpol  = nbalpol+1 ! add one for default volume
@@ -193,7 +193,7 @@ subroutine rdmassbal(xz        ,yz        ,kcs       ,gsqs      , &
        !
        idx = 1
        call read_polygon_data(link_ptr, idx, firstpnt, nbalpnt, &
-                            & xdr, ydr, 'balance', i, gdp)
+                            & xdr, ydr, 'balance', i, lundia)
        !
        ! Determine internal points of polygons and assign them to this volume
        ! Note that if a cell is inside several polygons, it will be assigned to
@@ -201,7 +201,7 @@ subroutine rdmassbal(xz        ,yz        ,kcs       ,gsqs      , &
        !
        do nm = 1, nmmax
           if (volnr(nm)==0 .and. abs(kcs(nm)) == 1) then
-             call ipon(xdr, ydr, nbalpnt, xz(nm), yz(nm), istat, gdp)
+             call ipon(xdr, ydr, nbalpnt, xz(nm), yz(nm), istat)
              if (istat >= 0) then
                 volnr(nm) = i
              endif

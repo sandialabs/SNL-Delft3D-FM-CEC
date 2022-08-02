@@ -10,8 +10,13 @@
     rem     When there is an smpd already running on the machine, it must be ended first, using the Microsoft Task Manager, 
     rem     or in the command  box: smpd -uninstall
 
+    rem At present, this runscript will only work after having executed the following command in a DOS-box, at the top folder of the source tree:
+    rem build.bat all
+    rem See README.md there for more information
 
-call ..\..\src\bin\x64\dflow2d3d\scripts\run_dflow2d3d_parallel_dwaves.bat -w r17.mdw
+set build_configuration=build_all
+set script_path=..\..\%build_configuration%\x64\dflow2d3d\scripts
+call %script_path%\run_dflow2d3d_parallel_dwaves.bat -w r17.mdw
 
 
     rem To prevent the DOS box from disappearing immediately: remove the rem on the following line

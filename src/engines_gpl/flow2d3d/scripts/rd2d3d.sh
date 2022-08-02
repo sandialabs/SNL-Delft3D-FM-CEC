@@ -134,7 +134,8 @@ if [[ $withrtc -ne 0 && $NSLOTS -ne 1 ]] ; then
 fi
 
 export D3D_HOME
- 
+
+
 echo "    Configfile           : $configfile"
 echo "    D3D_HOME             : $D3D_HOME"
 echo "    Working directory    : $workdir"
@@ -144,6 +145,14 @@ if [ "$wavefile" != "runwithoutwaveonlinebydefault" ]; then
 fi
 if [ $withrtc -ne 0 ] ; then
     echo "    Online with RTC      : YES"
+fi
+if [ $NSLOTS -ne 1 ]; then
+    testmpiexec=$(type mpiexec 2>/dev/null)
+    if [[ $testmpiexec != "mpiexec is"* ]]; then
+        # Try to module load mpi.
+        module load mpich/3.3.2_intel18.0.3
+    fi
+    echo "    `type mpiexec`"
 fi
 echo 
 
@@ -246,9 +255,9 @@ else
         echo ----------------------------------------------------------------------
 
         if [ $NNODES -ne 1 ]; then
-            echo "Starting mpd..."
-            mpd &
-            mpdboot -n $NSLOTS
+            # echo "Starting mpd; not needed on h6 (but will not harm): suppress messages"
+            mpd &>/dev/null &
+            mpdboot -n $NSLOTS &>/dev/null
         fi
 
         node_number=$NSLOTS
@@ -257,15 +266,16 @@ else
            ln -s /dev/null log$node_number.irlog
         done
 
-        echo "/opt/mpich2/1.4.1_intel14.0.3/bin/mpiexec -np $NSLOTS $bindir/d_hydro $configfile"
-              /opt/mpich2/1.4.1_intel14.0.3/bin/mpiexec -np $NSLOTS $bindir/d_hydro $configfile
+        echo "mpiexec -np $NSLOTS $bindir/d_hydro $configfile"
+              mpiexec -np $NSLOTS $bindir/d_hydro $configfile
 
 
         rm -f log*.irlog
     fi
 
     if [ $NNODES -ne 1 ]; then
-        mpdallexit
+        # Not needed on h6 (but will not harm): suppress messages"
+        mpdallexit &>/dev/null
     fi
 fi
 

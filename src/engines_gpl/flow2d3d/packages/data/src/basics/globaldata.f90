@@ -1,7 +1,7 @@
 module globaldata
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -25,8 +25,8 @@ module globaldata
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: globaldata.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/data/src/basics/globaldata.f90 $
+!  $Id: globaldata.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/flow2d3d/packages/data/src/basics/globaldata.f90 $
 !!--description-----------------------------------------------------------------
 !
 ! This module contains the definition of the
@@ -49,6 +49,7 @@ module globaldata
     use message_module
     !use ec_typedefs
     use bedcomposition_module, only:bedcomp_data
+    use dredge_data_module, only: dredge_type
     use morphology_data_module, only:morpar_type, sedpar_type, moroutputtype, &
                               & mornumericstype, bedbndtype, cmpbndtype, &
                               & trapar_type, sedtra_type
@@ -113,7 +114,6 @@ module globaldata
     !
     include 'cline.igs'
     include 'culver.igs'
-    include 'dredge.igs'
     include 'f0isf1.igs'
     include 'incbc.igs'
     include 'incbcc.igs'
@@ -121,7 +121,6 @@ module globaldata
     include 'inibcc.igs'
     include 'inibct.igs'
     include 'inidis.igs'
-    include 'ipon.igs'
     include 'postpr.igs'
     include 'restart.igs'
     include 'rtc.igs'
@@ -203,7 +202,7 @@ module globaldata
        !
        type (sv_cline)    , pointer :: gdcline
        type (sv_culver)   , pointer :: gdculver
-       type (sv_dredge)   , pointer :: gddredge
+       type (dredge_type) , pointer :: gddredge
        type (trapar_type) , pointer :: gdtrapar
        type (sedtra_type) , pointer :: gderosed
        type (sv_f0isf1)   , pointer :: gdf0isf1

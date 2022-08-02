@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -40,14 +40,43 @@
 !     pnoseg  integer       1     output  copy of the noseg from sysn
 !
 !     declarations
+      use m_sysn          ! System characteristics
 !
       integer       pnoseg
-!
-!     common  /  sysn   /   system characteristics
-!
-      include 'sysn.inc'
 
       pnoseg = noseg
+
+      return
+      end
+
+      subroutine store_noseg_nolay( nosegfm, kmx )
+!
+!     Deltares
+!
+!     created             : nov 20 by arjen markus
+!
+!     function            : store noseg and nolay in /sysn/ common , system characteristics
+!                           used in the D-Flow FM context
+!
+!     logical unitnumbers : -
+!
+!     subroutines called  : -
+!
+!     parameters          : -
+!
+!     name     kind     length     funct.  description
+!     ----     -----    ------     ------- -----------
+!     nosegfm  integer        1     input   number of water segments (!)
+!     kmx      integer        1     input   number of layers
+!
+!     declarations
+      use m_sysn          ! System characteristics
+!
+      integer       pnoseg
+
+
+      noseg = nosegfm
+      nolay = max( 1, kmx ) ! kmx may be zero, indicating a "true" 2D model
 
       return
       end

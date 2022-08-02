@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -24,7 +24,7 @@
       real function densty( salin  , temp   )
 !
 !
-!     Deltares (former: Deltares)
+!     Deltares
 !
 !
 !     created             : january 1991, by a. markus

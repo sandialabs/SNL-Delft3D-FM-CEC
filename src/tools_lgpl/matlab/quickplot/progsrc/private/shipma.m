@@ -7,7 +7,7 @@ function FI = shipma(cmd,varargin)
 
 %----- LGPL --------------------------------------------------------------------
 %                                                                               
-%   Copyright (C) 2011-2020 Stichting Deltares.                                     
+%   Copyright (C) 2011-2022 Stichting Deltares.                                     
 %                                                                               
 %   This library is free software; you can redistribute it and/or                
 %   modify it under the terms of the GNU Lesser General Public                   
@@ -32,8 +32,8 @@ function FI = shipma(cmd,varargin)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/private/shipma.m $
-%   $Id: shipma.m 65778 2020-01-14 14:07:42Z mourits $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/tools_lgpl/matlab/quickplot/progsrc/private/shipma.m $
+%   $Id: shipma.m 140618 2022-01-12 13:12:04Z klapwijk $
 
 switch lower(cmd)
     case 'open'
@@ -63,7 +63,7 @@ if nargin<2
     end
 end
 FI.SubType = SubType;
-fid = fopen(FileName,'r');
+fid = fopen(FileName,'r','n','US-ASCII');
 fld = 0;
 while ~feof(fid)
     offset = ftell(fid);
@@ -114,7 +114,7 @@ function FI = LocalShipmaOpen(FileName)
 %
 % First check whether this is an XML file to prevent the error message:
 % [Fatal Error] FileName:1:1: Content is not allowed in prolog.
-fid = fopen(FileName,'r');
+fid = fopen(FileName,'r','n','US-ASCII');
 firstchar = fread(fid,[1 2],'*char');
 fclose(fid);
 if isequal(firstchar,'<?')

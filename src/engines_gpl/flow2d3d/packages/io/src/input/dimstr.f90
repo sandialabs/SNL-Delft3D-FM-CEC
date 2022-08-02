@@ -2,7 +2,7 @@ subroutine dimstr(lunmd     ,filnam    ,lundia    ,error     ,nrrec     , &
                 & nodim     ,gdp       )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -26,8 +26,8 @@ subroutine dimstr(lunmd     ,filnam    ,lundia    ,error     ,nrrec     , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: dimstr.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/io/src/input/dimstr.f90 $
+!  $Id: dimstr.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/flow2d3d/packages/io/src/input/dimstr.f90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: Reads the number of U- and V-Barriers from the
@@ -84,8 +84,7 @@ subroutine dimstr(lunmd     ,filnam    ,lundia    ,error     ,nrrec     , &
     !
     ! open formatted file, if not formatted IOCOND <> 0
     !
-    luntmp = newlun(gdp)
-    open (luntmp, file = filnam(:lfile), form = 'formatted',              &
+    open (newunit=luntmp, file = filnam(:lfile), form = 'formatted',              &
         & status = 'old', iostat = iocond)
     if (iocond/=0) then
        error = .true.

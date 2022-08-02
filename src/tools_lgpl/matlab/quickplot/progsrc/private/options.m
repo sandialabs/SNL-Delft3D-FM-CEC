@@ -3,7 +3,7 @@ function [NewFI,cmdargs]=options(FI,mfig,cmd,varargin)
 
 %----- LGPL --------------------------------------------------------------------
 %                                                                               
-%   Copyright (C) 2011-2020 Stichting Deltares.                                     
+%   Copyright (C) 2011-2022 Stichting Deltares.                                     
 %                                                                               
 %   This library is free software; you can redistribute it and/or                
 %   modify it under the terms of the GNU Lesser General Public                   
@@ -28,15 +28,15 @@ function [NewFI,cmdargs]=options(FI,mfig,cmd,varargin)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/private/options.m $
-%   $Id: options.m 65778 2020-01-14 14:07:42Z mourits $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/tools_lgpl/matlab/quickplot/progsrc/private/options.m $
+%   $Id: options.m 140618 2022-01-12 13:12:04Z klapwijk $
 
 T_=1; ST_=2; M_=3; N_=4; K_=5;
 %======================== SPECIFIC CODE =======================================
 Inactive=get(0,'defaultuicontrolbackground');
-FigPos=get(h0,'position');
-FigPos(3:4) = getappdata(h0,'DefaultFileOptionsSize');
-set(h0,'position',FigPos)
+FigPos=get(mfig,'position');
+FigPos(3:4) = getappdata(mfig,'DefaultFileOptionsSize');
+set(mfig,'position',FigPos)
 
 Active=[1 1 1];
 NewFI=FI;

@@ -1,7 +1,7 @@
 module geometry_module
 !----- LGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This library is free software; you can redistribute it and/or                
 !  modify it under the terms of the GNU Lesser General Public                   
@@ -25,8 +25,8 @@ module geometry_module
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: geometry_module.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/deltares_common/packages/deltares_common/src/geometry_module.f90 $
+!  $Id: geometry_module.f90 141281 2022-05-24 15:45:14Z kernkam $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_lgpl/deltares_common/packages/deltares_common/src/geometry_module.f90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: - Various geometrical routines
@@ -58,6 +58,7 @@ module geometry_module
    public :: dbpinpol
    public :: cross
    public :: dbpinpol_optinside_perpol
+   public :: dbpinpol_optinside_perpol2
    public :: get_startend
    public :: pinpok3D
    public :: cross3D
@@ -99,21 +100,26 @@ module geometry_module
 
    contains
 
-   !> projects a point to a polyline and finds the closest link
+   !> projects a point to a polyline and finds the closest link.
+   !! "Closest" is based on the intersection location of each flow link with the input polyline.
    subroutine comp_breach_point(startLocationX, startLocationY, xp, yp, np, xl, yl, Lstart, x_breach, y_breach, jsferic, jasfer3D, dmiss)
 
    implicit none
 
    !input
-   integer, intent(in)                       :: np, jsferic, jasfer3D
-   integer, intent(inout)                    :: Lstart
-   double precision, intent(in)              :: startLocationX, startLocationY, dmiss
-   double precision, allocatable, intent(in) :: xp(:), yp(:), xl(:,:), yl(:,:)
-   double precision, intent(inout)           :: x_breach, y_breach
+   double precision, intent(in   ) :: startLocationX, startLocationY !< Input coordinates of the start location of the breach.
+   double precision, intent(in   ) :: xp(:), yp(:)       !< Dambreak polyline points.
+   integer,          intent(in   ) :: np                 !< Number of input polyline points.
+   double precision, intent(in   ) :: xl(:,:), yl(:,:)   !< (2,nlinks) Start-end points of the intersected flow links, used for selecting the nearest link to the start location.
+   integer,          intent(  out) :: Lstart             !< Resulting index of the flow link closest to the startlocationX,Y.
+   double precision, intent(  out) :: x_breach, y_breach !< Snapped x,y coordinates of the selected flow link's intersection with the polyline.
+   double precision, intent(in   ) :: dmiss              !< Missing value used in the input polyline arrays.
+   integer,          intent(in   ) :: jsferic, jasfer3D  !< Input coordinate type (sferic=1, cartesian=0)
    
    !locals
-   integer                                   :: k, ja, Lf, k1, k2
-   double precision                          :: dis, distemp, xn, yn, xntempa, yntempa, xc, yc
+   integer                                   :: k, ja, i, jacros
+   double precision                          :: dis, distemp, xn, yn, xntempa, yntempa, xc, yc, crpm, sm, sl
+   
 
    ! Project the start of the breach on the polyline, find xn and yn
    !if(.not.allocated(xp)) return
@@ -133,8 +139,14 @@ module geometry_module
    ! Assign the flow links and the starting link of the breach
    dis = huge(dmiss)      
    do k = 1, size(xl, 1)
-      ! compute the mid point of the segment
-      call half(xl(k,1), yl(k,1), xl(k,2), yl(k,2), xc, yc, jsferic, jasfer3D)
+      ! calculate the coordinates of the intersection of the 1d2d link with the dambreak polygon
+      do i = 1, np-1
+         call cross (xp(i), yp(i), xp(i+1), yp(i+1), xl(k, 1), yl(k,1), xl(k,2), yl(k,2), jacros, sl, sm, xc, yc, crpm, jsferic, dmiss)
+         if (jacros == 1) then
+            exit
+         end if
+      enddo
+    
       ! calculate the distance with projected start of the breach
       distemp = dbdistance(xn, yn, xc, yc, jsferic, jasfer3D, dmiss)
       ! identify the closest link to the projected point
@@ -814,6 +826,163 @@ module geometry_module
       double precision, intent(in)                    :: dmiss
       integer, intent(in)                             :: JINS, NPL
       double precision, optional, intent(in)          :: xpl(NPL), ypl(NPL), zpl(NPL)
+      integer                                         :: count
+      numselect = 0
+
+      if ( NPL.eq.0 ) then
+         in = 1
+         return
+      end if
+
+      Linit =  ( in.lt.0 )
+
+      in = 0
+
+      !     initialization
+      if ( Linit ) then
+         !         write(6,"('dbpinpol: init... ', $)")
+         ipoint = 1
+         ipoly = 0
+         call realloc(xpmin, maxpoly, keepExisting=.false.)
+         call realloc(xpmax, maxpoly, keepExisting=.false.)
+         call realloc(ypmin, maxpoly, keepExisting=.false.)
+         call realloc(ypmax, maxpoly, keepExisting=.false.)
+         call realloc(iistart, maxpoly, keepExisting=.false.)
+         call realloc(iiend, maxpoly, keepExisting=.false.)
+
+         do while ( ipoint.lt.NPL )
+            ipoly = ipoly+1
+            if (ipoly > maxpoly) then
+               maxpoly = ceiling(maxpoly*1.1)
+               call realloc(xpmin, maxpoly, keepExisting=.true.)
+               call realloc(xpmax, maxpoly, keepExisting=.true.)
+               call realloc(ypmin, maxpoly, keepExisting=.true.)
+               call realloc(ypmax, maxpoly, keepExisting=.true.)
+               call realloc(iistart, maxpoly, keepExisting=.true.)
+               call realloc(iiend, maxpoly, keepExisting=.true.)
+            end if
+
+            !           get polygon start and end pointer respectively
+            call get_startend(NPL-ipoint+1,xpl(ipoint:NPL),ypl(ipoint:NPL), istart, iend, dmiss)
+            istart = istart+ipoint-1
+            iend   = iend  +ipoint-1
+
+            if ( istart.ge.iend .or. iend.gt.NPL ) exit ! done
+
+            xpmin(ipoly) = minval(xpl(istart:iend))
+            xpmax(ipoly) = maxval(xpl(istart:iend))
+            ypmin(ipoly) = minval(ypl(istart:iend))
+            ypmax(ipoly) = maxval(ypl(istart:iend))
+
+            iistart(ipoly) = istart
+            iiend(ipoly)   = iend
+
+            !           advance pointer
+            ipoint = iend+2
+         end do   ! do while ( ipoint.lt.NPL .and. ipoly.lt.MAXPOLY )
+         Npoly = ipoly
+
+         !         write(6,"('done, Npoly=', I4)") Npoly
+      end if
+      count  = 0
+      do ipoly=1,Npoly
+         istart = iistart(ipoly)
+         iend   = iiend(ipoly)
+
+         !         write(6,"('dbpinpol: ipoly=', I4, ', istart=', I16, ', iend=', I16)") ipoly, istart, iend
+
+         if ( istart.ge.iend .or. iend.gt.NPL ) exit ! done
+
+         if ( iselect.eq.-1 .and. (zpl(istart).eq.DMISS .or.  zpl(istart).ge.0) ) cycle
+         if ( iselect.eq. 1 .and. (zpl(istart).ne.DMISS .and. zpl(istart).lt.0) ) cycle
+
+         numselect = numselect+1
+
+         if ( inside_perpol.eq.1 .and. zpl(istart) /= dmiss ) then   ! only if third column was actually supplied
+            jins_opt = int(zpl(istart)) ! Use inside-option per each polygon.
+         else
+            jins_opt = JINS ! Use global inside-option.
+         end if
+
+         IF (jins_opt == 1) THEN  ! inside polygon
+            if (xp >= xpmin(ipoly) .and. xp <= xpmax(ipoly) .and. &
+               yp >= ypmin(ipoly) .and. yp <= ypmax(ipoly) ) then
+               call PINPOK(Xp, Yp, iend-istart+1, xpl(istart), ypl(istart), IN, jins, dmiss)
+               if (jins_opt > 0 .neqv. JINS > 0) then ! PINPOK has used global jins, but polygon asked the exact opposite, so negate the result here.
+                  IN = 1-in   ! IN-1
+               end if
+
+               if (in == 1) then
+                  count  = count + 1
+               end if
+            endif
+         ELSE                 ! outside polygon
+            if (xp >= xpmin(ipoly) .and. xp <= xpmax(ipoly) .and. &
+               yp >= ypmin(ipoly) .and. yp <= ypmax(ipoly) ) then
+               call PINPOK(Xp, Yp, iend-istart+1, xpl(istart), ypl(istart), IN, jins, dmiss)
+               if (jins_opt > 0 .neqv. JINS > 0) then ! PINPOK has used global jins, but polygon asked the exact opposite, so negate the result here.
+                  IN = 1-in   ! IN-1
+               end if
+
+               if (in == 1) then
+                  continue
+               else
+                  count = count + 1
+               end if
+            !else
+            !   in = 1 ! outside check succeeded (completely outside of polygon's bounding box), return 'true'.
+            !   exit
+            endif
+         ENDIF
+      end do   ! do ipoly=1,Npoly
+
+      if (jins == 1) then !< NB: here, it is checked based on jins, while in the loop based on jins_opt, need to be fixed
+         if (mod(count,2) == 1) then 
+            in = 1
+         else
+            in = 0
+         endif
+      else
+         if (mod(count,2) == 1) then
+            in = 0
+         else
+            in = 1
+         endif
+      endif
+
+      return
+   end subroutine dbpinpol_optinside_perpol
+
+   ! ==============================================================================================
+   ! ==============================================================================================
+   subroutine dbpinpol_optinside_perpol2(xp, yp, inside_perpol, iselect, in, numselect, dmiss, JINS, NPL, xpl, ypl, zpl) ! ALS JE VOOR VEEL PUNTEN MOET NAGAAN OF ZE IN POLYGON ZITTEN
+
+      use m_alloc
+
+      implicit none
+
+      double precision,                 intent(in)    :: xp, yp        !< point coordinates
+      integer,                          intent(in)    :: inside_perpol !< Specify whether or not (1/0) to use each polygon's first point zpl-value as the jins(ide)-option (only 0 or 1 allowed), or use the global JINS variable.
+      integer,                          intent(in)    :: iselect       !< use all polygons (0), only first-zpl<0 polygons (-1), or all but first-zpl<0 polygons (1)
+      integer,                          intent(inout) :: in            !< in(-1): initialization, out(0): outside polygon, out(1): inside polygon
+      integer,                          intent(inout) :: numselect     !< number of polygons of "iselect" type considered
+
+      integer                                         :: MAXPOLY=1000 ! will grow if needed
+
+      double precision, allocatable, save             :: xpmin(:), ypmin(:), xpmax(:), ypmax(:)
+      integer,                       save             :: Npoly
+      integer,          allocatable, save             :: iistart(:), iiend(:)
+
+      integer                                         :: ipoint         ! points to first part of a polygon-subsection in polygon array
+      integer                                         :: istart, iend   ! point to start and and node of a polygon in polygon array respectively
+      integer                                         :: ipoly          ! polygon number
+
+      logical                                         :: Linit          ! initialization of polygon bounds, and start and end nodes respectively
+
+      integer :: jins_opt !< The actual used jins-mode (either global, or per poly)
+      double precision, intent(in)                    :: dmiss
+      integer, intent(in)                             :: JINS, NPL
+      double precision, optional, intent(in)          :: xpl(NPL), ypl(NPL), zpl(NPL)
       
       numselect = 0
 
@@ -929,11 +1098,11 @@ module geometry_module
       endif
 
       return
-      end subroutine dbpinpol_optinside_perpol
-
-
-      !>  get the start and end index of the first enclosed non-DMISS subarray
-      subroutine get_startend(num, x, y, jstart, jend, dmiss)
+   end subroutine dbpinpol_optinside_perpol2
+      
+      
+   !>  get the start and end index of the first enclosed non-DMISS subarray
+   subroutine get_startend(num, x, y, jstart, jend, dmiss)
 
       implicit none
 
@@ -2042,7 +2211,7 @@ module geometry_module
 
       double precision, dimension(N)                :: DvolDx, DvolDy, DvolDz
 
-      double precision                              :: xx0, yy0, zz0, alpha
+      double precision                              :: xx0, yy0, zz0, alpha, xx00, yy00, zz00
       double precision                              :: xxcg, yycg, zzcg
       double precision                              :: dvol, vol, voli
       double precision                              :: Jx, Jy, Jz
@@ -2059,6 +2228,7 @@ module geometry_module
       double precision, parameter                   :: dtol=1d-8
       double precision, parameter                   :: deps=1d-8
       double precision, parameter                   :: onesixth = 0.166666666666666667d0
+      integer                             :: mout=0 ,k
 
       area = 0d0
       xcg = 0d0
@@ -2090,6 +2260,9 @@ module geometry_module
       xx0 = xx0/N
       yy0 = yy0/N
       zz0 = zz0/N
+      xx00  = xx0
+      yy00  = yy0
+      zz00  = zz0
       alpha = 0.75d0
 
       !  Newton iterations
@@ -2108,9 +2281,22 @@ module geometry_module
             vol = vol + dvol
          end do
 
-         if ( abs(vol).lt.dtol .and. iter.eq.1 ) then
-            !        no mass center can be defined, use first iterate
-            exit
+         if ( abs(vol).lt.dtol) then 
+            if (iter .eq.1 ) then  ! no mass center can be defined, use first iterate
+               
+               exit
+            else                   ! also use first iterate
+               !if (mout == 0) call newfil(mout,'dump.pli')
+               !write(mout,*) 'bl01'
+               !write(mout,*) n, ' 2 '
+               !do k = 1,n
+               !   write (mout,*) x(k), y(k) 
+               !enddo
+               xx0  = xx00
+               yy0  = yy00
+               zz0  = zz00
+               exit
+            endif
          end if
 
          voli = 1d0/vol

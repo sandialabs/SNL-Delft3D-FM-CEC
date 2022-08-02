@@ -1,7 +1,7 @@
 module m_trtrou
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -25,8 +25,8 @@ module m_trtrou
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: trtrou.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_gpl/trachytopes/packages/trachytopes_kernel/src/trtrou.f90 $
+!  $Id: trtrou.f90 141416 2022-06-29 08:31:13Z spee $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_gpl/trachytopes/packages/trachytopes_kernel/src/trtrou.f90 $
 !-------------------------------------------------------------------------------
 !
 ! functions and subroutines
@@ -74,14 +74,10 @@ subroutine trtrou(lundia    ,kmax      ,nmmax   , &
     !
     integer                    , pointer :: iarea_avg
     integer                    , pointer :: ntrt
-    integer                    , pointer :: ntrt_qzs
     integer                    , pointer :: max_cl
     integer                    , pointer :: nttaru
     integer                    , pointer :: ntrtcrs
     integer                    , pointer :: ntrtobs
-    integer                    , pointer :: nropars
-    integer                    , pointer :: idx_start
-    integer                    , pointer :: idx_end
     integer, dimension(:)      , pointer :: itrt_list
     integer , dimension(:,:)   , pointer :: ittaru
     integer , dimension(:,:)   , pointer :: ittdef
@@ -93,7 +89,6 @@ subroutine trtrou(lundia    ,kmax      ,nmmax   , &
     real(fp), dimension(:)     , pointer :: rgcalu
     real(fp), dimension(:,:)   , pointer :: rttfu
     real(fp), dimension(:)     , pointer :: rttaru
-    real(fp), dimension(:,:)   , pointer :: rttxyz
     real(fp), dimension(:)     , pointer :: rttacLin
     real(fp), dimension(:)     , pointer :: blu_trt
     real(fp), dimension(:)     , pointer :: zsu_prev
@@ -132,7 +127,7 @@ subroutine trtrou(lundia    ,kmax      ,nmmax   , &
     real(fp), dimension(nmlb:nmub, 3)                                                :: cfrou
 !    real(fp), dimension(nmlb:nmub)              :: uvdir    (not used) 
 !    real(fp), dimension(nmlb:nmub), intent(in)  :: uvperp   (not used) 
-    real(fp), dimension(nmlbc:nmubc)                                                 :: umod  !,kmax) ?? WO
+    real(fp), dimension(nmlbc:nmubc)                                                 :: umod
     character(4)                                                                     :: rouflo
     logical                                                                          :: waqol
     real(fp)                                                            , intent(in) :: eps
@@ -157,11 +152,7 @@ subroutine trtrou(lundia    ,kmax      ,nmmax   , &
     real(fp), dimension(nmlbc:nmubc)                                                 :: rksd          !< Dune roughness height in zeta point
     logical                                                             ,intent(out) :: error
     !
-    !for debugging
-    character(80)                                                                    :: debugfilename
     character(20)                                                                    :: tmpstr
-    integer                                                                          :: luntmp
-    integer, save                                                                    :: numcalls = 1
     !
 !
 ! Local variables
@@ -172,28 +163,17 @@ subroutine trtrou(lundia    ,kmax      ,nmmax   , &
     integer                     :: ita
     integer                     :: ito
     integer                     :: itrt
-    integer                     :: itrtcrs
-    integer                     :: itrtobs
     integer                     :: itrt_user
     integer                     :: k
-    integer                     :: m
     integer                     :: mc
     integer                     :: ml
-    integer                     :: mropar ! counter for roughness parameters 
-    integer                     :: m_q
-    integer                     :: m_zs
-    integer                     :: n
     integer                     :: nc
     integer                     :: nm     ! L   (DFlow-FM) notation
     integer                     :: nm1    ! k1  (DFlow-FM) notation
     integer                     :: nm2    ! k2  (DFlow-FM) notation
     integer                     :: nml
-    integer                     :: nmc
-    integer                     :: nmu
     integer                     :: nl
     integer                     :: nlist
-    integer                     :: num
-    integer, dimension(2)       :: numlen
     integer                     :: rgh_geom
     integer                     :: rgh_type
     logical                     :: lfound
@@ -271,7 +251,6 @@ subroutine trtrou(lundia    ,kmax      ,nmmax   , &
     real(fp)                    :: vheigh
     real(fp)                    :: vd2d
     real(fp)                    :: vh2d
-    real(fp)                    :: vvv
     real(fp)                    :: vz0
     real(fp)                    :: zstemp
     real(fp)                    :: z0rouL
@@ -377,90 +356,16 @@ subroutine trtrou(lundia    ,kmax      ,nmmax   , &
     !call n_and_m_to_nm(nl, ml, nml, gdp)   !WOtemp 
     lnew       = .false.
     !
-    ! Update discharge dependent trachytope coefficients 
+    ! Update discharge dependent trachytope coefficients
     !
-    do itrtcrs = 1, ntrtcrs
-        ! point to discharge dependent trachytope pointer index 
-        ntrt_qzs => gdtrachy%gen%crs(itrtcrs)%itrt 
-        ! point to start and end index of discharge dependent trachytope pointer table index 
-        idx_start => gdtrachy%gen%crs(itrtcrs)%idx_start
-        idx_end   => gdtrachy%gen%crs(itrtcrs)%idx_end
-        ! point to number of parameters in discharge dependent trachytope pointer table index 
-        nropars => gdtrachy%gen%crs(itrtcrs)%nropars
-        !
-        if (gdtrachy%gen%crs(itrtcrs)%val < gdtrachy%gen%table_q(idx_start)) then 
-            ! value through cross-section is smaller than first value in table, 
-            ! so take first set of values from the table 
-            do mropar = 1, nropars
-                gdtrachy%gen%rttdef(ntrt_qzs, mropar) = gdtrachy%gen%rttdef_q(idx_start, mropar)
-            end do     
-        elseif (gdtrachy%gen%crs(itrtcrs)%val .ge. gdtrachy%gen%table_q(idx_end)) then 
-            ! value through cross-section is larger than or equal to last value in table, 
-            ! so take last set of values from the table 
-            do mropar = 1, nropars
-                gdtrachy%gen%rttdef(ntrt_qzs, mropar) = gdtrachy%gen%rttdef_q(idx_end, mropar)
-            end do     
-        else
-            ! value through cross-section lies in the range of values in the table, 
-            ! so find interval
-            find_index_in_q_table_loop: &
-                do m_q = gdtrachy%gen%crs(itrtcrs)%idx_start, gdtrachy%gen%crs(itrtcrs)%idx_end-1
-                    if (gdtrachy%gen%crs(itrtcrs)%val < gdtrachy%gen%table_q(m_q+1)) then 
-                        ! m_q is at the right position now
-                        exit find_index_in_q_table_loop
-                    end if  
-                end do & 
-            find_index_in_q_table_loop
-            ! compute values = slope*val + cross
-            do mropar = 1, nropars
-                gdtrachy%gen%rttdef(ntrt_qzs, mropar) = gdtrachy%gen%rttdef_q_cross(m_q, mropar) + & 
-                                                        gdtrachy%gen%crs(itrtcrs)%val*gdtrachy%gen%rttdef_q_slope(m_q, mropar)
-            end do     
-        end if 
-    end do
+    call update_rttdef(gdtrachy%gen%rttdef, ntrtcrs, gdtrachy%gen%crs, gdtrachy%gen%table_q, &
+                       gdtrachy%gen%rttdef_q, gdtrachy%gen%rttdef_q_cross, gdtrachy%gen%rttdef_q_slope)
     !
     ! Update water level dependent trachytope coefficients 
     !
-    do itrtobs = 1, ntrtobs
-        ! point to water level dependent trachytope pointer index 
-        ntrt_qzs => gdtrachy%gen%obs(itrtobs)%itrt 
-        ! point to start and end index of water level dependent trachytope pointer table index 
-        idx_start => gdtrachy%gen%obs(itrtobs)%idx_start
-        idx_end   => gdtrachy%gen%obs(itrtobs)%idx_end
-        ! point to number of parameters in water level dependent trachytope pointer table index 
-        nropars => gdtrachy%gen%obs(itrtobs)%nropars
-        !
-        if (gdtrachy%gen%obs(itrtobs)%val < gdtrachy%gen%table_zs(idx_start)) then 
-            ! value through cross-section is smaller than first value in table, 
-            ! so take first set of values from the table 
-            do mropar = 1, nropars
-                gdtrachy%gen%rttdef(ntrt_qzs, mropar) = gdtrachy%gen%rttdef_zs(idx_start, mropar)
-            end do     
-        elseif (gdtrachy%gen%obs(itrtobs)%val .ge. gdtrachy%gen%table_zs(idx_end)) then 
-            ! value through cross-section is larger than or equal to last value in table, 
-            ! so take last set of values from the table 
-            do mropar = 1, nropars
-                gdtrachy%gen%rttdef(ntrt_qzs, mropar) = gdtrachy%gen%rttdef_zs(idx_end, mropar)
-            end do     
-        else
-            ! value through cross-section lies in the range of values in the table, 
-            ! so find interval
-            find_index_in_zs_table_loop: &
-                do m_zs = gdtrachy%gen%obs(itrtobs)%idx_start, gdtrachy%gen%obs(itrtobs)%idx_end-1
-                    if (gdtrachy%gen%obs(itrtobs)%val < gdtrachy%gen%table_zs(m_zs+1)) then 
-                        ! m_zs is at the right position now
-                        exit find_index_in_zs_table_loop
-                    end if  
-                end do & 
-            find_index_in_zs_table_loop
-            ! compute values = slope*val + cross
-            do mropar = 1, nropars
-                gdtrachy%gen%rttdef(ntrt_qzs, mropar) = gdtrachy%gen%rttdef_zs_cross(m_zs, mropar) + & 
-                                                        gdtrachy%gen%obs(itrtobs)%val*gdtrachy%gen%rttdef_zs_slope(m_zs, mropar)
-            end do     
-        end if 
-    end do
-    
+    call update_rttdef(gdtrachy%gen%rttdef, ntrtobs, gdtrachy%gen%obs, gdtrachy%gen%table_zs, &
+                       gdtrachy%gen%rttdef_zs, gdtrachy%gen%rttdef_zs_cross, gdtrachy%gen%rttdef_zs_slope)
+
     !
     ! Main loop over area data
     !
@@ -590,16 +495,15 @@ subroutine trtrou(lundia    ,kmax      ,nmmax   , &
           !
           ! Depth-average velocity (similar as in TAUBOT)
           !
-!          uuu  = uvdir(nc, mc, kmax)
-          umag = rttacLin(nm)*umod(nm1) + (1d0-rttacLin(nm))*umod(nm2) !sqrt(uuu**2 + vvv**2)
-          if (kmax==1) then
+          umag = rttacLin(nm)*umod(nm1) + (1d0-rttacLin(nm))*umod(nm2)
+          if (kmax==0) then
              u2dh = umag
           else
              z0rouL = rttacLin(nm)*z0rou(nm1)  + (1d0-rttacLin(nm))*z0rou(nm2)
              u2dh = (umag/depth*((depth + z0rouL)         &
-                  &              *log(1.0_fp + depth/max(z0rouL,1.0e-20_fp)) &
+                  &              *log(1.0_fp + depth/max(z0rouL,1.0e-5_fp)) &
                   &              - depth)                         ) &
-                  & /log(1.0_fp + (1.0_fp + sig(kmax))*depth/max(z0rouL,1.0e-20_fp))
+                  & /log(1.0_fp + (1.0_fp + sig(kmax))*depth/max(z0rouL,1.0e-5_fp))
           endif
        endif
        !
@@ -643,6 +547,8 @@ subroutine trtrou(lundia    ,kmax      ,nmmax   , &
                 !call d3stop(1, gdp)
                 write (errmsg, '(a,i6,a,i4,a)') 'TRTROU: Maximum recursion depth reached for line ', &
                     & ita, ' containing roughness code ', ittaru(ita, 3), '.'
+                call write_error(errmsg, unit=lundia)
+                write (errmsg, '(a,i3,a)') 'TRTROU: Adjust composite roughness definition or increase recursion limit (now currently TrtMxR = ', max_cl, ')'
                 call write_error(errmsg, unit=lundia)
                 error = .true.
                 return
@@ -987,7 +893,6 @@ subroutine trtrou(lundia    ,kmax      ,nmmax   , &
              !
              ! Vaestilae & Jaervelae (2017) formula
              !
-             
              ! input parameters
              vheigh         = rttdef(itrt, 1)
              densit         = rttdef(itrt, 2)
@@ -999,7 +904,6 @@ subroutine trtrou(lundia    ,kmax      ,nmmax   , &
              uchifoliage    = rttdef(itrt, 8)
              expchifoliage  = rttdef(itrt, 9)
              cbed           = rttdef(itrt, 10)
-			  
              
              ! Relative vegetation height
              hk     = max(1.0_fp, depth/vheigh)
@@ -1031,7 +935,6 @@ subroutine trtrou(lundia    ,kmax      ,nmmax   , &
              !
              ! Jaervelae (2014) formula
              !
-             
              ! input parameters
              vheigh         = rttdef(itrt, 1)
              densit         = rttdef(itrt, 2)
@@ -1039,7 +942,6 @@ subroutine trtrou(lundia    ,kmax      ,nmmax   , &
              uchistem       = rttdef(itrt, 4)
              expchistem     = rttdef(itrt, 5)
              cbed           = rttdef(itrt, 6)
-			  
              
              ! Relative vegetation height
              hk     = max(1.0_fp,depth/vheigh)
@@ -1142,7 +1044,7 @@ subroutine trtrou(lundia    ,kmax      ,nmmax   , &
              errmsg = 'Trachytopes: TRTROU: Specified roughness type not implemented.'
              call write_error(errmsg, unit=lundia)
              error = .true.
-             return             
+             return
              !call prterr(lundia    ,'J001'    ,'TRTROU: Specified roughness type not implemented.'   )
              !call d3stop(1, gdp)
           endif
@@ -1192,9 +1094,66 @@ subroutine trtrou(lundia    ,kmax      ,nmmax   , &
     ! end do     
     ! numcalls = numcalls + 1
     ! close (luntmp)
-    
-    
+
 end subroutine trtrou
+
+!> helper routine to update trachytope definitions in case of discharge of water level dependent roughnesses
+subroutine update_rttdef(rttdef, total, crs_obs, table_q_zs, rttdef_q_zs, cross, slope)
+    use precision              , only : fp
+    use trachytopes_data_module, only : trachy_crs_obs_name
+    real(kind=fp),             intent(inout)         :: rttdef(:,:)                 !< trachytope definitions
+    real(kind=fp),             intent(in   )         :: table_q_zs(:)               !< discharge / waterlevel array
+    real(kind=fp),             intent(in   )         :: rttdef_q_zs(:,:)            !< coeffient table for trachytopes
+    real(kind=fp),             intent(in   )         :: cross(:,:)                  !< cross of coeffient table
+    real(kind=fp),             intent(in   )         :: slope(:,:)                  !< slope of coeffient table
+    type(trachy_crs_obs_name), intent(in   ), target :: crs_obs(:)                  !< struct with name and indexes
+    integer,                   intent(in   )         :: total                       !< total number of definitions
+
+    integer          :: itrt
+    integer          :: m
+    integer          :: mropar
+    integer, pointer :: ntrt_qzs
+    integer, pointer :: idx_start
+    integer, pointer :: idx_end
+    integer, pointer :: nropars
+
+    do itrt = 1, total
+        ! pointer to discharge/wl dependent trachytope pointer index
+        ntrt_qzs => crs_obs(itrt)%itrt
+        ! pointer to start and end index of discharge/wl dependent trachytope pointer table index
+        idx_start => crs_obs(itrt)%idx_start
+        idx_end   => crs_obs(itrt)%idx_end
+        ! pointer to number of parameters in discharge/wl dependent trachytope pointer table index
+        nropars => crs_obs(itrt)%nropars
+        !
+        if (crs_obs(itrt)%val < table_q_zs(idx_start)) then 
+            ! value through cross-section/observation is smaller than first value in table,
+            ! so take first set of values from the table 
+            do mropar = 1, nropars
+                rttdef(ntrt_qzs, mropar) = rttdef_q_zs(idx_start, mropar)
+            end do
+        elseif (crs_obs(itrt)%val >= table_q_zs(idx_end)) then 
+            ! value through cross-section/observation is larger than or equal to last value in table,
+            ! so take last set of values from the table 
+            do mropar = 1, nropars
+                rttdef(ntrt_qzs, mropar) = rttdef_q_zs(idx_end, mropar)
+            end do
+        else
+            ! value through cross-section/observation lies in the range of values in the table,
+            ! so find interval
+            do m = crs_obs(itrt)%idx_start, crs_obs(itrt)%idx_end-1
+                if (crs_obs(itrt)%val < table_q_zs(m+1)) then
+                    ! m is at the right position now
+                    exit
+                end if
+            end do
+            ! compute values = slope*val + cross
+            do mropar = 1, nropars
+                rttdef(ntrt_qzs, mropar) = cross(m, mropar) + crs_obs(itrt)%val * slope(m, mropar)
+            end do
+        end if
+    end do
+end subroutine update_rttdef
 
 subroutine chktrt(lundia    ,error     ,griddim   , & 
                 & gdtrachy  ,flnmD50   ,flnmD90   ,lfbedfrmrou, sedim, ddbval)
@@ -1219,7 +1178,6 @@ subroutine chktrt(lundia    ,error     ,griddim   , &
     ! The following list of pointer parameters is used to point inside the gdp structure
     !
     integer                    , pointer :: nttaru
-    integer                    , pointer :: nttarv
     integer                    , pointer :: ntrt
     integer                    , pointer :: nmlb
     integer                    , pointer :: nmub
@@ -1227,17 +1185,14 @@ subroutine chktrt(lundia    ,error     ,griddim   , &
     integer                    , pointer :: nmax
     integer                    , pointer :: nodir
     integer , dimension(:,:)   , pointer :: ittaru
-    integer , dimension(:,:)   , pointer :: ittarv
     integer , dimension(:,:)   , pointer :: ittdef
     real(fp), dimension(:)     , pointer :: rgcalu
-    real(fp), dimension(:)     , pointer :: rgcalv
     logical                    , pointer :: flsedprop_rqrd
 !
 ! Global variables
 !
     integer                                                                   :: lundia
     integer                                                                   :: ddbval
-    integer                                                                   :: nmaxus
 !    integer, dimension(gdp%d%nlb:gdp%d%nub, gdp%d%mlb:gdp%d%mub), intent(in)  :: kcu
 !    integer, dimension(griddim%nmlb:griddim%nmub)               , intent(in)  :: kcu
 !    integer, dimension(gdp%d%nlb:gdp%d%nub, gdp%d%mlb:gdp%d%mub), intent(in)  :: kcv
@@ -1253,12 +1208,9 @@ subroutine chktrt(lundia    ,error     ,griddim   , &
     integer        :: i
     integer        :: id
     integer        :: jdir
-    integer        :: m
-    integer        :: n
-    integer        :: nm    
+    integer        :: nm
     integer        :: nmmax
     integer        :: nmaxddb
-    integer        :: numlen
     character(1)   :: cdir = ''
     character(12)  :: cnum
     character(256) :: errmsg
@@ -1437,7 +1389,6 @@ subroutine chktra(lundia    ,error     ,nmax      ,mmax      ,ittdef    , &
     integer                     :: itt
     integer                     :: nmsgnm
     integer                     :: nmsgtd
-    integer, dimension(2)       :: numlen
     logical                     :: lfound
     character(12), dimension(2) :: cnum
     character(132)              :: cmsg
@@ -1558,6 +1509,5 @@ subroutine chktra(lundia    ,error     ,nmax      ,mmax      ,ittdef    , &
   100  continue
     enddo
 end subroutine chktra
-                
-                
+
 end module m_trtrou

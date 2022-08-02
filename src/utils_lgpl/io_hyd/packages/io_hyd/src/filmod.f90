@@ -1,6 +1,6 @@
 !----- LGPL --------------------------------------------------------------------
 !
-!  Copyright (C)  Stichting Deltares, 2011-2020.
+!  Copyright (C)  Stichting Deltares, 2011-2022.
 !
 !  This library is free software; you can redistribute it and/or
 !  modify it under the terms of the GNU Lesser General Public
@@ -24,8 +24,8 @@
 !  Stichting Deltares. All rights reserved.
 !
 !-------------------------------------------------------------------------------
-!  $Id: filmod.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/io_hyd/packages/io_hyd/src/filmod.f90 $
+!  $Id: filmod.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_lgpl/io_hyd/packages/io_hyd/src/filmod.f90 $
 
       module filmod
 
@@ -84,13 +84,12 @@
       integer                                :: lunrep                 ! unit number report file
 
       if ( dlwqfile%status .eq. 0 ) then
-         call dhnlun(10,dlwqfile%unit_nr)
          if ( dlwqfile%type .eq. FT_ASC ) then
-            open(dlwqfile%unit_nr,file=dlwqfile%name,iostat=io_error)
+            open(newunit=dlwqfile%unit_nr,file=dlwqfile%name,iostat=io_error)
          elseif ( dlwqfile%type .eq. FT_BIN ) then
-            open(dlwqfile%unit_nr,file=dlwqfile%name,access='STREAM',iostat=io_error)
+            open(newunit=dlwqfile%unit_nr,file=dlwqfile%name,access='STREAM',iostat=io_error)
          elseif ( dlwqfile%type .eq. FT_UNF ) then
-            open(dlwqfile%unit_nr,file=dlwqfile%name,form='UNFORMATTED',iostat=io_error)
+            open(newunit=dlwqfile%unit_nr,file=dlwqfile%name,form='UNFORMATTED',iostat=io_error)
          else
             call getmlu(lunrep)
             write(*,*) 'ERROR opening file:',trim(dlwqfile%name)

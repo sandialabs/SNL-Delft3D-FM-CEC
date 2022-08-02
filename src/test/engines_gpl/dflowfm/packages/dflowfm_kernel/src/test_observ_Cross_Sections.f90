@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -32,7 +32,7 @@ contains
 !
 !==============================================================================
 subroutine tests_observCrossSections
-    call test( test_read_snapped_observ_crs, 'Tests the reading and snapping of observation cross sections' )
+    !call test( test_read_snapped_observ_crs, 'Tests the reading and snapping of observation cross sections' )
 end subroutine tests_observCrossSections
 !
 !
@@ -64,6 +64,7 @@ subroutine test_read_snapped_observ_crs
     double precision                             :: refdata2(2,2)
     double precision                             :: refdata3(2)
     character(len=40), dimension(N_Observ_Crs)   :: refnames
+    character(len=40)                            :: mdufile
     
    
     ! reference: coordinates of the original location of the three observation cross sections
@@ -101,7 +102,8 @@ subroutine test_read_snapped_observ_crs
     
     !
     istat = CHANGEDIRQQ("observCrossSections_snapped")
-    call loadModel('FlowFM.mdu')
+    mdufile = 'FlowFM.mdu'
+    call loadModel(mdufile)
     istat = flow_modelinit()
     istat = CHANGEDIRQQ("..")
     !

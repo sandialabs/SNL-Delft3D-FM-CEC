@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -51,6 +51,9 @@
       use timers
       use grids
       use delwaq2_data
+      use m_sysn          ! System characteristics
+      use m_sysi          ! Timer characteristics
+
 
 !     PARAMETERS          :
 !
@@ -110,7 +113,7 @@
 !     NOQ     INTEGER       1     INPUT   total number of exchanges
 !     NODUMP  INTEGER       1     INPUT   Number of dump segments
 !     NOBND   INTEGER       1     INPUT   Number of open boundaries
-!     NOBTYP  INTEGER       1     INPUT   Number of boundarie types
+!     NOBTYP  INTEGER       1     INPUT   Number of boundary types
 !     NOWST   INTEGER       1     INPUT   Number of load locations
 !     NOWTYP  INTEGER       1     INPUT   Number of waste load types
 !     NOCONS  INTEGER       1     INPUT   Number of constants used
@@ -128,7 +131,7 @@
 
       INTEGER      IPDMP(*)  , IQDMP(*)   , ISDMP (*) , IORAAI(*) ,
      +             NQRAAI(*) , IQRAAI(*)  , GRDNOS(*) , GRDREF(*)
-      INTEGER      GRDSEG(NOSEG,NOGRID)
+      INTEGER      GRDSEG(NOSEG+NSEG2,NOGRID)
       CHARACTER*40 MODID (4) , BNDNAM(*)  , WSTNAM(*)
       CHARACTER*20 SYSID (*) , DUMPID(*)  , BNDID (*) , BNDTYP(*) ,
      *             WASTID(*) , WSTTYP(*)  , CONAME(*) , PANAME(*) ,
@@ -143,14 +146,7 @@
       type(delwaq_data),     intent(inout) :: dlwqd      !< derived type for persistent storage
       integer                              :: dmpbal(*)  !< indicates if dump area is included in the balance
       type(GridPointer)    :: aGrid      ! a single grid
-!
-!     COMMON  /  SYSN   /   System characteristics
-!
-      INCLUDE 'sysn.inc'
-!
-!     COMMON  /  SYSI   /   Timer characteristics
-!
-      INCLUDE 'sysi.inc'
+
 
       integer(4) ithandl /0/
       if ( timon ) call timstrt ( "dlwqi2", ithandl )

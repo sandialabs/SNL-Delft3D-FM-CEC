@@ -18,7 +18,7 @@ function varargout=d3d_tridfil(FI,domain,field,cmd,varargin)
 
 %----- LGPL --------------------------------------------------------------------
 %                                                                               
-%   Copyright (C) 2011-2020 Stichting Deltares.                                     
+%   Copyright (C) 2011-2022 Stichting Deltares.                                     
 %                                                                               
 %   This library is free software; you can redistribute it and/or                
 %   modify it under the terms of the GNU Lesser General Public                   
@@ -43,8 +43,8 @@ function varargout=d3d_tridfil(FI,domain,field,cmd,varargin)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/private/d3d_tridfil.m $
-%   $Id: d3d_tridfil.m 65778 2020-01-14 14:07:42Z mourits $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/tools_lgpl/matlab/quickplot/progsrc/private/d3d_tridfil.m $
+%   $Id: d3d_tridfil.m 140618 2022-01-12 13:12:04Z klapwijk $
 
 %========================= GENERAL CODE =======================================
 T_=1; ST_=2; M_=3; N_=4; K_=5;
@@ -137,6 +137,8 @@ if XYRead
     else
         szx=szx([1 3]);
     end
+    plsmisval = single(999.999);
+    negmisval = single(-999.999);
     switch Props.Val1
         case 'XYDRO'
             y=reshape(x(:,2,:),szx);
@@ -145,7 +147,7 @@ if XYRead
             z=reshape(x(:,3,:),szx);
             y=reshape(x(:,2,:),szx);
             x=reshape(x(:,1,:),szx);
-            x((x>999.9985 & y>999.9985 & x<999.9995 & y<999.9995) | (x==0 & y==0))=NaN;
+            x((x == plsmisval & y == plsmisval) | (x == negmisval & y == negmisval) | (x==0 & y==0))=NaN;
             y(isnan(x))=NaN;
             z(isnan(x))=NaN;
     end

@@ -1,6 +1,6 @@
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -24,8 +24,8 @@
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: read_hyd.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/io_hyd/packages/io_hyd/src/read_hyd.f90 $
+!  $Id: read_hyd.f90 141011 2022-04-04 09:15:12Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_lgpl/io_hyd/packages/io_hyd/src/read_hyd.f90 $
 
       subroutine read_hyd(hyd)
 
@@ -44,7 +44,7 @@
 
       ! local declarations
 
-      integer, parameter  :: nokey   = 81           ! number of keywords in hyd file
+      integer, parameter  :: nokey   = 84           ! number of keywords in hyd file
       character(len=40)   :: key(nokey)             ! keywords in the hyd file
       integer             :: ikey                   ! index keyword (first level)
       integer             :: ikey2                  ! index keyword (second level)
@@ -165,6 +165,9 @@
       key(79) = 'file-creation-date'
       key(80) = 'sink-sources'
       key(81) = 'end-sink-sources'
+      key(82) = 'z-layers'
+      key(83) = 'z-layers-ztop'
+      key(84) = 'z-layers-zbot'
 
       ft_dat = ft_bin
       call getmlu(lunrep)
@@ -224,6 +227,8 @@
       hyd%noq3 = 0
       hyd%noq4 = 0
       hyd%noq  = 0
+      hyd%zbot = -999.0
+      hyd%ztop = -999.0
 !
 
       ! loop over all the tokens in the file
@@ -266,6 +271,18 @@
                write(lunrep,'(2a)') ' geometry =',trim(ctoken)
             endif
 
+            ! layer type
+            hyd%layer_type = HYD_LAYERS_SIGMA ! Always assume sigma layers, unless otherwise stated
+            if ( gettoken( ctoken, ierr) .eq. 0 ) then
+               call zoek ( ctoken, nokey , key , 30 , ikey2 )
+               if ( ikey2 .eq. 82 ) then
+                  hyd%layer_type = HYD_LAYERS_Z
+               else
+                  if ( puttoken( ctoken ) .ne. 0 ) goto 900
+               end if         
+            else
+               if ( puttoken( ctoken ) .ne. 0 ) goto 900
+            end if
          elseif ( ikey .eq. 6 ) then
             ! description
             i_desc = 0
@@ -487,6 +504,14 @@
             ! depths file
             if ( gettoken(hyd%file_dps%name, ierr) .ne. 0 ) goto 900
             hyd%file_dps%name = trim(filpath)//hyd%file_dps%name
+
+         elseif ( ikey .eq. 83) then
+            ! ztop
+            if ( gettoken( hyd%ztop, ierr) .ne. 0 ) goto 900
+
+         elseif ( ikey .eq. 84) then
+            ! ztop
+            if ( gettoken( hyd%zbot, ierr) .ne. 0 ) goto 900
 
          elseif ( ikey .eq. 48) then
             ! hydrodynamic-layers

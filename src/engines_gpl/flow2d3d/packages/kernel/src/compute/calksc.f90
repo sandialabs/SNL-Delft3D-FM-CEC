@@ -5,7 +5,7 @@ subroutine calksc(nmmax     ,dps       ,s1        ,lsedtot   , &
                 & deltau    ,deltav    ,icx       ,icy       ,gdp       )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -29,8 +29,8 @@ subroutine calksc(nmmax     ,dps       ,s1        ,lsedtot   , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: calksc.f90 65922 2020-02-03 13:22:49Z jagers $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/kernel/src/compute/calksc.f90 $
+!  $Id: calksc.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/flow2d3d/packages/kernel/src/compute/calksc.f90 $
 !!--description-----------------------------------------------------------------
 !
 ! Calculate ripple height, mega ripple height and dune height Van Rijn (2004)
@@ -262,7 +262,7 @@ subroutine calksc(nmmax     ,dps       ,s1        ,lsedtot   , &
              endif
              if (wave) then
                 hs     = hrms(nm) * sqrt(2.0_fp)
-                arg = 2.0_fp * pi * depth / rlabda(nm)
+                arg = 2.0_fp * pi * depth / max(rlabda(nm),1.0e-12_fp)
                 if (arg > 50.0_fp) then
                    uw = 0.0_fp
                 else

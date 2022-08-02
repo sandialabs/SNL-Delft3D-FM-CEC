@@ -12,7 +12,7 @@ function [Out1,Out2]=unibest(cmd,varargin)
 
 %----- LGPL --------------------------------------------------------------------
 %                                                                               
-%   Copyright (C) 2011-2020 Stichting Deltares.                                     
+%   Copyright (C) 2011-2022 Stichting Deltares.                                     
 %                                                                               
 %   This library is free software; you can redistribute it and/or                
 %   modify it under the terms of the GNU Lesser General Public                   
@@ -37,8 +37,8 @@ function [Out1,Out2]=unibest(cmd,varargin)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/private/unibest.m $
-%   $Id: unibest.m 65778 2020-01-14 14:07:42Z mourits $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/tools_lgpl/matlab/quickplot/progsrc/private/unibest.m $
+%   $Id: unibest.m 140618 2022-01-12 13:12:04Z klapwijk $
 
 switch cmd
     case 'open'
@@ -74,7 +74,7 @@ if ~verifyascii(filename)
     error('Unibest .fun-file should be an ASCII file. Reading unexpected characters.')
 end
 
-fid=fopen(filename,'rt');
+fid=fopen(filename,'rt','n','US-ASCII');
 % skip first 8 lines (backward compatible)
 for i=1:8
     dummy=fgetl(fid);
@@ -287,18 +287,8 @@ fclose(fid);
 OTime=round(OTime*24*60)/24/60;
 
 
-function ASCII = verifyascii(arg)
-if ischar(arg)
-    fid = fopen(arg,'r');
-    pos = -1;
-else
-    fid = arg;
-    pos = ftell(fid);
-end
-S = fread(fid,[1 100],'char');
-ASCII = ~any(S~=9 & S~=10 & S~=13 & S<32); % TAB,LF,CR allowed
-if pos>=0
-    fseek(fid,pos,-1);
-else
-    fclose(fid);
-end
+function isASCII = verifyascii(arg)
+fid = fopen(arg,'r');
+S = fread(fid,[1 100],'uint8');
+fclose(fid);
+isASCII = ~any(S~=9 & S~=10 & S~=13 & S<32); % TAB,LF,CR allowed

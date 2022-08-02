@@ -1,6 +1,6 @@
 //---- LGPL --------------------------------------------------------------------
 //
-// Copyright (C)  Stichting Deltares, 2011-2020.
+// Copyright (C)  Stichting Deltares, 2011-2022.
 //
 // This library is free software; you can redistribute it and/or
 // modify it under the terms of the GNU Lesser General Public
@@ -24,8 +24,8 @@
 // Stichting Deltares. All rights reserved.
 //
 //------------------------------------------------------------------------------
-// $Id: cutil.c 65828 2020-01-21 13:14:42Z mooiman $
-// $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/deltares_common/packages/deltares_common_c/src/cutil.c $
+// $Id: cutil.c 140618 2022-01-12 13:12:04Z klapwijk $
+// $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_lgpl/deltares_common/packages/deltares_common_c/src/cutil.c $
 //------------------------------------------------------------------------------*/
 //  Delft3D - C Utilities
 //  Internal (legacy) utility functions
@@ -47,7 +47,7 @@
 #  define FILE_WRITE _write
 #  define FILE_SEEK  _fseeki64
 #  define FILE_TELL  _ftelli64
-#elif defined(HAVE_CONFIG_H)
+#elif defined(linux)
 #  define FILE_READ  read
 #  define FILE_WRITE write
 #  if defined(HAVE_FSEEKO64)
@@ -492,7 +492,7 @@ static    void    report_error    (char *);
 
 /* FTN_CAPITAL is assumed to be the default value */
 
-#if HAVE_CONFIG_H
+#if linux
 #   include "config.h"
 #   define STDCALL  /* nothing */
 #   define CUTIL_GETEXEDIR FC_FUNC(cutil_getexedir,CUTIL_GETEXEDIR)

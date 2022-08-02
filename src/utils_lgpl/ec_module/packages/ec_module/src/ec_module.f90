@@ -1,6 +1,6 @@
 !----- LGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This library is free software; you can redistribute it and/or                
 !  modify it under the terms of the GNU Lesser General Public                   
@@ -23,8 +23,8 @@
 !  are registered trademarks of Stichting Deltares, and remain the property of  
 !  Stichting Deltares. All rights reserved.                                     
 
-!  $Id: ec_module.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/ec_module/packages/ec_module/src/ec_module.f90 $
+!  $Id: ec_module.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_lgpl/ec_module/packages/ec_module/src/ec_module.f90 $
 
 !> This module contains the interfaces of the EC-module.
 !! It is the main access point to the EC-module.
@@ -133,6 +133,10 @@ module m_ec_module
       module procedure ecItemGetQHtable
    end interface ecGetQHtable
 
+   interface ecFindItem
+      module procedure ecFileReaderFindItem
+   end interface ecFindItem
+   
    interface ecFindItemInFileReader
       module procedure ecFileReaderFindItem
    end interface ecFindItemInFileReader
@@ -251,11 +255,24 @@ module m_ec_module
       module procedure ecFieldSetMissingValue
    end interface ecSetFieldMissingValue
    
+   interface ecSetFieldScalarPointer
+      module procedure ecFieldSetScalarPointer 
+   end interface ecSetFieldScalarPointer
+
+   interface ecSetFieldArrayPointer
+      module procedure ecFieldSet1dArrayPointer 
+   end interface ecSetFieldArrayPointer
+   
+   interface ecSetFieldDataPtr
+      module procedure ecFieldSetScalarPointer
+      module procedure ecFieldSet1dArrayPointer
+   end interface ecSetFieldDataPtr
+
    interface ecSetField1dArray
       module procedure ecFieldSet1dArray
       module procedure ecFieldCreate1dArray
-   end interface ecSetField1dArray
-   
+   end interface ecSetField1dArray   
+
    ! Item
 
    interface ecSetItemProperty
@@ -361,9 +378,14 @@ module m_ec_module
    end interface ecCreateInitializeBCFileReader
 
    ! Support
+   interface ecFindItem
+      module procedure ecSupportFindItem
+   end interface ecFindItem
+
    interface ecFindItemByQuantityLocation
       module procedure ecSupportFindItemByQuantityLocation
    end interface ecFindItemByQuantityLocation
+
    interface ecFindFileReader
       module procedure ecSupportFindFileReader
       module procedure ecSupportFindFileReaderByFileName
@@ -381,7 +403,7 @@ module m_ec_module
       !>      the array of SOURCE QUANTITY NAMES to be sought in the FileReader
       function ecModuleAddTimeSpaceRelation(instancePtr, name, x, y, vectormax, filename, filetype, &
                                             method, operand, tgt_refdate, tgt_tzone, tgt_tunit, &
-                                            jsferic, missing_value, qnames, itemIDs, &
+                                            jsferic, missing_value, itemIDs, &
                                             mask, xyen, z, pzmin, pzmax, pkbot, pktop, &
                                             targetIndex, forcingfile, srcmaskfile, dtnodal) &
                                             result (success)
@@ -404,7 +426,6 @@ module m_ec_module
          real(kind=hp),                            intent(in)    :: tgt_tzone
          integer,                                  intent(in)    :: tgt_tunit
          real(kind=hp),                            intent(in)    :: missing_value
-         character(len=*), dimension(:),           intent(in)    :: qnames       !< list of quantity names 
          integer, dimension(:),                    intent(inout) :: itemIDs      !<  Connection available outside to which one can connect target items
    
          integer,  dimension(:), optional,         intent(in)    :: mask         !< Array of masking values for the target ElementSet.
@@ -593,6 +614,7 @@ module m_ec_module
             if (.not.ecSetFieldMissingValue(instancePtr, fieldId, ec_undef_hp)) return
 
             if (itemIDs(itgt) == ec_undef_int) then                ! if Target Item already exists, do NOT create a new one ... 
+               itemIDs(itgt) = ecCreateItem(instancePtr)
                if (.not.ecSetItemRole(instancePtr, itemIDs(itgt), itemType_target)) return
                if (.not.ecSetItemQuantity(instancePtr, itemIDs(itgt), quantityId)) return
             end if
@@ -609,13 +631,8 @@ module m_ec_module
          if (.not. ecSetConnectionConverter(instancePtr, connectionId, converterId)) return
 
          ! Connect the source items to the connector
-         ! Loop over the given quantity names for the SOURCE side 
-         do isrc = 1, size(qnames)
-            sourceItemId = ecFindItemInFileReader(instancePtr, fileReaderId, trim(qnames(isrc)))
-            if (sourceItemId==ec_undef_int) then
-               return
-            endif
-            if (.not.ecAddConnectionSourceItem(instancePtr, connectionId, sourceItemId)) return
+         do i=1,fileReaderPtr%nItems
+            if (.not.ecAddConnectionSourceItem(instancePtr, connectionId, fileReaderPtr%items(i)%ptr%id)) return
          enddo
 
          ! Connect the target items to the connector
@@ -646,6 +663,9 @@ module m_ec_module
 
       type(c_time)                                            :: ecReqTime    !< time stamp for request to EC
       real(hp)                                                :: tUnitFactor  !< factor for time step unit
+      character(len=20) :: datestring
+      integer           :: ierr
+      
 
       if (itemId == ec_undef_int) then       ! We isolate the case that itemId was uninitialized,
          success = .true.                    ! in which case we simply ignore the Get-request
@@ -656,6 +676,10 @@ module m_ec_module
          tUnitFactor = ecSupportTimeUnitConversionFactor(tgt_tunit)
          call ecReqTime%set2(JULIAN(tgt_refdate, 0), timesteps * tUnitFactor / 86400.0_hp - tgt_tzone / 24.0_hp)
          if (.not. ecGetValues(instancePtr, itemId, ecReqTime, target_array)) then
+            datestring = datetime_to_string(ecReqTime%mjd(), ierr)
+            if (ierr==0) then
+               call setECMessage('Requested time was: '//datestring//' ! ')
+            end if
             return
          end if
          success = .true.

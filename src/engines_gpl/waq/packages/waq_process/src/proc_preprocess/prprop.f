@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -21,9 +21,8 @@
 !!  of Stichting Deltares remain the property of Stichting Deltares. All
 !!  rights reserved.
 
-      subroutine prprop ( lunrep   , laswi   , l3dmod   , config, no_act,
-     +                    actlst   , allitems, procesdef, noinfo, nowarn,
-     +                    old_items, ierror  )
+      subroutine prprop ( lunrep, laswi, config, no_act, actlst, allitems, procesdef,
+     +                    noinfo, nowarn, old_items, ierror  )
 
 !     Deltares Software Centre
 
@@ -42,7 +41,6 @@
 
       integer           , intent(in   ) :: lunrep                 !< report file
       logical           , intent(inout) :: laswi                  !< active processes only switch
-      logical           , intent(in   ) :: l3dmod                 !< 3d model
       character(len=*)  , intent(in   ) :: config                 !< requested configuration
       integer           , intent(in   ) :: no_act                 !< number of activated processes
       character(len=*)  , intent(in   ) :: actlst(*)              !< list of activated processes
@@ -90,7 +88,6 @@
 !
 !     license stuff
 !
-      logical       nolic
       integer       iconf
       integer(4)                :: ithndl = 0      ! handle for performance timer
       if (timon) call timstrt( "prprop", ithndl )
@@ -104,14 +101,11 @@
 !     get license infromation on configurations, removed always license
 !
       liconf = 1
-      nolic  = .false.
 !
 !     check licence for configuration if not in active only mode
-!     (if no license - nolic = true - use the "active only" mode
+!     MDK 27-05-2022: this is a remnant of an old licensing system. To be removed
 !
-      if ( nolic ) then
-         laswi = .true.
-      endif
+      laswi = .true.
 
       if ( .not. laswi ) then
          call zoek   ( config, nconf , confid, 10    , iconf  )

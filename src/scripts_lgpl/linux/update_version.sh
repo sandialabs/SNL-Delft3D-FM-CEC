@@ -6,17 +6,33 @@
 # $2 - path to the folder to be used to check svnversion
 # $3 - Single file with version number information version_number.ini
 # $4 - Top directory of the build tree: used to define VN_DIR
+# $5 - CMake_Binary_Dir: used to define VN_DIR
+
+#===============================================================================
+# Initialize svn
+initSvn="module load svn/1.9.12serf_gcc7.3.0"
+eval $initSvn
+if [ $? -ne 0 ]; then
+    echo 'WARNING: Module svn 1.9.12serf_gcc7.3.0 initialization fails!'
+    echo 'using svn : '
+    eval "module display svn"
+fi
 
 echo Generating version number in the $1
 curdir=`pwd`
 cd $2
 MODDIR=`pwd`
+
 # go back to the previous directory
 cd $curdir
 cd $4
 TOPDIR=`pwd`
-# we just made this one. ( I think this should work for everyone, TODO: pls make this the default after tested )
-VN_DIR=$TOPDIR/third_party_open/version_number/packages/version_number/src
+# Check if CMake_Binary_Dir is null or unset. Then use location inside src, else use CMake_Binary_Dir
+if [ -z "$5" ] ; then
+    VN_DIR=$TOPDIR/third_party_open/version_number/packages/version_number/src
+else
+    VN_DIR=$5/version_number
+fi
 
 cd $MODDIR
 

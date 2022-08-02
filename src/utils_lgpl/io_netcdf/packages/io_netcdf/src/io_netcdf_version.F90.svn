@@ -25,7 +25,7 @@ module io_netcdf_version_module
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: io_netcdf_version.F90.svn 7241 2017-05-31 08:38:38Z mooiman $
+!  $Id: io_netcdf_version.F90.svn 69661 2021-08-31 11:15:32Z mooiman $
 !  $HeadURL$
 
 implicit none
@@ -43,6 +43,8 @@ implicit none
     character(*),  public, parameter :: io_netcdf_architecture = 'Win32' ! used in about box
 #elif defined(WIN64)
     character(*),  public, parameter :: io_netcdf_architecture = 'Win64' ! used in about box
+#elif defined(LINUX64)
+    character(*),  public, parameter :: io_netcdf_architecture = 'Linux64' ! used in about box
 #else
     character(*),  public, parameter :: io_netcdf_architecture = 'unknown' ! used in about box
 #endif

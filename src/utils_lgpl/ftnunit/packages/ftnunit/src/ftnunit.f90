@@ -1,6 +1,6 @@
 !----- LGPL --------------------------------------------------------------------
 !
-!  Copyright (C)  Stichting Deltares, 2011-2020.
+!  Copyright (C)  Stichting Deltares, 2011-2022.
 !
 !  This library is free software; you can redistribute it and/or
 !  modify it under the terms of the GNU Lesser General Public
@@ -24,8 +24,8 @@
 !  Stichting Deltares. All rights reserved.
 !
 !-------------------------------------------------------------------------------
-!  $Id: ftnunit.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/ftnunit/packages/ftnunit/src/ftnunit.f90 $
+!  $Id: ftnunit.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_lgpl/ftnunit/packages/ftnunit/src/ftnunit.f90 $
 ! ftnunit.f90 --
 !     Module that implements part of the "ftnunit" framework:
 !     It is inspired by the well-known JUnit framework for
@@ -47,53 +47,14 @@
 !     - Test the various assertion failures
 !     - HTML output of number of differences
 !
-!     $Id: ftnunit.f90 65778 2020-01-14 14:07:42Z mourits $
+!     $Id: ftnunit.f90 140618 2022-01-12 13:12:04Z klapwijk $
 !
-
-! ftnunit_utilities
-!     Auxiliary routines (also used in ftnunit_store)
-!
-module ftnunit_utilities
-
-contains
-
-! ftnunit_get_lun --
-!     Auxiliary subroutine to get a free LU-number
-! Arguments:
-!     lun           The value that can be used
-!
-subroutine ftnunit_get_lun( lun )
-    integer, intent(out) :: lun
-
-    logical       :: opend
-    integer, save :: prevlun = 0
-
-    if ( prevlun /= 0 ) then
-        inquire( unit = prevlun, opened = opend )
-        if ( .not. opend ) then
-            lun = prevlun
-            return
-        endif
-    endif
-
-    do prevlun = 10,99
-        inquire( unit = prevlun, opened = opend )
-        if ( .not. opend ) then
-            lun = prevlun
-            return
-        endif
-    enddo
-
-end subroutine ftnunit_get_lun
-
-end module ftnunit_utilities
 
 
 ! ftnunit --
 !     Core module for ftnunit
 !
 module ftnunit
-    use ftnunit_utilities
     use ftnunit_hooks
 
     implicit none
@@ -109,7 +70,7 @@ module ftnunit
     integer, private, save :: failed_asserts = 0
     logical, private, save :: has_run        = .false.
     character(len=20), private, save :: html_file = 'ftnunit.html'
-    character(len=80), private, save :: testname
+    character(len=:), allocatable, private, save :: testname
 
     interface assert_equal
         module procedure assert_equal_int
@@ -154,8 +115,7 @@ subroutine test( proc, text )
     ! Record the fact that we started the test
     !
     has_run = .true.
-    call ftnunit_get_lun( lun )
-    open( lun, file = 'ftnunit.lst' )
+    open( newunit = lun, file = 'ftnunit.lst' )
     write( lun, * ) testno, nofails, noruns, ' ', .true.
     close( lun )
 
@@ -174,8 +134,7 @@ subroutine test( proc, text )
     ! the program ...
     !
     previous = .true.
-    call ftnunit_get_lun( lun )
-    open( lun, file = 'ftnunit.lst' )
+    open( newunit = lun, file = 'ftnunit.lst' )
     write( lun, * ) testno, nofails, noruns, ' ', .true.
     close( lun )
 
@@ -267,8 +226,7 @@ subroutine runtests( testproc )
 
     if ( ftnunit_file_exists("ftnunit.run") ) then
         if ( ftnunit_file_exists("ftnunit.lst") ) then
-            call ftnunit_get_lun( lun )
-            open( lun, file = "ftnunit.lst", iostat = ierr )
+            open( newunit = lun, file = "ftnunit.lst", iostat = ierr )
             if ( ierr == 0 ) then
                 read( lun, *, iostat = ierr ) last_test, nofails, noruns, previous
                 if ( ierr /= 0 ) then
@@ -781,11 +739,9 @@ subroutine assert_files_comparable( filename1, filename2, &
     tol         = 1.0e-5
     if ( present(tolerance) ) tol = tolerance
 
-    call ftnunit_get_lun( lun1 )
-    open( lun1, file = filename1, status = 'old', iostat = ierr1 )
+    open( newunit = lun1, file = filename1, status = 'old', iostat = ierr1 )
 
-    call ftnunit_get_lun( lun2 )
-    open( lun2, file = filename2, status = 'old', iostat = ierr2 )
+    open( newunit = lun2, file = filename2, status = 'old', iostat = ierr2 )
 
     if ( ierr1 /= 0 .or. ierr2 /= 0 ) then
         nofails = nofails + 1
@@ -964,8 +920,7 @@ subroutine ftnunit_remove_file( filename )
     integer                      :: lun
     integer                      :: ierr
 
-    call ftnunit_get_lun( lun )
-    open( lun, file = filename, iostat = ierr )
+    open( newunit = lun, file = filename, iostat = ierr )
     if ( ierr /= 0 ) then
         write(*,'(10a)') '    Could not open file for removal: ', trim(filename)
         nofails = nofails + 1
@@ -993,8 +948,7 @@ subroutine ftnunit_make_empty_file( filename )
     if ( ftnunit_file_exists( filename ) ) then
         call ftnunit_remove_file( filename )
     endif
-    call ftnunit_get_lun( lun )
-    open( lun, file = filename, iostat = ierr, status = 'new' )
+    open( newunit = lun, file = filename, iostat = ierr, status = 'new' )
     if ( ierr /= 0 ) then
         write(*,'(10a)') '    Failed to create empty file: ', trim(filename)
         nofails = nofails + 1
@@ -1012,8 +966,7 @@ end subroutine ftnunit_make_empty_file
 subroutine ftnunit_write_html_header
     integer :: lun
 
-    call ftnunit_get_lun( lun )
-    open( lun, file = html_file )
+    open( newunit = lun, file = html_file )
     write( lun, '(a)' ) &
         '<html>', &
         '<header>', &
@@ -1050,8 +1003,7 @@ subroutine ftnunit_write_html_footer
         call ftnunit_write_html_previous_failed
     endif
 
-    call ftnunit_get_lun( lun )
-    open( lun, file = html_file, position = 'append' )
+    open( newunit = lun, file = html_file, position = 'append' )
 
     if ( has_run .and. failed_asserts == 0 ) then
         call ftnunit_write_html_close_row( lun )
@@ -1079,8 +1031,7 @@ subroutine ftnunit_write_html_test_begin( text )
 
     integer           :: lun
 
-    call ftnunit_get_lun( lun )
-    open( lun, file = html_file, position = 'append' )
+    open( newunit = lun, file = html_file, position = 'append' )
 
     if ( previous ) then
         if ( failed_asserts == 0 ) then
@@ -1117,8 +1068,7 @@ subroutine ftnunit_write_html_previous_failed
 
     integer           :: lun
 
-    call ftnunit_get_lun( lun )
-    open( lun, file = html_file, position = 'append' )
+    open( newunit = lun, file = html_file, position = 'append' )
 
     write( lun, '(a)' ) &
         '<td><span class="red">Crashed</span></td></tr>', &
@@ -1164,8 +1114,7 @@ subroutine ftnunit_write_html_failed_logic( text, expected )
 
     integer           :: lun
 
-    call ftnunit_get_lun( lun )
-    open( lun, file = html_file, position = 'append' )
+    open( newunit = lun, file = html_file, position = 'append' )
 
     failed_asserts = failed_asserts + 1
 
@@ -1190,8 +1139,7 @@ subroutine ftnunit_write_html_failed_equivalent( text )
 
     integer           :: lun
 
-    call ftnunit_get_lun( lun )
-    open( lun, file = html_file, position = 'append' )
+    open( newunit = lun, file = html_file, position = 'append' )
 
     failed_asserts = failed_asserts + 1
 
@@ -1217,8 +1165,7 @@ subroutine ftnunit_write_html_failed_string( text, value1, value2 )
 
     integer           :: lun
 
-    call ftnunit_get_lun( lun )
-    open( lun, file = html_file, position = 'append' )
+    open( newunit = lun, file = html_file, position = 'append' )
 
     failed_asserts = failed_asserts + 1
 
@@ -1247,8 +1194,7 @@ subroutine ftnunit_write_html_failed_int( text, value1, value2 )
 
     integer           :: lun
 
-    call ftnunit_get_lun( lun )
-    open( lun, file = html_file, position = 'append' )
+    open( newunit = lun, file = html_file, position = 'append' )
 
     failed_asserts = failed_asserts + 1
 
@@ -1282,8 +1228,7 @@ subroutine ftnunit_write_html_failed_int1d( text, idx, value1, value2, addtext )
 
     integer           :: lun
 
-    call ftnunit_get_lun( lun )
-    open( lun, file = html_file, position = 'append' )
+    open( newunit = lun, file = html_file, position = 'append' )
 
     failed_asserts = failed_asserts + 1
 
@@ -1320,8 +1265,7 @@ subroutine ftnunit_write_html_failed_real( text, value1, value2 )
 
     integer           :: lun
 
-    call ftnunit_get_lun( lun )
-    open( lun, file = html_file, position = 'append' )
+    open( newunit = lun, file = html_file, position = 'append' )
 
     failed_asserts = failed_asserts + 1
 
@@ -1354,8 +1298,7 @@ subroutine ftnunit_write_html_failed_real1d( text, idx, value1, value2, addtext 
 
     integer           :: lun
 
-    call ftnunit_get_lun( lun )
-    open( lun, file = html_file, position = 'append' )
+    open( newunit = lun, file = html_file, position = 'append' )
 
     failed_asserts = failed_asserts + 1
 
@@ -1397,8 +1340,7 @@ subroutine ftnunit_write_html_failed_real2d( text, idx1, idx2, value1, value2, a
 
     integer           :: lun
 
-    call ftnunit_get_lun( lun )
-    open( lun, file = html_file, position = 'append' )
+    open( newunit = lun, file = html_file, position = 'append' )
 
     failed_asserts = failed_asserts + 1
 
@@ -1434,8 +1376,7 @@ subroutine ftnunit_write_html_failed_double( text, value1, value2 )
 
     integer           :: lun
 
-    call ftnunit_get_lun( lun )
-    open( lun, file = html_file, position = 'append' )
+    open( newunit = lun, file = html_file, position = 'append' )
 
     failed_asserts = failed_asserts + 1
 
@@ -1468,8 +1409,7 @@ subroutine ftnunit_write_html_failed_double1d( text, idx, value1, value2, addtex
 
     integer           :: lun
 
-    call ftnunit_get_lun( lun )
-    open( lun, file = html_file, position = 'append' )
+    open( newunit = lun, file = html_file, position = 'append' )
 
     failed_asserts = failed_asserts + 1
 
@@ -1511,8 +1451,7 @@ subroutine ftnunit_write_html_failed_double2d( text, idx1, idx2, value1, value2,
 
     integer           :: lun
 
-    call ftnunit_get_lun( lun )
-    open( lun, file = html_file, position = 'append' )
+    open( newunit = lun, file = html_file, position = 'append' )
 
     failed_asserts = failed_asserts + 1
 
@@ -1544,8 +1483,7 @@ subroutine ftnunit_write_html_failed_files( text, string1, string2, string3 )
 
     integer           :: lun
 
-    call ftnunit_get_lun( lun )
-    open( lun, file = html_file, position = 'append' )
+    open( newunit = lun, file = html_file, position = 'append' )
 
     failed_asserts = failed_asserts + 1
 

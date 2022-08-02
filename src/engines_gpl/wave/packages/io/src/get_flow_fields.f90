@@ -1,7 +1,7 @@
 subroutine get_flow_fields (i_flow, i_swan, sif, fg, sg, f2s, wavedata, sr, flowVelocityType)
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -25,8 +25,8 @@ subroutine get_flow_fields (i_flow, i_swan, sif, fg, sg, f2s, wavedata, sr, flow
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: get_flow_fields.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/wave/packages/io/src/get_flow_fields.f90 $
+!  $Id: get_flow_fields.f90 140694 2022-02-02 12:21:22Z nabi $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/wave/packages/io/src/get_flow_fields.f90 $
 !!--description-----------------------------------------------------------------
 ! NONE
 !!--pseudo code and references--------------------------------------------------
@@ -50,13 +50,16 @@ subroutine get_flow_fields (i_flow, i_swan, sif, fg, sg, f2s, wavedata, sr, flow
    type(grid_map)                   :: f2s              ! flow to swn grid mapper
    integer, dimension(:,:), pointer :: covered
    type(wave_data_type)             :: wavedata
-   type(swan)                       :: sr               ! swan input structure
+   type(swan_type)                  :: sr               ! swan input structure
 !
 ! Local variables
 !
+   integer            :: i
+   integer            :: j
    integer            :: iprint       = 0
    real               :: alpb         = 0.0
    real               :: dummy        = -999.0
+   real               :: maxval
    logical            :: clbot        = .true.
    character(256)     :: mudfilnam    = ' '
    type(input_fields) :: fif                    ! input fields defined on flow grid
@@ -75,18 +78,18 @@ subroutine get_flow_fields (i_flow, i_swan, sif, fg, sg, f2s, wavedata, sr, flow
       end subroutine grmap_esmf
 
       subroutine get_var_netcdf(i_flow, wavetime, varname, vararr, mmax, nmax, basename, &
-                              & kmax, flowVelocityType)
-
+                              & lastvalidflowfield, kmax, flowVelocityType)
          use wave_data         
          integer                      , intent(in)  :: i_flow
-         integer                      , intent(in)  :: mmax
-         integer                      , intent(in)  :: nmax
-         integer, optional            , intent(in)  :: kmax
-         integer, optional            , intent(in)  :: flowVelocityType
+         type(wave_time_type)                       :: wavetime
          character(*)                 , intent(in)  :: varname
          real   , dimension(mmax,nmax), intent(out) :: vararr
-         type(wave_time_type)                       :: wavetime
+         integer                      , intent(in)  :: mmax
+         integer                      , intent(in)  :: nmax
          character(*)                               :: basename
+         integer                                    :: lastvalidflowfield
+         integer, optional            , intent(in)  :: kmax
+         integer, optional            , intent(in)  :: flowVelocityType
       end subroutine
    end interface
    !
@@ -116,7 +119,7 @@ subroutine get_flow_fields (i_flow, i_swan, sif, fg, sg, f2s, wavedata, sr, flow
          !
          call get_var_netcdf (i_flow, wavedata%time , 'dps', &
                             & fif%dps, fif%mmax, fif%nmax, &
-                            & sr%flowgridfile)
+                            & sr%flowgridfile, wavedata%output%lastvalidflowfield)
          !
          ! Map depth to SWAN grid, using ESMF_Regrid weights
          !
@@ -152,7 +155,7 @@ subroutine get_flow_fields (i_flow, i_swan, sif, fg, sg, f2s, wavedata, sr, flow
          !
          call get_var_netcdf (i_flow, wavedata%time , 's1', &
                             & fif%s1, fif%mmax, fif%nmax, &
-                            & sr%flowgridfile)
+                            & sr%flowgridfile, wavedata%output%lastvalidflowfield)
          !
          ! Map water level to SWAN grid, using ESMF_Regrid weights
          !
@@ -196,17 +199,17 @@ subroutine get_flow_fields (i_flow, i_swan, sif, fg, sg, f2s, wavedata, sr, flow
          if (fg%kmax == 1) then
             call get_var_netcdf (i_flow, wavedata%time , 'u1', &
                                & fif%u1, fif%mmax, fif%nmax, &
-                               & sr%flowgridfile)
+                               & sr%flowgridfile, wavedata%output%lastvalidflowfield)
             call get_var_netcdf (i_flow, wavedata%time , 'v1', &
                                & fif%v1, fif%mmax, fif%nmax, &
-                               & sr%flowgridfile)
+                               & sr%flowgridfile, wavedata%output%lastvalidflowfield)
          else
             call get_var_netcdf (i_flow, wavedata%time , 'u1', &
                                & fif%u1, fif%mmax, fif%nmax, &
-                               & sr%flowgridfile, fg%kmax,flowVelocityType)
+                               & sr%flowgridfile, wavedata%output%lastvalidflowfield, fg%kmax,flowVelocityType)
             call get_var_netcdf (i_flow, wavedata%time , 'v1', &
                                & fif%u1, fif%mmax, fif%nmax, &
-                               & sr%flowgridfile, fg%kmax,flowVelocityType)                               
+                               & sr%flowgridfile, wavedata%output%lastvalidflowfield, fg%kmax,flowVelocityType)                      
          endif                   
          !
          ! Map velocity components to SWAN grid, using ESMF_Regrid weights
@@ -245,10 +248,10 @@ subroutine get_flow_fields (i_flow, i_swan, sif, fg, sg, f2s, wavedata, sr, flow
          !
          call get_var_netcdf (i_flow, wavedata%time , 'windx', &
                             & fif%windu, fif%mmax, fif%nmax, &
-                            & sr%flowgridfile)
+                            & sr%flowgridfile, wavedata%output%lastvalidflowfield)
          call get_var_netcdf (i_flow, wavedata%time , 'windy', &
                             & fif%windv, fif%mmax, fif%nmax, &
-                            & sr%flowgridfile)
+                            & sr%flowgridfile, wavedata%output%lastvalidflowfield)
          !
          ! Map wind components to SWAN grid, using ESMF_Regrid weights
          !
@@ -261,6 +264,56 @@ subroutine get_flow_fields (i_flow, i_swan, sif, fg, sg, f2s, wavedata, sr, flow
       endif
    endif
    !
+if (sr%swveg .and. sr%dom(1)%qextnd(q_veg) >= 1) then
+      if (sr%flowgridfile == ' ') then
+         !
+         ! There is no vegetation on the Delf3D4-FLOW com file
+         !
+         write(*,'(a)') "ERROR: trying to read vegetation from Delft3D4-FLOW com-file. Not implemented yet."
+         call wavestop(1, "ERROR: trying to read vegetation from Delft3D4-FLOW com-file. Not implemented yet.")
+      else
+         !
+         ! Read vegetation parameters from netcdf-file
+         !
+         call get_var_netcdf (i_flow, wavedata%time , 'rnveg', &
+                            & fif%veg, fif%mmax, fif%nmax, &
+                            & sr%flowgridfile, wavedata%output%lastvalidflowfield)
+         call get_var_netcdf (i_flow, wavedata%time , 'diaveg', &
+                            & fif%diaveg, fif%mmax, fif%nmax, &
+                            & sr%flowgridfile, wavedata%output%lastvalidflowfield)
+         call get_var_netcdf (i_flow, wavedata%time , 'veg_stemheight', &
+                            & fif%veg_stemheight, fif%mmax, fif%nmax, &
+                            & sr%flowgridfile, wavedata%output%lastvalidflowfield)
+         !
+         ! Map vegetation components to SWAN grid, using ESMF_Regrid weights
+         !
+         call grmap_esmf (i_flow       ,fif%veg    , fif%npts, &
+                        & sif%veg    , sif%mmax, sif%nmax, &
+                        & f2s        , sg)
+         call grmap_esmf (i_flow       ,fif%diaveg    , fif%npts, &
+                        & sif%diaveg    , sif%mmax, sif%nmax, &
+                        & f2s           , sg)
+         call grmap_esmf (i_flow       ,fif%veg_stemheight, fif%npts, &
+                        & sif%veg_stemheight, sif%mmax, sif%nmax, &
+                        & f2s               , sg)
+         ! It seems that SWAN only accepts constant values for diaveg and veg_stemheight
+         !
+         maxval = -1.0e10
+         do i=1, fif%mmax
+            do j=1, fif%nmax
+               maxval = max(maxval, fif%diaveg(i,j))
+            enddo
+         enddo
+         sr%veg_diamtr = maxval
+         maxval = -1.0e10
+         do i=1, fif%mmax
+            do j=1, fif%nmax
+               maxval = max(maxval, fif%veg_stemheight(i,j))
+            enddo
+         enddo
+         sr%veg_height = maxval
+      endif
+   endif
    if (wavedata%mode == flow_mud_online) then
       write(*,'(4x,a)') 'Mud:'
       write(mudfilnam,'(a,a)')'com-',trim(mudids(1))

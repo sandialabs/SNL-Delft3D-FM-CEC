@@ -1,7 +1,7 @@
 module m_readModelParameters
 !----- AGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2017-2020.                                
+!  Copyright (C)  Stichting Deltares, 2017-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify              
 !  it under the terms of the GNU Affero General Public License as               
@@ -25,8 +25,8 @@ module m_readModelParameters
 !  Stichting Deltares. All rights reserved.
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: readModelParameters.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_gpl/flow1d/packages/flow1d_io/src/readModelParameters.f90 $
+!  $Id: readModelParameters.f90 140847 2022-03-01 08:17:35Z noort $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_gpl/flow1d/packages/flow1d_io/src/readModelParameters.f90 $
 !-------------------------------------------------------------------------------
 
    use MessageHandling
@@ -50,7 +50,7 @@ module m_readModelParameters
       
       
       type(tree_data), pointer, intent(in)      :: md_ptr
-      character(len=Charln)                     :: sobekSimIniFile
+      character(len=IdLen)                     :: sobekSimIniFile
 
       integer                                   :: iValue
       double precision                          :: Value
@@ -206,19 +206,6 @@ module m_readModelParameters
       call prop_get_double(md_ptr, 'AdvancedOptions', 'Longitude', longitude, success)
       call prop_get_double(md_ptr, 'AdvancedOptions', 'timeZone', time_zone, success)
       
-      write_tables = .false.
-      call prop_get_logical(md_ptr, 'StorageTable', 'WriteStorageTables', write_tables, success)
-      if (write_tables) then
-         call prop_get_string(md_ptr, 'StorageTable', 'StorageOutputFile', st_filename, success)
-         if (.not. success) then
-            call setmessage(LEVEL_ERROR, 'StorageOutputFile not found in md1d file')
-         endif
-         tb_inc = 0.1d0
-         call prop_get_double(md_ptr, 'StorageTable', 'StorageTableIncrement', tb_inc, success)
-         tb_extra_height = 0d0
-         call prop_get_double(md_ptr, 'StorageTable', 'ExtraHeight', tb_extra_height, success)
-      endif
-      
       call prop_get_integer(md_ptr, 'Morphology', 'CalculateMorphology', iValue, success)
       if (success .and. iValue==1) then
          call AddOrReplaceParameter('Morphology', 'CalculateMorphology', 'true', .true.)
@@ -282,25 +269,6 @@ module m_readModelParameters
             call str_lower(keyValue)
             
             call AddOrReplaceParameter(category, keyWord, keyValue, .true.)
-                        
-            ! Set CacheMode Switches
-            if (category == 'advancedoptions' .and. keyWord == 'cachemode') then
-            
-               select case (keyValue)
-                  case ('none')
-                     doReadCache  = .false.
-                     doWriteCache = .false.
-                  case ('read')
-                     doReadCache  = .true.
-                     doWriteCache = .false.
-                  case ('write')
-                     doReadCache  = .false.
-                     doWriteCache = .true.
-                  case default
-                     doReadCache  = .false.
-                     doWriteCache = .false.
-               end select
-            endif
             
          enddo
          
@@ -695,7 +663,6 @@ module m_readModelParameters
       call AddOrReplaceParameter(category, 'WriteNetCDF', '0', .true.)
 
       category = 'AdvancedOptions'
-      call AddOrReplaceParameter(category, 'CacheMode', 'none', .true.)
       call AddOrReplaceParameter(category, 'CalculateDelwaqOutput', '0', .true.)
       call AddOrReplaceParameter(category, 'ExtraResistanceGeneralStructure', '0.0', .true.)
       call AddOrReplaceParameter(category, 'LateralLocation', '0', .true.)

@@ -1,6 +1,6 @@
 //---- LGPL --------------------------------------------------------------------
 //
-// Copyright (C)  Stichting Deltares, 2011-2020.
+// Copyright (C)  Stichting Deltares, 2011-2022.
 //
 // This library is free software; you can redistribute it and/or
 // modify it under the terms of the GNU Lesser General Public
@@ -24,8 +24,8 @@
 // Stichting Deltares. All rights reserved.
 //
 //------------------------------------------------------------------------------
-// $Id: gp.c 65778 2020-01-14 14:07:42Z mourits $
-// $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/nefis/packages/nefis/src/gp.c $
+// $Id: gp.c 140618 2022-01-12 13:12:04Z klapwijk $
+// $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_lgpl/nefis/packages/nefis/src/gp.c $
 /*
  *   <gp.c> - Read and write items to NEFIS data and definiton file
  *
@@ -39,7 +39,7 @@
 /*
  *   Comment:
  */
-#if defined(HAVE_CONFIG_H)
+#if defined(linux)
 #include "config.h"
 #endif
 
@@ -69,7 +69,7 @@
 #  define FILE_READ  _read
 #  define FILE_SEEK  _lseeki64
 #  define FILE_WRITE _write
-#elif defined(HAVE_CONFIG_H)
+#elif defined(linux)
 #  define FILE_READ  read
 #  if defined(HAVE_LSEEK64)
 #    define FILE_SEEK lseek64

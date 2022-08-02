@@ -1,6 +1,6 @@
 !----- LGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This library is free software; you can redistribute it and/or                
 !  modify it under the terms of the GNU Lesser General Public                   
@@ -24,8 +24,8 @@
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: tstTriton.F90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/delftio/tests/tstNefisRestart/src/tstTriton.F90 $
+!  $Id: tstTriton.F90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_lgpl/delftio/tests/tstNefisRestart/src/tstTriton.F90 $
 !*********************
 !* TEST TRITON RESTART
 !*********************
@@ -119,7 +119,7 @@ subroutine test_triton_retrieve(fileName)
     character(Len=*), intent(IN)  :: fileName    ! restart file name
 
     ! resultFile
-    integer                       :: resLun = 11 ! handle to result file
+    integer                       :: resLun      ! handle to result file
     character(Len=DioMaxStreamLen):: resFileName = 'TESTTriton-res.txt'
 
     ! sizes
@@ -156,7 +156,7 @@ subroutine test_triton_retrieve(fileName)
     ! INITIALIZE
     !
     
-    open(resLun, file=resFileName)
+    open(newunit=resLun, file=resFileName)
   
     depth     = 0.D+00
     depth_aux = 0.D+00

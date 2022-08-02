@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -25,7 +25,7 @@
      +                    nopa     , paname, nofun , funame, nosfun,
      +                    sfname   , nodisp, diname, novelo, vename,
      +                    nmis     , defaul, noloc , nodef , dename, outputs,
-     +                    ndspx    , nvelx , nlocx , locnam)
+     +                    ndspx    , nvelx , nlocx , locnam, refday)
 
       ! sets the i/o pointers for every proces
       ! if nessacary turns on secondary processes
@@ -64,6 +64,7 @@
       integer                   :: nvelx           ! number of velocities
       integer                   :: nlocx           ! number of local values on exchanges
       character(len=*)          :: locnam(*)       ! local values names
+      integer  ( 4)       , intent(in)    :: refday          ! reference day, varying from 1 till 365
 
       ! local decalarations
 
@@ -93,6 +94,8 @@
       real, parameter           :: rmis0  = -888.  ! missing but no matter (set to 0.0)
       integer                   :: i_star          ! index of * in name
       integer(4)                :: ithndl = 0      ! handle for performance timer
+      integer                   :: refDayFound = -1 ! check for RefDay default
+
       if (timon) call timstrt( "getinv", ithndl )
 
       ! some init
@@ -240,12 +243,18 @@
                         nodef   = nodef + 1
                         dename(nodef) = valnam
                         ivalip = -3
-                        if ( abs(proc1%input_item(i_input)%actdef-rmis0) .lt. 1.e-20 )then
-                           line = ' '
-                           defaul(nodef) = 0.0
+                        call ZOEKNS ( 'RefDay', 1, valnam, 6 , refDayFound)
+                        if (refDayFound /= -1) then
+                           defaul(nodef) = real(refday)
+                           write(line1,'(a,g13.6)') '       based on T0-string:',real(refday)
                         else
-                           defaul(nodef) = proc1%input_item(i_input)%actdef
-                           write(line1,'(a,g13.6)') '       using default value:',proc1%input_item(i_input)%actdef
+                           if ( abs(proc1%input_item(i_input)%actdef-rmis0) .lt. 1.e-20 )then
+                              line = ' '
+                              defaul(nodef) = 0.0
+                           else
+                              defaul(nodef) = proc1%input_item(i_input)%actdef
+                              write(line1,'(a,g13.6)') '       using default value:',proc1%input_item(i_input)%actdef
+                           endif
                         endif
                      endif
                   endif

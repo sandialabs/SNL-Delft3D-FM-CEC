@@ -1,6 +1,6 @@
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -24,13 +24,13 @@
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: chksto.f 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_gpl/waqpb/packages/waqpb_lib/src/chksto.f $
+!  $Id: chksto.f 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/tools_gpl/waqpb/packages/waqpb_lib/src/chksto.f $
 
       subroutine chksto ( flux  , subs  , stoch , nstoc ,
-     j                    itemid, nitem )
+     j                    itemid, nitem, io_mes )
 
-      integer      nstoc , nitem
+      integer      nstoc , nitem, io_mes
       character*10 flux(nstoc),subs(nstoc),itemid(nitem)
       real         stoch(nstoc)
 
@@ -60,7 +60,7 @@ c     repet  indicates if a line is a repeated line
 
 c     zero local arrays
 
-      write ( 11, * ) 'chksto'
+      write ( io_mes, * ) 'chksto'
       do iitem = 1,nitem
           isflux(iitem) = 0
           isrepe(iitem) = 0
@@ -72,7 +72,7 @@ c     index table on items
           repet(istoc) = 1
           call zoek (flux(istoc),nitem,itemid,10,iitem)
           if (iitem.le.0) then
-              write ( 11, * ) flux(istoc)
+              write ( io_mes, * ) flux(istoc)
               stop 'BUG CHKSTO 001'
           endif
           fluxi(istoc) = iitem
@@ -81,7 +81,7 @@ c     index table on items
           if (iitem.le.0) stop 'BUG CHKSTO 002'
           subsi(istoc) = iitem
       enddo
-      write ( 11, * ) 'stochi table indexed'
+      write ( io_mes, * ) 'stochi table indexed'
 
 c     check occurence of repeated lines 
 
@@ -106,7 +106,7 @@ c     the same substances in the same way
 c         Only fluxes:
           if ( isflux(iitem) .eq. 1 ) then
               if ( isrepe(iitem) .gt. 1 )  
-     j        write (11,*) ' flux ',itemid(iitem),isrepe(iitem)
+     j        write (io_mes,*) ' flux ',itemid(iitem),isrepe(iitem)
 c             Zero effect on substances
               do iitem2 = 1,nitem
                   effect(iitem2) = 0.0
@@ -121,7 +121,7 @@ c             Compute effect on substances first occurrence
                   endif
               enddo
               do irepet = 2,isrepe(iitem)
-              write (11,*) ' check ',irepet
+              write (io_mes,*) ' check ',irepet
 c             Zero effect on substances
               do iitem2 = 1,nitem
                   effec2(iitem2) = 0.0

@@ -1,6 +1,6 @@
 !----- AGPL --------------------------------------------------------------------
 !
-!  Copyright (C)  Stichting Deltares, 2017-2020.!
+!  Copyright (C)  Stichting Deltares, 2017-2022.
 !  This file is part of Delft3D (D-Flow Flexible Mesh component).
 !
 !  Delft3D is free software: you can redistribute it and/or modify
@@ -26,8 +26,8 @@
 !
 !-------------------------------------------------------------------------------
 
-! $Id: unstruc_bmi.F90 65974 2020-02-12 14:16:56Z spee $
-! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/dflowfm/packages/dflowfm_lib/src/unstruc_bmi.F90 $
+! $Id: unstruc_bmi.F90 140628 2022-01-13 14:21:04Z spee $
+! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/dflowfm/packages/dflowfm_lib/src/unstruc_bmi.F90 $
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
@@ -55,6 +55,9 @@ module bmi
   use m_integralstats
   use gridoperations
   use unstruc_model
+  use m_fm_erosed, only: taucr, tetacr
+  use m_heatfluxes, only: Qsunmap
+  use m_longculverts
 
   implicit none
 
@@ -76,6 +79,9 @@ module bmi
   real(c_double), target, allocatable, save :: froude(:)
   real(c_double), target, allocatable, save :: sed1(:)
   real(c_double), target, allocatable, save :: const_t(:,:) !< Placeholder array for returning constituents (transposed: dim(numconst,ndkx))
+  real(c_double), target, allocatable, save :: tem1Surf (:)
+  real(c_double), target, allocatable, save :: TcrEro   (:,:)
+  real(c_double), target, allocatable, save :: TcrSed   (:,:)
   integer, private :: iconst
   integer, external :: findname
 
@@ -165,6 +171,7 @@ integer(c_int) function initialize(c_config_file) result(c_iresult) bind(C, name
    use unstruc_model
    use unstruc_files
    use m_partitioninfo
+   use check_mpi_env
 #ifdef HAVE_MPI
    use mpi
 #endif
@@ -180,18 +187,40 @@ integer(c_int) function initialize(c_config_file) result(c_iresult) bind(C, name
    type(c_ptr) :: xptr
    integer :: i,j,k
     
-   c_iresult = 0 ! TODO: is this return value BMI-compliant?
+   c_iresult         = 0 ! TODO: is this return value BMI-compliant?
+   jampi             = 0
+   numranks          = 1
+   my_rank           = 0
+   ja_mpi_init_by_fm = 0
 #ifdef HAVE_MPI
+
+   ! Check if MPI is already initialized
    call mpi_initialized(mpi_initd, inerr)
-   if (.not. mpi_initd) then
-      ja_mpi_init_by_fm = 1
-      call mpi_init(inerr)
-   else
+   if (mpi_initd) then
       ja_mpi_init_by_fm = 0
+      if (inerr == 0) then
+          jampi = 1
+      end if
+   else
+      ! Preparations for calling mpi_init:
+      ! When using IntelMPI, mpi_init will cause a crash if IntelMPI is not
+      ! installed. Do not call mpi_init in a sequential computation.
+      ! Check this via the possible environment parameters.
+      jampi = merge(1, 0, running_in_mpi_environment())
+
+      if (jampi == 1) then
+          ja_mpi_init_by_fm = 1
+          call mpi_init(inerr)
+          if (inerr /= 0) then
+              jampi = 0
+          end if
+      end if
    end if
 
-   call mpi_comm_rank(DFM_COMM_DFMWORLD,my_rank,inerr)
-   call mpi_comm_size(DFM_COMM_DFMWORLD,numranks,inerr)
+   if (jampi == 1) then
+       call mpi_comm_rank(DFM_COMM_DFMWORLD,my_rank,inerr)
+       call mpi_comm_size(DFM_COMM_DFMWORLD,numranks,inerr)
+   end if
 
    if ( numranks.le.1 ) then
       jampi = 0
@@ -200,8 +229,6 @@ integer(c_int) function initialize(c_config_file) result(c_iresult) bind(C, name
    !   make domain number string as soon as possible
    write(sdmn, '(I4.4)') my_rank
 
-#else
-   numranks=1
 #endif
 
    ! do this until default has changed
@@ -296,7 +323,7 @@ function dfm_init_user_timestep(timetarget) result(iresult) bind(C, name="dfm_in
 
    if (do_check_bmi_timestep .and. timetarget - time_user /= dt_user) then ! We don't support yet a changing dt_user (may affect input/output, meteo, etc.)
       iresult = DFM_INVALIDTARGETTIME
-      write(msg,'(a,f8.3,a,f8.3,a)') 'Mismatch of requested step (',timetarget - time_user,') and the specified user timestep (',dt_user,').'
+      write(msg,'(a,g15.9,a,g15.9,a)') 'Mismatch of requested step (',timetarget - time_user,') and the specified user timestep (',dt_user,').'
       call mess(LEVEL_WARN,msg)
 !      goto 888
    end if
@@ -349,7 +376,7 @@ function dfm_init_computational_timestep(timetarget, dtpredict) result(iresult) 
 
    if (do_check_bmi_timestep .and. timetarget /= time_user) then   ! We don't yet support another targettime than upcoming time_user
       iresult = DFM_INVALIDTARGETTIME
-      write(msg,'(a,f8.3,a,f8.3,a)') 'Mismatch of requested step (',timetarget,') and the specified user timestep (',time_user,').'
+      write(msg,'(a,g15.9,a,g15.9,a)') 'Mismatch of requested step (',timetarget,') and the specified user timestep (',time_user,').'
       call mess(LEVEL_WARN,msg)
 !      goto 888
    end if
@@ -491,7 +518,7 @@ subroutine dfm_compute_1d2d_coefficients() bind(C, name="dfm_compute_1d2d_coeffi
 end subroutine dfm_compute_1d2d_coefficients
 
 subroutine get_time_units(unit)  bind(C, name="get_time_units")
-   ! returns unit string for model time, e.g. ‘days since 1970-01-01'
+   ! returns unit string for model time, e.g. 'days since 1970-01-01'
    character(kind=c_char), intent(in) :: unit(*)
 end subroutine get_time_units
 
@@ -606,7 +633,7 @@ subroutine get_var_count(c_var_count) bind(C, name="get_var_count") ! non-BMI
    integer(c_int), intent(out)         :: c_var_count
    include "bmi_get_var_count.inc"
    ! plus extra local vars
-   c_var_count = var_count + var_count_compound + numconst + 9
+   c_var_count = var_count + var_count_compound + numconst + 12
 end subroutine get_var_count
 
 subroutine get_var_name(var_index, c_var_name) bind(C, name="get_var_name")
@@ -680,6 +707,12 @@ subroutine get_var_name(var_index, c_var_name) bind(C, name="get_var_name")
       var_name = "flowelemcontour_y"
    case(9)
       var_name = "kn"
+   case(10)
+      var_name = "TcrEro"
+   case(11)
+      var_name = "TcrSed"
+   case(12)
+      var_name = "tem1Surf"
    end select
    c_var_name = string_to_char_array(trim(var_name), len(trim(var_name)))
 
@@ -738,6 +771,8 @@ subroutine get_var_type(c_var_name, c_type)  bind(C, name="get_var_type")
    case("flowelemnode", "flowelemnbs", "flowelemlns")
       type_name = "int"
    case("flowelemcontour_x", "flowelemcontour_y")
+      type_name = "double"
+   case("TcrEro", "TcrSed", "tem1Surf")
       type_name = "double"
    end select
 
@@ -815,6 +850,10 @@ subroutine get_var_rank(c_var_name, rank) bind(C, name="get_var_rank")
       rank = 2
    case("pumps", "weirs", "orifices", "gates", "generalstructures", "culverts", "sourcesinks", "dambreak", "observations", "crosssections", "laterals") ! Compound vars: shape = [numobj, numfields_per_obj]
       rank = 2
+   case("TcrEro", "TcrSed")
+      rank = 2
+   case("tem1Surf")
+      rank = 1
    end select
 
    if (numconst > 0) then
@@ -868,6 +907,13 @@ subroutine get_var_shape(c_var_name, shape) bind(C, name="get_var_shape")
    case("flowelemcontour_x", "flowelemcontour_y")
       shape(1) = ndx
       shape(2) = get_flow_elem_max_contour()
+      return
+   case("TcrEro", "TcrSed")
+      shape(1) = ndx
+      shape(2) = stmpar%lsedtot
+      return
+   case("")
+      shape(1) = ndx
       return
 
 ! Compounds:
@@ -994,7 +1040,7 @@ subroutine get_var(c_var_name, x) bind(C, name="get_var")
    integer(c_int), target, allocatable, save :: xi(:,:)
    real(c_double), target, allocatable, save :: xd(:,:)
 
-   integer :: i, j, k, Lf, knb
+   integer :: i, j, k, Lf, knb, kb, kt, n
 
 
    ! The fortran name of the attribute name
@@ -1117,6 +1163,55 @@ subroutine get_var(c_var_name, x) bind(C, name="get_var")
    case("kn")
       x = c_loc(kn)
       return
+      
+   case("tem1Surf")
+      if (.not. allocated(tem1Surf)) then
+         allocate (tem1Surf(ndx))
+      endif
+	    do k = 1,ndx
+		     call getkbotktop(k, kb, kt)
+		     tem1Surf(k) = tem1(kt)
+      enddo
+      x = c_loc(tem1Surf)
+      
+   case("TcrEro")
+      k = size(stmpar%trapar%par, 2) ! equivalent to stmpar%lsedtot
+      if (.not. allocated(TcrEro)) then
+         allocate (TcrEro(ndx,k))
+      endif
+      do i = 1,k
+         if (stmpar%trapar%iform(i) == -3) then ! if transport formula is Parteniades-Krone
+            n = stmpar%trapar%iparfld(13,i)
+            if (n > 0) then ! if spatially varying
+               TcrEro(:,i) = stmpar%trapar%parfld(:,n)
+            else ! if not spatially varying
+               TcrEro(:,i) = stmpar%trapar%par(13,i)
+            endif
+         else ! Other transport formula than Parteniades-Krone
+            TcrEro(:,i) = -999
+         endif
+      enddo
+      x = c_loc(TcrEro)
+      
+   case("TcrSed")
+      k = size(stmpar%trapar%par, 2) ! equivalent to stmpar%lsedtot
+      if (.not. allocated(TcrSed)) then
+         allocate (TcrSed(ndx,k))
+      endif
+      do i = 1,k
+         if (stmpar%trapar%iform(i) == -3) then ! if transport formula is Parteniades-Krone
+            n = stmpar%trapar%iparfld(12,i)
+            if (n > 0) then ! if spatially varying
+               TcrSed(:,i) = stmpar%trapar%parfld(:,n)
+            else ! if not spatially varying
+               TcrSed(:,i) = stmpar%trapar%par(12,i)
+            endif
+         else ! Other transport formula than Parteniades-Krone
+            TcrSed(:,i) = -999
+         endif
+      enddo
+      x = c_loc(TcrSed)
+
    end select
 
    ! Try to parse variable name as slash-separated id (e.g., 'weirs/Lith/crest_level')
@@ -1124,7 +1219,7 @@ subroutine get_var(c_var_name, x) bind(C, name="get_var")
    call str_token(tmp_var_name, varset_name, DELIMS='/')
    ! Check for valid group/set name (e.g. 'observations')
    select case(varset_name)
-   case ("pumps", "weirs", "orifices", "gates", "generalstructures", "culverts", "sourcesinks", "dambreak", "observations", "crosssections", "laterals")
+   case ("pumps", "weirs", "orifices", "gates", "generalstructures", "culverts", "longculverts", "sourcesinks", "dambreak", "observations", "crosssections", "laterals")
       ! A valid group name, now parse the location id first...
       call str_token(tmp_var_name, item_name, DELIMS='/')
       if (len_trim(item_name) > 0) then
@@ -1175,10 +1270,15 @@ end subroutine get_var
 subroutine set_var(c_var_name, xptr) bind(C, name="set_var")
    !DEC$ ATTRIBUTES DLLEXPORT :: set_var
    ! Return a pointer to the variable
+   use unstruc_model
+   use m_partitioninfo, only: jampi
+   use MessageHandling
    use iso_c_binding, only: c_double, c_char, c_loc, c_f_pointer
 
    character(kind=c_char), intent(in) :: c_var_name(*)
    type(c_ptr), value, intent(in) :: xptr
+
+   integer, external :: init_openmp
 
    character(kind=c_char), dimension(:), pointer :: x_0d_char_ptr => null()
    real(c_double), pointer :: x_0d_double_ptr
@@ -1195,8 +1295,11 @@ subroutine set_var(c_var_name, xptr) bind(C, name="set_var")
    real(c_float), pointer  :: x_2d_float_ptr(:,:)
    real(c_float), pointer  :: x_3d_float_ptr(:,:,:)
    ! The fortran name of the attribute name
-   character(len=strlen(c_var_name)) :: var_name
-   integer :: i
+   character(len=strlen(c_var_name))            :: var_name
+   character(kind=c_char),dimension(:), pointer :: c_value => null()
+   character(len=:), allocatable                :: levels
+   character(len=10)                            :: threadsString = ' '
+   integer :: i, k, kb, kt, ipos, n, ierr
 
    ! Store the name
    var_name = char_array_to_string(c_var_name, strlen(c_var_name))
@@ -1205,6 +1308,22 @@ subroutine set_var(c_var_name, xptr) bind(C, name="set_var")
 
    ! custom overrides
    select case(var_name)
+   case("threads")
+      ! max #threads (component setting in dimr config, passed as string)
+      call c_f_pointer(xptr, c_value,[MAXSTRLEN])
+      if (associated(c_value)) then
+         threadsString = ' '
+         do i=1,min(len(threadsString), MAXSTRLEN)
+            if (c_value(i) == c_null_char) exit
+            threadsString(i:i) = c_value(i)
+         enddo
+         read(threadsString,'(I)', iostat = ierr) md_numthreads
+         if (ierr == 0) then
+            ! Activate the new OpenMP threads setting
+            ierr = init_openmp(md_numthreads, jampi)
+         end if
+      endif
+      return
    case("zk")
       do i = 1, numk
             call update_land_nodes(i, x_1d_double_ptr(i))
@@ -1212,8 +1331,103 @@ subroutine set_var(c_var_name, xptr) bind(C, name="set_var")
       call land_change_callback()
 
       return
+   case("processlibrary")
+      call c_f_pointer(xptr, c_value,[MAXSTRLEN])
+      md_pdffile = " "
+      if (associated(c_value)) then
+         do i=1,MAXSTRLEN
+            if (c_value(i) == c_null_char) exit
+            md_pdffile(i:i) = c_value(i)
+         enddo
+      endif
+      return
+   case("openprocessdllso")
+      call c_f_pointer(xptr, c_value,[MAXSTRLEN])
+      md_oplfile = " "
+      if (associated(c_value)) then
+         do i=1,MAXSTRLEN
+            if (c_value(i) == c_null_char) exit
+            md_oplfile(i:i) = c_value(i)
+         enddo
+      endif
+      return
+   case("bloomspecies")
+      call c_f_pointer(xptr, c_value,[MAXSTRLEN])
+      md_blmfile = " "
+      if (associated(c_value)) then
+         do i=1,MAXSTRLEN
+            if (c_value(i) == c_null_char) exit
+            md_blmfile(i:i) = c_value(i)
+         enddo
+      endif
+      return
+   case("verbose")
+      call c_f_pointer(xptr, c_value,[MAXSTRLEN])
+      levels = ''
+      do i = 1, MAXSTRLEN
+         if (c_value(i) == c_null_char) exit
+         levels = levels // c_value(i)
+      enddo
+      ipos = index(levels, ':')
+      if (ipos > 0) then
+         loglevel_StdOut = stringtolevel(levels(:ipos-1))
+         loglevel_file   = stringtolevel(levels(ipos+1:))
+      else
+         loglevel_StdOut = stringtolevel(levels)
+         loglevel_file   = stringtolevel(levels)
+      endif
+      call initMessaging(mdia)
+      return
+   case("TcrEro")
+      k = size(stmpar%trapar%par, 2) ! equivalent to stmpar%lsedtot
+      if (.not. allocated(TcrEro)) then
+         allocate (TcrEro(ndx,k))
+      endif
+      call c_f_pointer(xptr, x_2d_double_ptr, shape(TcrEro))
+      TcrEro(:,:) = x_2d_double_ptr
+      do i = 1,size(TcrEro,2)
+         if (stmpar%trapar%iform(i) == -3) then ! if transport formula is Parteniades-Krone
+            n = stmpar%trapar%iparfld(13,i)
+            if (n > 0) then                     ! if spatially varying
+               stmpar%trapar%parfld(:,n) = TcrEro(:,i)
+            else                                ! if not spatially varying
+               if (minval(TcrEro(:,i)) == maxval(TcrEro(:,i))) then    ! if provided data is uniform
+                  stmpar%trapar%par(13,i) = TcrEro(1,i)
+               else
+                  call mess(LEVEL_ERROR, 'TcrEro isn''t defined as spatially varying, therefore set_var must be called with a constant field.')
+               endif 
+            endif
+         else
+            call mess(LEVEL_ERROR, 'TcrEro can only be set for fractions governed by the Parteniades-Krone transport formula.')
+         endif
+      enddo
+      return
+   case("TcrSed")
+      k = size(stmpar%trapar%par, 2) ! equivalent to stmpar%lsedtot
+      if (.not. allocated(TcrSed)) then
+         allocate (TcrSed(ndx,k))
+      endif
+      call c_f_pointer(xptr, x_2d_double_ptr, shape(TcrSed))
+      TcrSed(:,:) = x_2d_double_ptr
+      do i = 1,size(TcrSed,2)
+         if (stmpar%trapar%iform(i) == -3) then ! if transport formula is Parteniades-Krone
+            n = stmpar%trapar%iparfld(12,i)
+            if (n > 0) then                     ! if spatially varying
+               stmpar%trapar%parfld(:,n) = TcrSed(:,i)
+            else                                ! if not spatially varying
+               if (minval(TcrSed(:,i)) == maxval(TcrSed(:,i))) then    ! if provided data is uniform
+                  stmpar%trapar%par(12,i) = TcrSed(1,i)
+               else
+                  call mess(LEVEL_ERROR, 'TcrSed isn''t defined as spatially varying, therefore set_var must be called with a constant field.')
+               endif 
+            endif
+         else
+            call mess(LEVEL_ERROR, 'TcrSed can only be set for fractions governed by the Parteniades-Krone transport formula.')
+         endif
+      enddo
+      return
    end select
-  
+
    if (numconst > 0) then
       iconst = findname(numconst, const_names, var_name)
    endif
@@ -1241,7 +1455,7 @@ subroutine set_var_slice(c_var_name, c_start, c_count, xptr) bind(C, name="set_v
    integer(c_int), intent(in)         :: c_count(*)
    character(kind=c_char), intent(in) :: c_var_name(*)
    type(c_ptr), value, intent(in) :: xptr
-   integer :: i
+   integer :: i, k, n
 
    real(c_double), pointer :: x_0d_double_ptr
 
@@ -1315,6 +1529,48 @@ subroutine set_var_slice(c_var_name, c_start, c_count, xptr) bind(C, name="set_v
 
       !zkdropstep = value - zk(index + 1)
       !call dropland(xz(index + 1), yz(index + 1), 1)
+      return
+      
+   case("TcrEro")
+      call c_f_pointer(xptr, x_2d_double_ptr, (/c_count(1), c_count(2)/))
+      k = size(stmpar%trapar%par, 2) ! equivalent to stmpar%lsedtot
+      if (.not. allocated(TcrEro)) then
+         allocate (TcrEro(ndx,k))
+      endif
+      TcrEro(c_start(1)+1:(c_start(1)+c_count(1)),c_start(2)+1:(c_start(2)+c_count(2))) = x_2d_double_ptr
+      do i = c_start(2)+1,(c_start(2)+c_count(2))
+         if (stmpar%trapar%iform(i) == -3) then ! if transport formula is Parteniades-Krone
+            n = stmpar%trapar%iparfld(13,i)
+            if (n > 0) then                     ! if spatially varying
+               stmpar%trapar%parfld(c_start(1)+1:(c_start(1)+c_count(1)),n) = TcrEro(c_start(1)+1:(c_start(1)+c_count(1)),i)
+            else                                ! if not spatially varying: the user is not allowed to change it partially by a different value
+               call mess(LEVEL_ERROR, 'TcrEro isn''t defined as spatially varying, therefore the set_var_slice call is disabled.')
+            endif
+         else
+            call mess(LEVEL_ERROR, 'TcrEro can only be set for fractions governed by the Parteniades-Krone transport formula.')
+         endif
+      enddo
+      return
+     
+   case("TcrSed")
+     call c_f_pointer(xptr, x_2d_double_ptr, (/c_count(1), c_count(2)/))
+      k = size(stmpar%trapar%par, 2) ! equivalent to stmpar%lsedtot
+      if (.not. allocated(TcrSed)) then
+         allocate (TcrSed(ndx,k))
+      endif
+      TcrSed(c_start(1)+1:(c_start(1)+c_count(1)),c_start(2)+1:(c_start(2)+c_count(2))) = x_2d_double_ptr
+      do i = c_start(2)+1,(c_start(2)+c_count(2))
+         if (stmpar%trapar%iform(i) == -3) then ! if transport formula is Parteniades-Krone
+            n = stmpar%trapar%iparfld(12,i)
+            if (n > 0) then                     ! if spatially varying
+               stmpar%trapar%parfld(c_start(1)+1:(c_start(1)+c_count(1)),n) = TcrSed(c_start(1)+1:(c_start(1)+c_count(1)),i)
+            else                                ! if not spatially varying: the user is not allowed to change it partially by a different value
+               call mess(LEVEL_ERROR, 'TcrSed isn''t defined as spatially varying, therefore the set_var_slice call is disabled.')
+            endif
+         else
+            call mess(LEVEL_ERROR, 'TcrSed can only be set for fractions governed by the Parteniades-Krone transport formula.')
+         endif
+      enddo
       return
    end select
 
@@ -1496,6 +1752,7 @@ subroutine get_compound_field(c_var_name, c_item_name, c_field_name, x) bind(C, 
 
    integer :: iconst
    integer :: itrac
+   integer :: k1
 
    ! The fortran name of the attribute name
    character(len=MAXSTRLEN) :: var_name
@@ -1638,6 +1895,20 @@ subroutine get_compound_field(c_var_name, c_item_name, c_field_name, x) bind(C, 
             end if
             return
          end select
+
+      ! LONGCULVERTS
+      case("longculverts")
+         call getStructureIndex('longculverts', item_name, item_index, is_in_network)
+         if (item_index <= 0) then
+            return
+         endif
+      
+         select case(field_name)
+         case("valveRelativeOpening")
+            x = get_valve_relative_opening_c_loc(longculverts(item_index))  
+            return
+         end select
+
    ! SOURCE-SINKS
    case("sourcesinks")
       call getStructureIndex('sourcesinks', item_name, item_index, is_in_network)
@@ -1704,6 +1975,12 @@ subroutine get_compound_field(c_var_name, c_item_name, c_field_name, x) bind(C, 
       case("temperature")
          x = c_loc(valobs(IPNT_TEM1, item_index))
          return
+      case("velocity")
+         x = c_loc(valobs(IPNT_UMAG, item_index))
+         return
+      case("discharge")
+         x = c_loc(valobs(IPNT_QMAG, item_index))
+         return
       case default
    !       assume this is a tracer
    !       get constituent number for this tracer     
@@ -1762,6 +2039,11 @@ subroutine get_compound_field(c_var_name, c_item_name, c_field_name, x) bind(C, 
       select case(field_name)
          case("water_discharge")
             x = c_loc(qplat(item_index))
+            return
+         case("water_level")
+            ! NOTE: Return the "point-value", not an area-averaged water level (in case of lateral polygons).
+            k1 = nnlat(n1latsg(item_index))
+            x = c_loc(s1(k1))
             return
       end select
    end select ! var_name
@@ -2133,6 +2415,8 @@ subroutine get_compound_field_name(c_var_name, c_field_index, c_field_name) bind
       select case(field_index)
       case(1)
          field_name = "water_discharge"
+      case(2)
+         field_name = "water_level"
       case default
          return
       end select
@@ -3085,7 +3369,9 @@ subroutine write_partition_metis(c_netfile_in, c_netfile_out, c_npart, c_jaconti
       jacontiguous = 1
    endif
 
-   call partition_METIS_to_idomain(npart, jacontiguous, md_pmethod)
+   call cosphiunetcheck(1)
+
+   call partition_METIS_to_idomain(npart, jacontiguous, md_pmethod, 0)
 
    ndomains = npart
 
@@ -3094,7 +3380,7 @@ subroutine write_partition_metis(c_netfile_in, c_netfile_out, c_npart, c_jaconti
    netfile_out = char_array_to_string(c_netfile_out, strlen(c_netfile_out))
 
    if(ndomains > 1) then
-      call partition_write_domains(netfile_out,6,1,0)
+      call partition_write_domains(netfile_out, 6, 1, 0, md_partugrid)
    endif
 
 end subroutine write_partition_metis
@@ -3133,6 +3419,8 @@ subroutine write_partition_pol(c_netfile_in, c_netfile_out, c_polfile) bind(C, n
       call findcells(0)
    end if
 
+   call cosphiunetcheck(1)
+
    polfile = char_array_to_string(c_polfile, strlen(c_polfile))
 
    call newfil(minp, polfile)
@@ -3145,7 +3433,7 @@ subroutine write_partition_pol(c_netfile_in, c_netfile_out, c_polfile) bind(C, n
    netfile_out = char_array_to_string(c_netfile_out, strlen(c_netfile_out))
 
    if(ndomains > 1) then
-      call partition_write_domains(netfile_out,6,1,0)
+      call partition_write_domains(netfile_out, 6, 1, 0, md_partugrid)
    endif
 
 end subroutine write_partition_pol

@@ -158,13 +158,13 @@
 		<File RelativePath=".\src\mod_timings\m_timers_waq.f90"/>
 		<File RelativePath=".\src\mod_timings\m_timings.f90"/></Filter>
 		<Filter Name="waq_utils">
-		<File RelativePath=".\src\waq_utils\avundf.f"/>
 		<File RelativePath=".\src\waq_utils\cnvper.f"/>
 		<File RelativePath=".\src\waq_utils\cnvtim.f"/>
 		<File RelativePath=".\src\waq_utils\d00sub.f"/>
 		<File RelativePath=".\src\waq_utils\dattim.f"/>
 		<File RelativePath=".\src\waq_utils\delwaq_loads.f"/>
 		<File RelativePath=".\src\waq_utils\dhagg2.f"/>
+		<File RelativePath=".\src\waq_utils\m_aggregation_types.F90">
 		<File RelativePath=".\src\waq_utils\dhaggr.f">
 			<FileConfiguration Name="Release|Win32">
 				<Tool Name="VFFortranCompilerTool" ReentrantCode="reentrancyThreaded" LocalVariableStorage="localStorageAutomatic"/></FileConfiguration></File>
@@ -249,7 +249,7 @@
 		<File RelativePath=".\src\waq_utils\SRSTOP.F"/>
 		<File RelativePath=".\src\waq_utils\stasub.f"/>
 		<File RelativePath=".\src\waq_utils\strip.f"/>
-		<File RelativePath=".\src\waq_utils\unlock.f90"/>
+		<File RelativePath=".\src\waq_utils\startup_screen.f90"/>
 		<File RelativePath=".\src\waq_utils\usedcp.f"/>
 		<File RelativePath=".\src\waq_utils\wapdef.f"/>
 		<File RelativePath=".\src\waq_utils\waqmem.f90"/>

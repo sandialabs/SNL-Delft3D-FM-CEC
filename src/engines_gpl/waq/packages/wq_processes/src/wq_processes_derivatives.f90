@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -30,8 +30,9 @@
 
       integer notot, noflux, nflux1, nfluxp, noseg
       integer isys, iflux, iseg, ndt
-      real    deriv(noseg,notot) , stochi(notot,noflux) , flux(noflux,noseg) , volume(noseg)
-      real    st, fact
+      real    stochi(notot,noflux), flux(noflux,noseg)
+      real(8) deriv(noseg,notot), volume(noseg)
+      real(8) st, fact
 
       integer(4), save :: ithndl = 0
       if (timon) call timstrt( "wq_processes_derivatives", ithndl )

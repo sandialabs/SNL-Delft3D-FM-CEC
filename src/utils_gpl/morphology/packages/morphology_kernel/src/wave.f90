@@ -2,7 +2,7 @@ subroutine wave(uo        ,t         ,uuvar     ,pi        ,wh        , &
               & c         ,rk        ,h         ,ag        ,wavek     )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -26,8 +26,8 @@ subroutine wave(uo        ,t         ,uuvar     ,pi        ,wh        , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: wave.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_gpl/morphology/packages/morphology_kernel/src/wave.f90 $
+!  $Id: wave.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_gpl/morphology/packages/morphology_kernel/src/wave.f90 $
 !!--description-----------------------------------------------------------------
 ! computes a correction factor to
 ! account for the wave effect on the
@@ -39,7 +39,7 @@ subroutine wave(uo        ,t         ,uuvar     ,pi        ,wh        , &
     use precision
     implicit none
 !
-! Call variables
+! Arguments
 !
     real(fp), intent(in)               :: ag !  Description and declaration in esm_alloc_real.f90
     real(fp), intent(in)               :: c !  Description and declaration in esm_alloc_real.f90

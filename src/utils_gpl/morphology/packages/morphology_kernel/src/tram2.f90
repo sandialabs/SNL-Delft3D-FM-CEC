@@ -1,8 +1,8 @@
-subroutine tram2 (numrealpar,realpar   ,wave      ,i2d3d     ,par       , &
-                & kmax      ,bed       ,dzduu     ,dzdvv     ,rksrs     , &
-                & tauadd    ,taucr0    ,aks       ,eps       ,camax     , &
-                & frac      ,sig       ,thick     ,ws        , &
-                & dicww     ,ltur      ,aks_ss3d  , &
+subroutine tram2 (numrealpar,realpar   ,wave      ,i2d3d     ,npar      , &
+                & par       ,kmax      ,bed       ,dzduu     ,dzdvv     , &
+                & rksrs     ,tauadd    ,taucr0    ,aks       ,eps       , &
+                & camax     ,frac      ,sig       ,thick     ,ws        , &
+                & dicww     ,ltur      ,aks_ss3d  ,iform     , &
                 & kmaxsd    ,taurat    ,caks      ,caks_ss3d ,concin    , &
                 & seddif    ,sigmol    ,rsedeq    ,scour     ,bedw      , &
                 & susw      ,sbcu      ,sbcv      ,sbwu      ,sbwv      , &
@@ -10,7 +10,7 @@ subroutine tram2 (numrealpar,realpar   ,wave      ,i2d3d     ,par       , &
                 & message   )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                     
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                     
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -34,8 +34,8 @@ subroutine tram2 (numrealpar,realpar   ,wave      ,i2d3d     ,par       , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: tram2.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_gpl/morphology/packages/morphology_kernel/src/tram2.f90 $
+!  $Id: tram2.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_gpl/morphology/packages/morphology_kernel/src/tram2.f90 $
 !!--description-----------------------------------------------------------------
 !
 ! computes sediment transport according to
@@ -50,52 +50,54 @@ subroutine tram2 (numrealpar,realpar   ,wave      ,i2d3d     ,par       , &
     !
     implicit none
 !
-! Call variables
+! Arguments
 !
-    integer                         , intent(in)   :: numrealpar
-    real(hp), dimension(numrealpar) , intent(inout):: realpar
-    !
+    logical                         , intent(in)   :: scour
     logical                         , intent(in)   :: wave
     integer                         , intent(in)   :: i2d3d
+    integer                         , intent(in)   :: iform    ! transport formula number -2 for standard Van Rijn (2007), -4 for SANTOSS extended version
     integer                         , intent(in)   :: kmax
+    integer                         , intent(in)   :: ltur     !  Description and declaration in iidim.f90
+    integer                         , intent(in)   :: npar
+    integer                         , intent(in)   :: numrealpar
     real(fp)                        , intent(in)   :: bed
+    real(fp)                        , intent(in)   :: bedw
+    real(fp)                        , intent(in)   :: camax
+    real(fp), dimension(0:kmax)     , intent(in)   :: dicww    !  Description and declaration in rjdim.f90
     real(fp)                        , intent(in)   :: dzduu    !  Description and declaration in rjdim.f90
     real(fp)                        , intent(in)   :: dzdvv    !  Description and declaration in rjdim.f90
+    real(fp)                        , intent(in)   :: eps
+    real(fp)                        , intent(in)   :: frac     !  Description and declaration in rjdim.f90
     real(fp)                        , intent(in)   :: rksrs    !  Description and declaration in rjdim.f90
+    real(fp), dimension(kmax)       , intent(in)   :: sig      !  Description and declaration in rjdim.f90
+    real(fp)                        , intent(in)   :: sigmol   !  Description and declaration in rjdim.f90
+    real(fp)                        , intent(in)   :: susw
     real(fp)                        , intent(in)   :: tauadd
     real(fp)                        , intent(in)   :: taucr0
-    real(fp)                        , intent(in)   :: eps
-    real(fp)                        , intent(in)   :: camax
-    real(fp)                        , intent(in)   :: frac     !  Description and declaration in rjdim.f90
-    real(fp), dimension(kmax)       , intent(in)   :: sig      !  Description and declaration in rjdim.f90
+    real(fp)                        , intent(in)   :: tetacr
     real(fp), dimension(kmax)       , intent(in)   :: thick    !  Description and declaration in rjdim.f90
     real(fp), dimension(0:kmax)     , intent(in)   :: ws       !  Description and declaration in rjdim.f90
-    real(fp), dimension(0:kmax)     , intent(in)   :: dicww    !  Description and declaration in rjdim.f90
-    integer                         , intent(in)   :: ltur     !  Description and declaration in iidim.f90
-    real(fp)                        , intent(in)   :: sigmol   !  Description and declaration in rjdim.f90
-    logical                         , intent(in)   :: scour
-    real(fp)                        , intent(in)   :: bedw
-    real(fp)                        , intent(in)   :: susw
-    real(fp)                        , intent(in)   :: tetacr
-    real(fp), dimension(30)         , intent(in)   :: par
     !
-    real(fp)                        , intent(out)  :: aks
-    real(fp), dimension(kmax)       , intent(out)  :: rsedeq   ! undefined if (i2d3d==3 .and. .not. epspar .and. caks>1e-6)
-    real(fp)                        , intent(out)  :: aks_ss3d
+    real(fp), dimension(kmax)       , intent(inout):: concin   ! if (i2d3d==2 .or. epspar) then output else input
+    real(fp), dimension(npar)       , intent(inout):: par
+    real(hp), dimension(numrealpar) , intent(inout):: realpar
+    !
+    logical                         , intent(out)  :: error
     integer                         , intent(out)  :: kmaxsd
-    real(fp)                        , intent(out)  :: taurat
+    real(fp)                        , intent(out)  :: aks
+    real(fp)                        , intent(out)  :: aks_ss3d
     real(fp)                        , intent(out)  :: caks
     real(fp)                        , intent(out)  :: caks_ss3d
     real(fp)                        , intent(out)  :: conc2d
-    real(fp), dimension(kmax)       , intent(inout):: concin   ! if (i2d3d==2 .or. epspar) then output else input
-    real(fp), dimension(0:kmax)     , intent(out)  :: seddif   !  Description and declaration in rjdim.f90
+    real(fp), dimension(kmax)       , intent(out)  :: rsedeq   ! undefined if (i2d3d==3 .and. .not. epspar .and. caks>1e-6)
     real(fp)                        , intent(out)  :: sbcu
     real(fp)                        , intent(out)  :: sbcv
     real(fp)                        , intent(out)  :: sbwu
     real(fp)                        , intent(out)  :: sbwv
     real(fp)                        , intent(out)  :: sswu
     real(fp)                        , intent(out)  :: sswv
-    logical                         , intent(out)  :: error
+    real(fp), dimension(0:kmax)     , intent(out)  :: seddif   !  Description and declaration in rjdim.f90
+    real(fp)                        , intent(out)  :: taurat
     character(*)                    , intent(out)  :: message     ! Contains error message
 !
 ! Local variables
@@ -103,6 +105,7 @@ subroutine tram2 (numrealpar,realpar   ,wave      ,i2d3d     ,par       , &
     integer :: iopsus
     real(fp):: pangle
     real(fp):: fpco
+    real(fp):: taubcw
     integer :: subiw
     logical :: epspar
     !
@@ -136,8 +139,10 @@ subroutine tram2 (numrealpar,realpar   ,wave      ,i2d3d     ,par       , &
     real(fp):: gamtcr
     !
     integer  :: k
+    integer  :: wform
     real(fp) :: avgcu
     real(fp) :: avgu
+    real(fp) :: awb
     real(fp) :: bakdif
     real(fp) :: betam
     real(fp) :: delm
@@ -146,6 +151,8 @@ subroutine tram2 (numrealpar,realpar   ,wave      ,i2d3d     ,par       , &
     real(fp) :: drho
     real(fp) :: dss
     real(fp) :: dz
+    real(fp) :: epsmax
+    real(fp) :: epsmxc
     real(fp) :: fc1
     real(fp) :: fcc
     real(fp) :: ff
@@ -157,7 +164,6 @@ subroutine tram2 (numrealpar,realpar   ,wave      ,i2d3d     ,par       , &
     real(fp) :: phicur
     real(fp) :: psi
     real(fp) :: ra
-    real(fp) :: sag
     real(fp) :: ta
     real(fp) :: tauc
     real(fp) :: taucr1
@@ -173,8 +179,12 @@ subroutine tram2 (numrealpar,realpar   ,wave      ,i2d3d     ,par       , &
     real(fp) :: uwbih
     real(fp) :: uwc
     real(fp) :: v
+    real(fp) :: vcr
     real(fp) :: z
     real(fp) :: zusus
+    real(fp) :: phi_phase
+    real(fp) :: r
+    real(fp) :: uw_lt
 !
 !! executable statements -------------------------------------------------------
 !
@@ -220,6 +230,8 @@ subroutine tram2 (numrealpar,realpar   ,wave      ,i2d3d     ,par       , &
     gamtcr = par(16)
     salmax = par(17)
     betam  = par(18)
+    wform  = int(par(19))
+    ! NOTE ADDING PARAMETERS HERE INFLUENCES SANTOSS PARAMETERS AS WELL: numbers in santoss.f90 continue from here!
     !
     drho  = (rhosol-rhowat) / rhowat
     !
@@ -232,20 +244,19 @@ subroutine tram2 (numrealpar,realpar   ,wave      ,i2d3d     ,par       , &
        ws0 = 1.1_fp*sqrt(drho*ag*di50)
     endif
     !
-    sag    = sqrt(ag)
-    !
     call bedbc2004(tp        ,rhowat    , &
                  & h1        ,umod      ,d10       ,zumod     ,di50      , &
                  & d90       ,z0cur     ,z0rou     ,drho      ,dstar     , &
                  & taucr0    ,u2dhim    ,aks       ,ra        ,usus      , &
                  & zusus     ,uwb       ,muc       ,tauwav    ,ustarc    , &
                  & tauc      ,taurat    ,ta        ,caks      ,dss       , &
-                 & uwc       ,uuu       ,vvv       ,rlabda    , &
+                 & uwc       ,uuu       ,vvv       ,rlabda    ,taubcw    , &
                  & hrms      ,delw      ,uon       ,uoff      ,uwbih     , &
                  & delm      ,fc1       ,fw1       ,phicur    ,rksrs     , &
                  & i2d3d     ,mudfrac   ,fsilt     ,taucr1    ,psi       , &
                  & dzduu     ,dzdvv     ,eps       ,camax     ,iopsus    , &
-                 & ag        ,wave      ,tauadd    ,gamtcr    ,betam     ) 
+                 & ag        ,wave      ,tauadd    ,gamtcr    ,betam     , &
+                 & awb       ,wform     ,phi_phase ,r         ,uw_lt     ) 
     realpar(RP_DSS)   = real(dss    ,hp)
     !
     ! Find bottom cell for SAND sediment calculations and store for use
@@ -278,11 +289,15 @@ subroutine tram2 (numrealpar,realpar   ,wave      ,i2d3d     ,par       , &
                        & tauwav    ,tauc      ,ltur      ,delw      ,rhowat    , &
                        & uwbih     ,aks       ,caks      ,caks_ss3d ,deltas    , &
                        & aks_ss3d  ,di50      ,salinity  ,ws0       ,psi       , &
-                       & epspar    ,eps       ,vonkar    ,salmax    ,wave      )
+                       & epspar    ,eps       ,vonkar    ,salmax    ,wave      , &
+                       & epsmax    ,epsmxc    )
     else
        do k = 1, kmax
           seddif(k) = dicww(k)
        enddo
+       deltas = 0.05_fp
+       epsmax = 0.0_fp
+       epsmxc = missing_value
     endif
     !
     ! Calculate equilibrium concentration profile for sediment
@@ -372,28 +387,56 @@ subroutine tram2 (numrealpar,realpar   ,wave      ,i2d3d     ,par       , &
     endif
     !
     if (scour) then
-       utot = ustarc * chezy / sag
+       utot = ustarc * chezy / sqrt(ag)
     else
        utot = avgu
     endif
     u     = utot * uuu / (umod+eps)
     v     = utot * vvv / (umod+eps)
     !
-    ! VAN RIJN 2004 Instantaneous bed load
+    ! Instantaneous bed load
     !
     if ((bed>0.0_fp .or. bedw>0.0_fp .or. susw>0.0_fp) .and. caks>0.0_fp) then
-       call bedtr2004(u2dhim    ,di50      ,d90       ,h1        ,rhosol    , &
-                    & tp        ,teta      ,uon       ,uoff      ,uwb       , &
-                    & taucr1    ,delm      ,ra        ,z0cur     ,fc1       , &
-                    & fw1       ,dstar     ,drho      ,phicur    ,sbcu      , &
-                    & sbcv      ,sbwu      ,sbwv      ,sswu      ,sswv      , &
-                    & tetacr    ,aks       ,fsilt     ,sig       ,thick     , &
-                    & concin    ,kmax      ,deltas    ,ws(1)     ,rksrs     , &
-                    & dzduu     ,dzdvv     ,rhowat    ,ag        ,bedw      , &
-                    & pangle    ,fpco      ,susw      ,wave      ,eps       , &
-                    & subiw     ,error     ,message   )
-       if (error) return
+       if (iform == -2) then
+           ! standard Van Rijn (2007) bed load
+           call bedtr2004(u2dhim    ,di50      ,d90       ,h1        ,rhosol    , &
+                        & tp        ,teta      ,uon       ,uoff      ,uwb       , &
+                        & taucr1    ,delm      ,ra        ,z0cur     ,fc1       , &
+                        & fw1       ,dstar     ,drho      ,phicur    ,sbcu      , &
+                        & sbcv      ,sbwu      ,sbwv      ,sswu      ,sswv      , &
+                        & tetacr    ,aks       ,fsilt     ,sig       ,thick     , &
+                        & concin    ,kmax      ,deltas    ,ws(1)     ,rksrs     , &
+                        & dzduu     ,dzdvv     ,rhowat    ,ag        ,bedw      , &
+                        & pangle    ,fpco      ,susw      ,wave      ,eps       , &
+                        & subiw     ,vcr       ,error     ,message   ,wform     , &
+                        & r         ,phi_phase ,uw_lt     )
+           ! van Rijn (2004) specific output
+           par     = missing_value
+           par( 1) = tauc
+           par( 2) = tauwav
+           par( 3) = taubcw
+           par( 4) = usus
+           par( 5) = zusus
+           par( 6) = dss
+           par( 7) = caks
+           par( 8) = aks
+           par( 9) = deltas
+           par(10) = epsmxc
+           par(11) = epsmax
+           par(12) = uon
+           par(13) = uoff
+           par(14) = vcr
+           par(15) = uwb
+           par(16) = awb
+           par(17) = rksrs
+       elseif (iform == -4) then
+           ! extended SANTOSS bed load
+           call santoss(numrealpar, realpar, par, npar, dzduu, dzdvv, i2d3d, &
+                      & sbcu, sbcv, sbwu, sbwv, sswu, sswv , &
+                      & error, message)
+       endif
     else
+       !par   = -999.0_fp
        error = .false.
     endif
 end subroutine tram2

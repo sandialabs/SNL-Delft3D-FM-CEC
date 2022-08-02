@@ -2,7 +2,7 @@ subroutine ua_rvr(facas,    facsk,    sws,    h,    hrms, &
                &  rlabda, uorb, ua)
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -26,8 +26,8 @@ subroutine ua_rvr(facas,    facsk,    sws,    h,    hrms, &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: ua_rvr.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_gpl/morphology/packages/morphology_kernel/src/ua_rvr.f90 $
+!  $Id: ua_rvr.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_gpl/morphology/packages/morphology_kernel/src/ua_rvr.f90 $
 !!--description-----------------------------------------------------------------
 ! computes velocity asymmetry due to waves according to
 ! Ruessink et al. 2009 JGR
@@ -74,7 +74,7 @@ subroutine ua_rvr(facas,    facsk,    sws,    h,    hrms, &
     alpha = -log10(exp(1.0_fp))/m4
     beta  = exp(m3/m4)
     !
-    waveno = twopi / rlabda
+    waveno = twopi / max(rlabda,1.0e-12_fp)
     urs = 3.0_fp/8.0_fp*sqrt(2.0_fp)*hrms*waveno/(waveno*h)**3              !Ursell number
     urs = max(urs,1e-12_fp)
     bm = m1 + (m2-m1)/(1.0_fp+beta*urs**alpha)                              !Boltzmann sigmoid (eq 6)         

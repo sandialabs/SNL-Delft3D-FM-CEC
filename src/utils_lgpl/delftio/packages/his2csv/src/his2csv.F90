@@ -1,6 +1,6 @@
 !----- LGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This library is free software; you can redistribute it and/or                
 !  modify it under the terms of the GNU Lesser General Public                   
@@ -24,8 +24,8 @@
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: his2csv.F90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/delftio/packages/his2csv/src/his2csv.F90 $
+!  $Id: his2csv.F90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_lgpl/delftio/packages/his2csv/src/his2csv.F90 $
 
 program his2csv
 
@@ -178,8 +178,6 @@ program his2csv
 
     if ( retVal == 0 ) then
         
-        outFileHandle = DioNewLun()
-
         if (numArgs>2) then
             outFileName = trim(parName)
             do i = 1, len_trim(outFileName)
@@ -192,7 +190,7 @@ program his2csv
             outFileName = trim(hisFileName(1:len_trim(hisFileName)-4))//'.csv'
         endif
 
-        open(outFileHandle,file=outFileName)
+        open(newunit=outFileHandle,file=outFileName)
 
         if (parName == ' ') then  ! all values
 

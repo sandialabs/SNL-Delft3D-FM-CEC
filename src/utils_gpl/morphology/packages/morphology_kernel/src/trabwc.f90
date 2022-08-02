@@ -1,8 +1,8 @@
-subroutine trabwc(utot      ,di        ,taub      ,par       ,sbot      , &
-                & ssus      ,dg        ,fs        ,chezy     )
+subroutine trabwc(utot      ,di        ,taub      ,npar      ,par       , &
+                & sbot      ,ssus      ,dg        ,fs        ,chezy     )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -26,8 +26,8 @@ subroutine trabwc(utot      ,di        ,taub      ,par       ,sbot      , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: trabwc.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_gpl/morphology/packages/morphology_kernel/src/trabwc.f90 $
+!  $Id: trabwc.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_gpl/morphology/packages/morphology_kernel/src/trabwc.f90 $
 !!--description-----------------------------------------------------------------
 !
 !  Computes sediment transport according to the Wilcock and Crowe sediment
@@ -41,17 +41,19 @@ subroutine trabwc(utot      ,di        ,taub      ,par       ,sbot      , &
     !
     implicit none
 !
-! Call variables
+! Arguments
 !
-    real(fp)               , intent(in)  :: utot   ! flow velocity
-    real(fp)               , intent(in)  :: di     ! Grain size specified as d50
-    real(fp)               , intent(in)  :: taub   ! bed shear stress [N/m2]
-    real(fp)               , intent(out) :: sbot   ! bed load transport, magnitude [m3/m/s]
-    real(fp)               , intent(out) :: ssus   ! suspended sediment transport
-    real(fp)               , intent(in)  :: dg     ! mean surface grain size [m]
-    real(fp)               , intent(in)  :: fs     ! sand fraction on surface
-    real(fp)               , intent(in)  :: chezy  ! local Chézy value [m1/2/s]
-    real(fp), dimension(30), intent(in)  :: par    ! sediment parameter list
+    integer                  , intent(in)    :: npar
+    real(fp)                 , intent(in)    :: chezy  ! local Chézy value [m1/2/s]
+    real(fp)                 , intent(in)    :: dg     ! mean surface grain size [m]
+    real(fp)                 , intent(in)    :: di     ! Grain size specified as d50
+    real(fp)                 , intent(in)    :: fs     ! sand fraction on surface
+    real(fp), dimension(npar), intent(in)    :: par    ! sediment parameter list
+    real(fp)                 , intent(in)    :: taub   ! bed shear stress [N/m2]
+    real(fp)                 , intent(in)    :: utot   ! flow velocity
+    !
+    real(fp)                 , intent(out)   :: sbot   ! bed load transport, magnitude [m3/m/s]
+    real(fp)                 , intent(out)   :: ssus   ! suspended sediment transport
 !
 ! Local variables
 !

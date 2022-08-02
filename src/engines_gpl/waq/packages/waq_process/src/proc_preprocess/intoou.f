@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -174,12 +174,12 @@
                if ( proc%input_item(i_input)%type .eq. IOTYPE_SEGMENT_INPUT .or.
      +              proc%input_item(i_input)%type .eq. IOTYPE_SEGMENT_WORK  ) then
                   if ( proc%input_item(i_input)%ip_val .eq. 3 ) then
-                     ! idt, voor fractional step aparte ingang in defaul array
+                     ! idt, voor fractional step aparte ingang in default array
                      ioff   = nopred + nocons + nopa + nofun + nosfun + notot + noloc
                      proc%input_item(i_input)%ip_val = ioff + nodef - 2*nproc + iproc_act
                   endif
                   if ( proc%input_item(i_input)%ip_val .eq. 4 ) then
-                     ! delt, voor fractional step aparte ingang in defaul array
+                     ! delt, voor fractional step aparte ingang in default array
                      ioff   = nopred + nocons + nopa + nofun + nosfun + notot + noloc
                      proc%input_item(i_input)%ip_val = ioff + nodef - nproc + iproc_act
                   endif

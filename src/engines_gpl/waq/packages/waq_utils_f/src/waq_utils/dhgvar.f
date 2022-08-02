@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -42,10 +42,11 @@
 !     IVAR    INTEGER       1     OUTPUT  Variable number, else -1
 !
 !     Declaration of arguments
+
+      use m_sysn          ! System characteristics
 !
       INTEGER             IAR_NR, INDX  , IVAR
-!
-      INCLUDE 'sysn.inc'
+
 !
 !     Just take the used array's in the right order
 !

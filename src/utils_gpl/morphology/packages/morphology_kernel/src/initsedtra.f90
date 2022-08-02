@@ -9,7 +9,7 @@ contains
 subroutine initsedtra(sedtra, sedpar, trapar, morpar, morlyr, rhow, ag, vicmol, nmlb, nmub, nmmax, lsed, lsedtot)
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -33,8 +33,8 @@ subroutine initsedtra(sedtra, sedpar, trapar, morpar, morlyr, rhow, ag, vicmol, 
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: initsedtra.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_gpl/morphology/packages/morphology_kernel/src/initsedtra.f90 $
+!  $Id: initsedtra.f90 141416 2022-06-29 08:31:13Z spee $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_gpl/morphology/packages/morphology_kernel/src/initsedtra.f90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: - Initialize the arrays of sedtra_type data structure.
@@ -88,6 +88,7 @@ subroutine initsedtra(sedtra, sedpar, trapar, morpar, morlyr, rhow, ag, vicmol, 
     real(fp)             , dimension(:,:,:), pointer :: logseddia
     real(fp)             , dimension(:)    , pointer :: mudcnt
     real(fp)             , dimension(:)    , pointer :: mudfrac
+    real(fp)             , dimension(:)    , pointer :: sandfrac
     real(fp)                               , pointer :: mwwjhe
     real(fp)             , dimension(:)    , pointer :: rhosol
     real(fp)             , dimension(:)    , pointer :: sedd50
@@ -110,6 +111,7 @@ subroutine initsedtra(sedtra, sedpar, trapar, morpar, morlyr, rhow, ag, vicmol, 
     asklhe    => morpar%asklhe
     frac      => sedtra%frac
     mudfrac   => sedtra%mudfrac
+    sandfrac  => sedtra%sandfrac
     anymud    => sedpar%anymud
     logsedsig => sedpar%logsedsig
     logseddia => sedpar%logseddia
@@ -195,6 +197,10 @@ subroutine initsedtra(sedtra, sedpar, trapar, morpar, morlyr, rhow, ag, vicmol, 
     else
        hidexp = 1.0
     endif
+    !
+    call compsandfrac(frac      ,sedd50       ,nmmax     ,lsedtot   , &
+                    & sedtyp    ,sandfrac     ,sedd50fld , &
+                    & nmlb      ,nmub         )  
 end subroutine initsedtra
 
 end module m_initsedtra

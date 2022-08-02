@@ -1,6 +1,6 @@
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -24,8 +24,8 @@
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: read_waqgeom.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/io_hyd/packages/io_hyd/src/read_waqgeom.f90 $
+!  $Id: read_waqgeom.f90 141011 2022-04-04 09:15:12Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_lgpl/io_hyd/packages/io_hyd/src/read_waqgeom.f90 $
 
 module m_read_waqgeom
     use m_alloc
@@ -127,15 +127,15 @@ module m_read_waqgeom
 
         call reallocP(edge_type, waqgeom%numedge, keepExisting = .false.)
         ierr = ionc_get_ncid(ioncid, ncid)
-        ierr = nf90_inq_varid(ncid, "mesh2d_edge_type", id_edgetypes)  ! instead of variable name, we should look at the mesh attributes (but these are not set yet)
+        ierr = nf90_inq_varid(ncid, trim(waqgeom%meshname)//"_edge_type", id_edgetypes)  ! instead of variable name, we should look at the mesh attributes (but these are not set yet)
         ierr = nf90_get_var(ncid, id_edgetypes, edge_type, count=(/ waqgeom%numedge /))
 
-        ierr = nf90_inq_varid(ncid, "mesh2d_face_domain_number", id_idomain)  ! instead of variable name, we should look at the mesh attributes (but these are not set yet)
+        ierr = nf90_inq_varid(ncid, trim(waqgeom%meshname)//"_face_domain_number", id_idomain)  ! instead of variable name, we should look at the mesh attributes (but these are not set yet)
         if (ierr .eq. 0) then
            call reallocP(idomain, waqgeom%numface, keepExisting = .false.)
            ierr = nf90_get_var(ncid, id_idomain, idomain, count=(/ waqgeom%numface /))
         endif 
-        ierr = nf90_inq_varid(ncid, "mesh2d_face_global_number", id_iglobal)  ! instead of variable name, we should look at the mesh attributes (but these are not set yet)
+        ierr = nf90_inq_varid(ncid, trim(waqgeom%meshname)//"_face_global_number", id_iglobal)  ! instead of variable name, we should look at the mesh attributes (but these are not set yet)
         if (ierr .eq. 0) then
            call reallocP(iglobal, waqgeom%numface, keepExisting = .false.)
            ierr = nf90_get_var(ncid, id_iglobal, iglobal, count=(/ waqgeom%numface /))

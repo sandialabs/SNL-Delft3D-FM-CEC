@@ -1,7 +1,7 @@
 module quickin_dep_file
 !----- LGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This library is free software; you can redistribute it and/or                
 !  modify it under the terms of the GNU Lesser General Public                   
@@ -25,8 +25,8 @@ module quickin_dep_file
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: quickin_dep_file.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/deltares_common/packages/deltares_common_mpi/src/quickin_dep_file.f90 $
+!  $Id: quickin_dep_file.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_lgpl/deltares_common/packages/deltares_common_mpi/src/quickin_dep_file.f90 $
 !-------------------------------------------------------------------------------
 
 private
@@ -74,7 +74,6 @@ subroutine read_qndep_single(lundia    ,error     ,fildep    ,fmttmp    ,array  
     integer                               :: luntmp ! Unit number for attribute file  
     integer                               :: m 
     integer                               :: n 
-    integer                 , external    :: newunit 
     character(300)                        :: errmsg ! Character string containing the error message to be written to file. The message depends on the error.
 ! 
 !! executable statements ------------------------------------------------------- 
@@ -194,7 +193,6 @@ subroutine read_qndep_double(lundia    ,error     ,fildep    ,fmttmp    ,array  
     integer                               :: luntmp ! Unit number for attribute file  
     integer                               :: m 
     integer                               :: n 
-    integer                 , external    :: newunit 
     character(300)                        :: errmsg ! Character string containing the error message to be written to file. The message depends on the error.
 ! 
 !! executable statements ------------------------------------------------------- 

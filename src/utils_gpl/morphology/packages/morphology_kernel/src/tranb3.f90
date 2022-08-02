@@ -1,8 +1,8 @@
-subroutine tranb3(utot      ,d35       ,c         ,h         ,par       , &
-                & sbot      ,ssus      )
+subroutine tranb3(utot      ,d35       ,c         ,h         ,npar      , &
+                & par       ,sbot      ,ssus      )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -26,8 +26,8 @@ subroutine tranb3(utot      ,d35       ,c         ,h         ,par       , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: tranb3.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_gpl/morphology/packages/morphology_kernel/src/tranb3.f90 $
+!  $Id: tranb3.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_gpl/morphology/packages/morphology_kernel/src/tranb3.f90 $
 !!--description-----------------------------------------------------------------
 ! computes sediment transport according to
 ! swanby (ackers white)
@@ -38,29 +38,31 @@ subroutine tranb3(utot      ,d35       ,c         ,h         ,par       , &
     use precision
     implicit none
 !
-! Call variables
+! Arguments
 !
-    real(fp), intent(in)               :: c !  Description and declaration in esm_alloc_real.f90
-    real(fp), intent(in)               :: d35
-    real(fp), intent(in)               :: h
-    real(fp), intent(out)              :: sbot
-    real(fp), intent(out)              :: ssus
-    real(fp), intent(in)               :: utot
-    real(fp), dimension(30), intent(in) :: par
+    integer                  , intent(in)    :: npar
+    real(fp)                 , intent(in)    :: c
+    real(fp)                 , intent(in)    :: d35
+    real(fp)                 , intent(in)    :: h
+    real(fp), dimension(npar), intent(in)    :: par
+    real(fp)                 , intent(in)    :: utot
+    !
+    real(fp)                 , intent(out)   :: sbot
+    real(fp)                 , intent(out)   :: ssus
 !
 !
 ! Local variables
 !
     real(fp)                       :: a
     real(fp)                       :: acal
-    real(fp)                       :: ag                   !        gravity acceleration
+    real(fp)                       :: ag                   ! gravity acceleration
     real(fp)                       :: cc
     real(fp)                       :: ccc
     real(fp)                       :: cd
     real(fp)                       :: cf
-    real(fp)                       :: delta                !     relative density of sediment particle
+    real(fp)                       :: delta                ! relative density of sediment particle
     real(fp)                       :: dgr
-    real(fp)                       :: dp                   !  depth value at depth points
+    real(fp)                       :: dp                   ! depth value at depth points
     real(fp)                       :: f                    ! real help array
     real(fp)                       :: fwc
     real(fp)                       :: rk

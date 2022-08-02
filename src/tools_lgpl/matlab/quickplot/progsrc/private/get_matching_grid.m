@@ -8,7 +8,7 @@ function [G,GridFileName]=get_matching_grid(MapSeg,pn,filterspec)
 
 %----- LGPL --------------------------------------------------------------------
 %
-%   Copyright (C) 2011-2020 Stichting Deltares.
+%   Copyright (C) 2011-2022 Stichting Deltares.
 %
 %   This library is free software; you can redistribute it and/or
 %   modify it under the terms of the GNU Lesser General Public
@@ -33,8 +33,8 @@ function [G,GridFileName]=get_matching_grid(MapSeg,pn,filterspec)
 %
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/private/get_matching_grid.m $
-%   $Id: get_matching_grid.m 65778 2020-01-14 14:07:42Z mourits $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/tools_lgpl/matlab/quickplot/progsrc/private/get_matching_grid.m $
+%   $Id: get_matching_grid.m 140618 2022-01-12 13:12:04Z klapwijk $
 
 GridSeg=-1;
 PerLayer=0;
@@ -426,6 +426,15 @@ while 1
                             end
                         end
                     end
+                    %
+                    try
+                        if strcmp(G.Filename(end-10:end),'_waqgeom.nc')
+                            dpsfil = [G.Filename(1:end-11) '.dps'];
+                            dps = waqfil('open',dpsfil);
+                            G.DPS = dps.Srf;
+                        end
+                    catch
+                    end
                     CouldReadGridData = 1;
                 catch Ex
                     if GetError
@@ -533,7 +542,7 @@ end
 
 function DWQ = open_dwq(filename)
 DWQ = [];
-fid = fopen(filename,'r');
+fid = fopen(filename,'r','n','US-ASCII');
 L = fgetl(fid);
 [A,cnt,err,idx]=sscanf(L,'%i',inf);
 if ~strcmp(err,'')

@@ -3,7 +3,7 @@ subroutine rdbcq(lunmd     ,lundia    ,error     ,nrrec     ,mdfrec    , &
                & ntof      ,ntoq      ,bubble    ,kmax      ,gdp       )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -27,8 +27,8 @@ subroutine rdbcq(lunmd     ,lundia    ,error     ,nrrec     ,mdfrec    , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: rdbcq.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/io/src/preprocessor/rdbcq.f90 $
+!  $Id: rdbcq.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/flow2d3d/packages/io/src/preprocessor/rdbcq.f90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: - Reads the QH boundary condition records from the
@@ -167,8 +167,7 @@ subroutine rdbcq(lunmd     ,lundia    ,error     ,nrrec     ,mdfrec    , &
              goto 9999
           endif
           !
-          lunout = newlun(gdp)
-          open (lunout, file = filout(:8 + lrid))
+          open (newunit=lunout, file = filout(:8 + lrid))
           read (lunout, '(a1,i5)', iostat = iocond) cdummy, lrec
           close (lunout)
           lunout = 8
@@ -198,8 +197,7 @@ subroutine rdbcq(lunmd     ,lundia    ,error     ,nrrec     ,mdfrec    , &
              !
              ! Open FILBCQ to read data from
              !
-             lunrd = newlun(gdp)
-             open (lunrd, file = filbcq(:lf), form = 'formatted',               &
+             open (newunit=lunrd, file = filbcq(:lf), form = 'formatted',               &
                  & status = 'old')
              write (message, '(2a)') 'Reading BC-hydrodynamic file ', filbcq(:lf)
              call prterr(lundia, 'G051', trim(message))

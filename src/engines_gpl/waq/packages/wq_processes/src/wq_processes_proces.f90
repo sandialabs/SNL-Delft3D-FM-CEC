@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -21,8 +21,8 @@
 !!  of Stichting Deltares remain the property of Stichting Deltares. All
 !!  rights reserved.
 
-      subroutine wq_processes_proces ( notot  , noseg  , conc   , volume , itime  , &
-                                       idt    , deriv  , ndmpar , nproc  , noflux , &
+      subroutine wq_processes_proces ( notot  , noseg  , conc   , volume , time   , &
+                                       dts    , deriv  , ndmpar , nproc  , noflux , &
                                        ipmsa  , prvnio , promnr , iflux  , increm , &
                                        flux   , flxdmp , stochi , ibflag , ipbloo , &
                                        ioffbl , amass  , nosys  , isfact , itfact , &
@@ -31,7 +31,7 @@
                                        ndspx  , dspx   , dsto   , nveln  , ivpnew , &
                                        velonw , nvelx  , velx   , vsto   , isdmp  , &
                                        defaul , prondt , prvvar , prvtyp , vararr , &
-                                       varidx , arrpoi , arrknd , arrdm1 , arrdm2 , & 
+                                       varidx , arrpoi , arrknd , arrdm1 , arrdm2 , &
                                        novar  , a      , ndmps  , pronam , prvpnt , &
                                        nodef  , surfac , flux_int)
 
@@ -42,6 +42,7 @@
 !>
 !>         Control routine of PROCES system. Process sub-system of DELWAQ waterquality modelling system.
 
+      use processes_pointers, only: dll_opb
       use timers
 
       implicit none
@@ -56,10 +57,10 @@
       integer( 4), intent(in   ) :: nodef                       !< Number of values in the deafult array
       integer( 4), intent(in   ) :: novar                       !<
       real   ( 4), intent(inout) :: conc  (notot,noseg)         !< Model concentrations
-      real   ( 4), intent(in   ) :: volume(      noseg)         !< Segment volumes
-      integer( 4), intent(in   ) :: itime                       !< Time in system clock units
-      integer( 4), intent(in   ) :: idt                         !< Time step system clock units
-      real   ( 4), intent(inout) :: deriv (noseg,notot)         !< Model derivatives
+      real   ( 8), intent(in   ) :: volume(      noseg)         !< Segment volumes
+      real   ( 8), intent(in   ) :: time                        !< Time in system clock units
+      real   ( 8), intent(in   ) :: dts                         !< Time step system clock units
+      real   ( 8), intent(inout) :: deriv (noseg,notot)         !< Model derivatives
       integer( 4), intent(in   ) :: ndmpar                      !< Number of dump areas
       integer( 4), intent(in   ) :: nproc                       !< Number of processes
       integer( 4), intent(in   ) :: noflux                      !< Number of fluxes
@@ -84,7 +85,7 @@
       integer( 4), intent(in   ) :: noq2                        !< Number of exchanges second direction
       integer( 4), intent(in   ) :: noq3                        !< Number of exchanges vertical
       integer( 4), intent(in   ) :: noq4                        !< Number of exchanges in the bed
-      real   ( 4), intent(in   ) :: area  (*)                   !< exchange areas 
+      real   ( 4), intent(in   ) :: area  (*)                   !< exchange areas
       integer( 4), intent(in   ) :: ndspn                       !< Number of new dispersion arrays
       integer( 4), intent(in   ) :: idpnew(nosys )              !< Pointer to new disp array
       real   ( 4), intent(inout) :: dispnw(ndspn ,*)            !< New dispersion array
@@ -121,14 +122,12 @@
       integer( 4)  ivar  , iarr  , iv_idx, ip_arr          !  help variables
       integer( 4)  ipndt , ndtblo                          !  help variables
       integer( 4)  nfluxp, ifracs, iproc   !  help variables
-      integer                    :: idtpro    ! fractional step idt
-      integer(4)                 :: ipp_idt    ! pointer in default array to process specific idt
+      real   ( 8)                :: dtspro    ! fractional step dts
+      integer(4)                 :: ipp_dts    ! pointer in default array to process specific dts
       integer(4)                 :: ipp_delt   ! pointer in default array to process specific delt
       INTEGER ISTEP, NOQ
       integer                    :: open_shared_library
       integer, save              :: ifirst = 1
-      integer(8), save           :: dll_opb     ! open proces library dll handle
-      character(len=256)         :: shared_dll
       logical                    :: lfound
       integer                    :: idummy
       real                       :: rdummy
@@ -139,54 +138,20 @@
       integer(4)                 :: iseg                            ! Loop counter over segments
       integer(4)                 :: nflux1                          ! Help variable for fluxes
       integer(4)                 :: ips                             ! Help variable for dump segments
-      real                       :: vol                             ! Help variable volume
-      real                       :: ndt                             ! Help variable time step multiplier
-      real                       :: atfac                           ! Help variable
-      
+      real(8)                    :: vol                             ! Help variable volume
+      real(8)                    :: ndt                             ! Help variable time step multiplier
+      real(8)                    :: atfac                           ! Help variable
+
       save    istep
       data    istep  / 0 /
 
       integer(4) ithndl /0/
       if ( timon ) call timstrt ( "wq_processes_proces", ithndl )
-      
+
       IFRACS = 1
-      
+
       IF ( nproc .eq. 0 ) goto 9999
 
-      ! open openpb dll
-
-      if ( ifirst .eq. 1 ) then
-         call getmlu(lunrep)
-         call getcom ( '-openpb', 3, lfound, idummy, rdummy, shared_dll, ierr2)
-         if ( lfound ) then
-            if ( ierr2.eq. 0 ) then
-               write(lunrep,*) ' -openpb command line argument found'
-               write(lunrep,*) ' using dll : ',trim(shared_dll)
-            else
-               shared_dll = 'd3dwaq_openpb.dll'
-               write(lunrep,*) ' WARNING : -openpb command line argument without filename'
-               write(lunrep,*) ' using default dll : ',trim(shared_dll)
-            endif
-            l_stop =.true.
-         else
-            shared_dll = 'd3dwaq_openpb.dll'
-            l_stop =.false.
-            write(lunrep,*) ' using default dll : ',trim(shared_dll)
-         endif
-         dll_opb = 0 ! in C this one could be 4 or 8 bytes, so make sure the last bytes are zero
-         ierror = open_shared_library(dll_opb, shared_dll)
-         if ( ierror .ne. 0 .and. l_stop ) then
-            write(*,*) 'ERROR : opening process library DLL'
-            write(*,*) 'DLL   : ',trim(shared_dll)
-            write(*,*) 'dll handle: ', dll_opb
-            write(lunrep,*) 'ERROR : opening process library DLL'
-            write(lunrep,*) 'DLL   : ',trim(shared_dll)
-            write(lunrep,*) 'dll handle: ', dll_opb
-            call srstop(1)
-         endif
-         ifirst = 0
-      endif
-!
 !     Count calls of this module
 !
       istep = istep + 1
@@ -209,12 +174,12 @@
          if ( mod(istep-1,ndtblo) .eq. 0 ) then
             flux = 0.0
 
-!           set idt and delt, bloom itself will multiply with prondt
-            idtpro     = prondt(ipbloo)*idt
-            ipp_idt    = nodef - 2*nproc + ipbloo
+!           set dts and delt, bloom itself will multiply with prondt
+            dtspro     = prondt(ipbloo)*dts
+            ipp_dts    = nodef - 2*nproc + ipbloo
             ipp_delt   = nodef -   nproc + ipbloo
-            defaul(ipp_idt)  = float(idt)
-            defaul(ipp_delt) = float(idt)/float(itfact)
+            defaul(ipp_dts)  = dts
+            defaul(ipp_delt) = dts/float(itfact)
 
             call onepro_wqp (ipbloo , ioffbl , prvnio , prvtyp , prvvar , vararr , &
                              varidx , arrknd , arrpoi , arrdm1 , arrdm2 ,          &
@@ -235,7 +200,7 @@
 
 !              For balances store FLXDMP
                if ( ibflag .gt. 0 ) then
-                  ndt = prondt(ipbloo)*real(idt)/86400.0
+                  ndt = prondt(ipbloo)*dts/86400.0
                   do iseg = 1 , noseg
                      if ( isdmp(iseg) .gt. 0 ) then
                         nflux1 = iflux (ipbloo)
@@ -252,22 +217,22 @@
                      endif
                   enddo
                endif
-               
+
             endif
 
             if ( istep .eq. 1 ) then
-               deriv(:,:) = 0.0
-               if ( ibflag .gt. 0 ) flxdmp = 0.0
+               deriv(:,:) = 0.0d0
+               if ( ibflag .gt. 0 ) flxdmp = 0.0d0
             else
 !              Scale fluxes and update "processes" accumulation arrays
-               atfac = 1.0/real(itfact)
+               atfac = 1.0/real(itfact,8)
                do iseg = 1 , noseg
                   deriv (iseg,:) = deriv(iseg,:) * atfac
                enddo
 
                if (flux_int == 1) then
 !                 let WAQ integrate the process fluxes
-                  call wq_processes_integrate_fluxes ( conc   , amass  , deriv  , volume , idt     , &
+                  call wq_processes_integrate_fluxes ( conc   , amass  , deriv  , volume , dts     , &
                                                        nosys  , notot  , noseg  , surfac )
                endif
             endif
@@ -283,12 +248,12 @@
 !           Check fractional step
             if ( mod( istep-1, prondt(iproc) ) .eq. 0 ) then
 
-               ! set idt and delt for this process in the default array
-               ipp_idt    = nodef - 2*nproc + iproc
+               ! set dts and delt for this process in the default array
+               ipp_dts    = nodef - 2*nproc + iproc
                ipp_delt   = nodef -   nproc + iproc
-               IDTPRO    = PRONDT(IPROC)*IDT
-               defaul(ipp_idt)  = FLOAT(IDTPRO)
-               defaul(ipp_delt) = FLOAT(IDTPRO)/FLOAT(ITFACT)
+               dtspro    = prondt(iproc)*dts
+               defaul(ipp_dts)  = dtspro
+               defaul(ipp_delt) = dtspro/float(itfact)
 
                call onepro_wqp (iproc   , prvpnt(iproc), prvnio  , prvtyp  , prvvar  , vararr  , &
                                 varidx  , arrknd       , arrpoi  , arrdm1  , arrdm2  ,           &
@@ -303,7 +268,7 @@
 !     Now update the derivatives and the dumps of the fluxes from
 !     all processes together outside of the parallel region
       call twopro_wqm ( nproc  , noflux , noseg  ,             &
-                        notot  , ndmps  , idt    , iflux  ,    &
+                        notot  , ndmps  , dts    , iflux  ,    &
                         volume , deriv  , stochi , flux   ,    &
                         prondt , ibflag , isdmp  , flxdmp , ipbloo , istep  )
 
@@ -322,12 +287,12 @@
          ! no fluxes at first step of fractional step
 
          if ( istep .eq. 1 ) then
-            deriv(:,:) = 0.0
-            if ( ibflag .gt. 0 ) flxdmp = 0.0
-         else 
+            deriv(:,:) = 0.0d0
+            if ( ibflag .gt. 0 ) flxdmp = 0.0d0
+         else
 
 !           Scale fluxes and update "processes" accumulation arrays
-            atfac = 1.0/real(itfact)
+            atfac = 1.0/real(itfact,8)
             do iseg = 1 , noseg
                deriv (iseg,:) = deriv(iseg,:) * atfac
             enddo
@@ -338,11 +303,11 @@
 !                 Add effect of additional flow velocities
                   call wq_processes_integrate_velocities ( nosys    , notot    , noseg    , noq      , nveln    , &
                                                            velx     , area     , volume   , iexpnt   , iknmrk   , &
-                                                           ivpnew   , conc     , idt      , deriv  )
+                                                           ivpnew   , conc     , dts      , deriv  )
                end if
 
 !              Integration (derivs are zeroed)
-               call wq_processes_integrate_fluxes ( conc   , amass  , deriv  , volume , idt     , &
+               call wq_processes_integrate_fluxes ( conc   , amass  , deriv  , volume , dts     , &
                                                     nosys  , notot  , noseg  , surfac )
             endif
          endif
@@ -361,6 +326,7 @@
                               noq4  , pronam, dll_opb)
 
       use timers
+      use iso_c_binding
 
       integer             iproc , k, noseg , noflux, noq1  , noq2  , noq3  , noq4
       integer             prvnio(*)      , prvtyp(*)      , &
@@ -370,22 +336,22 @@
                           arrdm2(*)      ,                  &
                           ipmsa (*)      , increm(*)      , &
                           iflux (*)      , promnr(*)      , &
-                          iexpnt(*)      , iknmrk(*)        
+                          iexpnt(*)      , iknmrk(*)
       real                a(*)           , flux(*)
       character*10        pronam(*)
-      integer(8)   , intent(in   ) :: dll_opb     ! open proces library dll handle
+      integer(c_intptr_t)   , intent(in   ) :: dll_opb     ! open proces library dll handle
 !
 !     Local
 !
       integer :: ityp
       integer :: ivario
-      integer :: ivar  
-      integer :: iarr  
+      integer :: ivar
+      integer :: iarr
       integer :: iv_idx
       integer :: iarknd
       integer :: ip_arr
-      integer :: idim1 
-      integer :: idim2 
+      integer :: idim1
+      integer :: idim2
       integer :: ipflux
 
       integer(4) ithndl /0/
@@ -412,6 +378,8 @@
          elseif ( iarknd .eq. 3 ) then
             ipmsa (k+ivario-1) = ip_arr + (iv_idx-1)*idim1
             increm(k+ivario-1) = 1
+         else
+            write(*,*) 'Processes: type = ', iarknd, ivario, ' - ', pronam(iproc)
          endif
 !
       enddo
@@ -428,7 +396,7 @@
       end
 
       subroutine twopro_wqm (nproc  , noflux , noseg  ,          &
-                             notot  , ndmps  , idt    , iflux  , &
+                             notot  , ndmps  , dts    , iflux  , &
                              volume , deriv  , stochi , flux   , &
                              prondt , ibflag , isdmp  , flxdmp , ipbloo , istep  )
 
@@ -444,10 +412,10 @@
       integer(4), intent(in   ) :: noseg                           ! Total number of computational volumes
       integer(4), intent(in   ) :: notot                           ! Total number of substances
       integer(4), intent(in   ) :: ndmps                           ! Total number of mass balance areas
-      integer(4), intent(in   ) :: idt
+      real   (8), intent(in   ) :: dts
       integer(4), intent(in   ) :: iflux (nproc )                  ! Offset in the flux array per process
-      real   (4), intent(in   ) :: volume(noseg )                  ! Computational volumes
-      real   (4), intent(inout) :: deriv (noseg , notot )          ! Array with derivatives
+      real   (8), intent(in   ) :: volume(noseg )                  ! Computational volumes
+      real   (8), intent(inout) :: deriv (noseg , notot )          ! Array with derivatives
       real   (4), intent(in   ) :: stochi(notot , noflux )         ! Stoichiometric factors per flux
       real   (4), intent(in   ) :: flux  (noflux, noseg )          ! Process fluxes
       integer(4), intent(in   ) :: prondt(nproc )                  ! Time step size of the process
@@ -464,8 +432,8 @@
       integer(4)                :: nflux1                          ! Help variable for fluxes
       integer(4)                :: ips                             ! Help variable for dump segments
       integer(4)                :: nfluxp                          ! Number of fluxes in this process
-      real                      :: vol                             ! Help variable volume
-      real                      :: ndt                             ! Help variable time step multiplier
+      real(8)                   :: vol                             ! Help variable volume
+      real(8)                   :: ndt                             ! Help variable time step multiplier
 
       integer(4) ithndl /0/
       if ( timon ) call timstrt ( "twopro_wqm", ithndl )
@@ -487,7 +455,7 @@
                                         nfluxp          , flux           , noseg  , volume         , prondt(iproc))
 
 !        For the use in balances, store fluxes in 'flxdmp' using aggregation pointer 'isdmp'
-         ndt = prondt(iproc)*real(idt)/86400.0
+         ndt = prondt(iproc)*real(dts)/86400.0
          if ( ibflag .gt. 0 ) then
             do iseg = 1 , noseg
                if ( isdmp(iseg) .gt. 0 ) then

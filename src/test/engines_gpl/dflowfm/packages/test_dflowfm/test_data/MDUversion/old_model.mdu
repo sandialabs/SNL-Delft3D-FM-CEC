@@ -62,7 +62,6 @@ TimeStepType      = 2
 Limtyphu          = 0
 Limtypmom         = 4
 Limtypsa          = 4
-TransportMethod   = 1
 Vertadvtypsal     = 5
 Icgsolver         = 4
 Maxdegree         = 6
@@ -153,6 +152,7 @@ DtInit            = 1
 Tunit             = S
 TStart            = 0
 TStop             = 3600
+UpdateRoughnessInterval = 60
 
 [restart]
 RestartFile       =
@@ -219,6 +219,5 @@ FullGridOutput    = 0
 EulerVelocities   = 0
 WaqInterval       = 0
 StatsInterval     =
-Writebalancefile  = 0
 TimingsInterval   =
 Richardsononoutput= 1

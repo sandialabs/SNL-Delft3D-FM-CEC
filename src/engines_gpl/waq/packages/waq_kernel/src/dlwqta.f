@@ -1,4 +1,4 @@
-!!  Copyright (C)  Stichting Deltares, 2012-2020.
+!!  Copyright (C)  Stichting Deltares, 2012-2022.
 !!
 !!  This program is free software: you can redistribute it and/or modify
 !!  it under the terms of the GNU General Public License version 3,
@@ -133,6 +133,9 @@
                   nobrk = 1
                   proc_par%no_brk=nobrk
                   allocate(proc_par%values(ndim1,ndim2,nobrk))
+                  !
+                  ! Some obscure magic going on with LU-numbers - keep it for the moment
+                  !
                   call dhnlun(801,proc_par%lun)
                   ftype = 2
                   if ( mod(proc_par%filetype,10) .eq. FILE_UNFORMATTED ) ftype = ftype + 10

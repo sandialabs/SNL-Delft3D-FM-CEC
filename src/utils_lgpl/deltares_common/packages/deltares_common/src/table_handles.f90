@@ -1,7 +1,7 @@
 module table_handles
 !----- LGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This library is free software; you can redistribute it and/or                
 !  modify it under the terms of the GNU Lesser General Public                   
@@ -25,8 +25,8 @@ module table_handles
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: table_handles.f90 65986 2020-02-16 13:04:44Z jagers $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/deltares_common/packages/deltares_common/src/table_handles.f90 $
+!  $Id: table_handles.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_lgpl/deltares_common/packages/deltares_common/src/table_handles.f90 $
 !!--description-----------------------------------------------------------------
 !
 ! Handle wrapper for tables module.
@@ -49,7 +49,6 @@ module table_handles
     public checktable
     public checktableparnames
     public gettablelocation
-    public gettablename
     public gettablentimes
     public gettabletimes
     public gettabledata
@@ -63,8 +62,6 @@ module table_handles
     public CHKTAB_BLOCK
     public CHKTAB_LOGICAL
 
-    public GETTABLE_LOCATION
-    public GETTABLE_NAME
 !
 !! -----------------------------------------------------------------------------
 !
@@ -156,7 +153,7 @@ end subroutine cleartable
 
 
 subroutine gettable_vector(handle    ,location  ,parname   ,ivec      , &
-                         & nparmin   ,errorstring, fieldid )
+                         & nparmin   ,errorstring)
 !
 ! Global variables
 !
@@ -166,30 +163,22 @@ subroutine gettable_vector(handle    ,location  ,parname   ,ivec      , &
     character(*)           ,intent(in)  :: parname
     character(256)         ,intent(out) :: errorstring
     type(handletype)       ,intent(in)  :: handle
-    integer       ,optional,intent(in)  :: fieldid
 !
 ! Local variables
 !
-    integer                             :: locfieldid
 !
 !! executable statements -------------------------------------------------------
 !
-    if (present(fieldid)) then
-       locfieldid = fieldid
-    else
-       locfieldid = 0
-    endif
     call gettable_scalar(handle    ,location  ,parname   , &
                        & ivec(1)    ,ivec(2)   ,ivec(3)   ,nparmin   , &
-                       & errorstring,locfieldid)
+                       & errorstring)
     ivec(4) = 1
     !
 end subroutine gettable_vector
 
 
 subroutine gettable_scalar(handle    ,location  ,parname   ,itable    , &
-                         & ipar      ,npar      ,nparmin   ,errorstring, &
-                         & fieldid)
+                         & ipar      ,npar      ,nparmin   ,errorstring)
 !
 ! Global variables
 !
@@ -201,28 +190,21 @@ subroutine gettable_scalar(handle    ,location  ,parname   ,itable    , &
     character(*)           ,intent(in)  :: parname
     character(256)         ,intent(out) :: errorstring
     type(handletype)       ,intent(in)  :: handle
-    integer       ,optional,intent(in)  :: fieldid
 !
 ! Local variables
 !
-    integer                             :: locfieldid
     type(tablefiletypehandle)           :: tablehandle
 !
 !! executable statements -------------------------------------------------------
 !
     if (.not.validtable(handle, errorstring)) return
     tablehandle = cast_to_tablehandle(handle)
-    if (present(fieldid)) then
-       locfieldid = fieldid
-    else
-       locfieldid = 0
-    endif
     if (.not.associated(tablehandle%this)) then
        errorstring = 'GetTable call before initialisation'
     else
        call org_gettable(tablehandle%this      ,location  ,parname   , &
                        & itable     ,ipar      ,npar      ,nparmin   , &
-                       & errorstring,locfieldid)
+                       & errorstring)
     endif
     !
 end subroutine gettable_scalar
@@ -623,33 +605,6 @@ character(MAXTABLECLENGTH) function gettablelocation(handle  ,itable     ,errors
     endif
 end function gettablelocation
 
-character(MAXTABLECLENGTH) function gettablename(handle  ,itable     ,errorstring)
-!!--description-----------------------------------------------------------------
-!
-!    Function: Get the name of a table
-!
-!!------------------------------------------------------------------------------
-!
-! Global variables
-!
-    type(handletype)             ,intent(in)  :: handle
-    integer                      ,intent(in)  :: itable
-    character(256)               ,intent(out) :: errorstring
-!
-! Local variables
-!
-    type(tablefiletypehandle)           :: tablehandle
-!
-!! executable statements -------------------------------------------------------
-!
-    if (.not.validtable(handle, errorstring)) return
-    tablehandle = cast_to_tablehandle(handle)
-    if (.not.associated(tablehandle%this)) then
-       errorstring = 'GetTableName call before initialisation'
-    else
-       gettablename = org_gettablename(tablehandle%this ,itable, errorstring)
-    endif
-end function gettablename
 
 integer function gettablentimes(handle  ,itable     ,errorstring)
 !!--description-----------------------------------------------------------------

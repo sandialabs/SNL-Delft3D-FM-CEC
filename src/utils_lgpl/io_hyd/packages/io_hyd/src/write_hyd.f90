@@ -1,6 +1,6 @@
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -24,8 +24,8 @@
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: write_hyd.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/io_hyd/packages/io_hyd/src/write_hyd.f90 $
+!  $Id: write_hyd.f90 141014 2022-04-04 15:12:32Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_lgpl/io_hyd/packages/io_hyd/src/write_hyd.f90 $
 
       subroutine write_hyd(hyd, version_full)
 
@@ -35,6 +35,7 @@
 
       use hydmod
       use system_utils
+      use :: m_hyd_keys, only: key, nokey     ! keywords in hydfile
       implicit none
 
       ! declaration of the arguments
@@ -43,8 +44,6 @@
 
       ! local declarations
 
-      integer, parameter  :: nokey   = 77           ! number of keywords in hyd file
-      character(len=40)   :: key(nokey)             ! keywords in the hyd file
       integer             :: ikey                   ! index keyword (first level)
       integer             :: ikey2                  ! index keyword (second level)
       integer             :: lunhyd                 ! unit number hyd file
@@ -67,83 +66,6 @@
       character(len=2),parameter :: cqs = ''' '     ! quote with space
       character(len=2),parameter :: csq = ' '''     ! space with quote
 
-      key(1)  = 'task'
-      key(2)  = 'geometry'
-      key(3)  = 'horizontal-aggregation'
-      key(4)  = 'minimum-vert-diffusion-used'
-      key(5)  = 'vertical-diffusion'
-      key(6)  = 'description'
-      key(7)  = 'end-description'
-      key(8)  = 'reference-time'
-      key(9)  = 'hydrodynamic-start-time'
-      key(10) = 'hydrodynamic-stop-time'
-      key(11) = 'hydrodynamic-timestep'
-      key(12) = 'conversion-ref-time'
-      key(13) = 'conversion-start-time'
-      key(14) = 'conversion-stop-time'
-      key(15) = 'conversion-timestep'
-      key(16) = 'grid-cells-first-direction'
-      key(17) = 'grid-cells-second-direction'
-      key(18) = 'number-hydrodynamic-layers'
-      key(19) = 'number-water-quality-layers'
-      key(20) = 'hydrodynamic-file'
-      key(21) = 'aggregation-file'
-      key(22) = 'grid-indices-file'
-      key(23) = 'grid-coordinates-file'
-      key(24) = 'volumes-file'
-      key(25) = 'areas-file'
-      key(26) = 'flows-file'
-      key(27) = 'pointers-file'
-      key(28) = 'lengths-file'
-      key(29) = 'salinity-file'
-      key(30) = 'temperature-file'
-      key(31) = 'vert-diffusion-file'
-      key(32) = 'surfaces-file'
-      key(33) = 'total-grid-file'
-      key(34) = 'discharges-file'
-      key(35) = 'chezy-coefficients-file'
-      key(36) = 'shear-stresses-file'
-      key(37) = 'walking-discharges-file'
-      key(38) = 'minimum-vert-diffusion'
-      key(39) = 'upper-layer'
-      key(40) = 'lower-layer'
-      key(41) = 'interface-depth'
-      key(42) = 'end-minimum-vert-diffusion'
-      key(43) = 'constant-dispersion'
-      key(44) = 'first-direction'
-      key(45) = 'second-direction'
-      key(46) = 'third-direction'
-      key(47) = 'end-constant-dispersion'
-      key(48) = 'hydrodynamic-layers'
-      key(49) = 'end-hydrodynamic-layers'
-      key(50) = 'water-quality-layers'
-      key(51) = 'end-water-quality-layers'
-      key(52) = 'discharges'
-      key(53) = 'end-discharges'
-      key(54) = 'domains'
-      key(55) = 'end-domains'
-      key(56) = 'dd-boundaries'
-      key(57) = 'end-dd-boundaries'
-      key(58) = 'normal'
-      key(59) = 'inlet'
-      key(60) = 'outlet'
-      key(61) = 'full-coupling'
-      key(62) = 'coupling-per-domain'
-      key(63) = 'attributes-file'
-      key(64) = 'depths-file'
-      key(65) = 'curvilinear-grid'
-      key(66) = 'yes'
-      key(67) = 'no'
-      key(68) = 'calculated'
-      key(69) = 'unstructured'
-      key(70) = 'number-horizontal-exchanges'
-      key(71) = 'number-vertical-exchanges'
-      key(72) = 'number-water-quality-segments-per-layer'
-      key(73) = 'horizontal-surfaces-file'
-      key(74) = 'boundaries-file'
-      key(75) = 'waqgeom-file'
-      key(76) = 'automatic'
-      key(77) = 'walking'
 
       call getmlu(lunrep)
 
@@ -246,6 +168,13 @@
       endif
       if (hyd%geometry .eq. HYD_GEOM_CURVI) then
          call remove_path(hyd%file_dps%name,filename) ; write(lunhyd,'(a,'' '''''',a,'''''''')') key(64), trim(filename)
+      endif
+
+      ! zbot, ztop (for z-layer only)
+
+      if(hyd%layer_type == HYD_LAYERS_Z .and. hyd%ztop /= -999.0) then
+         write(lunhyd,'(a,'' '',f15.6)') key(83), hyd%ztop
+         write(lunhyd,'(a,'' '',f15.6)') key(84), hyd%zbot
       endif
 
       ! hydrodynamic-layers

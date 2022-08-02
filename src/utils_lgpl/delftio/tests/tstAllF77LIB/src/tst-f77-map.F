@@ -1,6 +1,6 @@
 !----- LGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This library is free software; you can redistribute it and/or                
 !  modify it under the terms of the GNU Lesser General Public                   
@@ -24,8 +24,8 @@
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: tst-f77-map.F 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/delftio/tests/tstAllF77LIB/src/tst-f77-map.F $
+!  $Id: tst-f77-map.F 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_lgpl/delftio/tests/tstAllF77LIB/src/tst-f77-map.F $
       subroutine write_map_long
 
       implicit none
@@ -181,8 +181,7 @@ C     ! Data for Selection testing
 
 C     Open file for storing results
       call diofinit()
-      resLun = 11
-      open(resLun,file='TESTF77Map-res.txt')
+      open(newunit=resLun,file='TESTF77Map-res.txt')
 
 C     Get MAP IN data set
 

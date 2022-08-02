@@ -4,7 +4,7 @@ subroutine rdtdcn(lundia    ,lunout    ,lunrd     ,error     ,filout    , &
                 & namcon    ,bubble    ,gdp       )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -28,8 +28,8 @@ subroutine rdtdcn(lundia    ,lunout    ,lunrd     ,error     ,filout    , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: rdtdcn.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/flow2d3d/packages/io/src/preprocessor/rdtdcn.f90 $
+!  $Id: rdtdcn.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/flow2d3d/packages/io/src/preprocessor/rdtdcn.f90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: Reads time dependent constituent data from new
@@ -300,13 +300,12 @@ subroutine rdtdcn(lundia    ,lunout    ,lunrd     ,error     ,filout    , &
              ! Open output file
              ! and write length direct access file to file first
              !
-             lunout = newlun(gdp)
              inquire (file = filout(:lflout), exist = ex)
              if (ex) then
-                open (lunout, file = filout(:lflout))
+                open (newunit=lunout, file = filout(:lflout))
                 close (lunout, status = 'delete')
              endif
-             open (lunout, file = filout(:lflout), form = 'formatted',          &
+             open (newunit=lunout, file = filout(:lflout), form = 'formatted',          &
                   & access = 'direct', status = 'unknown', recl = mxlrec)
              irec = 1
              write (lunout, fmtbcc(1), rec = irec) '#', mxlrec, eol

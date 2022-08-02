@@ -1,6 +1,6 @@
 !----- AGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2015-2020.                                
+!  Copyright (C)  Stichting Deltares, 2015-2022.                                
 !                                                                               
 !  This file is part of Delft3D (D-Flow Flexible Mesh component).               
 !                                                                               
@@ -27,7 +27,7 @@
 !                                                                               
 !-------------------------------------------------------------------------------
 
-  integer, parameter :: var_count = 135
+  integer, parameter :: var_count = 153
 
 
 

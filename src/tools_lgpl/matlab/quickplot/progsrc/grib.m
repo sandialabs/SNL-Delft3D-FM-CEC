@@ -65,7 +65,7 @@ function varargout = grib(cmd,varargin)
 
 %----- LGPL --------------------------------------------------------------------
 %                                                                               
-%   Copyright (C) 2011-2020 Stichting Deltares.                                     
+%   Copyright (C) 2011-2022 Stichting Deltares.                                     
 %                                                                               
 %   This library is free software; you can redistribute it and/or                
 %   modify it under the terms of the GNU Lesser General Public                   
@@ -90,8 +90,8 @@ function varargout = grib(cmd,varargin)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/grib.m $
-%   $Id: grib.m 65778 2020-01-14 14:07:42Z mourits $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/tools_lgpl/matlab/quickplot/progsrc/grib.m $
+%   $Id: grib.m 140618 2022-01-12 13:12:04Z klapwijk $
 
 %% cases
 switch lower(cmd)
@@ -1208,7 +1208,7 @@ end
 
 %% readNamesTable
 function Names = readNamesTable(File)
-fid = fopen([basedir filesep 'grib' filesep File],'r');
+fid = fopen([basedir filesep 'grib' filesep File],'r','n','US-ASCII');
 Names = {};
 if fid>0
     Line = fgetl(fid);
@@ -1237,7 +1237,7 @@ end
 
 %% readTables
 function Codes = readTables
-fid = fopen([basedir filesep 'grib' filesep 'tablelookup.lst'],'r');
+fid = fopen([basedir filesep 'grib' filesep 'tablelookup.lst'],'r','n','US-ASCII');
 Codes.TableID=zeros(0,3);
 Codes.Names=cell(0,1);
 if fid>0

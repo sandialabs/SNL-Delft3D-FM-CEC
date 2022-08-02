@@ -4,7 +4,7 @@ subroutine compdiam(frac      ,seddm     ,sedd50    ,sedtyp    ,lsedtot   , &
                   & dg        ,dxx       ,dgsd      )
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -59,7 +59,7 @@ subroutine compdiam(frac      ,seddm     ,sedd50    ,sedtyp    ,lsedtot   , &
     !
     implicit none
 !
-! Call variables
+! Arguments
 !
     integer                                             , intent(in)  :: lsedtot   ! number of sediment fractions
     integer                                             , intent(in)  :: nmmax     ! last space index to be processed
@@ -182,7 +182,7 @@ subroutine compdiam(frac      ,seddm     ,sedd50    ,sedtyp    ,lsedtot   , &
              ! separate loop required as dg needs to be calculated first
              !
              do l = 1, lsedtot
-                if (sedtyp(l) /= SEDTYP_COHESIVE) then
+                if ((sedtyp(l) /= SEDTYP_COHESIVE) .and. (comparereal(frac(nm,l),0.0_fp) == 1)) then
                    dgsd(nm) = dgsd(nm) + (frac(nm,l)/fracnonmud)*(log(sedd50(l))-log(dg(nm)))**2
                 endif
              enddo
@@ -211,7 +211,7 @@ subroutine compdiam(frac      ,seddm     ,sedd50    ,sedtyp    ,lsedtot   , &
           i        = 1
           fracreq  = xx(1)
           !
-          outerfracloop: do while (fracreq >= fraccum)
+          outerfracloop: do while (fracreq > fraccum)
              !
              ! Find the smallest diameter not yet considered and calculate
              ! the density (cdf) in the considered range.

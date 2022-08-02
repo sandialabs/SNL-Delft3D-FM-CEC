@@ -1,6 +1,6 @@
 !----- LGPL --------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This library is free software; you can redistribute it and/or                
 !  modify it under the terms of the GNU Lesser General Public                   
@@ -23,8 +23,8 @@
 !  are registered trademarks of Stichting Deltares, and remain the property of  
 !  Stichting Deltares. All rights reserved.                                     
 
-!  $Id: ec_field.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_lgpl/ec_module/packages/ec_module/src/ec_field.f90 $
+!  $Id: ec_field.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_lgpl/ec_module/packages/ec_module/src/ec_field.f90 $
 
 !> This module contains all the methods for the datatype tEcField.
 !! @author arthur.vanDam@deltares.nl		test
@@ -46,6 +46,8 @@ module m_ec_field
    public :: ecFieldSetMissingValue
    public :: ecFieldSet1dArray
    public :: ecFieldCreate1dArray
+   public :: ecFieldSet1dArrayPointer
+   public :: ecFieldSetScalarPointer
    
    contains
       
@@ -191,7 +193,7 @@ module m_ec_field
          type(tEcField), pointer :: fieldPtr !< Field corresponding to fieldId
          integer                 :: istat    !< (de)allocate status
          !
-         success = .true.
+         success = .false.
          fieldPtr => null()
          !
          fieldPtr => ecSupportFindField(instancePtr, fieldId)
@@ -201,23 +203,69 @@ module m_ec_field
                deallocate(fieldPtr%arr1d, stat = istat)
                if (istat /= 0) then
                   call setECMessage("ERROR: ec_field::ecFieldCreate1dArray: Unable to deallocate memory.")
-                  success = .false.
+                  return
                end if
             end if
-            if (success) then
-               allocate(fieldPtr%arr1d(arraySize), stat = istat)
-               if (istat /= 0) then
-                  call setECMessage("ERROR: ec_field::ecFieldCreate1dArray: Unable to allocate additional memory.")
-                  success = .false.
-               else
-                  fieldPtr%arr1d = ec_undef_hp
-               end if
+            allocate(fieldPtr%arr1d(arraySize), stat = istat)
+            if (istat /= 0) then
+               call setECMessage("ERROR: ec_field::ecFieldCreate1dArray: Unable to allocate additional memory.")
+               return
+            else
+               fieldPtr%arr1d = ec_undef_hp
             end if
-            if (success) then
-               fieldPtr%arr1dPtr => fieldPtr%arr1d
-            end if
+            fieldPtr%arr1dPtr => fieldPtr%arr1d
          else
             call setECMessage("ERROR: ec_field::ecFieldCreate1dArray: Cannot find a Field with the supplied id.")
+            return
          end if
+         success = .true.
       end function ecFieldCreate1dArray
-end module m_ec_field
+    
+      !> Set the Field's 1D array pointer to an existing location
+      function ecFieldSet1dArrayPointer(instancePtr, fieldId, arr1D) result(success)
+         logical                               :: success     !< function status
+         type(tEcInstance),       pointer      :: instancePtr !< intent(in)
+         integer,                 intent(in)   :: fieldId     !< unique Field id
+         real(hp), dimension(:),  pointer      :: arr1D       !< Location to be pointered to
+
+         !
+         type(tEcField), pointer :: fieldPtr !< Field corresponding to fieldId
+         !
+         success = .false.
+         fieldPtr => null()
+         !
+         fieldPtr => ecSupportFindField(instancePtr, fieldId)
+         if (associated(fieldPtr)) then
+            fieldPtr%arr1Dptr => arr1D
+         else
+            call setECMessage("ERROR: ec_field::ecFieldSet1dArrayPointer: Cannot find a Field with the supplied id.")
+            return
+         end if
+         success = .true.
+      end function ecFieldSet1dArrayPointer
+
+      !> Set the Field's scalar pointer to an existing location
+      function ecFieldSetScalarPointer(instancePtr, fieldId, scalar) result(success)
+         logical                               :: success     !< function status
+         type(tEcInstance),       pointer      :: instancePtr !< intent(in)
+         integer,                 intent(in)   :: fieldId     !< unique Field id
+         real(hp),                pointer      :: scalar      !< Location to be pointered to
+
+         !
+         type(tEcField), pointer :: fieldPtr !< Field corresponding to fieldId
+         !
+         success = .false.
+         fieldPtr => null()
+         !
+         fieldPtr => ecSupportFindField(instancePtr, fieldId)
+         if (associated(fieldPtr)) then
+            fieldPtr%scalarptr => scalar
+         else
+            call setECMessage("ERROR: ec_field::ecFieldSetScalarPointer: Cannot find a Field with the supplied id.")
+            return
+         end if
+         success = .true.
+      end function ecFieldSetScalarPointer
+    
+    end module m_ec_field
+    

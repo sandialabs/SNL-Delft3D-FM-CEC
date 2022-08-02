@@ -35,7 +35,7 @@ function outmap=clrmap(S,m,Swrite)
 
 %----- LGPL --------------------------------------------------------------------
 %                                                                               
-%   Copyright (C) 2011-2020 Stichting Deltares.                                     
+%   Copyright (C) 2011-2022 Stichting Deltares.                                     
 %                                                                               
 %   This library is free software; you can redistribute it and/or                
 %   modify it under the terms of the GNU Lesser General Public                   
@@ -60,8 +60,8 @@ function outmap=clrmap(S,m,Swrite)
 %                                                                               
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/clrmap.m $
-%   $Id: clrmap.m 65778 2020-01-14 14:07:42Z mourits $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/tools_lgpl/matlab/quickplot/progsrc/clrmap.m $
+%   $Id: clrmap.m 140618 2022-01-12 13:12:04Z klapwijk $
 
 if ischar(S)
     switch lower(S)
@@ -196,7 +196,7 @@ for i=1:N-1
 end
 
 function S=readclrmap(filename)
-fid=fopen(filename,'r');
+fid=fopen(filename,'r','n','UTF-8');
 if fid<0
     error('Error opening input file.')
 end
@@ -313,7 +313,7 @@ if isfield(S,'Index')
 end
 
 function writeclrmap(filename,S)
-fid=fopen(filename,'wt');
+fid=fopen(filename,'wt','n','UTF-8');
 if fid<0
     error('Error opening output file.')
 end

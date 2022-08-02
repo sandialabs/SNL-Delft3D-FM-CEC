@@ -9,7 +9,7 @@ function varargout=wlfdep(cmd,varargin)
 
 %----- LGPL --------------------------------------------------------------------
 %
-%   Copyright (C) 2011-2020 Stichting Deltares.
+%   Copyright (C) 2011-2022 Stichting Deltares.
 %
 %   This library is free software; you can redistribute it and/or
 %   modify it under the terms of the GNU Lesser General Public
@@ -34,8 +34,8 @@ function varargout=wlfdep(cmd,varargin)
 %
 %-------------------------------------------------------------------------------
 %   http://www.deltaressystems.com
-%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/tools_lgpl/matlab/quickplot/progsrc/wlfdep.m $
-%   $Id: wlfdep.m 65778 2020-01-14 14:07:42Z mourits $
+%   $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/tools_lgpl/matlab/quickplot/progsrc/wlfdep.m $
+%   $Id: wlfdep.m 140618 2022-01-12 13:12:04Z klapwijk $
 
 if nargin==0
     if nargout>0
@@ -72,7 +72,7 @@ if strcmp(filename,'?')
     filename=[fpath,fname];
 end
 
-fid=fopen(filename);
+fid=fopen(filename,'r','n','US-ASCII');
 if fid<0
     error('Cannot open %s.',filename)
 end
@@ -117,7 +117,7 @@ end
 
 DP(isnan(DP))=-999;
 
-fid=fopen(filename,'w');
+fid=fopen(filename,'w','n','US-ASCII');
 fprintf(fid,'%s\n',filename);
 fprintf(fid,'%i %i\n',fliplr(size(DP)));
 fprintf(fid,strcat('%f',repmat(' %f',1,size(DP,2)-1),'\n'),DP');

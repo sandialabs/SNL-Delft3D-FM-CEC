@@ -1,7 +1,7 @@
 module wave_data
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -25,14 +25,14 @@ module wave_data
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: wave_data.f90 65790 2020-01-15 13:52:06Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/engines_gpl/wave/packages/data/src/wave_data.f90 $
+!  $Id: wave_data.f90 141401 2022-06-24 13:08:33Z saggiora $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/wave/packages/data/src/wave_data.f90 $
 !!--description-----------------------------------------------------------------
 !
 !!--pseudo code and references--------------------------------------------------
 ! NONE
 !!--declarations----------------------------------------------------------------
-!
+use precision_basics
 ! Module parameters
 !
 !
@@ -64,17 +64,20 @@ type wave_time_type
    integer  :: calccount       ! [-]        Counts the number of calculations. Used for naming the sp2 output files
    real     :: tscale          ! [sec]      Basic time unit: default = 60.0,
                                ! when running online with FLOW tscale = FLOW_time_step
-   real     :: timsec          ! [sec]      Current time of simulation since reference date (0:00h)
-   real     :: timmin          ! [min]      Current time of simulation since reference date (0:00h)
+   real(hp) :: timsec          ! [sec]      Current time of simulation since reference date (0:00h)
+   real(hp) :: timmin          ! [min]      Current time of simulation since reference date (0:00h)
 end type wave_time_type
 !
 type wave_output_type
-   integer  :: count           ! [-]        Counts the number of generated output fields on the wavm file
-   integer  :: comcount        ! [-]        Counts the number of generated output fields on the NetCDF-com file
-   integer  :: ncmode          ! [3 or 4]   NetCDF creation mode: NetCDF3 (NF90_CLASSIC_MODEL) or NetCDF4 (NF90_NETCDF4)
-   real     :: nexttim         ! [sec]      Next time to write to wavm-file
-   real     :: timseckeephot   ! [sec]      seconds since ref date on which time the hotfile should not be deleted
-   logical  :: write_wavm      ! [y/n]      True when writing to wavm file
+   integer  :: count              ! [-]        Counts the number of generated output fields on the wavm file
+   integer  :: comcount           ! [-]        Counts the number of generated output fields on the NetCDF-com file
+   integer  :: lastvalidflowfield ! [-]        0 (default): not defined, >0: When append_com is true, timepoints will be added to the com-file,
+                                  !            containing valid Wave data only. This parameter stores the last field containing valid flow information,
+                                  !            normally it's value will be 1, except when Flow also writes with append_com is true
+   integer  :: ncmode             ! [3 or 4]   NetCDF creation mode: NetCDF3 (NF90_CLASSIC_MODEL) or NetCDF4 (NF90_NETCDF4)
+   real     :: nexttim            ! [sec]      Next time to write to wavm-file
+   real(hp) :: timseckeephot      ! [sec]      seconds since ref date on which time the hotfile should not be deleted
+   logical  :: write_wavm         ! [y/n]      True when writing to wavm file
 end type wave_output_type
 !
 type wave_data_type
@@ -82,14 +85,6 @@ type wave_data_type
    type(wave_time_type)   :: time
    type(wave_output_type) :: output
 end type wave_data_type
-!
-! Module parameters
-!
-! arch is currently 'win32' or 'linux'
-!
-character(10) :: arch
-!
-!
 !
 contains
 !
@@ -100,33 +95,22 @@ subroutine initialize_wavedata(wavedata)
    type(wave_data_type) :: wavedata
    character(30)        :: txthlp
 
-   wavedata%mode                   =  0
-   wavedata%time%refdate           =  0
-   wavedata%time%timtscale         =  0
-   wavedata%time%calctimtscale     =  0
-   wavedata%time%calctimtscale_prev =  -999
-   wavedata%time%calccount         =  0
-   wavedata%time%tscale            = 60.0
-   wavedata%time%timsec            =  0.0
-   wavedata%time%timmin            =  0.0
-   wavedata%output%count           =  0
-   wavedata%output%comcount        =  0
-   wavedata%output%ncmode          =  ncu_format_to_cmode(0)
-   wavedata%output%nexttim         =  0.0
-   wavedata%output%timseckeephot   =  0.0
-   wavedata%output%write_wavm      =  .false.
-   !
-   ! platform definition
-   !
-   call util_getenv('ARCH',txthlp)
-   call small(txthlp,999)
-   if (txthlp == 'win32' .or. txthlp == 'w32' .or. txthlp == 'x86') then
-      arch = 'win32'
-   elseif (txthlp == 'win64' .or. txthlp == 'x64') then
-      arch = 'win64'
-   else
-      arch = 'linux'
-   endif
+   wavedata%mode                      =  0
+   wavedata%time%refdate              =  0
+   wavedata%time%timtscale            =  0
+   wavedata%time%calctimtscale        =  0
+   wavedata%time%calctimtscale_prev   =  -999
+   wavedata%time%calccount            =  0
+   wavedata%time%tscale               = 60.0
+   wavedata%time%timsec               =  0.0_hp
+   wavedata%time%timmin               =  0.0_hp
+   wavedata%output%count              =  0
+   wavedata%output%comcount           =  0
+   wavedata%output%lastvalidflowfield =  0
+   wavedata%output%ncmode             =  ncu_format_to_cmode(0)
+   wavedata%output%nexttim            =  0.0
+   wavedata%output%timseckeephot      =  0.0_hp
+   wavedata%output%write_wavm         =  .false.
 end subroutine initialize_wavedata
 !
 !
@@ -156,8 +140,8 @@ subroutine settimtscale(wavetime, timtscale_in, modsim, nonstat_interval)
    type(wave_time_type) :: wavetime
 
    wavetime%timtscale = timtscale_in
-   wavetime%timsec    = real(wavetime%timtscale) * wavetime%tscale
-   wavetime%timmin    = wavetime%timsec / 60.0
+   wavetime%timsec    = real(wavetime%timtscale,hp) * wavetime%tscale
+   wavetime%timmin    = wavetime%timsec / 60.0_hp
    if (modsim == 3) then
       wavetime%calctimtscale = wavetime%timtscale + int(nonstat_interval*60.0/wavetime%tscale)
       wavetime%calctimtscale_prev = wavetime%timtscale
@@ -173,20 +157,20 @@ subroutine settscale(wavetime, tscale_in)
    type(wave_time_type) :: wavetime
 
    wavetime%tscale    = tscale_in
-   wavetime%timsec    = real(wavetime%timtscale) * wavetime%tscale
-   wavetime%timmin    = wavetime%timsec / 60.0
+   wavetime%timsec    = real(wavetime%timtscale,hp) * wavetime%tscale
+   wavetime%timmin    = wavetime%timsec / 60.0_hp
 end subroutine settscale
 !
 !
 !===============================================================================
 subroutine settimsec(wavetime, timsec_in, modsim, nonstat_interval)
-   real :: timsec_in
-   integer :: modsim                ! 1: stationary, 2: quasi-stationary, 3: non-stationary
-   real    :: nonstat_interval      ! used when modsim = 3: Interval of communication FLOW-WAVE
+   real(hp) :: timsec_in
+   integer  :: modsim                ! 1: stationary, 2: quasi-stationary, 3: non-stationary
+   real     :: nonstat_interval      ! used when modsim = 3: Interval of communication FLOW-WAVE
    type(wave_time_type) :: wavetime
 
    wavetime%timsec    = timsec_in
-   wavetime%timmin    = wavetime%timsec / 60.0
+   wavetime%timmin    = wavetime%timsec / 60.0_hp
    wavetime%timtscale = nint(wavetime%timsec / wavetime%tscale)
    if (modsim == 3) then
       wavetime%calctimtscale = wavetime%timtscale + int(nonstat_interval*60.0/wavetime%tscale)
@@ -199,13 +183,13 @@ end subroutine settimsec
 !
 !===============================================================================
 subroutine settimmin(wavetime, timmin_in, modsim, nonstat_interval)
-   real :: timmin_in
-   integer :: modsim                ! 1: stationary, 2: quasi-stationary, 3: non-stationary
-   real    :: nonstat_interval      ! used when modsim = 3: Interval of communication FLOW-WAVE
+   real(hp) :: timmin_in
+   integer  :: modsim                ! 1: stationary, 2: quasi-stationary, 3: non-stationary
+   real     :: nonstat_interval      ! used when modsim = 3: Interval of communication FLOW-WAVE
    type(wave_time_type) :: wavetime
 
    wavetime%timmin    = timmin_in
-   wavetime%timsec    = wavetime%timmin * 60.0
+   wavetime%timsec    = wavetime%timmin * 60.0_hp
    wavetime%timtscale = nint(wavetime%timsec / wavetime%tscale)
    if (modsim == 3) then
       wavetime%calctimtscale = wavetime%timtscale + int(nonstat_interval*60.0/wavetime%tscale)
@@ -236,7 +220,7 @@ end subroutine setoutputcount
 !
 !===============================================================================
 subroutine setnexttim(waveoutput, nexttim_in)
-   real :: nexttim_in
+   real(hp) :: nexttim_in
    type(wave_output_type) :: waveoutput
 
    waveoutput%nexttim = nexttim_in

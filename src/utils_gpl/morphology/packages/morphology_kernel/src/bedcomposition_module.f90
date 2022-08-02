@@ -1,7 +1,7 @@
 module bedcomposition_module
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
-!  Copyright (C)  Stichting Deltares, 2011-2020.                                
+!  Copyright (C)  Stichting Deltares, 2011-2022.                                
 !                                                                               
 !  This program is free software: you can redistribute it and/or modify         
 !  it under the terms of the GNU General Public License as published by         
@@ -25,8 +25,8 @@ module bedcomposition_module
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id: bedcomposition_module.f90 65778 2020-01-14 14:07:42Z mourits $
-!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_gpl/morphology/packages/morphology_kernel/src/bedcomposition_module.f90 $
+!  $Id: bedcomposition_module.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_gpl/morphology/packages/morphology_kernel/src/bedcomposition_module.f90 $
 !!--module description----------------------------------------------------------
 !
 ! This module keeps track of the bed composition at one or more locations. The
@@ -192,8 +192,8 @@ subroutine bedcomposition_module_info(messages)
     !
     type(message_stack) :: messages
     !
-    call addmessage(messages,'$Id: bedcomposition_module.f90 65778 2020-01-14 14:07:42Z mourits $')
-    call addmessage(messages,'$URL: https://svn.oss.deltares.nl/repos/delft3d/branches/research/SANDIA/fm_tidal_v3/src/utils_gpl/morphology/packages/morphology_kernel/src/bedcomposition_module.f90 $')
+    call addmessage(messages,'$Id: bedcomposition_module.f90 140618 2022-01-12 13:12:04Z klapwijk $')
+    call addmessage(messages,'$URL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/utils_gpl/morphology/packages/morphology_kernel/src/bedcomposition_module.f90 $')
 end subroutine bedcomposition_module_info
 !
 !
@@ -209,7 +209,7 @@ function updmorlyr(this, dbodsd, dz, messages) result (istat)
     use message_module
     implicit none
     !
-    ! Call variables
+    ! Arguments
     !
     type(bedcomp_data)                                                                           :: this 
     real(fp), dimension(this%settings%nfrac, this%settings%nmlb:this%settings%nmub), intent(in)  :: dbodsd  !  change in sediment composition, units : kg/m2
@@ -2217,7 +2217,7 @@ subroutine setbedfracprop(this, sedtyp, sedd50, logsedsig, rhofrac)
     use string_module
     implicit none
     !
-    ! Call variables
+    ! Arguments
     !
     type(bedcomp_data)                  :: this    
     integer , dimension(:), intent(in)  :: sedtyp
@@ -2259,7 +2259,7 @@ function bedcomp_getpointer_logical_scalar(this, variable, val) result (istat)
     use string_module
     implicit none
     !
-    ! Call variables
+    ! Arguments
     !
     type(bedcomp_data)    , intent(in)  :: this    
     character(*)          , intent(in)  :: variable
@@ -2296,7 +2296,7 @@ function bedcomp_getpointer_integer_scalar(this, variable, val) result (istat)
     use string_module
     implicit none
     !
-    ! Call variables
+    ! Arguments
     !
     type(bedcomp_data)    , intent(in)  :: this    
     character(*)          , intent(in)  :: variable
@@ -2358,7 +2358,7 @@ function bedcomp_getpointer_fp_scalar(this, variable, val) result (istat)
     use string_module
     implicit none
     !
-    ! Call variables
+    ! Arguments
     !
     type(bedcomp_data)    , intent(in)  :: this    
     character(*)          , intent(in)  :: variable
@@ -2400,7 +2400,7 @@ function bedcomp_getpointer_fp_1darray(this, variable, val) result (istat)
     use string_module
     implicit none
     !
-    ! Call variables
+    ! Arguments
     !
     type(bedcomp_data)             , intent(in)  :: this    
     character(*)                   , intent(in)  :: variable
@@ -2446,7 +2446,7 @@ function bedcomp_getpointer_fp_2darray(this, variable, val) result (istat)
     use string_module
     implicit none
     !
-    ! Call variables
+    ! Arguments
     !
     type(bedcomp_data)               , intent(in)  :: this    
     character(*)                     , intent(in)  :: variable
@@ -2488,7 +2488,7 @@ function bedcomp_getpointer_fp_3darray(this, variable, val) result (istat)
     use string_module
     implicit none
     !
-    ! Call variables
+    ! Arguments
     !
     type(bedcomp_data)                 , intent(in)  :: this    
     character(*)                       , intent(in)  :: variable
@@ -2526,7 +2526,7 @@ function bedcomp_getpointer_prec_2darray(this, variable, val) result (istat)
     use string_module
     implicit none
     !
-    ! Call variables
+    ! Arguments
     !
     type(bedcomp_data)                 , intent(in)  :: this    
     character(*)                       , intent(in)  :: variable
@@ -2563,7 +2563,7 @@ subroutine bedcomp_use_bodsed(this)
     use precision
     implicit none
     !
-    ! Call variables
+    ! Arguments
     !
     type(bedcomp_data)                         :: this
     !
@@ -2721,7 +2721,7 @@ subroutine copybedcomp(this, nmfrom, nmto)
     use precision
     implicit none
     !
-    ! Call variables
+    ! Arguments
     !
     type(bedcomp_data)                   :: this
     integer                , intent(in)  :: nmfrom
@@ -2773,7 +2773,7 @@ subroutine updateporosity(this, nm, k)
     use precision
     implicit none
     !
-    ! Call variables
+    ! Arguments
     !
     type(bedcomp_data)                   :: this
     integer                , intent(in)  :: nm
@@ -2827,7 +2827,7 @@ subroutine getporosity(this, mfrac, poros)
     use precision
     implicit none
     !
-    ! Call variables
+    ! Arguments
     !
     type(bedcomp_data)                       , intent(in)  :: this
     real(fp) , dimension(this%settings%nfrac), intent(in)  :: mfrac
@@ -2886,7 +2886,7 @@ subroutine consolidate(this, nm)
     use precision
     implicit none
     !
-    ! Call variables
+    ! Arguments
     !
     type(bedcomp_data)                   :: this
     integer                , intent(in)  :: nm
