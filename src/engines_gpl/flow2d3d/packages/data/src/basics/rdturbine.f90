@@ -850,18 +850,10 @@ subroutine add_loss_due_to_turbines(turbines, u0, v, icx, icy, option, gdp, gvu,
 
                         select case (option)
                         case (1)
-                            !bbk(nm, k) = bbk(nm, k) + uuu*friccoef*turbine%blockfrac(n, k)/gvu(nm)
-                            !print *, "nm: ", nm, ". k: ", k, ". Blockfrac: ", turbine%blockfrac(n, k), ". zLevel: ", turbine%zlevel(n,k-1), ". U0: ", uuu
-                            !if (k==9) then
-                            !   print *, "nm: ", nm, ". U0: ", uuu
-                            !endif
                             if (turbine%turbinemodel==0) then
                                 ddk(nm,k) = ddk(nm,k) - friccoef*turbine%current_uref**2*turbine%blockfrac(n, k)/gvu(nm)
-                                !print *, "Uref2: ", turbine%current_uref, ". Coeff: ", friccoef*turbine%current_uref*turbine%blockfrac(n, k)/gvu(nm) 
                             else
-                                !print *, "Uref2: ", u1(nm,k), ". Coeff: ", friccoef*turbine%blockfrac(n, k)/gvu(nm) 
                                 bbk(nm, k) = bbk(nm, k) + friccoef*abs(u1(nm,k))*turbine%blockfrac(n, k)/gvu(nm) 
-                                !bbk(nm, k) = bbk(nm, k) + friccoef*abs(u1(nm,k))/gvu(nm) 
                             endif
                         case (2)
                             mom_m_struct(nm, k) = mom_m_struct(nm, k) - uuu*u1(nm, k)*friccoef*turbine%blockfrac(n, k)/gvu(nm)
