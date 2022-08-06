@@ -27,8 +27,8 @@
 !
 !-------------------------------------------------------------------------------
 
-! $Id: flow_modelinit.F90 141432 2022-07-08 11:49:43Z klapwijk $
-! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/dflowfm/packages/dflowfm_kernel/src/dflowfm_kernel/prepost/flow_modelinit.F90 $
+! $Id$
+! $HeadURL$
 
  !> Initializes the entire current model (geometry, boundaries, initial state)
  !! @return Error status: error (/=0) or not (0)
@@ -64,6 +64,11 @@
  use m_monitoring_crosssections, only: ncrs, fill_geometry_arrays_crs
  use m_setucxcuy_leastsquare, only: reconst2ndini
  use m_flowexternalforcings, only: nwbnd
+
+ ! SNL-Edits
+ use unstruc_model
+ use m_structures
+ use m_rdturbine
  !
  ! To raise floating-point invalid, divide-by-zero, and overflow exceptions:
  ! Activate the following line (See also statements below)
@@ -74,6 +79,10 @@
  integer              :: istat, L, ierr
  integer, external    :: flow_flowinit
  integer, external    :: init_openmp
+
+ ! SNL-Edits
+ integer :: mdian      
+ logical :: error
  !
  ! To raise floating-point invalid, divide-by-zero, and overflow exceptions:
  ! Activate the following 3 lines, See also statements below
@@ -308,6 +317,24 @@
 ! initialize part
  call timstrt('Part init           ', handle_extra(20)) ! part init
  call ini_part(1, md_partfile, md_partrelfile, md_partjatracer, md_partstarttime, md_parttimestep, md_part3Dtype)
+ 
+ ! inialize turbines
+ ! SNL-Edits
+ call getmdia(mdian)
+ if (md_trbfile /= ' ') then
+    call rdturbine(md_trbfile, mdian, turbines, error)
+
+    if (error) then
+        call mess(LEVEL_ERROR, 'Turbine module encounters errror. Check *.dia file')
+        return
+    endif
+
+    call echoturbine(turbines, mdian)
+      
+    call mapturbine(turbines, error)
+ endif 
+ ! End Edits
+ 
  call timstop(handle_extra(20)) ! end part init
 
  call timstrt('Observations init   ', handle_extra(21)) ! observations init

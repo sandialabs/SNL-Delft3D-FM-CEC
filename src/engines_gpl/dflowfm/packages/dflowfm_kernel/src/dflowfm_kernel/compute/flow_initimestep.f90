@@ -27,8 +27,8 @@
 !                                                                               
 !-------------------------------------------------------------------------------
 
-! $Id: flow_initimestep.f90 141467 2022-07-18 14:27:50Z noort $
-! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/dflowfm/packages/dflowfm_kernel/src/dflowfm_kernel/compute/flow_initimestep.f90 $
+! $Id$
+! $HeadURL$
 
  subroutine flow_initimestep(jazws0, iresult)                     ! intialise flow timestep, also called once after flowinit
  use timers
@@ -42,6 +42,8 @@
  use MessageHandling
  use m_partitioninfo
  use m_sediment, only: stm_included
+ use m_rdturbine
+ use m_structures, only: turbines
 
  implicit none
 
@@ -144,6 +146,7 @@
  endif
 
  ! TIDAL TURBINES: Insert equivalent calls to updturbine and applyturbines here
+ call updturbine(turbines)
 
  call timstrt('setdt', handle_extra(40)) ! Start setdt
  if (jazws0.eq.0 .and. nshiptxy == 0)  then

@@ -62,7 +62,7 @@ module table_handles
     public CHKTAB_POSITIVE
     public CHKTAB_BLOCK
     public CHKTAB_LOGICAL
-    
+
     public GETTABLE_LOCATION
     public GETTABLE_NAME
 !
@@ -179,7 +179,7 @@ subroutine gettable_vector(handle    ,location  ,parname   ,ivec      , &
     else
        locfieldid = 0
     endif
-    call gettable_scalar(handle     ,location  ,parname   , &
+    call gettable_scalar(handle    ,location  ,parname   , &
                        & ivec(1)    ,ivec(2)   ,ivec(3)   ,nparmin   , &
                        & errorstring,locfieldid)
     ivec(4) = 1
@@ -623,7 +623,6 @@ character(MAXTABLECLENGTH) function gettablelocation(handle  ,itable     ,errors
     endif
 end function gettablelocation
 
-
 character(MAXTABLECLENGTH) function gettablename(handle  ,itable     ,errorstring)
 !!--description-----------------------------------------------------------------
 !
@@ -651,7 +650,6 @@ character(MAXTABLECLENGTH) function gettablename(handle  ,itable     ,errorstrin
        gettablename = org_gettablename(tablehandle%this ,itable, errorstring)
     endif
 end function gettablename
-
 
 integer function gettablentimes(handle  ,itable     ,errorstring)
 !!--description-----------------------------------------------------------------

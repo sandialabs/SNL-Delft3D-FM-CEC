@@ -26,8 +26,8 @@
 !
 !-------------------------------------------------------------------------------
 
-! $Id: unstruc_model.f90 141462 2022-07-15 09:48:04Z dam_ar $
-! $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/dflowfm/packages/dflowfm_kernel/src/dflowfm_data/unstruc_model.f90 $
+! $Id$
+! $HeadURL$
 
 !> Manages the unstruc model definition for the active problem.
 module unstruc_model
@@ -132,6 +132,8 @@ implicit none
     character(len=255) :: md_inifieldfile  = ' ' !< File of initial fields            (e.g., *.ini)
 
     character(len=255) :: md_restartfile   = ' ' !< File containing map-files to restart a computation          (e.g., *_map.nc), input only, NOT used for storing the names of output restart files.
+    
+    character(len=255) :: md_trbfile       = ' ' !< Turbine File
 
     character(len=255) :: md_extfile       = ' ' !< External forcing specification file (e.g., *.ext)
     character(len=255) :: md_extfile_new   = ' ' !< External forcing specification file new style (bct format), (e.g., *.ext)
@@ -320,6 +322,7 @@ use unstruc_channel_flow
     md_1d2dlinkfile = ' '
     md_shipdeffile = ' '
     md_restartfile = ' '
+    md_trbfile = ' '
     md_extfile = ' '
     md_extfile_new  = ' '
     md_extfile_dir = ' '
@@ -714,6 +717,7 @@ subroutine readMDUFile(filename, istat)
     use m_bedform, only: bfm_included
 
     use m_sediment
+    use m_rdturbine
     use m_waves, only: hwavuni, twavuni, phiwavuni
 
 
@@ -1608,6 +1612,8 @@ subroutine readMDUFile(filename, istat)
     endif
     !
     ! TIDAL TURBINES: Insert calls to rdturbine and echoturbine here (use the structure_turbines variable defined in m_structures)
+    call prop_get_string(md_ptr, 'Turbines', 'TurbineFile', md_trbfile, success)
+    
     !
 ! Restart information
     call prop_get_string(md_ptr, 'restart', 'RestartFile', md_restartfile, success)
