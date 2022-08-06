@@ -11,10 +11,12 @@ Use this "README.md" for compiling all other kernels in this repository.
   This will execute "Microsoft_VisualStudio\vcvarsall.bat". When using other versions, modifications will be needed.   
 
 #### Linux:
-- build.sh   
+- build.sh (packaged with Delft3D)  
   Execute "./build.sh --help" to show the usage   
   Currently used as default build process: "./build.sh all --compiler intel21"   
   This will execute "src/setenv.sh" on Deltares systems. On other systems, the environment must be prepared upfront.   
+
+  For more information on required packages: https://oss.deltares.nl/web/delft3dfm/get-started    
 
 #### Alternative: without build-script (Windows and Linux)
 See ...\src\cmake\README   
