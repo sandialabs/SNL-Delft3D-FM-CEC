@@ -1,4 +1,3 @@
-
 module m_rdturbine
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
@@ -514,18 +513,32 @@ subroutine mapturbine(turbines,error)
             call find_flownode(1, xturb, yturb, namturb, kturb, jakdtree, jaoutside, INDTP_ALL)
             turbine%cellnr = kturb(1)
 
-            ! store center upstream reference node
-            xturb(1) = turbine%xyz(1) + turbine%ndiamu*turbine%diam*turbine%csturb
-            yturb(1) = turbine%xyz(2) + turbine%ndiamu*turbine%diam*turbine%snturb
-            call find_flownode(1, xturb, yturb, namturb, kturb, jakdtree, jaoutside, INDTP_ALL)
-            turbine%cellu(1) = kturb(1)
+            if (turbine%turbtype == 1) then
+               ! store center upstream reference node
+               xturb(1) = turbine%xyz(1) + turbine%ndiamu*turbine%height*turbine%csturb
+               yturb(1) = turbine%xyz(2) + turbine%ndiamu*turbine%height*turbine%snturb
+               call find_flownode(1, xturb, yturb, namturb, kturb, jakdtree, jaoutside, INDTP_ALL)
+               turbine%cellu(1) = kturb(1)
 
-            ! store center downstream reference node
-            xturb(1) = turbine%xyz(1) - turbine%ndiamu*turbine%diam*turbine%csturb
-            yturb(1) = turbine%xyz(2) - turbine%ndiamu*turbine%diam*turbine%snturb
-            call find_flownode(1, xturb, yturb, namturb, kturb, jakdtree, jaoutside, INDTP_ALL)
-            turbine%cellu(2) = kturb(1)
-            
+               ! store center downstream reference node
+               xturb(1) = turbine%xyz(1) - turbine%ndiamu*turbine%height*turbine%csturb
+               yturb(1) = turbine%xyz(2) - turbine%ndiamu*turbine%height*turbine%snturb
+               call find_flownode(1, xturb, yturb, namturb, kturb, jakdtree, jaoutside, INDTP_ALL)
+               turbine%cellu(2) = kturb(1)
+            else
+               ! store center upstream reference node
+               xturb(1) = turbine%xyz(1) + turbine%ndiamu*turbine%diam*turbine%csturb
+               yturb(1) = turbine%xyz(2) + turbine%ndiamu*turbine%diam*turbine%snturb
+               call find_flownode(1, xturb, yturb, namturb, kturb, jakdtree, jaoutside, INDTP_ALL)
+               turbine%cellu(1) = kturb(1)
+
+               ! store center downstream reference node
+               xturb(1) = turbine%xyz(1) - turbine%ndiamu*turbine%diam*turbine%csturb
+               yturb(1) = turbine%xyz(2) - turbine%ndiamu*turbine%diam*turbine%snturb
+               call find_flownode(1, xturb, yturb, namturb, kturb, jakdtree, jaoutside, INDTP_ALL)
+               turbine%cellu(2) = kturb(1)
+            endif
+
         enddo
     endif
 end subroutine mapturbine
@@ -601,7 +614,7 @@ subroutine updturbine(turbines)
     double precision, dimension(2)                     :: reldist
     double precision, dimension(2)                     :: zlevel
     double precision                                   :: blockfrac
-    double precision                                   :: area
+    double precision                                   :: area, areaTurbine
     double precision                                   :: uref, udx, udy
     character(256)                                     :: errorstring
 
@@ -687,6 +700,7 @@ subroutine updturbine(turbines)
             Cd = 4.0*(1.0 - sqrt(1.0-Ct))/(1.0 + sqrt(1.0-Ct))
             
             turbine%current_power = 0.0
+            areaTurbine = 0.0_fp
             do il = 1,numcrossedlinks
                 LL = turbine%edgelist(il)
 
@@ -713,18 +727,23 @@ subroutine updturbine(turbines)
                      if (turbine%turbinemodel == 1) then
                         advi(L) = advi(L) + 0.5d0*Cd*dxi(LL)*abs(u0(L))*blockfrac
                      else
-                        adve(L) = adve(L) + 0.5d0*Ct*dxi(LL)*uref**2*blockfrac
+                        !!adve(L) = adve(L) + 0.5d0*Ct*dxi(LL)*uref**2*blockfrac
+                        !! CCC DEBUG
+                        !! verify that u1 is multiplied back in later
+                        advi(L) = advi(L) + 0.5d0*Ct*dxi(LL)*uref**2/abs(u1(L))*blockfrac
+                        !advi(L) = advi(L) + 0.5d0*Ct*dxi(LL)*abs(uref)*blockfrac
                      endif
 
                      turbine%current_power  = turbine%current_power + 0.5_fp * turbine%powercoef * rhow * area * abs(uref**3)*blockfrac
+		     areaTurbine = areaTurbine + area*blockfrac
                   end do
                 end if
             enddo
             turbine%cumul_power = turbine%cumul_power + dts*turbine%current_power
             !! CCC DEBUG
             !! TODO fix this ugly hack
-            write(5979,'(a,f,a,i,a,e,a,e)') 'Time: ',time0,'  turbine # ',j,'  Power ',turbine%current_power, &
-                                        '  Total Power  ',turbine%cumul_power
+            write(5979,'(a,f,a,i,a,e,a,e,a,e,a,e,a,e)') 'Time: ',time0,'  turbine # ',j,'  Power ',turbine%current_power, &
+                                        '  Total Power  ',turbine%cumul_power, ' Ct: ', Ct, ' uref: ',uref, ' Area: ',areaTurbine
           endif
         enddo
 

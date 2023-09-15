@@ -597,7 +597,6 @@ subroutine updturbine(turbines, dzu, dzv, dpu, dpv, hu, hv, zw, thick, &
                 ! fixed z level
                 z0 = turbine%xyz(3)
             endif
-            
             call intersect_turbine(turbine%reldist,turbine%zlevel,z0,turbine%diam,turbine%width,turbine%height,turbine%turbtype,turbine%area,turbine%blockfrac)
             !
             ! determine characteristic velocity
@@ -686,7 +685,7 @@ subroutine updturbinethrust(turbines, u0, u1, v0, v1, gvu, guv, bbk, nmaxddb, hd
 end subroutine updturbinethrust
 
 
-subroutine applyturbines(turbines, u0, v, gvu, icx, icy, mom_output, bbk, u1, gdp, ddk)
+subroutine applyturbines(turbines, u0, v, gvu, icx, icy, mom_output, bbk, u1, gdp)
 !!--description-----------------------------------------------------------------
 !
 ! Add flow resistance / energy extraction term due to turbines (to bbk or to momentum output)
@@ -707,7 +706,6 @@ subroutine applyturbines(turbines, u0, v, gvu, icx, icy, mom_output, bbk, u1, gd
     real(fp)     , dimension(gdp%d%nmlb:gdp%d%nmub, gdp%d%kmax), intent(in)    :: v
     real(fp)     , dimension(gdp%d%nmlb:gdp%d%nmub)            , intent(in)    :: gvu
     real(fp)     , dimension(gdp%d%nmlb:gdp%d%nmub, gdp%d%kmax), intent(inout) :: bbk
-    real(fp)     , dimension(gdp%d%nmlb:gdp%d%nmub, gdp%d%kmax), intent(inout), optional :: ddk
     integer                                                    , intent(in)    :: icx
     integer                                                    , intent(in)    :: icy
     logical                                                    , intent(in)    :: mom_output
@@ -719,14 +717,14 @@ subroutine applyturbines(turbines, u0, v, gvu, icx, icy, mom_output, bbk, u1, gd
 !! executable statements -------------------------------------------------------
 !
     if (mom_output) then
-        call add_loss_due_to_turbines(gdp%turbines, u0, v, icx, icy, 2, gdp, gvu=gvu, u1=u1, ddk=ddk)
+        call add_loss_due_to_turbines(gdp%turbines, u0, v, icx, icy, 2, gdp, gvu=gvu, u1=u1)
     else
-        call add_loss_due_to_turbines(gdp%turbines, u0, v, icx, icy, 1, gdp, gvu=gvu, bbk=bbk, u1=u1, ddk=ddk)
+        call add_loss_due_to_turbines(gdp%turbines, u0, v, icx, icy, 1, gdp, gvu=gvu, bbk=bbk)
     endif
 end subroutine applyturbines
 
 
-subroutine add_loss_due_to_turbines(turbines, u0, v, icx, icy, option, gdp, gvu, bbk, u1, hdt, ddk)
+subroutine add_loss_due_to_turbines(turbines, u0, v, icx, icy, option, gdp, gvu, bbk, u1, hdt)
 !!--description-----------------------------------------------------------------
 !
 ! Add or compute flow resistance / energy extraction term due to turbines
@@ -751,7 +749,6 @@ subroutine add_loss_due_to_turbines(turbines, u0, v, icx, icy, option, gdp, gvu,
     real(fp)     , dimension(gdp%d%nmlb:gdp%d%nmub)            , intent(in)   , optional :: gvu
     real(fp)     , dimension(gdp%d%nmlb:gdp%d%nmub, gdp%d%kmax), intent(inout), optional :: bbk
     real(fp)                                                   , intent(in)   , optional :: hdt
-    real(fp)     , dimension(gdp%d%nmlb:gdp%d%nmub, gdp%d%kmax), intent(inout), optional :: ddk
 !
 ! Local variables
 !
@@ -767,7 +764,6 @@ subroutine add_loss_due_to_turbines(turbines, u0, v, icx, icy, option, gdp, gvu,
     real(fp)                                           :: sum_au2
     real(fp)                                           :: uuu
     real(fp)                                           :: vvv
-    real(fp)					       :: blockfrac
     type(structure_turbine)                  , pointer :: turbine
     !
     integer                                  , pointer :: kmax
@@ -837,24 +833,13 @@ subroutine add_loss_due_to_turbines(turbines, u0, v, icx, icy, option, gdp, gvu,
                     ndm  = nm - icy
                     nmu  = nm + icx
                     ndmu = nm - icy + icx
-                    do k = 1,kmax
+                    do k = 1, kmax
                         !vvv = .25*(v(ndm, k) + v(ndmu, k) + v(nm, k) + v(nmu, k))
                         !uuu = sqrt(u0(nm, k)**2 + vvv**2)
                         uuu = abs(u0(nm, k))
-
-                        !if (turbine%blockfrac(n, k) > 0.1) then
-                        !   blockfrac = 1.0
-                        !else 
-                        !   blockfrac = 0.0 !turbine%blockfrac(n, k)
-                        !endif                        
-
                         select case (option)
                         case (1)
-                            if (turbine%turbinemodel==0) then
-                                ddk(nm,k) = ddk(nm,k) - friccoef*turbine%current_uref**2*turbine%blockfrac(n, k)/gvu(nm)
-                            else
-                                bbk(nm, k) = bbk(nm, k) + friccoef*abs(u1(nm,k))*turbine%blockfrac(n, k)/gvu(nm) 
-                            endif
+                            bbk(nm, k) = bbk(nm, k) + uuu*friccoef*turbine%blockfrac(n, k)/gvu(nm)
                         case (2)
                             mom_m_struct(nm, k) = mom_m_struct(nm, k) - uuu*u1(nm, k)*friccoef*turbine%blockfrac(n, k)/gvu(nm)
                         case (3)
@@ -1005,7 +990,6 @@ subroutine compute_unorm(dzu, dzv, dpu, dpv, hu, hv, alfas, thick, u, v, &
     ! component normal to turbine
     !
     unorm = - u2*cos(radt) - v2*sin(radt)
-    !unorm = u2*cos(radt) + v2*sin(radt)
 end subroutine compute_unorm
 
 

@@ -554,7 +554,7 @@ subroutine cucnp(dischy    ,icreep    ,dpdksi    ,s0        ,u0        , &
     call usrbrl(icx       ,icy       ,nmmax     ,kmax      ,kfu       , &
               & kspu      ,gvu       ,u0        ,v1        ,bbk       , &
               & ubrlsu    ,diapl     ,rnpl      ,mom_output,u1        , &
-              & gdp       ,ddk       )
+              & gdp       )
     call timer_stop(timer_cucnp_eloss, gdp)
     !
     ndm = -icy

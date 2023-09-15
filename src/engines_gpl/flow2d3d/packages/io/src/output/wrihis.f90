@@ -33,8 +33,8 @@ subroutine wrihis(lundia    ,error     ,filename  ,selhis    ,simdat    , &
 !  Stichting Deltares. All rights reserved.                                     
 !                                                                               
 !-------------------------------------------------------------------------------
-!  $Id$
-!  $HeadURL$
+!  $Id: wrihis.f90 140618 2022-01-12 13:12:04Z klapwijk $
+!  $HeadURL: https://svn.oss.deltares.nl/repos/delft3d/tags/delft3dfm/141476/src/engines_gpl/flow2d3d/packages/io/src/output/wrihis.f90 $
 !!--description-----------------------------------------------------------------
 !
 !    Function: Writes the initial group 2 ('his-const') to
@@ -56,6 +56,7 @@ subroutine wrihis(lundia    ,error     ,filename  ,selhis    ,simdat    , &
     use netcdf, only: nf90_unlimited
     use dfparall, only: inode, master, parll
     use wrtarray, only: wrtvar, wrtarray_n, station, transec
+    use m_wrturbine, only: addturbine_cnst, wrturbine_cnst
     !
     implicit none
     !
@@ -332,6 +333,7 @@ subroutine wrihis(lundia    ,error     ,filename  ,selhis    ,simdat    , &
           call addelm(gdp, lundia, FILOUT_HIS, grnam2, 'NAMBAR', ' ', 20       , 1, dimids=(/iddim_nsluv/), longname='Barrier names') !CHARACTER
        endif
        !
+       call addturbine_cnst(gdp, lundia, grnam2)
     case (REQUESTTYPE_WRITE)
        !
        if (filetype == FTYPE_NEFIS) then ! for NEFIS only
@@ -724,6 +726,10 @@ subroutine wrihis(lundia    ,error     ,filename  ,selhis    ,simdat    , &
                  & gdp, ierror, lundia, nambar, 'NAMBAR')
           if (ierror/=0) goto 9999
        endif
+      !
+      ierror = wrturbine_cnst(gdp, lundia, grnam2, fds, filename)
+      if (ierror/=0) goto 9999
+      !
     end select
     deallocate(shlay_restr)
     !

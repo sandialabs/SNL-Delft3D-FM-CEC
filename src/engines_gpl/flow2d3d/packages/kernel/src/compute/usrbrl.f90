@@ -1,7 +1,7 @@
 subroutine usrbrl(icx       ,icy       ,nmmax     ,kmax      ,kfu       , &
                 & kspu      ,gvu       ,u0        ,v         ,bbk       , &
                 & ubrlsu    ,diapl     ,rnpl      ,mom_output,u1        , &
-                & gdp       ,ddk)
+                & gdp)
 !----- GPL ---------------------------------------------------------------------
 !                                                                               
 !  Copyright (C)  Stichting Deltares, 2011-2022.                                
@@ -72,8 +72,6 @@ subroutine usrbrl(icx       ,icy       ,nmmax     ,kmax      ,kfu       , &
     integer, dimension(gdp%d%nmlb:gdp%d%nmub, 0:kmax), intent(in)  :: kspu   !  Description and declaration in esm_alloc_int.f90
     real(fp), dimension(gdp%d%nmlb:gdp%d%nmub)       , intent(in)  :: gvu    !  Description and declaration in esm_alloc_real.f90
     real(fp), dimension(gdp%d%nmlb:gdp%d%nmub, kmax)               :: bbk    !!  Internal work array, coefficient la-
-                                                                             !!  yer velocity in (N,M,K) implicit part
-    real(fp), dimension(gdp%d%nmlb:gdp%d%nmub, kmax) , intent(inout), optional :: ddk    !!  Internal work array, coefficient la-
                                                                              !!  yer velocity in (N,M,K) implicit part
     real(fp), dimension(gdp%d%nmlb:gdp%d%nmub, kmax) , intent(in)  :: diapl  !  Description and declaration in esm_alloc_real.f90
     real(fp), dimension(gdp%d%nmlb:gdp%d%nmub, kmax) , intent(in)  :: rnpl   !  Description and declaration in esm_alloc_real.f90
@@ -149,7 +147,7 @@ subroutine usrbrl(icx       ,icy       ,nmmax     ,kmax      ,kfu       , &
        enddo
     enddo
     
-    call applyturbines(gdp%turbines, u0, v, gvu, icx, icy, mom_output, bbk, u1, gdp, ddk=ddk)
+    call applyturbines(gdp%turbines, u0, v, gvu, icx, icy, mom_output, bbk, u1, gdp)
     !
     ! (Rigid) 3D Vegetation Model
     !
