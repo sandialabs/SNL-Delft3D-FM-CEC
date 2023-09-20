@@ -55,18 +55,17 @@ module tables
     public org_getfilename
     !
     integer, parameter, public :: MAXTABLECLENGTH = 47
-
     integer, parameter, public :: CHKTAB_PARNAME  = 1
     integer, parameter, public :: CHKTAB_POSITIVE = 2
     integer, parameter, public :: CHKTAB_BLOCK    = 3
     integer, parameter, public :: CHKTAB_LOGICAL  = 4
-
     integer, parameter, public :: GETTABLE_LOCATION = 0
     integer, parameter, public :: GETTABLE_NAME     = 1
+    
     interface org_gettable
        module procedure org_gettable_vector, org_gettable_scalar
     end interface
-
+    
     interface org_gettabledata
        module procedure org_gettabledata_vector, org_gettabledata_scalar
     end interface
@@ -117,7 +116,6 @@ subroutine org_readtable(this, filnam, refjulday, errorstring)
 !    Function: Read table files (i.e. BCT/BCC/BCM)
 !
 !!------------------------------------------------------------------------------
-    implicit none
 !
 ! Local parameters
 !
@@ -234,7 +232,7 @@ subroutine org_readtable(this, filnam, refjulday, errorstring)
              !
              ! time column should be treated in a different manner
              !
-             if (table%hastime .and. table%timefunction == 'non-equidistant') then
+             if (table%location(1:3) /= 'SNL' .and. trim(table%timefunction) == 'non-equidistant') then
                 ipar = -1
              endif
           endif
@@ -393,25 +391,25 @@ subroutine org_readtable(this, filnam, refjulday, errorstring)
           do itable = 1, ntables
              table => tables(itable)
              !
-             if (table%hastime) then
-             if (table%refdate == -999 .and. table%timeunitstr /= 'date') then
-                errorstring = 'Missing reference-date record in table ''' // &
+             if (table%hastime .or. table%location(1:3) /= 'SNL') then
+                if (table%refdate == -999 .and. table%timeunitstr /= 'date') then
+                   errorstring = 'Missing reference-date record in table ''' // &
                             & trim(table%name) // ''''
-                goto 210
-             endif
-             !
-             if (trim(table%timefunction) == 'non-equidistant') then
+                   goto 210
+                endif
                 !
-                ! First column (times) will be stored in separate array
-                !
-                table%nparameters = table%nparameters - 1
-             endif
+                if (trim(table%timefunction) == 'non-equidistant') then
+                   !
+                   ! First column (times) will be stored in separate array
+                   !
+                   table%nparameters = table%nparameters - 1
+                endif
              else
                 table%timeunit     = 1.0_hp
                 table%timefunction = 'N/A'
              endif
              !
-                             allocate(table%parameters(table%nparameters), stat = istat)
+             allocate(table%parameters(table%nparameters), stat = istat)
              if (istat == 0) allocate(table%times(table%nrecords), stat = istat)
              if (istat == 0) allocate(table%values(table%nrecords,table%nparameters), stat = istat)
              if (istat /= 0) goto 210
@@ -420,7 +418,7 @@ subroutine org_readtable(this, filnam, refjulday, errorstring)
                 table%parameters(i)%name          = ''
                 table%parameters(i)%unit          = ''
                 table%parameters(i)%interpolation = ''
-             enddo
+          enddo
              table%times  = 0.0_hp
              table%values = 0.0_fp
           enddo
@@ -486,8 +484,6 @@ contains
 !
 !===============================================================================
 subroutine org_readtable_keyword()
-    implicit none
-    !
     call str_lower(cfield(1),len(cfield(1)))
     if (org_readtable_isComment(cfield(1))) then
        !
@@ -1021,8 +1017,6 @@ end subroutine org_readtable_keyword
 !
 !===============================================================================
 subroutine org_readtable_data()
-    implicit none
-    !
     do while (isdata .and. (.not.feof))
        !
        ! data loop for current table
@@ -1200,7 +1194,6 @@ end subroutine org_readtable_data
 !
 !===============================================================================
 function org_readtable_isComment(aString) result(isComment)
-   implicit none
    !
    ! result
    logical :: isComment
@@ -1228,7 +1221,6 @@ subroutine org_cleartable(this)
 !!--description-----------------------------------------------------------------
 !
 !!------------------------------------------------------------------------------
-    implicit none
 !
 ! Global variables
 !
@@ -1263,7 +1255,6 @@ subroutine org_gettabletimes(this       ,itable     ,times      ,refjulday  , &
 !    Function: Get all times from the specified table
 !
 !!------------------------------------------------------------------------------
-    implicit none
 !
 ! Global variables
 !
@@ -1315,7 +1306,6 @@ subroutine org_gettabledata_vector(this       ,ivec       ,values     , &
 !    Function: Get data from table for specified time
 !
 !!------------------------------------------------------------------------------
-    implicit none
 !
 ! Global variables
 !
@@ -1353,7 +1343,6 @@ subroutine org_gettabledata_scalar(this       ,itable     ,ipar       , &
 !    Function: Get data from table for specified time
 !
 !!------------------------------------------------------------------------------
-    implicit none
 !
 ! Global variables
 !
@@ -1392,7 +1381,7 @@ subroutine org_gettabledata_scalar(this       ,itable     ,ipar       , &
     table => this%tables(itable)
     errorstring = ' '
     !
-    if (table%hastime) then
+    if (table%hastime .or. table%location(1:3) /= 'SNL') then
        !
        ! Standard time function
        !
@@ -1552,6 +1541,7 @@ subroutine org_gettabledata_scalar(this       ,itable     ,ipar       , &
           & ' please contact code supplier'
        return
     endselect
+
     else
     !
        ! Function of other quantity
@@ -1603,7 +1593,6 @@ subroutine org_gettable_vector(this      ,location  ,parname   ,ivec      , &
 !    Function: Find table for specified location and quantity
 !
 !!------------------------------------------------------------------------------
-    implicit none
 !
 ! Global variables
 !
@@ -1615,7 +1604,7 @@ subroutine org_gettable_vector(this      ,location  ,parname   ,ivec      , &
     character(256)         ,intent(out) :: errorstring
     integer       ,optional,intent(in)  :: fieldid
 !
-!! executable statements -------------------------------------------------------
+! Local variables
 !
     integer                             :: locfieldid
 !
@@ -1642,7 +1631,6 @@ subroutine org_gettable_scalar(this      ,location  ,parname   ,itable    , &
 !    Function: Find table for specified location and quantity
 !
 !!------------------------------------------------------------------------------
-    implicit none
 !
 ! Global variables
 !
@@ -1681,9 +1669,9 @@ subroutine org_gettable_scalar(this      ,location  ,parname   ,itable    , &
     endif
 loop_tables: do i = 1, size(tables)
        if (locfieldid==0) then
-          chk = trim(tables(i)%location) == location
+          chk = tables(i)%location == location
        elseif (locfieldid==1) then
-          chk = trim(tables(i)%name) == location
+          chk = tables(i)%name == location
        endif
        if (chk) then
           do j = 1, tables(i)%nparameters
@@ -1730,7 +1718,6 @@ subroutine org_checktable(this      ,itable    ,ipar      , &
 !              * block-wise specified  if CHKTAB_BLOCK
 !
 !!------------------------------------------------------------------------------
-    implicit none
 !
 ! Global variables
 !
@@ -1795,7 +1782,6 @@ subroutine org_checktableparnames(this      ,parnames  ,itable    , &
 !    Function: Check parameter names in table
 !
 !!------------------------------------------------------------------------------
-    implicit none
 !
 ! Global variables
 !
@@ -1840,7 +1826,6 @@ character(256) function org_getfilename(this    )
 !    Function: Get the name of the file
 !
 !!------------------------------------------------------------------------------
-    implicit none
 !
 ! Global variables
 !
@@ -1862,7 +1847,6 @@ integer function org_getntables(this    ,errorstring)
 !    Function: Get the number of tables
 !
 !!------------------------------------------------------------------------------
-    implicit none
 !
 ! Global variables
 !
@@ -1891,7 +1875,6 @@ character(MAXTABLECLENGTH) function org_gettablelocation(this    ,itable     ,er
 !    Function: Get location name of table
 !
 !!------------------------------------------------------------------------------
-    implicit none
 !
 ! Global variables
 !
@@ -1961,7 +1944,6 @@ integer function org_gettablentimes(this    ,itable     ,errorstring)
 !    Function: Get the number of times in table
 !
 !!------------------------------------------------------------------------------
-    implicit none
 !
 ! Global variables
 !
