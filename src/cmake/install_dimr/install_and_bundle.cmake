@@ -27,7 +27,8 @@ fixup_bundle("${CMAKE_INSTALL_PREFIX}/bin/dimr" "${BUILD_LIBRARIES}" "${THIRDPAR
 # Ugly way to rename file "libdimr_lib.so" to "libdimr.so", repairing the reference in dimr
 message("Renaming libdimr_lib.so to libdimr.so, repairing reference in dimr")
 file(RENAME ${CMAKE_INSTALL_PREFIX}/lib/libdimr_lib.so ${CMAKE_INSTALL_PREFIX}/lib/libdimr.so)
-execute_process(COMMAND bash -c "patchelf --replace-needed libdimr_lib.so libdimr.so ${CMAKE_INSTALL_PREFIX}/bin/dimr")
+## Sandia mod.  Doesn't work on SNL machines
+#execute_process(COMMAND bash -c "patchelf --replace-needed libdimr_lib.so libdimr.so ${CMAKE_INSTALL_PREFIX}/bin/dimr")
 
 
 set_rpath("${CMAKE_INSTALL_PREFIX}/bin" "$ORIGIN:$ORIGIN/../lib")

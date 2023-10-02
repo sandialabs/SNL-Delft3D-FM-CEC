@@ -265,6 +265,7 @@ endfunction(configure_package_installer)
 # targetDir         : Name of the directory to search for binaries whose rpath needs to be set
 # rpathValue        : Value to which rpath needs to be set
 function(set_rpath targetDir rpathValue)
-  execute_process(COMMAND find "${targetDir}" -type f -exec bash -c "patchelf --set-rpath '${rpathValue}' $1" _ {} \; -exec echo "patched rpath of: " {} \;)
+  # Sandia mod.  Doesn't work on SNL machines
+  #  execute_process(COMMAND find "${targetDir}" -type f -exec bash -c "patchelf --set-rpath '${rpathValue}' $1" _ {} \; -exec echo "patched rpath of: " {} \;)
 endfunction(set_rpath)
 

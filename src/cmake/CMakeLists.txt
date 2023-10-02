@@ -101,6 +101,9 @@ if (UNIX)
     find_package(MPI REQUIRED)
     add_definitions(-DHAVE_MPI)
     
+    #Metis
+    link_directories($ENV{METIS_DIR}/lib)
+
     #NetCDF
     pkg_check_modules(NETCDF     REQUIRED IMPORTED_TARGET netcdf)
     pkg_check_modules(NETCDF_FTN REQUIRED IMPORTED_TARGET netcdf-fortran)
